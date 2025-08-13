@@ -341,5 +341,81 @@ export default defineConfig({
 - **Build Success**: > 95% en CI/CD
 - **Zero Regression**: En funcionalidades core
 
+## 🔍 Manual Testing & Validation
+
+### ✅ Lista de Verificación Manual
+
+#### 🔐 1. Flujo Completo de Autenticación
+
+**Pasos a Seguir:**
+1. **Limpiar datos** - Abrir DevTools → Application → Local Storage → Limpiar todos los datos de `localhost:4200`
+2. **Ir a login** - Navegar a `http://localhost:4200/v5/login`
+3. **Introducir credenciales**:
+   - Email: `admin@boukii-v5.com`
+   - Password: `password123`
+4. **Verificar redirect** - Debe redirigir a `/v5/school-selector`
+5. **Seleccionar escuela** - Hacer click en "ESS Veveyse" (School ID: 2)
+6. **Verificar localStorage** - En DevTools verificar que existen:
+   - `boukii_v5_token` - Token permanente (no temporal)
+   - `boukii_v5_user` - Datos del usuario
+   - `boukii_v5_school` - Datos de la escuela seleccionada
+   - `boukii_v5_season` - Datos de temporada asignada
+7. **Verificar dashboard** - Debe redirigir a `/v5/dashboard` automáticamente
+8. **Verificar persistencia** - Refrescar página → Debe mantenerse autenticado
+
+**✅ Resultado Esperado:**
+- Login → School Selection → Dashboard sin errores
+- Datos guardados en localStorage correctamente
+- No vuelve al login en ningún momento
+- Dashboard carga completamente
+
+#### 🗃️ 2. TokenV5Service - Sincronización localStorage
+
+**Pasos para Validar en DevTools Console:**
+
+```javascript
+// 1. Verificar que el servicio está funcionando
+const tokenService = angular.element(document.body).injector().get('TokenV5Service');
+
+// 2. Simular desincronización (localStorage tiene token pero BehaviorSubject no)
+localStorage.setItem('boukii_v5_token', 'test-token-12345');
+localStorage.setItem('boukii_v5_user', JSON.stringify({id: 1, name: 'Test', email: 'test@example.com'}));
+
+// 3. Verificar sincronización automática
+const token = tokenService.getToken(); // Debe retornar 'test-token-12345' y sincronizar subjects
+console.log('Token sincronizado:', token);
+console.log('Usuario sincronizado:', tokenService.user$.value);
+
+// 4. Verificar hasValidToken
+const isValid = tokenService.hasValidToken();
+console.log('Token válido después de sync:', isValid); // Debe ser true
+```
+
+**✅ Resultado Esperado:**
+- `getToken()` sincroniza automáticamente desde localStorage
+- BehaviorSubjects se actualizan correctamente
+- `hasValidToken()` retorna `true` después de sincronización
+
+#### 👤 3. AuthV5Service - Headers y Context
+
+**Pasos en Network Tab:**
+
+1. **Ir a Dashboard** - Con autenticación completada
+2. **Buscar llamada a `/me`** - En Network tab filtrar por "me"
+3. **Verificar request headers**:
+   - `Authorization: Bearer [token]`
+   - `X-School-ID: 2`
+   - `X-Season-ID: [season-id]`
+4. **Verificar response structure** - Debe mostrar estructura exitosa
+5. **Verificar logs en Console** - Buscar logs que empiecen con:
+   - `🔄 AuthV5Service: Making /me API call`
+   - `🔍 AuthV5Service: Raw API response for /me`
+   - `✅ AuthV5Service: Extracted user from API response`
+
+**✅ Resultado Esperado:**
+- API call a `/me` exitosa (200)
+- Headers de contexto incluidos en todas las requests
+- Logs de debugging visibles en desarrollo
+
 ---
 *Última actualización: 2025-08-13*
