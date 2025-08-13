@@ -158,4 +158,5 @@ npm run generate:api-client
 - [ ] Crear Postman collection completa
 
 ---
+
 *Última actualización: 2025-08-13*
