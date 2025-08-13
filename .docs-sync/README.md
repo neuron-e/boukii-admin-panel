@@ -1,5 +1,11 @@
 # Mecanismo de Sincronización de Documentación
 
+## ⚠️ ADVERTENCIA CRÍTICA DE SEGURIDAD
+
+**PELIGRO**: Los scripts automáticos de sync han sido **DESHABILITADOS** tras un incidente crítico donde el commit `bee26dd` eliminó 1226+ archivos de aplicación del backend, incluyendo controladores, modelos y comandos críticos.
+
+**SOLO USAR SYNC MANUAL** con comandos específicos que no toquen archivos de aplicación.
+
 ## 🔄 Visión General
 
 Este directorio contiene los archivos necesarios para sincronizar automáticamente la documentación compartida entre los repositorios frontend (boukii-admin-panel) y backend (api-boukii).
@@ -22,11 +28,19 @@ Contiene documentación que debe mantenerse idéntica en ambos repositorios:
 3. **Acción**: GitHub Actions copia los cambios al repositorio hermano
 4. **Commit automático**: Se crea con prefijo `docs-sync:` para evitar bucles
 
-### Sincronización Manual (PowerShell)
-Para sincronización inmediata sin esperar al CI/CD:
+### ✅ Sincronización Manual Segura (PowerShell)
+
+⚠️ **ÚNICOS COMANDOS AUTORIZADOS** - No usar scripts automáticos
+
 ```powershell
-# Desde frontend → backend
-pwsh .\.docs-sync\ROBUST_SYNC.ps1 -FrontToBack
+# Frontend → Backend (SOLO docs/shared/)
+Copy-Item 'C:\Users\aym14\Documents\WebstormProjects\boukii\boukii-admin-panel\docs\shared\*' 'C:\laragon\www\api-boukii\docs\shared\' -Force
+
+# Backend → Frontend (SOLO docs/shared/)  
+Copy-Item 'C:\laragon\www\api-boukii\docs\shared\*' 'C:\Users\aym14\Documents\WebstormProjects\boukii\boukii-admin-panel\docs\shared\' -Force
+
+# Verificar sync exitoso
+Get-ChildItem 'C:\laragon\www\api-boukii\docs\shared\' | Measure-Object
 
 # Desde backend → frontend
 pwsh .\.docs-sync\ROBUST_SYNC.ps1 -BackToFront
