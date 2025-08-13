@@ -183,6 +183,29 @@ Incluye información de **frontend (Angular 16)** y **backend (Laravel 10+)**, a
 - Actualizar contratos de API (OpenAPI/Swagger) para school y season context.
 - Archivar documentación antigua en `docs/archive/` (archivos obsoletos, planes antiguos, backups, scripts no usados).
 
+## 🔄 Sincronización de Documentación
+
+### Carpetas Editables por Claude
+- `docs/shared/` - Documentación sincronizada entre frontend y backend
+- `docs/frontend/` - Documentación específica del frontend (solo en este repo)
+- `CLAUDE.md` - Instrucciones para IA (en ambos repos)
+
+### Reglas de Commits
+- **Cambios normales**: `docs: descripción del cambio`
+- **Commits de sync automática**: `docs-sync: descripción` (NUNCA usar manualmente)
+- **Anti-bucle**: Commits con `docs-sync:` NO disparan nueva sincronización
+
+### Proceso de Sync
+1. Editar documentación en `/docs/shared/` del repo actual
+2. Commit con prefijo `docs:`
+3. GitHub Actions sincroniza automáticamente al otro repo
+4. Para sync inmediata usar script: `.docs-sync/ROBUST_SYNC.ps1`
+
+### ⚠️ Importante
+- NUNCA tocar código sin crear PR primero
+- Nunca usar prefijo `docs-sync:` manualmente
+- Si el commit contiene `docs-sync:`, no se dispara otra sincronización
+
 ---
 
 ## 🧪 Plan de Tests
