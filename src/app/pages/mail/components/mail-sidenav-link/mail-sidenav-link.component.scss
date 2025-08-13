@@ -1,8 +1,0 @@
-
-a.active {
-  @apply bg-primary text-primary-contrast;
-}
-
-a:not(.active):hover {
-  @apply bg-hover;
-}
