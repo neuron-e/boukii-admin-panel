@@ -13,6 +13,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { LayoutModule } from '@angular/cdk/layout';
 import { TranslateModule } from '@ngx-translate/core';
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -54,6 +55,7 @@ import {SharedModule} from './shared/shared.module';
     MatDividerModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
+    LayoutModule,
     TranslateModule,
     //StoreModule.forRoot({}),
     EffectsModule.forRoot([]),

@@ -5,6 +5,7 @@ import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { VexModule } from '../@vex/vex.module';
 import { HttpClientModule, HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { AuthV5Interceptor } from './v5/core/interceptors/auth-v5.interceptor';
 import { CustomLayoutModule } from './custom-layout/custom-layout.module';
 import { ComponentsModule } from 'src/@vex/components/components.module';
 import { AuthService } from 'src/service/auth.service';
@@ -49,7 +50,8 @@ export function HttpLoaderFactory(http: HttpClient) {
     ],
     providers: [
         AuthService, 
-        { provide: MAT_DATE_LOCALE, useValue: 'en-GB' }
+        { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
+        { provide: HTTP_INTERCEPTORS, useClass: AuthV5Interceptor, multi: true }
     ],
     bootstrap: [AppComponent]
 })

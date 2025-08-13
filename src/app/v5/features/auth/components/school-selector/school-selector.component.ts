@@ -18,6 +18,7 @@ export class SchoolSelectorComponent implements OnInit, OnDestroy {
   isLoading = false;
   error: string | null = null;
   userData: any = null;
+  requiresSchoolSelection = true; // ✅ FIXED: Initialize as true since we're in school selector
 
   constructor(
     private authService: AuthV5Service,
@@ -66,9 +67,20 @@ export class SchoolSelectorComponent implements OnInit, OnDestroy {
         this.isLoading = state.isLoading;
         this.error = state.error;
         
-        // Si el login se completa exitosamente, redirigir al dashboard
-        if (state.isAuthenticated && !state.isLoading) {
+        console.log('🔍 SchoolSelector: Auth state changed:', {
+          isAuthenticated: state.isAuthenticated,
+          isLoading: state.isLoading,
+          hasUser: !!state.user,
+          userEmail: state.user?.email || 'N/A'
+        });
+        
+        // ✅ FIXED: Only proceed with navigation if we've completed school selection
+        // Don't navigate just because we're authenticated with temp token
+        if (state.isAuthenticated && !state.isLoading && state.user && !this.requiresSchoolSelection) {
+          console.log('✅ SchoolSelector: Auth state indicates success AND school selected - starting navigation process');
           this.onLoginSuccess();
+        } else if (state.isAuthenticated && !state.isLoading && state.user && this.requiresSchoolSelection) {
+          console.log('🔄 SchoolSelector: Authenticated but still requires school selection - staying on selector');
         }
       });
   }
@@ -107,12 +119,36 @@ export class SchoolSelectorComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
-          console.log('✅ School selection successful', response);
+          console.log('✅ SchoolSelector: School selection successful', {
+            response: response,
+            hasSchool: !!response.school,
+            hasUser: !!response.user,
+            hasToken: !!(response.token || response.access_token),
+            responseKeys: response ? Object.keys(response) : 'NO_RESPONSE'
+          });
           this.notificationService.showSuccess(`Acceso exitoso a ${response.school.name}`);
-          // La redirección se maneja en subscribeToAuthState
+          
+          // ✅ CRITICAL: Mark that school selection is complete
+          this.requiresSchoolSelection = false;
+          console.log('✅ SchoolSelector: Marked requiresSchoolSelection = false, refreshing auth state');
+          
+          // ✅ NEW: Force refresh auth state to sync with localStorage
+          this.authService.forceRefreshAuthState();
+          
+          // ✅ ENHANCED: Force navigation after small delay to allow auth state refresh
+          setTimeout(() => {
+            console.log('🔄 SchoolSelector: Forcing navigation after school selection complete');
+            this.onLoginSuccess();
+          }, 300);
         },
         error: (error) => {
-          console.error('❌ School selection failed', error);
+          console.error('❌ SchoolSelector: School selection failed', {
+            error: error,
+            message: error.message,
+            status: error.status,
+            url: error.url,
+            body: error.error
+          });
           console.error('❌ Full error details:', {
             status: error.status,
             statusText: error.statusText,
@@ -146,13 +182,54 @@ export class SchoolSelectorComponent implements OnInit, OnDestroy {
    * Manejar login exitoso
    */
   private onLoginSuccess(): void {
-    // ✅ FIXED: Wait for token to be saved before navigation to avoid timing issues
-    console.log('🔄 SchoolSelector: Waiting for token to be saved before navigation...');
-    setTimeout(() => {
-      // Redirigir al dashboard V5 after token is saved
-      console.log('🏙 SchoolSelector: Navigating to dashboard');
-      this.router.navigate(['/v5/dashboard']);
-    }, 100); // Small delay to ensure token is saved
+    console.log('🔄 SchoolSelector: Login success detected, waiting for token synchronization...');
+    
+    // ✅ ENHANCED: Verificar token con delays más largos y mejor lógica
+    const checkTokenAndNavigate = (attempt: number = 1) => {
+      const tokenService = this.authService['tokenService'];
+      const hasValidToken = tokenService.hasValidToken();
+      const currentUser = this.authService.getCurrentUser();
+      const currentSchool = this.authService.getCurrentSchool();
+      const rawToken = tokenService.getToken();
+      
+      console.log(`🔍 SchoolSelector: Verification attempt ${attempt}/10:`, {
+        hasValidToken,
+        hasCurrentUser: !!currentUser,
+        hasSchool: !!currentSchool,
+        hasRawToken: !!rawToken,
+        userEmail: currentUser?.email || 'N/A',
+        schoolName: currentSchool?.name || 'N/A',
+        tokenLength: rawToken?.length || 0,
+        tokenStart: rawToken?.substring(0, 15) + '...' || 'N/A'
+      });
+      
+      if (hasValidToken && currentUser && currentSchool && rawToken) {
+        console.log('✅ SchoolSelector: All tokens and context verified, navigating to dashboard');
+        this.router.navigate(['/v5/dashboard']);
+      } else if (attempt < 10) {
+        // Retry up to 10 times with exponential backoff
+        const delay = Math.min(attempt * 200, 1000); // Max 1000ms delay
+        console.log(`⏳ SchoolSelector: Token/context not ready, retrying in ${delay}ms...`);
+        setTimeout(() => checkTokenAndNavigate(attempt + 1), delay);
+      } else {
+        console.error('❌ SchoolSelector: Failed to verify token after 10 attempts');
+        console.error('❌ SchoolSelector: Final state:', {
+          hasValidToken,
+          hasCurrentUser: !!currentUser,
+          hasSchool: !!currentSchool,
+          hasRawToken: !!rawToken
+        });
+        
+        // Force navigation as last resort but show warning
+        this.notificationService.showWarning('Redirigiendo al dashboard...');
+        setTimeout(() => {
+          this.router.navigate(['/v5/dashboard']);
+        }, 500);
+      }
+    };
+    
+    // Start verification with initial delay to allow for token saving
+    setTimeout(() => checkTokenAndNavigate(), 200);
   }
 
   /**

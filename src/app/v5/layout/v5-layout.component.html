@@ -1,10 +1,10 @@
 <mat-sidenav-container class="v5-container v5-layout">
   <mat-sidenav #sidenav mode="side" opened class="v5-sidenav">
-    <app-sidebar (navigate)="sidenav.close()"></app-sidebar>
+    <app-sidebar (navigate)="onSidebarNavigate()"></app-sidebar>
   </mat-sidenav>
 
   <mat-sidenav-content>
-    <app-navbar (menuToggle)="sidenav.toggle()"></app-navbar>
+    <app-navbar (menuToggle)="onMenuToggle()"></app-navbar>
 
     <div class="v5-content">
       <router-outlet></router-outlet>

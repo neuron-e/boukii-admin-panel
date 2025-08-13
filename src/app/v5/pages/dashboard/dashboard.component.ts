@@ -5,7 +5,7 @@ import { takeUntil, catchError, finalize } from 'rxjs/operators';
 import { SeasonContextService } from '../../core/services/season-context.service';
 import { AuthV5Service, SeasonInfo, InitialLoginResponse } from '../../core/services/auth-v5.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { DashboardService, DashboardStats, RecentActivity, AlertItem, WeatherData, MonitorStats } from '../../core/services/dashboard.service';
+import { DashboardService, DashboardStats, RecentActivity, AlertItem, WeatherData, MonitorStats, CoursePrice } from '../../core/services/dashboard.service';
 import { TranslateService } from '@ngx-translate/core';
 import { PermissionsV5Service } from '../../core/services/permissions-v5.service';
 
@@ -56,6 +56,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   criticalAlerts: AlertItem[] = [];
   weatherData: WeatherData | null = null;
   monitorStats: MonitorStats | null = null;
+  
+  // ✅ NEW: Cached dynamic data for synchronous access in templates
+  cachedCoursePrices: CoursePrice[] = [];
 
   // Loading states
   loading = true;
@@ -146,6 +149,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     try {
       console.log('🔄 DashboardComponent: Starting initialization...');
       
+      // ✅ ENHANCED: Debug token state at dashboard entry
+      const tokenService = this.authService['tokenService'];
+      console.log('🔍 DashboardComponent: Token state on entry:', {
+        hasToken: !!tokenService.getToken(),
+        tokenValid: tokenService.hasValidToken(),
+        tokenLength: tokenService.getToken()?.length || 0,
+        tokenStart: tokenService.getToken()?.substring(0, 20) + '...' || 'N/A',
+        hasUser: !!tokenService.getCurrentUser(),
+        hasSchool: !!tokenService.getCurrentSchool(),
+        hasSeason: !!tokenService.getCurrentSeason()
+      });
+      
       // 1. First verify user is properly authenticated
       if (!this.authService.isAuthenticated()) {
         console.error('❌ DashboardComponent: User not authenticated, redirecting to login');
@@ -168,6 +183,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       // 4. Explicitly initialize SeasonContextService now that user is authenticated
       console.log('🔄 DashboardComponent: Initializing SeasonContextService...');
       await this.seasonContext.initialize();
+      
+      // ✅ ENHANCED: Wait for season context to be fully ready
+      console.log('🔄 DashboardComponent: Waiting for season context to be ready...');
+      const currentSeason = this.seasonContext.getCurrentSeason();
+      if (!currentSeason) {
+        console.warn('⚠️ DashboardComponent: No season context after initialize - checking again');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+        const retryCurrentSeason = this.seasonContext.getCurrentSeason();
+        console.log('🔍 DashboardComponent: Season after retry:', retryCurrentSeason?.name || 'Still none');
+      }
       
       // 5. Check season selection status after seasons are loaded
       await this.checkSeasonSelectionStatus();
@@ -324,6 +349,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       ];
 
       await Promise.allSettled(promises);
+
+      // ✅ NEW: Load dynamic data to replace hardcoded values
+      await Promise.allSettled([
+        this.enrichTodayReservations(),
+        this.loadCoursePrices()
+      ]);
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -834,8 +865,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getClientEmail(name: string): string {
+    // ✅ NEW: Check if reservation has enriched email data first
+    const reservation = this.dashboardStats?.todayReservations?.find(r => r.clientName === name);
+    if (reservation && (reservation as any).clientEmail) {
+      return (reservation as any).clientEmail;
+    }
+    
+    // Fallback to generated email
     const cleanName = name.toLowerCase().replace(/\s+/g, '.');
-    return `${cleanName}@email.com`;
+    return `${cleanName}@example.com`; // Clear fallback indication
   }
 
   getStatusLabel(status: string): string {
@@ -848,6 +886,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getReservationPrice(courseType: string): number {
+    // ✅ NEW: Check if we have cached dynamic prices first
+    if (this.cachedCoursePrices && this.cachedCoursePrices.length > 0) {
+      const matchedPrice = this.cachedCoursePrices.find(p => 
+        courseType.toLowerCase().includes(p.courseType.toLowerCase()) && p.isActive
+      );
+      if (matchedPrice) {
+        return matchedPrice.basePrice;
+      }
+    }
+
+    // Fallback to hardcoded prices
     const prices = {
       'Principiante': 85,
       'Intermedio': 45,
@@ -877,5 +926,56 @@ export class DashboardComponent implements OnInit, OnDestroy {
       month: 'short'
     };
     return `Hoy ${today.toLocaleDateString('es-ES', options)}`;
+  }
+
+  // ==================== NEW DYNAMIC DATA METHODS ====================
+
+  /**
+   * Enriquecer reservaciones de hoy con datos reales de clientes
+   */
+  private async enrichTodayReservations(): Promise<void> {
+    try {
+      if (!this.dashboardStats?.todayReservations?.length) {
+        console.log('📋 No today reservations to enrich');
+        return;
+      }
+
+      console.log('🔄 Enriching today reservations with real client data...');
+      
+      const enrichedReservations = await this.dashboardService.enrichReservationsWithClientData(
+        this.dashboardStats.todayReservations
+      );
+
+      // Update dashboard stats with enriched reservations
+      if (this.dashboardStats) {
+        this.dashboardStats.todayReservations = enrichedReservations;
+        console.log('✅ Today reservations enriched with client emails');
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to enrich today reservations:', error);
+    }
+  }
+
+  /**
+   * Cargar precios de cursos dinámicos para reemplazar valores hardcodeados
+   */
+  private async loadCoursePrices(): Promise<void> {
+    try {
+      console.log('🔄 Loading dynamic course prices...');
+      
+      const seasonId = this.currentSeason?.id;
+      const coursePrices = await this.dashboardService.getCoursePrices(seasonId);
+      
+      this.cachedCoursePrices = coursePrices;
+      console.log('✅ Course prices loaded:', {
+        count: coursePrices.length,
+        prices: coursePrices.map(p => `${p.courseType}: €${p.basePrice}`)
+      });
+
+    } catch (error) {
+      console.error('❌ Failed to load course prices:', error);
+      this.cachedCoursePrices = []; // Reset to use fallback
+    }
   }
 }

@@ -132,6 +132,14 @@ export class SidebarComponent implements OnInit {
       notification: { count: 0, type: 'info' }
     },
     {
+      key: 'seasons',
+      icon: 'schedule',
+      label: 'Temporadas',
+      route: '/v5/seasons',
+      enabled: true,
+      notification: { count: 0, type: 'info' }
+    },
+    {
       key: 'configuracion',
       icon: 'settings',
       label: 'Configuración', 
@@ -164,6 +172,12 @@ export class SidebarComponent implements OnInit {
              this.router.url.startsWith('/v5/dashboard') ||
              this.router.url === '/v5/welcome' ||
              this.router.url.startsWith('/v5/welcome');
+    }
+    
+    // Special case for seasons - ensure proper matching including subroutes
+    if (route === '/v5/seasons') {
+      return this.router.url === '/v5/seasons' ||
+             this.router.url.startsWith('/v5/seasons/');
     }
     
     return this.router.url === route || 

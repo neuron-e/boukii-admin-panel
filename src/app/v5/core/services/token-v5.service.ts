@@ -83,13 +83,29 @@ export class TokenV5Service {
 
   constructor() {
     // Inicializar subjects con datos almacenados de forma segura
+    console.log('🔧 TokenV5Service: Constructor initializing...');
     try {
-      this.tokenSubject.next(this.getStoredToken());
-      this.userSubject.next(this.getStoredUser());
-      this.schoolSubject.next(this.getStoredSchool());
-      this.seasonSubject.next(this.getStoredSeason());
+      const storedToken = this.getStoredToken();
+      const storedUser = this.getStoredUser();
+      const storedSchool = this.getStoredSchool();
+      const storedSeason = this.getStoredSeason();
+      
+      console.log('🔍 TokenV5Service: Constructor loading stored data:', {
+        hasStoredToken: !!storedToken,
+        hasStoredUser: !!storedUser,
+        hasStoredSchool: !!storedSchool,
+        hasStoredSeason: !!storedSeason,
+        tokenLength: storedToken?.length || 0
+      });
+      
+      this.tokenSubject.next(storedToken);
+      this.userSubject.next(storedUser);
+      this.schoolSubject.next(storedSchool);
+      this.seasonSubject.next(storedSeason);
+      
+      console.log('✅ TokenV5Service: Constructor completed, subjects initialized');
     } catch (error) {
-      console.warn('⚠️ Error loading stored data on service initialization:', error);
+      console.warn('⚠️ TokenV5Service: Error loading stored data on service initialization:', error);
       // Los subjects ya están inicializados con null, así que es seguro continuar
     }
   }
@@ -100,7 +116,8 @@ export class TokenV5Service {
   saveLoginData(loginResponse: LoginResponse): void {
     try {
       console.log('🔍 DEBUG: TokenV5Service.saveLoginData called with:', typeof loginResponse);
-      console.log('🔍 DEBUG: Using FIXED version 3.0 - with optional chaining');
+      console.log('🔍 DEBUG: Using ENHANCED version 4.0 - school selection token fix');
+      console.log('🔍 CRITICAL DEBUG: Entry point reached - saveLoginData executing');
       
       // Validar que loginResponse no es null/undefined
       if (!loginResponse) {
@@ -108,7 +125,16 @@ export class TokenV5Service {
         throw new Error('No login response provided');
       }
       
-      console.log('🔍 DEBUG: Raw login response received:', JSON.stringify(loginResponse, null, 2));
+      console.log('🔍 DEBUG: Raw login response received:', {
+        hasData: !!loginResponse.data,
+        hasUser: !!loginResponse.user,
+        hasToken: !!(loginResponse.token || loginResponse.access_token),
+        hasSchool: !!loginResponse.school,
+        hasSeason: !!loginResponse.season,
+        topLevelKeys: Object.keys(loginResponse),
+        dataKeys: loginResponse.data ? Object.keys(loginResponse.data) : 'NO_DATA',
+        rawResponse: JSON.stringify(loginResponse, null, 2) // Full debug
+      });
       
       // Extraer datos - pueden estar en 'data' o directamente en la respuesta
       const user = loginResponse?.data?.user || loginResponse?.user;
@@ -117,7 +143,20 @@ export class TokenV5Service {
                     (loginResponse?.data?.schools && loginResponse.data.schools[0]) || 
                     (loginResponse?.schools && loginResponse.schools[0]);
       const season = loginResponse?.data?.season || loginResponse?.season;
-      const token = loginResponse?.data?.token || loginResponse?.token || loginResponse?.access_token;
+      
+      // ✅ ENHANCED: More thorough token extraction
+      const token = loginResponse?.data?.access_token || 
+                    loginResponse?.access_token || 
+                    loginResponse?.data?.token || 
+                    loginResponse?.token;
+      
+      console.log('🔍 DEBUG: Token extraction details:', {
+        dataAccessToken: loginResponse?.data?.access_token ? 'EXISTS' : 'MISSING',
+        rootAccessToken: loginResponse?.access_token ? 'EXISTS' : 'MISSING', 
+        dataToken: loginResponse?.data?.token ? 'EXISTS' : 'MISSING',
+        rootToken: loginResponse?.token ? 'EXISTS' : 'MISSING',
+        selectedToken: token ? `${token.substring(0, 15)}...` : 'NO_TOKEN'
+      });
       const expiresAt = loginResponse?.data?.expires_at || loginResponse?.expires_at;
 
       console.log('🔍 DEBUG: Extracted data:', {
@@ -128,15 +167,33 @@ export class TokenV5Service {
         expiresAt: expiresAt
       });
 
-      if (!user || !school || !season || !token) {
-        console.error('❌ Missing required login data:', {
+      // ✅ ENHANCED: Different validation for different scenarios
+      console.log('🔍 DEBUG: Extracted data validation:', {
+        hasUser: !!user,
+        hasSchool: !!school,
+        hasSeason: !!season,
+        hasToken: !!token,
+        userEmail: user?.email || 'N/A',
+        schoolName: school?.name || 'N/A',
+        seasonName: season?.name || 'N/A',
+        tokenLength: token?.length || 0
+      });
+      
+      // For school selection, season might be optional
+      if (!user || !school || !token) {
+        console.error('❌ Missing CRITICAL login data:', {
           hasUser: !!user,
           hasSchool: !!school,
-          hasSeason: !!season,
           hasToken: !!token,
-          rawResponse: loginResponse
+          hasSeason: !!season,
+          rawResponse: JSON.stringify(loginResponse, null, 2)
         });
-        throw new Error('Incomplete login data received from server');
+        throw new Error(`Incomplete login data: missing ${!user ? 'user' : !school ? 'school' : !token ? 'token' : 'unknown'}`);
+      }
+      
+      // ✅ ENHANCED: Allow saving without season for school selection flow
+      if (!season) {
+        console.warn('⚠️ No season data - this might be a school selection without season');
       }
 
       console.log('🔍 DEBUG: About to save token data...');
@@ -153,15 +210,23 @@ export class TokenV5Service {
       console.log('🔍 DEBUG: Token saved to localStorage');
 
       // Guardar contextos
+      // Guardar contextos
       console.log('🔍 DEBUG: Saving user to localStorage...');
       localStorage.setItem(this.USER_KEY, JSON.stringify(user));
       console.log('🔍 DEBUG: Saving school to localStorage...');
       localStorage.setItem(this.SCHOOL_KEY, JSON.stringify(school));
-      console.log('🔍 DEBUG: Saving season to localStorage...');
-      localStorage.setItem(this.SEASON_KEY, JSON.stringify(season));
+      
+      // ✅ ENHANCED: Handle optional season
+      if (season) {
+        console.log('🔍 DEBUG: Saving season to localStorage...');
+        localStorage.setItem(this.SEASON_KEY, JSON.stringify(season));
+      } else {
+        console.log('🔍 DEBUG: No season to save, removing any existing season...');
+        localStorage.removeItem(this.SEASON_KEY);
+      }
       console.log('🔍 DEBUG: All context data saved to localStorage');
 
-      // Emitir nuevos valores
+      // Emitir nuevos valores usando setTimeout para garantizar que localStorage esté completamente escrito
       console.log('🔍 DEBUG: Emitting token...');
       this.tokenSubject.next(token);
       console.log('🔍 DEBUG: Emitting user...');
@@ -169,17 +234,38 @@ export class TokenV5Service {
       console.log('🔍 DEBUG: Emitting school...');
       this.schoolSubject.next(school);
       console.log('🔍 DEBUG: Emitting season...');
-      this.seasonSubject.next(season);
+      this.seasonSubject.next(season || null); // Handle undefined season
       console.log('🔍 DEBUG: All subjects updated');
+
+      // ✅ CRITICAL: Force a small delay to ensure localStorage write is complete
+      setTimeout(() => {
+        console.log('🔍 DEBUG: Verifying saved data in localStorage after delay...');
+        const verifyToken = localStorage.getItem(this.TOKEN_KEY);
+        const verifyUser = localStorage.getItem(this.USER_KEY);
+        const verifySchool = localStorage.getItem(this.SCHOOL_KEY);
+        console.log('🔍 DEBUG: LocalStorage verification:', {
+          tokenSaved: !!verifyToken,
+          userSaved: !!verifyUser,
+          schoolSaved: !!verifySchool
+        });
+      }, 50);
 
       console.log('✅ Login data saved successfully', {
         user: user?.email || 'NO_EMAIL',
         school: school?.name || 'NO_SCHOOL_NAME',
-        season: season?.name || 'NO_SEASON_NAME'
+        season: season?.name || 'NO_SEASON', // Don't show 'NO_SEASON_NAME' - it's confusing
+        hasToken: !!token,
+        tokenLength: token?.length || 0
       });
+      
+      console.log('🔍 CRITICAL DEBUG: saveLoginData completed successfully - exiting method');
+      
     } catch (error) {
-      console.error('❌ Error saving login data:', error);
-      throw new Error('Failed to save login data');
+      console.error('❌ CRITICAL ERROR in saveLoginData:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      throw new Error('Failed to save login data: ' + error.message);
     }
   }
 
@@ -239,14 +325,49 @@ export class TokenV5Service {
    * Obtener token actual
    */
   getToken(): string | null {
-    const token = this.tokenSubject.value;
+    const subjectToken = this.tokenSubject.value;
+    const storedToken = this.getStoredToken();
+    
+    // ✅ CRITICAL FIX: If subject is null but localStorage has token, sync them
+    if (!subjectToken && storedToken) {
+      console.log('🔄 TokenV5Service: Syncing token from localStorage to BehaviorSubject');
+      this.tokenSubject.next(storedToken);
+      
+      // Also sync user, school, season if they exist in localStorage
+      const storedUser = this.getStoredUser();
+      const storedSchool = this.getStoredSchool();
+      const storedSeason = this.getStoredSeason();
+      
+      if (storedUser && !this.userSubject.value) {
+        console.log('🔄 TokenV5Service: Syncing user from localStorage');
+        this.userSubject.next(storedUser);
+      }
+      if (storedSchool && !this.schoolSubject.value) {
+        console.log('🔄 TokenV5Service: Syncing school from localStorage');
+        this.schoolSubject.next(storedSchool);
+      }
+      if (storedSeason && !this.seasonSubject.value) {
+        console.log('🔄 TokenV5Service: Syncing season from localStorage');
+        this.seasonSubject.next(storedSeason);
+      }
+      
+      console.log('✅ TokenV5Service: Token and context synced from localStorage');
+      return storedToken;
+    }
+    
+    const finalToken = subjectToken || storedToken;
     console.log('🔍 TokenV5Service.getToken():', {
-      hasToken: !!token,
-      tokenLength: token?.length || 0,
-      tokenStart: token?.substring(0, 15) + '...' || 'N/A',
-      subjectValue: !!this.tokenSubject.value
+      hasToken: !!finalToken,
+      tokenLength: finalToken?.length || 0,
+      tokenStart: finalToken?.substring(0, 15) + '...' || 'N/A',
+      subjectValue: !!this.tokenSubject.value,
+      storedTokenExists: !!storedToken,
+      tokensMatch: subjectToken === storedToken,
+      storedTokenStart: storedToken?.substring(0, 15) + '...' || 'N/A',
+      syncRequired: !subjectToken && !!storedToken
     });
-    return token;
+    
+    return finalToken;
   }
 
   /**
@@ -261,7 +382,7 @@ export class TokenV5Service {
    * Verificar si hay un token válido
    */
   hasValidToken(): boolean {
-    const token = this.getToken();
+    const token = this.getToken(); // This will now sync from localStorage if needed
     if (!token) {
       console.log('❌ TokenV5Service.hasValidToken(): No token found');
       return false;
@@ -274,7 +395,8 @@ export class TokenV5Service {
       hasToken: !!token,
       isExpired,
       isValid,
-      tokenLength: token.length
+      tokenLength: token.length,
+      tokenStart: token.substring(0, 15) + '...'
     });
     
     return isValid;
@@ -321,6 +443,15 @@ export class TokenV5Service {
   }
 
   /**
+   * Limpiar datos de la temporada actual cuando es inválida
+   */
+  clearCurrentSeason(): void {
+    console.log('🔄 TokenV5Service: Clearing current season (invalid season detected)');
+    this.seasonSubject.next(null);
+    localStorage.removeItem('boukii_current_season_context');
+  }
+
+  /**
    * Verificar si el usuario tiene un permiso específico
    */
   hasPermission(permission: string): boolean {
@@ -357,7 +488,12 @@ export class TokenV5Service {
   setTempToken(tempToken: string): void {
     try {
       localStorage.setItem(this.TEMP_TOKEN_KEY, tempToken);
-      console.log('✅ Temporary token saved');
+      console.log('✅ Temporary token saved:', {
+        tokenLength: tempToken.length,
+        tokenStart: tempToken.substring(0, 20) + '...',
+        tokenEnd: '...' + tempToken.substring(tempToken.length - 10),
+        fullToken: tempToken // ⚠️ REMOVE IN PRODUCTION
+      });
     } catch (error) {
       console.error('❌ Error saving temporary token:', error);
     }
@@ -368,8 +504,17 @@ export class TokenV5Service {
    */
   getTempToken(): string | null {
     try {
-      return localStorage.getItem(this.TEMP_TOKEN_KEY);
-    } catch {
+      const tempToken = localStorage.getItem(this.TEMP_TOKEN_KEY);
+      console.log('🔍 TokenV5Service.getTempToken():', {
+        hasToken: !!tempToken,
+        tokenLength: tempToken?.length || 0,
+        tokenStart: tempToken?.substring(0, 20) + '...' || 'N/A',
+        tokenEnd: '...' + tempToken?.substring(tempToken?.length - 10) || 'N/A',
+        fullToken: tempToken // ⚠️ REMOVE IN PRODUCTION
+      });
+      return tempToken;
+    } catch (error) {
+      console.error('❌ Error getting temp token:', error);
       return null;
     }
   }
@@ -398,7 +543,18 @@ export class TokenV5Service {
    */
   getCurrentToken(): string | null {
     // Primero intentar el token normal, luego el temporal
-    return this.getToken() || this.getTempToken();
+    const normalToken = this.getToken();
+    const tempToken = this.getTempToken();
+    const selectedToken = normalToken || tempToken;
+    
+    console.log('🔍 TokenV5Service.getCurrentToken():', {
+      hasNormalToken: !!normalToken,
+      hasTempToken: !!tempToken,
+      selectedToken: selectedToken?.substring(0, 20) + '...' || 'N/A',
+      tokenSource: normalToken ? 'normal' : tempToken ? 'temp' : 'none'
+    });
+    
+    return selectedToken;
   }
 
   /**

@@ -38,16 +38,28 @@ export class SeasonService {
    * School context is automatically handled by ApiV5Service and AuthV5Interceptor
    */
   getSeasons(): Observable<Season[]> {
+    console.log('🔄 SeasonService.getSeasons: Making request to seasons endpoint');
+    
     return this.apiV5.get<Season[]>('seasons').pipe(
       map((response: ApiV5Response<Season[]>) => {
+        console.log('✅ SeasonService.getSeasons: Response received:', response);
         if (response.success) {
           const seasons = response.data;
+          console.log('✅ SeasonService.getSeasons: Seasons loaded:', seasons.length, seasons);
           this.seasonsSubject.next(seasons);
           return seasons;
         }
+        console.warn('⚠️ SeasonService.getSeasons: Response not successful:', response);
         return [];
       }),
       catchError(error => {
+        console.error('❌ SeasonService.getSeasons: Error occurred:', error);
+        console.error('❌ SeasonService.getSeasons: Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          error: error.error
+        });
         this.notification.error('Error al cargar las temporadas');
         throw error;
       })
@@ -161,6 +173,52 @@ export class SeasonService {
   }
 
   /**
+   * Activate season (set as active)
+   */
+  activateSeason(id: number): Observable<Season> {
+    return this.apiV5.post<Season>(`seasons/${id}/activate`, {}).pipe(
+      map((response: ApiV5Response<Season>) => {
+        if (response.success) {
+          return response.data;
+        }
+        throw new Error('Failed to activate season');
+      }),
+      tap(season => {
+        this.notification.success('Temporada activada exitosamente');
+        this.refreshSeasons();
+        // Update current season in context
+        this.seasonContext.setCurrentSeason(season.id);
+      }),
+      catchError(error => {
+        this.notification.error('Error al activar la temporada');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Deactivate season (remove active status)
+   */
+  deactivateSeason(id: number): Observable<Season> {
+    return this.apiV5.post<Season>(`seasons/${id}/deactivate`, {}).pipe(
+      map((response: ApiV5Response<Season>) => {
+        if (response.success) {
+          return response.data;
+        }
+        throw new Error('Failed to deactivate season');
+      }),
+      tap(season => {
+        this.notification.success('Temporada desactivada exitosamente');
+        this.refreshSeasons();
+      }),
+      catchError(error => {
+        this.notification.error('Error al desactivar la temporada');
+        throw error;
+      })
+    );
+  }
+
+  /**
    * Close season (mark as historical)
    */
   closeSeason(id: number): Observable<Season> {
@@ -199,6 +257,28 @@ export class SeasonService {
       }),
       catchError(error => {
         this.notification.error('Error al clonar la temporada');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Reopen closed season
+   */
+  reopenSeason(id: number): Observable<Season> {
+    return this.apiV5.post<Season>(`seasons/${id}/reopen`, {}).pipe(
+      map((response: ApiV5Response<Season>) => {
+        if (response.success) {
+          return response.data;
+        }
+        throw new Error('Failed to reopen season');
+      }),
+      tap(season => {
+        this.notification.success('Temporada reabierta exitosamente');
+        this.refreshSeasons();
+      }),
+      catchError(error => {
+        this.notification.error('Error al reabrir la temporada');
         throw error;
       })
     );

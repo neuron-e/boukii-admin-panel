@@ -116,13 +116,19 @@ describe('DashboardComponent', () => {
     email: 'test@test.com',
     role: 'admin',
     permissions: ['bookings.create', 'clients.create', 'courses.create'],
-    school: { id: 1, name: 'Test School' }
+    school: { id: 1, name: 'Test School', slug: 'test-school' }
   };
 
   const mockSeason = {
     id: 1,
     name: 'Test Season 2025',
-    is_active: true
+    start_date: '2025-01-01',
+    end_date: '2025-12-31',
+    is_active: true,
+    is_closed: false,
+    is_historical: false,
+    school_id: 1,
+    created_at: '2025-01-01T00:00:00Z'
   };
 
   const mockPermissions = {
@@ -291,7 +297,11 @@ describe('DashboardComponent', () => {
       name: 'New Season',
       start_date: '2024-12-01',
       end_date: '2025-04-30',
-      is_active: true
+      is_active: true,
+      is_closed: false,
+      is_historical: false,
+      school_id: 1,
+      created_at: '2024-01-01T00:00:00Z'
     };
 
     component.onSeasonSelected(mockSeasonInfo);

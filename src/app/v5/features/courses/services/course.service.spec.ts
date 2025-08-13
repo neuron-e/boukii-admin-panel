@@ -33,7 +33,8 @@ describe('CourseService', () => {
   const mockApiResponse = <T>(data: T): ApiV5Response<T> => ({
     success: true,
     message: 'Operation successful',
-    data: data
+    data: data,
+    timestamp: '2024-01-01T00:00:00Z'
   });
 
   beforeEach(() => {
@@ -113,7 +114,8 @@ describe('CourseService', () => {
       const failedResponse: ApiV5Response<CourseGroup[]> = {
         success: false,
         message: 'Failed to load courses',
-        data: []
+        data: [],
+        timestamp: '2024-01-01T00:00:00Z'
       };
       mockSeasonContextService.getCurrentSeasonId.and.returnValue(mockSeasonId);
       mockApiV5Service.get.and.returnValue(of(failedResponse));
@@ -151,7 +153,8 @@ describe('CourseService', () => {
       const notFoundResponse: ApiV5Response<CourseGroup> = {
         success: false,
         message: 'Course not found',
-        data: null as any
+        data: null as any,
+        timestamp: '2024-01-01T00:00:00Z'
       };
       mockSeasonContextService.getCurrentSeasonId.and.returnValue(mockSeasonId);
       mockApiV5Service.get.and.returnValue(of(notFoundResponse));
@@ -225,7 +228,8 @@ describe('CourseService', () => {
       const failedResponse: ApiV5Response<CourseGroup> = {
         success: false,
         message: 'Validation failed',
-        data: null as any
+        data: null as any,
+        timestamp: '2024-01-01T00:00:00Z'
       };
 
       mockSeasonContextService.getCurrentSeasonId.and.returnValue(mockSeasonId);
@@ -275,7 +279,8 @@ describe('CourseService', () => {
       const failedResponse: ApiV5Response<CourseGroup> = {
         success: false,
         message: 'Update failed',
-        data: null as any
+        data: null as any,
+        timestamp: '2024-01-01T00:00:00Z'
       };
       mockApiV5Service.put.and.returnValue(of(failedResponse));
 
@@ -298,7 +303,8 @@ describe('CourseService', () => {
       const mockResponse: ApiV5Response<void> = {
         success: true,
         message: 'Course deleted successfully',
-        data: undefined
+        data: undefined,
+        timestamp: '2024-01-01T00:00:00Z'
       };
       mockApiV5Service.delete.and.returnValue(of(mockResponse));
 
@@ -316,7 +322,8 @@ describe('CourseService', () => {
       const mockResponse: ApiV5Response<void> = {
         success: false,
         message: 'Cannot delete course with active bookings',
-        data: undefined
+        data: undefined,
+        timestamp: '2024-01-01T00:00:00Z'
       };
       mockApiV5Service.delete.and.returnValue(of(mockResponse));
 
@@ -430,7 +437,8 @@ describe('CourseService', () => {
       const nullResponse: ApiV5Response<CourseGroup[]> = {
         success: true,
         message: 'Success but no data',
-        data: null as any
+        data: null as any,
+        timestamp: '2024-01-01T00:00:00Z'
       };
       mockSeasonContextService.getCurrentSeasonId.and.returnValue(mockSeasonId);
       mockApiV5Service.get.and.returnValue(of(nullResponse));

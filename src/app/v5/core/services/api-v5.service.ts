@@ -73,9 +73,11 @@ export class ApiV5Service {
   }
 
   post<T>(endpoint: string, body: any): Observable<ApiV5Response<T>> {
-    // Don't add season_id to auth endpoints
+    // Don't add season_id to auth endpoints or seasons management
     const authEndpoints = ['auth/me', 'auth/login', 'auth/logout', 'auth/check-user', 'auth/select-school', 'auth/select-season'];
-    const shouldAddSeasonId = !authEndpoints.some(ep => endpoint.includes(ep));
+    const seasonEndpoints = ['seasons']; // ✅ AGREGADO: Excluir rutas de seasons
+    const skipEndpoints = [...authEndpoints, ...seasonEndpoints];
+    const shouldAddSeasonId = !skipEndpoints.some(ep => endpoint.includes(ep));
     
     console.log(`🔄 ApiV5Service.post(${endpoint}):`, {
       shouldAddSeasonId,
@@ -107,6 +109,10 @@ export class ApiV5Service {
   put<T>(endpoint: string, body: any): Observable<ApiV5Response<T>> {
     console.log(`🔄 ApiV5Service.put(${endpoint})`);
     
+    // ✅ Check if should add season_id (don't add for seasons management)
+    const seasonEndpoints = ['seasons'];
+    const shouldAddSeasonId = !seasonEndpoints.some(ep => endpoint.includes(ep));
+    
     // ✅ Add school_id and season_id to body when needed
     const currentSchool = this.tokenService.getCurrentSchool();
     const currentSeason = this.tokenService.getCurrentSeason();
@@ -117,9 +123,11 @@ export class ApiV5Service {
       console.log('🏫 ApiV5Service: Added school_id to PUT body:', currentSchool.id);
     }
     
-    if (currentSeason) {
+    if (currentSeason && shouldAddSeasonId) {
       enrichedBody.season_id = currentSeason.id;
       console.log('🗓 ApiV5Service: Added season_id to PUT body:', currentSeason.id);
+    } else if (!shouldAddSeasonId) {
+      console.log('⏭️ ApiV5Service: Skipping season_id for seasons endpoint:', endpoint);
     }
 
     return this.http
@@ -129,6 +137,10 @@ export class ApiV5Service {
 
   patch<T>(endpoint: string, body: any): Observable<ApiV5Response<T>> {
     console.log(`🔄 ApiV5Service.patch(${endpoint})`);
+    
+    // ✅ Check if should add season_id (don't add for seasons management)
+    const seasonEndpoints = ['seasons'];
+    const shouldAddSeasonId = !seasonEndpoints.some(ep => endpoint.includes(ep));
     
     // ✅ Add school_id and season_id to body when needed
     const currentSchool = this.tokenService.getCurrentSchool();
@@ -140,9 +152,11 @@ export class ApiV5Service {
       console.log('🏫 ApiV5Service: Added school_id to PATCH body:', currentSchool.id);
     }
     
-    if (currentSeason) {
+    if (currentSeason && shouldAddSeasonId) {
       enrichedBody.season_id = currentSeason.id;
       console.log('🗓 ApiV5Service: Added season_id to PATCH body:', currentSeason.id);
+    } else if (!shouldAddSeasonId) {
+      console.log('⏭️ ApiV5Service: Skipping season_id for seasons endpoint:', endpoint);
     }
 
     return this.http
@@ -171,11 +185,15 @@ export class ApiV5Service {
   }
 
   private addSeasonParam(params?: HttpParams, endpoint?: string): HttpParams {
-    // Don't add season_id to authentication endpoints
+    // Don't add season_id to authentication endpoints or seasons management
     const authEndpoints = ['auth/me', 'auth/login', 'auth/logout', 'auth/check-user', 'auth/select-school', 'auth/select-season'];
     const alertEndpoints = ['dashboard/alerts', 'dashboard/recent-activity'];
+    const seasonEndpoints = ['seasons']; // ✅ AGREGADO: Excluir rutas de seasons
     
-    if (endpoint && [...authEndpoints, ...alertEndpoints].some(ep => endpoint.includes(ep))) {
+    const skipEndpoints = [...authEndpoints, ...alertEndpoints, ...seasonEndpoints];
+    
+    if (endpoint && skipEndpoints.some(ep => endpoint.includes(ep))) {
+      console.log(`🔄 ApiV5Service: Skipping season params for endpoint: ${endpoint}`);
       return params || new HttpParams();
     }
     

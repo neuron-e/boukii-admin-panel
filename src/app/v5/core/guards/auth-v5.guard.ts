@@ -73,22 +73,40 @@ export class AuthV5Guard implements CanActivate, CanActivateChild {
         isTokenExpired: isExpired
       });
       
-      // ✅ IMPROVEMENT: Wait briefly for token to be saved (handles timing issues)
-      return timer(50).pipe(
-        switchMap(() => {
-          // Check token again after brief delay
-          const retryToken = this.tokenService.hasValidToken();
-          console.log('🔄 AuthV5Guard: Retry token check after delay:', retryToken);
-          
-          if (retryToken) {
-            console.log('✅ AuthV5Guard: Token found on retry, proceeding with auth');
-            return this.proceedWithAuthentication(url);
-          } else {
-            console.log('❌ AuthV5Guard: Still no valid token, redirecting to login');
-            return of(this.redirectToLogin(url));
-          }
-        })
-      );
+      // ✅ ENHANCED: More retries with better exponential backoff for token synchronization
+      const retryAuthentication = (attempt: number = 1): Observable<boolean | UrlTree> => {
+        const delay = Math.min(attempt * 100, 800); // Max 800ms delay
+        
+        return timer(delay).pipe(
+          switchMap(() => {
+            const retryToken = this.tokenService.hasValidToken();
+            const currentUser = this.tokenService.getCurrentUser();
+            const currentSchool = this.tokenService.getCurrentSchool();
+            
+            console.log(`🔄 AuthV5Guard: Token retry attempt ${attempt}/8:`, {
+              hasValidToken: retryToken,
+              hasCurrentUser: !!currentUser,
+              hasSchool: !!currentSchool,
+              userEmail: currentUser?.email || 'N/A',
+              schoolName: currentSchool?.name || 'N/A',
+              delayMs: delay
+            });
+            
+            if (retryToken && currentUser) {
+              console.log('✅ AuthV5Guard: Token and user verified on retry, proceeding');
+              return this.proceedWithAuthentication(url);
+            } else if (attempt >= 8) {
+              console.log('❌ AuthV5Guard: Max retries reached, redirecting to login');
+              return of(this.redirectToLogin(url));
+            } else {
+              // Recursive retry
+              return retryAuthentication(attempt + 1);
+            }
+          })
+        );
+      };
+      
+      return retryAuthentication();
     }
 
     // Token found, proceed with authentication
@@ -112,7 +130,19 @@ export class AuthV5Guard implements CanActivate, CanActivateChild {
       // Intentar cargar información del usuario desde el servidor
       return this.authService.getCurrentUserInfo().pipe(
         map(user => {
-          console.log('✅ AuthV5Guard: User info loaded successfully:', user.email);
+          console.log('✅ AuthV5Guard: User info loaded successfully:', {
+            hasUser: !!user,
+            userType: typeof user,
+            userEmail: user?.email || 'NO_EMAIL',
+            userName: user?.name || 'NO_NAME',
+            userId: user?.id || 'NO_ID'
+          });
+          
+          // The getCurrentUserInfo already extracts response.data.user, so we get the user directly
+          if (!user || !user.email) {
+            throw new Error('Invalid user data received from server');
+          }
+          
           return true;
         }),
         catchError(error => {

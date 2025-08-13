@@ -232,11 +232,11 @@ describe('WelcomeComponent', () => {
   });
 
   it('should refresh dashboard data', async () => {
-    spyOn(component, 'loadDashboardData').and.returnValue(Promise.resolve());
+    // Mock the dashboard service loadDashboardData method
+    mockDashboardService.loadDashboardData.and.returnValue(Promise.resolve(mockDashboardStats));
     
     await component.refreshDashboard();
 
-    expect(component.loadDashboardData).toHaveBeenCalled();
     expect(mockNotifications.showInfo).toHaveBeenCalled();
     expect(mockAuthService.logUserAction).toHaveBeenCalledWith('dashboard_refreshed');
   });

@@ -24,8 +24,12 @@ export class AuthV5Interceptor implements HttpInterceptor {
   ) {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+    console.log('🚀 AuthV5Interceptor: Intercepting request:', request.url, 'Method:', request.method);
+    
     // Agregar headers necesarios
     const modifiedRequest = this.addRequiredHeaders(request);
+    
+    console.log('✅ AuthV5Interceptor: Request headers after modification:', modifiedRequest.headers.keys());
     
     return next.handle(modifiedRequest).pipe(
       catchError(error => {
@@ -53,16 +57,35 @@ export class AuthV5Interceptor implements HttpInterceptor {
     
     console.log('✅ Processing API V5 request:', request.url);
 
-    // 1. Agregar token de autorización (normal o temporal)
-    const token = this.tokenService.getCurrentToken(); // Usa getToken() o getTempToken()
+    // 1. Agregar token de autorización - CORREGIDO: lógica de selección de token
+    let token = null;
+    
+    // Para endpoints de selección de escuela, usar SOLO el token temporal
+    if (request.url.includes('/auth/select-school')) {
+      token = this.tokenService.getTempToken();
+      console.log('🔄 Using TEMP token for school selection:', {
+        hasTempToken: !!token,
+        tokenLength: token?.length || 0,
+        tokenStart: token?.substring(0, 15) + '...' || 'N/A'
+      });
+    } else {
+      // Para otros endpoints, usar token normal, si no existe usar temporal
+      token = this.tokenService.getToken() || this.tokenService.getTempToken();
+      console.log('🔄 Using token for regular request:', {
+        hasNormalToken: !!this.tokenService.getToken(),
+        hasTempToken: !!this.tokenService.getTempToken(),
+        selectedTokenSource: this.tokenService.getToken() ? 'normal' : 'temp'
+      });
+    }
+    
     if (token && !this.shouldSkipToken(request)) {
       headers = headers.set('Authorization', `Bearer ${token}`);
       console.log('🔐 AuthV5Interceptor: Added Authorization header to:', request.url);
-      console.log('🔍 Token details:', {
+      console.log('🔍 Token being sent:', {
         tokenLength: token.length,
-        tokenStart: token.substring(0, 10) + '...',
-        isNormalToken: !!this.tokenService.getToken(),
-        isTempToken: !!this.tokenService.getTempToken()
+        tokenStart: token.substring(0, 20) + '...',
+        tokenEnd: '...' + token.substring(token.length - 10),
+        isValidFormat: token.includes('|') && token.length > 40
       });
     } else if (!token) {
       console.warn('⚠️ AuthV5Interceptor: No token available for:', request.url);
@@ -70,20 +93,41 @@ export class AuthV5Interceptor implements HttpInterceptor {
 
     // 2. Agregar contexto de escuela
     const school = this.tokenService.getCurrentSchool();
+    console.log('🔍 AuthV5Interceptor: School context check:', {
+      hasSchool: !!school,
+      schoolId: school?.id || 'N/A',
+      schoolName: school?.name || 'N/A'
+    });
     if (school) {
       headers = headers.set('X-School-ID', school.id.toString());
       console.log('🏫 AuthV5Interceptor: Added X-School-ID header:', school.id, 'for school:', school.name, 'on URL:', request.url);
     } else {
       console.warn('⚠️ AuthV5Interceptor: No school context available for:', request.url);
+      console.warn('⚠️ AuthV5Interceptor: Debug - TokenV5Service methods:', {
+        getCurrentToken: !!this.tokenService.getCurrentToken(),
+        getCurrentUser: !!this.tokenService.getCurrentUser(),
+        getCurrentSchool: !!this.tokenService.getCurrentSchool(),
+        getCurrentSeason: !!this.tokenService.getCurrentSeason()
+      });
     }
 
-    // 3. Agregar contexto de temporada  
-    const season = this.tokenService.getCurrentSeason();
-    if (season) {
-      headers = headers.set('X-Season-ID', season.id.toString());
-      console.log('🏷️ AuthV5Interceptor: Added X-Season-ID header:', season.id, 'for season:', season.name);
+    // 3. Agregar contexto de temporada (SOLO si no es ruta de seasons)
+    if (!this.shouldSkipSeasonContext(request)) {
+      const season = this.tokenService.getCurrentSeason();
+      console.log('🔍 AuthV5Interceptor: Season context check:', {
+        hasSeason: !!season,
+        seasonId: season?.id || 'N/A',
+        seasonName: season?.name || 'N/A',
+        url: request.url
+      });
+      if (season) {
+        headers = headers.set('X-Season-ID', season.id.toString());
+        console.log('🏷️ AuthV5Interceptor: Added X-Season-ID header:', season.id, 'for season:', season.name);
+      } else {
+        console.warn('⚠️ AuthV5Interceptor: No season context available for:', request.url);
+      }
     } else {
-      console.warn('⚠️ AuthV5Interceptor: No season context available for:', request.url);
+      console.log('⏭️ AuthV5Interceptor: Skipping season context for seasons management URL:', request.url);
     }
 
     // 4. Agregar headers informativos
@@ -109,11 +153,42 @@ export class AuthV5Interceptor implements HttpInterceptor {
       url.includes('/api/v5/') || 
       url.includes('api-boukii.test') || 
       url.includes('api.boukii') ||
-      url.includes('127.0.0.1') && url.includes('/api/')
+      (url.includes('127.0.0.1') && url.includes('/api/'))
     );
     
-    console.log(`🔍 Should process request ${request.url}:`, shouldProcess);
+    console.log(`🔍 AuthV5Interceptor.shouldProcessRequest:`, {
+      url: request.url,
+      urlLower: url,
+      hasApiV5: url.includes('/api/v5/'),
+      hasBoukiiTest: url.includes('api-boukii.test'),
+      hasBoukii: url.includes('api.boukii'),
+      hasLocalhost: url.includes('127.0.0.1') && url.includes('/api/'),
+      shouldProcess
+    });
     return shouldProcess;
+  }
+
+  /**
+   * Verificar si se debe omitir el contexto de temporada para esta request
+   */
+  private shouldSkipSeasonContext(request: HttpRequest<unknown>): boolean {
+    const url = request.url.toLowerCase();
+    
+    // No enviar season context para rutas de seasons (gestión de temporadas)
+    const skipSeasonUrls = [
+      '/api/v5/seasons',
+      '/seasons/'  // Para rutas que puedan estar configuradas de forma diferente
+    ];
+    
+    const shouldSkip = skipSeasonUrls.some(skipUrl => {
+      // Verificar que la URL contiene la ruta de seasons
+      return url.includes(skipUrl);
+    });
+    
+    console.log(`🔍 AuthV5Interceptor: Should skip season context for ${url}:`, shouldSkip);
+    console.log(`🔍 AuthV5Interceptor: Skip URLs checked:`, skipSeasonUrls);
+    console.log(`🔍 AuthV5Interceptor: URL matches:`, skipSeasonUrls.map(skipUrl => ({ skipUrl, matches: url.includes(skipUrl) })));
+    return shouldSkip;
   }
 
   /**
@@ -194,9 +269,15 @@ export class AuthV5Interceptor implements HttpInterceptor {
   ): Observable<HttpEvent<unknown>> {
     
     console.log('❌ AuthV5Interceptor: 401 Unauthorized for:', request.url);
+    console.log('🔍 Debug: Token que se envió:', {
+      tokenExists: !!this.tokenService.getToken(),
+      tokenValid: this.tokenService.hasValidToken(),
+      tokenLength: this.tokenService.getToken()?.length || 0
+    });
 
-    // Si es login, no intentar refrescar
-    if (request.url.includes('/auth/login')) {
+    // Si es login o auth/me, no intentar refrescar (evitar loops)
+    if (request.url.includes('/auth/login') || request.url.includes('/auth/me')) {
+      console.log('⏭️ Skipping token refresh for:', request.url);
       return throwError(() => error);
     }
 

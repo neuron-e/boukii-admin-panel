@@ -130,20 +130,31 @@ export class AuthV5Service {
    * Inicializar estado de autenticación desde localStorage
    */
   private initializeAuthState(): void {
-    const hasValidToken = this.tokenService.hasValidToken();
+    console.log('🔐 AuthV5Service: Initializing auth state...');
+    
+    // Force sync from localStorage first
+    const hasValidToken = this.tokenService.hasValidToken(); // This will sync if needed
     const user = this.tokenService.getCurrentUser();
+    const school = this.tokenService.getCurrentSchool();
+    const rawToken = this.tokenService.getToken();
+
+    const isAuthenticated = hasValidToken && !!user && !!school;
 
     this.updateAuthState({
-      isAuthenticated: hasValidToken && !!user,
+      isAuthenticated,
       isLoading: false,
       user: user,
       error: null
     });
 
-    console.log('🔐 Auth state initialized:', {
-      isAuthenticated: hasValidToken && !!user,
-      user: user?.email,
-      hasToken: !!this.tokenService.getToken()
+    console.log('🔐 AuthV5Service: Auth state initialized:', {
+      isAuthenticated,
+      user: user?.email || 'NO_USER',
+      school: school?.name || 'NO_SCHOOL',
+      hasToken: !!rawToken,
+      hasValidToken,
+      tokenLength: rawToken?.length || 0,
+      tokenStart: rawToken?.substring(0, 15) + '...' || 'N/A'
     });
   }
 
@@ -256,13 +267,61 @@ export class AuthV5Service {
    * Obtener información del usuario actual desde el servidor
    */
   getCurrentUserInfo(): Observable<UserContext> {
+    console.log('🔄 AuthV5Service: Making /me API call to fetch user info');
     return this.http.get<ApiResponse<any>>(`${this.apiUrl}/me`)
       .pipe(
+        tap(response => {
+          // Cast to any for flexible property access
+          const flexResponse = response as any;
+          console.log('🔍 AuthV5Service: Raw API response for /me:', {
+            response: response,
+            hasResponse: !!response,
+            responseType: typeof response,
+            responseKeys: response ? Object.keys(response) : 'NO_RESPONSE',
+            success: response?.success,
+            message: response?.message || 'NO_MESSAGE',
+            hasData: !!response?.data,
+            dataType: typeof response?.data,
+            dataKeys: response?.data ? Object.keys(response.data) : 'NO_DATA',
+            dataContent: response?.data, // ✅ Show actual data content
+            hasUser: !!response?.data?.user,
+            userKeys: response?.data?.user ? Object.keys(response.data.user) : 'NO_USER',
+            // ✅ Check if user is directly in response
+            hasDirectUser: !!flexResponse?.user,
+            directUserKeys: flexResponse?.user ? Object.keys(flexResponse.user) : 'NO_DIRECT_USER'
+          });
+        }),
         map(response => {
           if (!response.success) {
+            console.error('❌ AuthV5Service: API response indicates failure:', response.message);
             throw new Error(response.message || 'Failed to fetch user info');
           }
-          return response.data.user;
+          
+          // ✅ FLEXIBLE: Try multiple possible user locations in response
+          const flexResponse = response as any;
+          let user = response.data?.user || response.data || flexResponse.user || null;
+          
+          // ✅ If data is directly the user (no nested structure)
+          if (response.data && response.data.email && !response.data.user) {
+            user = response.data;
+          }
+          
+          console.log('✅ AuthV5Service: Extracted user from API response:', {
+            hasUser: !!user,
+            userEmail: user?.email || 'NO_EMAIL',
+            userName: user?.name || 'NO_NAME',
+            userId: user?.id || 'NO_ID',
+            extractionMethod: user === response.data?.user ? 'data.user' : 
+                             user === response.data ? 'data' : 
+                             user === flexResponse.user ? 'user' : 'none'
+          });
+          
+          if (!user) {
+            console.error('❌ AuthV5Service: No user found in any expected location');
+            throw new Error('User data not found in API response');
+          }
+          
+          return user;
         }),
         tap(user => {
           // Actualizar datos del usuario en el servicio de tokens
@@ -334,6 +393,15 @@ export class AuthV5Service {
    */
   clearError(): void {
     this.updateAuthState({ ...this.getCurrentState(), error: null });
+  }
+
+  /**
+   * ✅ NEW: Force refresh auth state from TokenV5Service
+   * Useful after school selection when data might be out of sync
+   */
+  forceRefreshAuthState(): void {
+    console.log('🔄 AuthV5Service: Force refreshing auth state...');
+    this.initializeAuthState();
   }
 
   /**
@@ -505,12 +573,29 @@ export class AuthV5Service {
     return this.http.post<ApiResponse<LoginResponse>>(`${this.apiUrl}/select-school`, schoolData, { headers })
       .pipe(
         switchMap(response => {
-          console.log('✅ SelectSchool API response:', response);
+          console.log('✅ SelectSchool API response FULL:', {
+            success: response.success,
+            message: response.message,
+            data: response.data,
+            rawResponse: JSON.stringify(response, null, 2)
+          });
+          
           if (!response.success) {
+            console.error('❌ Backend returned success: false', {
+              message: response.message,
+              fullResponse: response
+            });
             throw new Error(response.message || 'School selection failed');
           }
           
           const loginData = response.data;
+          console.log('🔄 Processing loginData from backend:', {
+            hasLoginData: !!loginData,
+            loginDataType: typeof loginData,
+            loginDataKeys: loginData ? Object.keys(loginData) : 'NO_DATA',
+            hasToken: !!(loginData?.token || loginData?.access_token),
+            tokenField: loginData?.token ? 'token' : loginData?.access_token ? 'access_token' : 'NONE'
+          });
           
           // ✅ NEW: Check if we have season data, if not, try automatic selection
           if (!loginData.season && loginData.school) {
@@ -518,15 +603,86 @@ export class AuthV5Service {
             return this.autoSelectSeason(loginData);
           }
           
+          console.log('🔍 CRITICAL: About to return loginData to tap(), data:', loginData);
           return of(loginData);
         }),
         tap(loginData => {
+          console.log('🔍 CRITICAL: TAP OPERATOR EXECUTING - reached tap with loginData');
+          console.log('🔍 AuthV5Service.selectSchool - About to save login data:', {
+            loginDataType: typeof loginData,
+            hasUser: !!loginData.user,
+            hasSchool: !!loginData.school,
+            hasSeason: !!loginData.season,
+            hasToken: !!(loginData.token || loginData.access_token),
+            keys: Object.keys(loginData)
+          });
+          
+          // ✅ CRITICAL DEBUG: Check token comparison
+          const tempToken = this.tokenService.getTempToken();
+          const newToken = loginData.token || loginData.access_token;
+          console.log('🔍 Token comparison:', {
+            tempTokenExists: !!tempToken,
+            newTokenExists: !!newToken,
+            tokensAreDifferent: tempToken !== newToken,
+            tempTokenStart: tempToken?.substring(0, 15) + '...' || 'N/A',
+            newTokenStart: newToken?.substring(0, 15) + '...' || 'N/A'
+          });
+          
           // Guardar datos completos del login con escuela (y temporada si está disponible)
-          this.tokenService.saveLoginData(loginData);
+          try {
+            console.log('🔄 About to call saveLoginData with:', {
+              hasData: !!loginData,
+              dataKeys: loginData ? Object.keys(loginData) : 'NO_DATA',
+              hasUser: !!loginData?.user,
+              hasSchool: !!loginData?.school, 
+              hasToken: !!(loginData?.token || loginData?.access_token),
+              fullData: JSON.stringify(loginData, null, 2)
+            });
+            
+            this.tokenService.saveLoginData(loginData);
+            console.log('✅ Token saved successfully after school selection');
+          } catch (error) {
+            console.error('❌ CRITICAL: Failed to save token after school selection:', error);
+            console.error('❌ Error details:', {
+              message: error.message,
+              stack: error.stack,
+              loginData: loginData
+            });
+            throw error;
+          }
 
-          // Limpiar token temporal y datos relacionados
-          this.tokenService.clearTempToken();
-          localStorage.removeItem('v5_temp_schools');
+          // ✅ CRITICAL: Verify token was saved before clearing temp token
+          const savedToken = this.tokenService.getToken();
+          const originalToken = newToken;
+          
+          // Direct localStorage check
+          const directTokenCheck = localStorage.getItem('boukii_v5_token');
+          const directUserCheck = localStorage.getItem('boukii_v5_user');
+          const directSchoolCheck = localStorage.getItem('boukii_v5_school');
+          
+          console.log('🔍 Verification: Token after save:', {
+            hasSavedToken: !!savedToken,
+            tokenLength: savedToken?.length || 0,
+            tokenStart: savedToken?.substring(0, 15) + '...' || 'N/A',
+            tokensMatch: savedToken === originalToken,
+            originalTokenStart: originalToken?.substring(0, 15) + '...' || 'N/A',
+            localStorageDirectCheck: {
+              hasTokenInLS: !!directTokenCheck,
+              hasUserInLS: !!directUserCheck,
+              hasSchoolInLS: !!directSchoolCheck,
+              tokenInLSStart: directTokenCheck ? JSON.parse(directTokenCheck)?.access_token?.substring(0, 15) + '...' : 'N/A'
+            }
+          });
+
+          // Limpiar token temporal y datos relacionados SOLO si tenemos token normal guardado
+          if (savedToken) {
+            this.tokenService.clearTempToken();
+            localStorage.removeItem('v5_temp_schools');
+            console.log('✅ Temp token cleared after verifying normal token is saved');
+          } else {
+            console.error('❌ CRITICAL: Cannot clear temp token - normal token not saved!');
+            throw new Error('Token saving failed - cannot proceed');
+          }
 
           // Actualizar estado de autenticación
           this.updateAuthState({
@@ -535,6 +691,20 @@ export class AuthV5Service {
             user: loginData.user,
             error: null
           });
+          
+          // ✅ CRITICAL: Force emit auth state after small delay to ensure components react
+          setTimeout(() => {
+            console.log('🔄 AuthV5Service: Force emitting auth state after school selection complete');
+            this.updateAuthState({
+              isAuthenticated: true,
+              isLoading: false,
+              user: loginData.user,
+              error: null
+            });
+            
+            // Also force refresh to ensure TokenV5Service BehaviorSubjects are in sync
+            this.forceRefreshAuthState();
+          }, 100);
 
           console.log('✅ School selection successful:', {
             user: loginData.user?.email,
@@ -544,6 +714,16 @@ export class AuthV5Service {
         }),
         catchError(error => {
           const errorMessage = this.extractErrorMessage(error);
+
+          console.error('❌ CRITICAL: School selection completely failed:', {
+            error: error,
+            errorMessage: errorMessage,
+            status: error.status,
+            statusText: error.statusText,
+            url: error.url,
+            errorBody: error.error,
+            fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+          });
 
           this.updateAuthState({
             ...this.getCurrentState(),
@@ -872,17 +1052,12 @@ export class AuthV5Service {
       return throwError(() => new Error('No authentication token available'));
     }
     
-    const headers = {
-      'Authorization': `Bearer ${currentToken}`,
-      'Content-Type': 'application/json'
-    };
+    console.log('🌐 AuthV5Service: Making request via ApiV5Service with school context headers');
     
-    const url = `${environment.apiUrl}/v5/seasons`;
-    console.log('🌐 AuthV5Service: Making request to:', url, 'with headers:', headers);
-    
-    return this.http.get<ApiResponse<SeasonInfo[]>>(url, { headers })
+    // ✅ Use ApiV5Service instead of direct HttpClient to ensure school context headers are included
+    return this.apiV5Service.get<SeasonInfo[]>('seasons')
       .pipe(
-        map(response => {
+        map((response: ApiV5Response<SeasonInfo[]>) => {
           console.log('📊 AuthV5Service: Received response:', response);
           if (!response.success) {
             throw new Error(response.message || 'Failed to fetch seasons');

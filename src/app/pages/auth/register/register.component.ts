@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { fadeInUp400ms } from '../../../../../@vex/animations/fade-in-up.animation';
+import { fadeInUp400ms } from '../../../../@vex/animations/fade-in-up.animation';
 
 @Component({
   selector: 'vex-register',

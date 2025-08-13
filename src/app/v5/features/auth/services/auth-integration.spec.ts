@@ -3,7 +3,7 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { AuthV5Service, CheckUserResponse } from '../../../core/services/auth-v5.service';
 import { TokenV5Service } from '../../../core/services/token-v5.service';
 import { Router } from '@angular/router';
-import { environment } from '../../../../environments/environment';
+import { environment } from '../../../../../environments/environment';
 
 describe('AuthV5Service - Real Integration Tests', () => {
   let service: AuthV5Service;

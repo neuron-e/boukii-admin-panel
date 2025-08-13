@@ -3,7 +3,7 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { AuthV5Service, CheckUserResponse } from '../../../core/services/auth-v5.service';
 import { TokenV5Service } from '../../../core/services/token-v5.service';
 import { Router } from '@angular/router';
-import { environment } from '../../../../environments/environment';
+import { environment } from '../../../../../environments/environment';
 
 describe('AuthV5Service - Real Backend Integration with Dev Users', () => {
   let service: AuthV5Service;
@@ -212,16 +212,16 @@ describe('AuthV5Service - Real Backend Integration with Dev Users', () => {
           expect(response.season?.name).toBe('Temporada 2024-2025');
           expect(response.season?.start_date).toBeTruthy();
           expect(response.season?.end_date).toBeTruthy();
-          expect(response.season).not.toHaveProperty('year'); // Should NOT have 'year' field
-          expect(response.season).not.toHaveProperty('is_current'); // Should NOT have 'is_current' field
+          expect((response.season as any).year).toBeUndefined(); // Should NOT have 'year' field
+          expect((response.season as any).is_current).toBeUndefined(); // Should NOT have 'is_current' field
           
           // Verify available seasons also have correct structure
           expect(response.available_seasons).toBeTruthy();
           expect(response.available_seasons!.length).toBe(2);
           response.available_seasons!.forEach(season => {
-            expect(season).toHaveProperty('start_date');
-            expect(season).toHaveProperty('end_date');
-            expect(season).not.toHaveProperty('year');
+            expect(season.start_date).toBeDefined();
+            expect(season.end_date).toBeDefined();
+            expect((season as any).year).toBeUndefined();
           });
           
           expect(response.access_token).toBeTruthy();
@@ -318,20 +318,20 @@ describe('AuthV5Service - Real Backend Integration with Dev Users', () => {
       };
 
       // Verify season object structure
-      expect(mockSelectResponse.season).toHaveProperty('start_date');
-      expect(mockSelectResponse.season).toHaveProperty('end_date');
-      expect(mockSelectResponse.season).toHaveProperty('is_active');
+      expect(mockSelectResponse.season.start_date).toBeDefined();
+      expect(mockSelectResponse.season.end_date).toBeDefined();
+      expect(mockSelectResponse.season.is_active).toBeDefined();
       
       // Verify problematic fields are NOT present
-      expect(mockSelectResponse.season).not.toHaveProperty('year');
-      expect(mockSelectResponse.season).not.toHaveProperty('is_current');
+      expect((mockSelectResponse.season as any).year).toBeUndefined();
+      expect((mockSelectResponse.season as any).is_current).toBeUndefined();
       
       // Verify available_seasons also have correct structure
       mockSelectResponse.available_seasons.forEach(season => {
-        expect(season).toHaveProperty('start_date');
-        expect(season).toHaveProperty('end_date');
-        expect(season).not.toHaveProperty('year');
-        expect(season).not.toHaveProperty('is_current');
+        expect(season.start_date).toBeDefined();
+        expect(season.end_date).toBeDefined();
+        expect((season as any).year).toBeUndefined();
+        expect((season as any).is_current).toBeUndefined();
       });
     });
   });

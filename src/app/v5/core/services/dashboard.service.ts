@@ -136,6 +136,24 @@ export interface AlertItem {
   priority: number;
 }
 
+export interface ClientDetails {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  initials: string;
+  registrationDate: Date;
+}
+
+export interface CoursePrice {
+  id: number;
+  courseType: string;
+  basePrice: number;
+  currency: string;
+  seasonId: number;
+  isActive: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private dashboardStatsSubject = new BehaviorSubject<DashboardStats | null>(null);
@@ -609,5 +627,173 @@ export class DashboardService {
       dailySessions: this.getDefaultDailySessions(),
       todayReservations: []
     };
+  }
+
+  // ==================== NEW DYNAMIC DATA METHODS ====================
+
+  /**
+   * Get client details including real email from API
+   */
+  async getClientDetails(clientId: number): Promise<ClientDetails> {
+    try {
+      const response = await this.apiV5.get<ApiV5Response<ClientDetails>>(`clients/${clientId}`).toPromise();
+      
+      if (response?.success && response?.data) {
+        return response.data;
+      }
+      
+      throw new Error('Client not found');
+    } catch (error) {
+      this.logger.error('Failed to get client details', { clientId, error });
+      
+      // Fallback to generate initials from name if available
+      throw error;
+    }
+  }
+
+  /**
+   * Get client details by name (for existing reservations)
+   */
+  async getClientDetailsByName(clientName: string): Promise<ClientDetails> {
+    try {
+      const response = await this.apiV5.get<ApiV5Response<ClientDetails[]>>(`clients/search`, { 
+        name: clientName 
+      }).toPromise();
+      
+      if (response?.success && response?.data && response.data.length > 0) {
+        return response.data[0]; // Return first match
+      }
+      
+      throw new Error('Client not found by name');
+    } catch (error) {
+      this.logger.error('Failed to get client details by name', { clientName, error });
+      
+      // Return fallback client data
+      return this.generateFallbackClientData(clientName);
+    }
+  }
+
+  /**
+   * Get course prices from API
+   */
+  async getCoursePrices(seasonId?: number): Promise<CoursePrice[]> {
+    const targetSeasonId = seasonId || this.seasonContext.getCurrentSeasonId();
+    
+    try {
+      const response = await this.apiV5.get<ApiV5Response<CoursePrice[]>>(`courses/prices`, { 
+        season_id: targetSeasonId?.toString() 
+      }).toPromise();
+      
+      if (response?.success && response?.data) {
+        return response.data;
+      }
+      
+      return [];
+    } catch (error) {
+      this.logger.error('Failed to get course prices', { seasonId: targetSeasonId, error });
+      return this.getFallbackCoursePrices();
+    }
+  }
+
+  /**
+   * Get course price for specific course type
+   */
+  async getCoursePrice(courseType: string, seasonId?: number): Promise<number> {
+    try {
+      const prices = await this.getCoursePrices(seasonId);
+      
+      // Find exact match first
+      let matchedPrice = prices.find(p => 
+        p.courseType.toLowerCase() === courseType.toLowerCase() && p.isActive
+      );
+      
+      // If no exact match, find partial match
+      if (!matchedPrice) {
+        matchedPrice = prices.find(p => 
+          courseType.toLowerCase().includes(p.courseType.toLowerCase()) && p.isActive
+        );
+      }
+      
+      return matchedPrice?.basePrice || 85; // Default fallback price
+      
+    } catch (error) {
+      this.logger.error('Failed to get course price', { courseType, seasonId, error });
+      return this.getFallbackCoursePrice(courseType);
+    }
+  }
+
+  /**
+   * Batch get client details for reservations
+   */
+  async enrichReservationsWithClientData(reservations: TodayReservation[]): Promise<TodayReservation[]> {
+    const enrichedReservations = await Promise.allSettled(
+      reservations.map(async (reservation) => {
+        try {
+          const clientDetails = await this.getClientDetailsByName(reservation.clientName);
+          
+          return {
+            ...reservation,
+            clientEmail: clientDetails.email,
+            clientPhone: clientDetails.phone,
+            clientId: clientDetails.id
+          };
+        } catch (error) {
+          // Keep original reservation if client details fail
+          const fallbackClient = this.generateFallbackClientData(reservation.clientName);
+          return {
+            ...reservation,
+            clientEmail: fallbackClient.email,
+            clientPhone: undefined,
+            clientId: 0
+          };
+        }
+      })
+    );
+
+    return enrichedReservations.map(result => 
+      result.status === 'fulfilled' ? result.value : reservations[enrichedReservations.indexOf(result)]
+    );
+  }
+
+  // ==================== PRIVATE HELPER METHODS ====================
+
+  private generateFallbackClientData(clientName: string): ClientDetails {
+    const cleanName = clientName.toLowerCase().replace(/\s+/g, '.');
+    const initials = clientName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    
+    return {
+      id: 0,
+      name: clientName,
+      email: `${cleanName}@example.com`, // Clearly marked as fallback
+      initials,
+      registrationDate: new Date()
+    };
+  }
+
+  private getFallbackCoursePrices(): CoursePrice[] {
+    const seasonId = this.seasonContext.getCurrentSeasonId() || 0;
+    
+    return [
+      { id: 1, courseType: 'Principiante', basePrice: 85, currency: 'EUR', seasonId, isActive: true },
+      { id: 2, courseType: 'Intermedio', basePrice: 45, currency: 'EUR', seasonId, isActive: true },
+      { id: 3, courseType: 'Avanzado', basePrice: 95, currency: 'EUR', seasonId, isActive: true },
+      { id: 4, courseType: 'Snowboard', basePrice: 110, currency: 'EUR', seasonId, isActive: true },
+      { id: 5, courseType: 'Privado', basePrice: 150, currency: 'EUR', seasonId, isActive: true },
+      { id: 6, courseType: 'Freestyle', basePrice: 110, currency: 'EUR', seasonId, isActive: true },
+      { id: 7, courseType: 'Paralelo', basePrice: 55, currency: 'EUR', seasonId, isActive: true },
+      { id: 8, courseType: 'Fondo', basePrice: 40, currency: 'EUR', seasonId, isActive: true },
+      { id: 9, courseType: 'Competición', basePrice: 150, currency: 'EUR', seasonId, isActive: true }
+    ];
+  }
+
+  private getFallbackCoursePrice(courseType: string): number {
+    const fallbackPrices = this.getFallbackCoursePrices();
+    
+    // Find matching price
+    const matchedPrice = fallbackPrices.find(p => 
+      courseType.toLowerCase().includes(p.courseType.toLowerCase())
+    );
+    
+    return matchedPrice?.basePrice || 85;
   }
 }

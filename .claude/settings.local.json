@@ -55,7 +55,8 @@
       "Bash(-H \"Content-Type: application/json\")",
       "Bash(mysql:*)",
       "Bash(npx cypress run:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(npm run:*)"
     ],
     "deny": []
   }

@@ -83,6 +83,14 @@ export class NavbarComponent implements OnInit, OnDestroy {
     // Check if user is authenticated, if not redirect to login
     this.checkAuthenticationAndRedirect();
 
+    // ✅ ENHANCED: Initialize season context if authenticated
+    if (this.authService.isAuthenticated()) {
+      console.log('🔄 NavbarComponent: User is authenticated, ensuring season context is initialized');
+      this.seasonContext.initialize().catch(error => {
+        console.error('❌ NavbarComponent: Error initializing season context:', error);
+      });
+    }
+
     // Debug: Check authentication status
     setTimeout(() => {
       console.log('🔍 Debug - Current user in navbar:', this.currentUser);
@@ -216,10 +224,20 @@ export class NavbarComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (season) => {
           this.currentSeason = season;
+          
+          // ✅ ENHANCED: Check if we should redirect to seasons management
+          if (!season && this.authService.isAuthenticated()) {
+            this.handleNoActiveSeason();
+          }
         },
         error: (error) => {
           console.error('❌ Error loading season data in navbar:', error);
           this.currentSeason = null;
+          
+          // Also check for redirection on error
+          if (this.authService.isAuthenticated()) {
+            this.handleNoActiveSeason();
+          }
         }
       });
 
@@ -239,20 +257,24 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   getSeasonStatusClass(season?: any): string {
     const targetSeason = season || this.currentSeason;
-    if (!targetSeason) return '';
+    if (!targetSeason) return 'no-season';
     
-    if (targetSeason.is_current) return 'current';
+    // ✅ ENHANCED: Use proper database validation for status
+    if (targetSeason.is_closed) return 'closed';
     if (targetSeason.is_historical) return 'historical';
-    return 'active';
+    if (targetSeason.is_active) return 'active';
+    return 'inactive';
   }
 
   getSeasonStatusText(season?: any): string {
     const targetSeason = season || this.currentSeason;
-    if (!targetSeason) return 'Sin temporada';
+    if (!targetSeason) return 'Sin temporada activa';
     
-    if (targetSeason.is_current) return 'Actual';
+    // ✅ ENHANCED: More accurate status text based on database state
+    if (targetSeason.is_closed) return 'Cerrada';
     if (targetSeason.is_historical) return 'Histórica';
-    return 'Activa';
+    if (targetSeason.is_active) return 'Activa';
+    return 'Inactiva';
   }
 
   private loadUserPreferences(): void {
@@ -334,6 +356,44 @@ export class NavbarComponent implements OnInit, OnDestroy {
     console.log('🔄 Opening create season dialog');
     // TODO: Implement season creation dialog
     // For now, just navigate to season management or show a placeholder
-    this.router.navigate(['/v5/seasons/create']);
+    this.router.navigate(['/v5/seasons/new']);
+  }
+
+  /**
+   * Handle case when no active season exists
+   */
+  private handleNoActiveSeason(): void {
+    const currentUrl = this.router.url;
+    
+    // ✅ ENHANCED: More restrictive conditions for redirection
+    const isDashboardRoute = currentUrl.includes('/dashboard') || currentUrl.includes('/welcome');
+    const isNotSeasonsRoute = !currentUrl.includes('/seasons');
+    const hasAvailableSeasons = this.availableSeasons.length > 0;
+    
+    console.log('🔍 NavbarComponent: handleNoActiveSeason check:', {
+      currentUrl,
+      isDashboardRoute,
+      isNotSeasonsRoute,
+      hasAvailableSeasons,
+      currentSeason: !!this.currentSeason,
+      availableSeasonsCount: this.availableSeasons.length
+    });
+    
+    // Only redirect if:
+    // 1. We're on dashboard/welcome (routes that need season context)
+    // 2. We're not already on seasons page
+    // 3. There are available seasons but none is set as current
+    if (isDashboardRoute && isNotSeasonsRoute && hasAvailableSeasons) {
+      console.log('⚠️ NavbarComponent: Dashboard route needs season but none active, redirecting to seasons');
+      
+      setTimeout(() => {
+        console.log('🔄 NavbarComponent: Redirecting to seasons page for context selection');
+        this.router.navigate(['/v5/seasons'], {
+          queryParams: { reason: 'dashboard-needs-season-context' }
+        });
+      }, 500); // Smaller delay
+    } else {
+      console.log('ℹ️ NavbarComponent: No redirection needed based on current conditions');
+    }
   }
 }

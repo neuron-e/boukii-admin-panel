@@ -3,10 +3,12 @@ import { Observable, Subject } from 'rxjs';
 import { takeUntil, startWith, map } from 'rxjs/operators';
 import { MatDialog } from '@angular/material/dialog';
 import { MatTableDataSource } from '@angular/material/table';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Season } from '../../../../core/models/season.interface';
 import { SeasonService } from '../../services/season.service';
 import { SeasonContextService } from '../../../../core/services/season-context.service';
 import { LoadingService } from '../../../../core/services/loading.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 
 @Component({
   selector: 'vex-season-list',
@@ -19,6 +21,9 @@ export class SeasonListComponent implements OnInit, OnDestroy {
   private seasonContext = inject(SeasonContextService);
   private loadingService = inject(LoadingService);
   private dialog = inject(MatDialog);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private notification = inject(NotificationService);
 
   dataSource = new MatTableDataSource<Season>([]);
   displayedColumns = ['name', 'start_date', 'end_date', 'status', 'actions'];
@@ -35,6 +40,17 @@ export class SeasonListComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadSeasons();
     this.setupDataSourceFiltering();
+    this.checkForRedirectReason();
+  }
+
+  private checkForRedirectReason(): void {
+    const reason = this.route.snapshot.queryParams['reason'];
+    
+    if (reason === 'no-active-season') {
+      this.notification.info('No se encontró una temporada activa. Por favor selecciona o crea una temporada.');
+    } else if (reason === 'dashboard-needs-season-context') {
+      this.notification.info('El dashboard requiere una temporada activa. Por favor selecciona una temporada para continuar.');
+    }
   }
 
   ngOnDestroy(): void {
@@ -94,38 +110,112 @@ export class SeasonListComponent implements OnInit, OnDestroy {
   }
 
   openCreateSeasonDialog(): void {
-    // TODO: Implement create season dialog
-    console.log('Open create season dialog');
+    this.router.navigate(['/v5/seasons/new']);
   }
 
   openEditSeasonDialog(season: Season): void {
-    // TODO: Implement edit season dialog
-    console.log('Edit season:', season);
+    this.router.navigate(['/v5/seasons', season.id, 'edit']);
   }
 
   openCloneSeasonDialog(season: Season): void {
-    // TODO: Implement clone season dialog
-    console.log('Clone season:', season);
+    // Navigate to create form with pre-filled data from the season to clone
+    this.router.navigate(['/v5/seasons/new'], {
+      queryParams: {
+        clone: season.id,
+        cloneName: `${season.name} (Copia)`
+      }
+    });
   }
 
   closeSeason(season: Season): void {
-    if (confirm(`¿Estás seguro de que quieres cerrar la temporada "${season.name}"?`)) {
+    const message = `¿Estás seguro de que quieres cerrar la temporada "${season.name}"?\n\nEsta acción marcará la temporada como cerrada, pero podrás reabrirla más tarde si es necesario.`;
+    
+    if (confirm(message)) {
       this.seasonService.closeSeason(season.id)
         .pipe(takeUntil(this.destroy$))
-        .subscribe();
+        .subscribe({
+          next: () => {
+            console.log(`✅ Temporada "${season.name}" cerrada exitosamente`);
+            this.loadSeasons(); // Recargar la lista
+          },
+          error: (error) => {
+            console.error('❌ Error cerrando temporada:', error);
+          }
+        });
+    }
+  }
+
+  reopenSeason(season: Season): void {
+    const message = `¿Estás seguro de que quieres reabrir la temporada "${season.name}"?\n\nEsta acción permitirá usar la temporada nuevamente.`;
+    
+    if (confirm(message)) {
+      this.seasonService.reopenSeason(season.id)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            console.log(`✅ Temporada "${season.name}" reabierta exitosamente`);
+            this.loadSeasons(); // Recargar la lista
+          },
+          error: (error) => {
+            console.error('❌ Error reabriendo temporada:', error);
+          }
+        });
     }
   }
 
   deleteSeason(season: Season): void {
-    if (confirm(`¿Estás seguro de que quieres eliminar la temporada "${season.name}"?`)) {
+    const message = `¿Estás seguro de que quieres ELIMINAR PERMANENTEMENTE la temporada "${season.name}"?\n\nEsta acción no se puede deshacer.`;
+    
+    if (confirm(message)) {
       this.seasonService.deleteSeason(season.id)
         .pipe(takeUntil(this.destroy$))
-        .subscribe();
+        .subscribe({
+          next: () => {
+            console.log(`✅ Temporada "${season.name}" eliminada exitosamente`);
+            this.loadSeasons(); // Recargar la lista
+          },
+          error: (error) => {
+            console.error('❌ Error eliminando temporada:', error);
+          }
+        });
     }
   }
 
-  setCurrentSeason(season: Season): void {
-    this.seasonContext.setCurrentSeason(season.id);
+  toggleSeasonActive(season: Season): void {
+    if (season.is_active) {
+      // Desactivar temporada
+      const message = `¿Desactivar la temporada "${season.name}"?\n\nEsta temporada dejará de estar activa.`;
+      if (confirm(message)) {
+        this.seasonService.deactivateSeason(season.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              console.log(`✅ Temporada "${season.name}" desactivada`);
+              this.loadSeasons();
+            },
+            error: (error) => {
+              console.error('❌ Error desactivando temporada:', error);
+            }
+          });
+      }
+    } else {
+      // Activar temporada y establecer como actual
+      const message = `¿Activar la temporada "${season.name}"?\n\nEsta temporada se marcará como activa y será la temporada actual.`;
+      if (confirm(message)) {
+        this.seasonService.activateSeason(season.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              console.log(`✅ Temporada "${season.name}" activada`);
+              this.seasonContext.setCurrentSeason(season.id); // También establecer como actual
+              this.loadSeasons();
+            },
+            error: (error) => {
+              console.error('❌ Error activando temporada:', error);
+            }
+          });
+      }
+    }
   }
 
   getStatusLabel(season: Season): string {

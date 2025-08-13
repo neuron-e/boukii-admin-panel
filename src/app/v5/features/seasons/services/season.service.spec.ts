@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
 
 import { SeasonService, CreateSeasonRequest } from './season.service';
@@ -20,18 +21,17 @@ describe('SeasonService - Enhanced School Context Integration', () => {
     start_date: '2024-09-01',
     end_date: '2025-04-30',
     is_active: true,
-    is_current: true,
     is_closed: false,
     is_historical: false,
     school_id: 2,
-    created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-01T00:00:00Z'
+    created_at: '2024-01-01T00:00:00Z'
   };
 
   const mockApiResponse: ApiV5Response<Season> = {
     success: true,
     message: 'Season created successfully',
-    data: mockSeason
+    data: mockSeason,
+    timestamp: '2024-01-01T00:00:00Z'
   };
 
   beforeEach(() => {
@@ -100,7 +100,8 @@ describe('SeasonService - Enhanced School Context Integration', () => {
       const errorResponse = {
         success: false,
         message: 'School context is required',
-        data: null
+        data: null,
+        timestamp: '2024-01-01T00:00:00Z'
       };
 
       // Mock API error
@@ -121,7 +122,6 @@ describe('SeasonService - Enhanced School Context Integration', () => {
         name: 'Temporada 2024-2025',
         start_date: '2024-09-01',
         end_date: '2025-04-30',
-        school_id: 2
       };
 
       const httpError = new Error('Network error');
@@ -146,14 +146,14 @@ describe('SeasonService - Enhanced School Context Integration', () => {
         name: 'Temporada 2023-2024',
         start_date: '2023-09-01',
         end_date: '2024-04-30',
-        is_current: false
       }
     ];
 
     const mockSeasonsResponse: ApiV5Response<Season[]> = {
       success: true,
       message: 'Seasons loaded successfully',
-      data: mockSeasons
+      data: mockSeasons,
+      timestamp: '2024-01-01T00:00:00Z'
     };
 
     it('should load seasons and update internal state', () => {
@@ -176,16 +176,15 @@ describe('SeasonService - Enhanced School Context Integration', () => {
       });
     });
 
-    it('should load seasons with specific school_id parameter', () => {
-      const schoolId = 3;
+    it('should load seasons using school context from interceptor', () => {
       apiV5Service.get.and.returnValue(of(mockSeasonsResponse));
 
-      service.getSeasons(schoolId).subscribe({
+      service.getSeasons().subscribe({
         next: (seasons) => {
           expect(seasons).toEqual(mockSeasons);
           
-          // Verify API was called with school_id parameter
-          expect(apiV5Service.get).toHaveBeenCalledWith('seasons', { school_id: schoolId });
+          // Verify API was called without parameters (context handled by interceptor)
+          expect(apiV5Service.get).toHaveBeenCalledWith('seasons');
         },
         error: fail
       });
@@ -195,7 +194,8 @@ describe('SeasonService - Enhanced School Context Integration', () => {
       const emptyResponse: ApiV5Response<Season[]> = {
         success: true,
         message: 'No seasons found',
-        data: []
+        data: [],
+        timestamp: '2024-01-01T00:00:00Z'
       };
 
       apiV5Service.get.and.returnValue(of(emptyResponse));
@@ -243,7 +243,8 @@ describe('SeasonService - Enhanced School Context Integration', () => {
       const errorResponse: ApiV5Response<Season> = {
         success: false,
         message: 'No current season found',
-        data: null as any
+        data: null as any,
+        timestamp: '2024-01-01T00:00:00Z'
       };
 
       apiV5Service.get.and.returnValue(of(errorResponse));
@@ -264,7 +265,6 @@ describe('SeasonService - Enhanced School Context Integration', () => {
         name: 'Temporada 2024-2025',
         start_date: '2024-09-01',
         end_date: '2025-04-30',
-        school_id: 2
       };
 
       // Mock create response
@@ -274,7 +274,8 @@ describe('SeasonService - Enhanced School Context Integration', () => {
       const mockSeasonsResponse: ApiV5Response<Season[]> = {
         success: true,
         message: 'Seasons refreshed',
-        data: [mockSeason]
+        data: [mockSeason],
+        timestamp: '2024-01-01T00:00:00Z'
       };
       apiV5Service.get.and.returnValue(of(mockSeasonsResponse));
 
@@ -303,7 +304,6 @@ describe('SeasonService - Enhanced School Context Integration', () => {
         name: 'Test Season',
         start_date: '2024-01-01',
         end_date: '2024-12-31',
-        school_id: 2
       };
 
       apiV5Service.post.and.returnValue(of(mockApiResponse));

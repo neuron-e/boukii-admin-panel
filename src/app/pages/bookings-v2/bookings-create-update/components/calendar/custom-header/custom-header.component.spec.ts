@@ -1,16 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { CustomHeaderComponent } from './custom-header.component';
+import { CustomHeader } from './custom-header.component';
 
-describe('CustomHeaderComponent', () => {
-  let component: CustomHeaderComponent;
-  let fixture: ComponentFixture<CustomHeaderComponent>;
+describe('CustomHeader', () => {
+  let component: CustomHeader;
+  let fixture: ComponentFixture<CustomHeader>;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [CustomHeaderComponent]
+      declarations: [CustomHeader]
     });
-    fixture = TestBed.createComponent(CustomHeaderComponent);
+    fixture = TestBed.createComponent(CustomHeader);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

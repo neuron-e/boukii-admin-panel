@@ -115,15 +115,21 @@ export class SeasonContextService {
   private async loadAvailableSeasons(): Promise<void> {
     console.log('🔄 SeasonContextService: Calling AuthV5Service.getAvailableSeasons()...');
     
-    // Debug authentication state before calling API
+    // ✅ ENHANCED: Debug authentication state before calling API
     const authService = this.authV5;
     const currentUser = authService.getCurrentUser();
     const isAuthenticated = authService.isAuthenticated();
+    const tokenService = authService['tokenService'];
+    const hasToken = tokenService.hasValidToken();
+    const rawToken = tokenService.getToken();
     
-    console.log('🔍 SeasonContextService: Auth state check:', {
+    console.log('🔍 SeasonContextService: Auth state before API call:', {
       isAuthenticated,
-      hasUser: !!currentUser,
-      userEmail: currentUser?.email || 'N/A'
+      hasCurrentUser: !!currentUser,
+      userEmail: currentUser?.email || 'N/A',
+      hasValidToken: hasToken,
+      tokenLength: rawToken?.length || 0,
+      tokenStart: rawToken?.substring(0, 15) + '...' || 'N/A'
     });
     
     if (!isAuthenticated || !currentUser) {
@@ -157,30 +163,65 @@ export class SeasonContextService {
 
 
   private async initializeCurrentSeason(): Promise<void> {
-    // First check if there's a stored season preference
-    const stored = localStorage.getItem('boukii_current_season');
-    if (stored) {
-      try {
-        const season = JSON.parse(stored);
-        // Verify this season still exists in available seasons
-        const exists = this.availableSeasonsSubject.value.find(s => s.id === season.id);
-        if (exists) {
-          this.currentSeasonSubject.next(season);
-          return;
-        } else {
-          // Clean up invalid stored season
-          localStorage.removeItem('boukii_current_season');
-        }
-      } catch {
-        localStorage.removeItem('boukii_current_season');
-      }
+    console.log('🔄 SeasonContextService: Initializing current season...');
+    
+    // ✅ FIXED: First check TokenV5Service for current season from completed school selection
+    const tokenService = this.authV5['tokenService'];
+    const tokenSeason = tokenService.getCurrentSeason();
+    
+    console.log('🔍 SeasonContextService: Season from TokenV5Service:', {
+      hasSeason: !!tokenSeason,
+      seasonId: tokenSeason?.id || 'N/A',
+      seasonName: tokenSeason?.name || 'N/A',
+      fullSeasonData: tokenSeason
+    });
+    
+    if (tokenSeason) {
+      // ✅ ENHANCED: Use the season from token directly - we trust it from school selection
+      // Don't validate against database here to avoid HTTP calls during initialization
+      console.log('✅ SeasonContextService: Using season from TokenV5Service (trusted from school selection):', tokenSeason.name);
+      console.log('🔍 SeasonContextService: Token season is_active value:', tokenSeason.is_active);
+      
+      // ✅ ENHANCED: If this season is in TokenV5Service, it means it was selected/available
+      // If is_active is null/undefined, treat it as active since it's the current working season
+      const effectiveIsActive = tokenSeason.is_active !== null ? tokenSeason.is_active : true;
+      console.log('🔍 SeasonContextService: Effective is_active value (null converted):', effectiveIsActive);
+      
+      // Convert SeasonContext to Season interface
+      const season: Season = {
+        id: tokenSeason.id,
+        name: tokenSeason.name,
+        start_date: tokenSeason.start_date,
+        end_date: tokenSeason.end_date,
+        is_active: effectiveIsActive, // ✅ FIX: Use calculated effective active status
+        is_closed: false, // Default - will be updated when seasons are loaded later
+        is_historical: false, // Default - will be updated when seasons are loaded later  
+        school_id: this.authV5['tokenService'].getCurrentSchool()?.id || 0,
+        created_at: new Date().toISOString()
+      };
+      
+      console.log('✅ SeasonContextService: Created season object with final is_active:', season.is_active);
+      
+      this.currentSeasonSubject.next(season);
+      localStorage.setItem('boukii_current_season', JSON.stringify(season));
+      return;
     }
-
+    
+    console.log('⚠️ SeasonContextService: No season from TokenV5Service, checking available seasons for auto-selection...');
     const seasons = this.availableSeasonsSubject.value;
+    
+    if (seasons.length === 0) {
+      console.warn('⚠️ SeasonContextService: No available seasons loaded yet');
+      this.currentSeasonSubject.next(null);
+      return;
+    }
+    
+    console.log('🔍 SeasonContextService: Available seasons for auto-selection:', seasons.map(s => ({ id: s.id, name: s.name, is_active: s.is_active })));
     
     // 1. Check for explicitly active season
     const activeSeason = seasons.find((s) => s.is_active);
     if (activeSeason) {
+      console.log('✅ SeasonContextService: Found active season, auto-selecting:', activeSeason.name);
       this.setCurrentSeason(activeSeason);
       return;
     }
@@ -194,6 +235,7 @@ export class SeasonContextService {
     });
     
     if (currentSeason) {
+      console.log('✅ SeasonContextService: Found current date season, auto-selecting:', currentSeason.name);
       this.setCurrentSeason(currentSeason);
       return;
     }
@@ -203,6 +245,7 @@ export class SeasonContextService {
       const mostRecent = [...seasons].sort(
         (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
       )[0];
+      console.log('✅ SeasonContextService: Multiple seasons found, auto-selecting most recent:', mostRecent.name);
       this.setCurrentSeason(mostRecent);
       // Show selection prompt
       this.snackBar.open(`Se encontraron ${seasons.length} temporadas. Usando: ${mostRecent.name}`, 'Cambiar', {
@@ -213,12 +256,13 @@ export class SeasonContextService {
 
     // 4. If only one season, use it
     if (seasons.length === 1) {
+      console.log('✅ SeasonContextService: Single season found, auto-selecting:', seasons[0].name);
       this.setCurrentSeason(seasons[0]);
       return;
     }
 
     // 5. No seasons available - leave current season as null
-    console.warn('⚠️ No seasons available from API');
+    console.warn('⚠️ SeasonContextService: No seasons available from API');
     this.currentSeasonSubject.next(null);
   }
 

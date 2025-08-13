@@ -1,101 +1,236 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Este archivo proporciona instrucciones y contexto para **Claude Code** (claude.ai/code) al trabajar con el repositorio de **Boukii V5**.
 
-## Development Commands
+Incluye información de **frontend (Angular 16)** y **backend (Laravel 10+)**, arquitectura, buenas prácticas, comandos de desarrollo, manejo de contexto multi-escuela/temporada, logs, manejo de errores y plan de pruebas.
 
-### Build & Development
-- `npm start` - Start development server
-- `npm run start2` - Start development server without live reload
-- `npm run build` - Build the application (uses increased memory allocation)
-- `npm test` - Run unit tests with Karma
-- `npm run lint` - Run linting
-- `npm run e2e` - Run end-to-end tests
+---
 
-### Environment-Specific Commands
-The project supports multiple environments via Angular configurations:
-- Production: `ng build --configuration=production`
-- Development: `ng build --configuration=development` 
+## 📂 Ubicaciones principales
+- **Backend Laravel**: `C:\laragon\www\api-boukii`
+- **Frontend Angular**: Boukii Admin Panel V5 (Angular 16, tema Vex)
+
+---
+
+## 💻 Development Commands
+
+### Backend (Laravel)
+- `php artisan serve` - Iniciar servidor local (no usar, ya está en Laragon) la url es: http://api-boukii.test
+- `php artisan migrate` - Ejecutar migraciones
+- `php artisan test` - Ejecutar suite de tests
+- `php artisan route:list` - Listar rutas
+- `php artisan tinker` - Consola interactiva
+
+### Frontend (Angular)
+- `npm start` - Inicia el servidor de desarrollo
+- `npm run start2` - Inicia sin live reload
+- `npm run build` - Compila la aplicación (memoria ampliada)
+- `npm test` - Ejecuta tests unitarios (Karma)
+- `npm run lint` - Ejecuta linting
+- `npm run e2e` - Ejecuta pruebas E2E
+
+**Environments disponibles:**
+- Producción: `ng build --configuration=production`
+- Desarrollo: `ng build --configuration=development`
 - Local: `ng build --configuration=local`
 
-## Architecture Overview
+---
 
-### Project Structure
-This is an Angular 16 admin panel application called "Boukii Admin Panel" built on the Vex theme framework.
+## 🏗 Arquitectura General
+
+### Backend (Laravel 10+)
+- **Sistema multi-escuela y multi-temporada**
+  - Cada request admin incluye `X-School-ID` y `X-Season-ID`
+  - Roles y permisos por escuela y temporada
+- **Middlewares clave**
+  - Unificar `SchoolContextMiddleware` y `SeasonContextMiddleware` en `ContextMiddleware`
+  - `RolePermissionMiddleware` y `SeasonPermissionGuard` → unificar
+- **Controladores y rutas**
+  - Rutas en `routes/api/v5.php`
+  - Eliminar duplicados (`routes/api/v5-unified.php`, backups)
+- **Base de datos**
+  - Tabla `user_season_roles` con migración formal
+  - Seeds seguros usando `updateOrCreate`
+  - Usuarios de prueba:
+    - `admin@boukii-v5.com` (multi-school: school 2 y otra)
+    - `multi@boukii-v5.com` (solo school 2)
+  - School 2 debe tener al menos una season activa
+- **Flujo protegido**
+  - Todas las rutas admin deben pasar por:
+    - `auth:sanctum`
+    - `context.middleware`
+    - `role.permission.middleware`
+
+---
+
+### Frontend (Angular 16)
+- **Tema base**: Vex + TailwindCSS + Angular Material
+- **Flujo multi-escuela/temporada**
+  1. Login
+  2. Si solo 1 school → auto-selección
+  3. Si varias → selector de escuela
+  4. Una vez seleccionada:
+    - Si solo 1 season activa → auto-selección
+    - Si varias → modal de selección con opción de crear (si permisos)
+  5. Guardar `school_id` y `season_id` en `localStorage`
+  6. Interceptor HTTP inyecta `X-School-ID` y `X-Season-ID` en todas las peticiones
+- **ContextService**
+  - Gestiona selección y persistencia del contexto
+- **Guards**
+  - `AuthV5Guard`
+  - `SeasonContextGuard`
+- **UI dinámica**
+  - Menús y acciones según permisos backend
+  - Sidebar y navbar visibles en todo el flujo admin
+
+---
+
+## 🎨 Frontend Architecture Overview (Angular 16)
 
 **Key Directories:**
-- `src/@vex/` - Vex theme framework components, layouts, and utilities
-- `src/app/pages/` - Main application pages (dashboard, analytics, bookings, courses, etc.)
-- `src/service/` - Core services for API, authentication, and business logic
-- `src/environments/` - Environment-specific configurations
+- `src/@vex/` - Vex theme framework components, layouts, utilities
+- `src/app/pages/` - Páginas principales (dashboard, analytics, bookings, courses, etc.)
+- `src/service/` - Servicios core para API, auth y lógica de negocio
+- `src/environments/` - Configuración por entorno
 
-### Core Technologies
-- Angular 16 with TypeScript
-- Angular Material for UI components
-- TailwindCSS for styling (custom configuration)
-- RxJS for reactive programming
-- Firebase for authentication
-- ApexCharts for data visualization
-- Various specialized libraries (Calendar, QR codes, Excel export, etc.)
-
-### Application Structure
+**Core Technologies:**
+- Angular 16 (TypeScript)
+- Angular Material
+- TailwindCSS (custom config)
+- RxJS
+- Firebase Auth
+- ApexCharts
+- Otros: Calendar, QR, export Excel, etc.
 
 **Main Features:**
-- Dashboard with analytics widgets
-- Client management
-- Course/booking management (v1 and v2 implementations)
-- Monitor management
-- Calendar integration
-- Communication/chat system
-- Analytics and reporting
-- Admin user management
+- Dashboard con widgets
+- Gestión de clientes
+- Gestión de cursos/reservas (v1 y v2)
+- Gestión de monitores
+- Calendario integrado
+- Chat interno
+- Análisis y reporting
+- Gestión de usuarios admin
 
 **Key Services:**
-- `ApiService` - HTTP client with authentication headers
-- `AuthService` - Authentication and user management
-- `ConfigService` - Vex theme configuration management
-- Various domain-specific services (analytics, bookings, courses, etc.)
+- `ApiService` - Cliente HTTP con headers de auth
+- `AuthService` - Autenticación y usuarios
+- `ConfigService` - Configuración de tema
+- Servicios por dominio (analytics, bookings, courses...)
 
-### Component Architecture
-- Uses Vex theme's modular component system
-- Custom components in `src/app/components/`
-- Shared widgets in `src/@vex/components/widgets/`
-- Layout system with configurable sidenav, toolbar, and footer
+**Component Architecture:**
+- Modular (Vex)
+- Componentes en `src/app/components/`
+- Widgets en `src/@vex/components/widgets/`
+- Layout con sidenav, toolbar, footer
 
-### Styling System
-- Custom TailwindCSS configuration with Vex theme integration
-- CSS custom properties for dynamic theming
-- SCSS for component-specific styles
-- Material Design theming support
+**Styling:**
+- TailwindCSS + SCSS
+- Theming dinámico con CSS vars
+- Material Design themes
 
-### API Integration
-- Base API URL configured per environment
-- JWT token-based authentication stored in localStorage
-- HTTP interceptors for authentication headers
+**API Integration:**
+- Base URL por environment
+- JWT en `localStorage`
+- HTTP interceptors
 
-### State Management
-- Primarily uses Angular services with RxJS for state management
-- Component-level state for UI interactions
-- Configuration service for theme/layout state
+**State Management:**
+- Servicios + RxJS
+- Estado UI por componente
+- ConfigService para layout/theme
 
-### Internationalization
-- Uses ngx-translate for multi-language support
-- Translation files in `src/assets/i18n/` (supports EN, ES, FR, DE, IT)
+**Internationalization:**
+- ngx-translate
+- Archivos en `src/assets/i18n/` (EN, ES, FR, DE, IT)
 
-## Development Notes
+---
 
-### Testing
-- Karma + Jasmine for unit tests
-- Test configuration in `karma.conf.js`
-- Spec files co-located with components
+## ⚠️ Buenas Prácticas
 
-### Build Configuration
-- Memory allocation increased for build process (`--max-old-space-size=4096`)
-- Multiple environment configurations with different base URLs and Firebase configs
-- Asset optimization and bundling configured in `angular.json`
+### Seeds
+- Siempre `updateOrCreate`
+- Nunca borrar datos reales
+- Probar en **staging** antes de prod
 
-### Code Patterns
-- Uses Angular best practices with decorators and dependency injection
-- RxJS operators heavily used for reactive programming
-- UntilDestroy pattern for subscription management
-- TypeScript strict mode enabled
+### Código
+- PSR-4 en Laravel
+- Convenciones Angular
+- Evitar duplicación
+- Lógica compleja en `Services`/`Repositories`
+- Validar contexto y permisos de forma unificada
+
+### Logs
+- Canal `v5_enterprise` con:
+  - `user_id`, `school_id`, `season_id`, endpoint y método
+- Separar:
+  - Errores API
+  - Errores de permisos
+  - Auditoría
+
+### Error Handling
+- `V5ExceptionHandler` para respuestas JSON estándar:
+  ```json
+  {
+    "success": false,
+    "message": "Error message",
+    "errors": { ... }
+  }
+
+## 📚 Documentación
+
+- Consolidar en `docs/V5_OVERVIEW.md`
+- Incluir diagramas de flujo del proceso login → selección de escuela → selección de temporada → dashboard.
+- Actualizar contratos de API (OpenAPI/Swagger) para school y season context.
+- Archivar documentación antigua en `docs/archive/` (archivos obsoletos, planes antiguos, backups, scripts no usados).
+
+---
+
+## 🧪 Plan de Tests
+
+### Backend (Laravel)
+**Unit Tests**
+- `ContextMiddleware`
+- `RolePermissionMiddleware`
+
+**Feature Tests**
+- Login con una escuela (acceso directo)
+- Login con varias escuelas (selector de escuela)
+- Selección de temporada (simple y múltiple)
+- Creación de temporada (con y sin permisos)
+- Acceso sin contexto → debe devolver error
+
+---
+
+### Frontend (Angular)
+**Unit Tests**
+- `ContextService`
+- HTTP Interceptor (envío de `X-School-ID` y `X-Season-ID`)
+- Guards (AuthV5Guard, SeasonContextGuard)
+
+**Component Tests**
+- Selector de escuela
+- Selector de temporada
+
+---
+
+### E2E (Cypress)
+- **Escenario 1:** single-school / single-season → dashboard directo
+- **Escenario 2:** multi-school → selector escuela → auto-selección de temporada
+- **Escenario 3:** multi-season → selector temporada
+- **Escenario 4:** creación de temporada
+- Verificar que todos los requests incluyen los headers `X-School-ID` y `X-Season-ID`
+
+---
+
+## ✅ Checklist "Ready for Production"
+
+- [ ] `docs/V5_OVERVIEW.md` actualizado y validado
+- [ ] Middleware de contexto unificado (`ContextMiddleware`)
+- [ ] `RolePermissionMiddleware` adaptado para permisos por escuela y temporada
+- [ ] Controladores y rutas unificados (sin duplicados)
+- [ ] Seeds seguros con `updateOrCreate` y creación de usuarios de prueba
+- [ ] Interceptor y guards en Angular funcionando
+- [ ] UI dinámica según permisos del usuario
+- [ ] Suite de tests en verde (Laravel, Angular y Cypress)
+- [ ] Logs con contexto (`user_id`, `school_id`, `season_id`) activos
+- [ ] Validación manual en entorno de **staging**
