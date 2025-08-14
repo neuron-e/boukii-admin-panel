@@ -1,0 +1,21 @@
+name: Sync Docs
+
+on:
+  push:
+    paths:
+      - 'docs/shared/**'
+      - 'docs/frontend/**'
+
+jobs:
+  sync:
+    if: ${{ !contains(github.event.head_commit.message, 'docs-sync:') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Sync shared docs
+        uses: some-org/sync-directory-action@v1
+        with:
+          source-directory: 'docs/shared'
+          destination-directory: 'docs/shared'
