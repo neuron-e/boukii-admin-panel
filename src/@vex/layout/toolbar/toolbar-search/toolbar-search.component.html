@@ -1,9 +1,0 @@
-<div class="flex items-center">
-  <button (click)="open()" mat-icon-button>
-    <mat-icon svgIcon="mat:search"></mat-icon>
-  </button>
-  <mat-form-field appearance="outline" [class.search-open]="isOpen" class="search flex-auto">
-    <mat-label>Search&hellip;</mat-label>
-    <input #input (blur)="close()" matInput>
-  </mat-form-field>
-</div>
