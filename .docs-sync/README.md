@@ -20,6 +20,17 @@ Contiene documentación que debe mantenerse idéntica en ambos repositorios:
 - `TESTING_GUIDE.md` - Comandos y estrategias de testing
 - `WORKING_AGREEMENTS.md` - Convenciones del equipo
 
+#### 🆕 **Nuevas Subcarpetas (2025-08-14)**
+- `api/` - **Documentación de endpoints y contratos API**
+  - `ENDPOINTS_STATUS.md` - Estado de todos los endpoints V5
+  - Future: `OPENAPI_SPEC.yaml` - Especificación OpenAPI auto-generada
+- `status/` - **Estados de integración cross-repo**
+  - `INTEGRATION_MATRIX.md` - Matriz Frontend ↔ Backend
+  - Future: `BACKEND_STATUS.md`, `FRONTEND_STATUS.md`
+- `fixes/` - **Documentación de fixes técnicos críticos**
+  - `dashboard-fix-verification.md` - Fix BLOCKER-001 dashboard
+  - `dashboard_fix_summary.md` - Resumen implementación fix
+
 ## ⚙️ Funcionamiento
 
 ### Sincronización Automática (GitHub Actions)

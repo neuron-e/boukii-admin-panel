@@ -1,0 +1,258 @@
+<div class="reservations-widget" [class.loading]="loading">
+  <!-- Widget Header -->
+  <div class="widget-header">
+    <div class="header-title">
+      <mat-icon class="title-icon">event_note</mat-icon>
+      <h3>{{ 'DASHBOARD.RESERVATIONS.TITLE' | translate }}</h3>
+      <span class="last-updated" *ngIf="lastUpdated && !loading">
+        {{ formatTimeAgo(lastUpdated) }}
+      </span>
+    </div>
+    
+    <div class="header-actions">
+      <!-- Period Selector -->
+      <mat-button-toggle-group 
+        class="period-selector" 
+        [value]="currentPeriod" 
+        (change)="onPeriodChange($event.value)"
+        [disabled]="loading">
+        <mat-button-toggle value="today">{{ getPeriodLabel('today') }}</mat-button-toggle>
+        <mat-button-toggle value="week">{{ getPeriodLabel('week') }}</mat-button-toggle>
+        <mat-button-toggle value="month">{{ getPeriodLabel('month') }}</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <!-- Refresh Button -->
+      <button 
+        mat-icon-button 
+        class="refresh-btn"
+        (click)="onRefresh()"
+        [disabled]="loading"
+        matTooltip="Actualizar datos">
+        <mat-icon [class.spinning]="loading">refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-content">
+    <mat-progress-bar mode="indeterminate" class="loading-bar"></mat-progress-bar>
+    <div class="loading-text">
+      <mat-icon class="loading-icon">hourglass_empty</mat-icon>
+      <span>{{ 'DASHBOARD.LOADING.RESERVATIONS' | translate }}</span>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="error-content">
+    <mat-icon class="error-icon">error_outline</mat-icon>
+    <h4>{{ 'DASHBOARD.ERRORS.TITLE' | translate }}</h4>
+    <p>{{ error }}</p>
+    <button mat-raised-button color="primary" (click)="loadBookingsData()">
+      {{ 'DASHBOARD.ACTIONS.RETRY' | translate }}
+    </button>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loading && !error && currentData" class="widget-content">
+    
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+      <!-- Total Reservations -->
+      <div class="summary-card primary">
+        <div class="card-content">
+          <div class="card-value">{{ currentData.summary.total }}</div>
+          <div class="card-label">{{ 'DASHBOARD.RESERVATIONS.TOTAL' | translate }}</div>
+          <div class="card-change" [ngClass]="growthDirection">
+            <mat-icon class="change-icon">
+              {{ growthDirection === 'up' ? 'trending_up' : growthDirection === 'down' ? 'trending_down' : 'trending_flat' }}
+            </mat-icon>
+            <span>{{ formatPercentage(currentData.comparison.growth) }}</span>
+          </div>
+        </div>
+        <div class="card-icon">
+          <mat-icon>event_note</mat-icon>
+        </div>
+      </div>
+
+      <!-- Today's Count -->
+      <div class="summary-card accent">
+        <div class="card-content">
+          <div class="card-value">{{ currentData.summary.todayCount }}</div>
+          <div class="card-label">{{ 'DASHBOARD.RESERVATIONS.TODAY' | translate }}</div>
+          <div class="card-subtitle">
+            {{ currentData.summary.confirmed }} confirmadas
+          </div>
+        </div>
+        <div class="card-icon">
+          <mat-icon>today</mat-icon>
+        </div>
+      </div>
+
+      <!-- Revenue -->
+      <div class="summary-card success">
+        <div class="card-content">
+          <div class="card-value">{{ formatCurrency(currentData.summary.todayRevenue) }}</div>
+          <div class="card-label">{{ 'DASHBOARD.RESERVATIONS.REVENUE_TODAY' | translate }}</div>
+          <div class="card-subtitle">
+            Promedio: {{ formatCurrency(currentData.comparison.weeklyAverage) }}/semana
+          </div>
+        </div>
+        <div class="card-icon">
+          <mat-icon>monetization_on</mat-icon>
+        </div>
+      </div>
+
+      <!-- Status Summary -->
+      <div class="summary-card info">
+        <div class="card-content">
+          <div class="card-value">{{ currentData.summary.pending }}</div>
+          <div class="card-label">{{ 'DASHBOARD.RESERVATIONS.PENDING' | translate }}</div>
+          <div class="card-subtitle">
+            {{ currentData.summary.cancelled }} canceladas
+          </div>
+        </div>
+        <div class="card-icon">
+          <mat-icon>schedule</mat-icon>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Distribution Chart -->
+    <div class="status-section" *ngIf="currentData.statusDistribution.length > 0">
+      <h4 class="section-title">
+        <mat-icon>pie_chart</mat-icon>
+        {{ 'DASHBOARD.RESERVATIONS.STATUS_DISTRIBUTION' | translate }}
+      </h4>
+      
+      <div class="status-chart">
+        <div class="status-bars">
+          <div 
+            *ngFor="let item of currentData.statusDistribution" 
+            class="status-bar"
+            [ngClass]="'status-' + item.status">
+            <div class="bar-fill" [style.width.%]="item.percentage"></div>
+            <div class="bar-label">
+              <span class="status-name">{{ getStatusLabel(item.status) }}</span>
+              <span class="status-value">{{ item.count }} ({{ item.percentage.toFixed(1) }}%)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Bookings -->
+    <div class="recent-section" *ngIf="currentData.recentBookings.length > 0">
+      <div class="section-header">
+        <h4 class="section-title">
+          <mat-icon>history</mat-icon>
+          {{ 'DASHBOARD.RESERVATIONS.RECENT' | translate }}
+        </h4>
+        <button 
+          mat-button 
+          color="primary" 
+          class="view-all-btn"
+          (click)="onViewAllBookings()">
+          {{ 'DASHBOARD.ACTIONS.VIEW_ALL' | translate }}
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
+
+      <div class="recent-list">
+        <div 
+          *ngFor="let booking of currentData.recentBookings; trackBy: trackByBookingId" 
+          class="booking-item"
+          (click)="onViewBookingDetail(booking.id)">
+          
+          <div class="booking-avatar">
+            {{ getClientInitials(booking.clientName) }}
+          </div>
+          
+          <div class="booking-details">
+            <div class="booking-client">
+              <span class="client-name">{{ booking.clientName }}</span>
+              <span class="client-email" *ngIf="booking.clientEmail">{{ booking.clientEmail }}</span>
+            </div>
+            <div class="booking-course">
+              <span class="course-name">{{ booking.courseType }}</span>
+              <span class="course-time">{{ booking.startTime }}</span>
+            </div>
+            <div class="booking-monitor" *ngIf="booking.monitorName !== 'Sin asignar'">
+              <mat-icon class="monitor-icon">person</mat-icon>
+              <span>{{ booking.monitorName }}</span>
+            </div>
+          </div>
+          
+          <div class="booking-status">
+            <div class="status-badge" [ngClass]="getStatusClass(booking.status)">
+              {{ getStatusLabel(booking.status) }}
+            </div>
+            <div class="booking-amount">{{ formatCurrency(booking.amount) }}</div>
+          </div>
+          
+          <div class="booking-actions">
+            <mat-icon class="action-icon">chevron_right</mat-icon>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline Mini Chart -->
+    <div class="timeline-section" *ngIf="currentData.timeline.length > 0">
+      <h4 class="section-title">
+        <mat-icon>timeline</mat-icon>
+        {{ 'DASHBOARD.RESERVATIONS.TIMELINE' | translate }}
+      </h4>
+      
+      <div class="timeline-chart">
+        <div class="timeline-bars">
+          <div 
+            *ngFor="let day of currentData.timeline; let i = index" 
+            class="timeline-bar"
+            [matTooltip]="day.date + ': ' + day.count + ' reservas, ' + formatCurrency(day.revenue)"
+            matTooltipPosition="above">
+            <div 
+              class="bar-fill" 
+              [style.height.%]="(day.count / getMaxTimelineValue()) * 100">
+            </div>
+            <div class="bar-date">{{ getDayLabel(day.date) }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions-section">
+      <button 
+        mat-raised-button 
+        color="primary" 
+        class="quick-action"
+        (click)="onCreateNewBooking()">
+        <mat-icon>add</mat-icon>
+        {{ 'DASHBOARD.ACTIONS.NEW_BOOKING' | translate }}
+      </button>
+      
+      <button 
+        mat-button 
+        color="accent" 
+        class="quick-action"
+        (click)="onViewAllBookings()">
+        <mat-icon>list</mat-icon>
+        {{ 'DASHBOARD.ACTIONS.MANAGE_BOOKINGS' | translate }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && !error && !hasData" class="empty-content">
+    <mat-icon class="empty-icon">event_busy</mat-icon>
+    <h4>{{ 'DASHBOARD.RESERVATIONS.NO_DATA' | translate }}</h4>
+    <p>{{ 'DASHBOARD.RESERVATIONS.NO_DATA_DESCRIPTION' | translate }}</p>
+    <button 
+      mat-raised-button 
+      color="primary" 
+      (click)="onCreateNewBooking()">
+      <mat-icon>add</mat-icon>
+      {{ 'DASHBOARD.ACTIONS.CREATE_FIRST_BOOKING' | translate }}
+    </button>
+  </div>
+</div>

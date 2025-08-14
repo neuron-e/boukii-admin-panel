@@ -15,6 +15,8 @@ import { DataTableComponent } from './components/data-table/data-table.component
 import { FormFieldComponent } from './forms/form-field.component';
 import {NotificationBadgeComponent} from './components/notification-badge/notification-badge.component';
 import { InsufficientPermissionsComponent } from './components/insufficient-permissions/insufficient-permissions.component';
+import { ReservationsWidgetModule } from './components/reservations-widget/reservations-widget.module';
+import { RevenueWidgetModule } from './components/revenue-widget/revenue-widget.module';
 
 @NgModule({
   declarations: [
@@ -35,7 +37,9 @@ import { InsufficientPermissionsComponent } from './components/insufficient-perm
     MatFormFieldModule,
     MatInputModule,
     MatProgressSpinnerModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    ReservationsWidgetModule,
+    RevenueWidgetModule
   ],
   exports: [
     SeasonSelectorComponent,
@@ -44,7 +48,9 @@ import { InsufficientPermissionsComponent } from './components/insufficient-perm
     DataTableComponent,
     FormFieldComponent,
     NotificationBadgeComponent,
-    InsufficientPermissionsComponent
+    InsufficientPermissionsComponent,
+    ReservationsWidgetModule,
+    RevenueWidgetModule
   ]
 })
 export class SharedModule {}

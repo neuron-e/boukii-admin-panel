@@ -48,6 +48,7 @@
     "jspdf": "^2.5.1",
     "luxon": "~3.4.3",
     "moment": "^2.29.4",
+    "ng-apexcharts": "^2.0.0",
     "ngx-dropzone": "^3.1.0",
     "ngx-image-cropper": "8.1.0",
     "ngx-quicklink": "~0.4.1",

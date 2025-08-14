@@ -1,0 +1,697 @@
+// Reservations Widget Styles
+.reservations-widget {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
+
+  &:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  }
+
+  &.loading {
+    pointer-events: none;
+  }
+}
+
+// ==================== HEADER ====================
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .title-icon {
+      color: #3f51b5;
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .last-updated {
+      font-size: 12px;
+      color: #666;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-left: 8px;
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .period-selector {
+      ::ng-deep .mat-button-toggle {
+        border: none;
+        background: transparent;
+        font-size: 12px;
+        min-width: 50px;
+        height: 32px;
+
+        &.mat-button-toggle-checked {
+          background: #3f51b5;
+          color: white;
+        }
+
+        .mat-button-toggle-label-content {
+          line-height: 32px;
+          padding: 0 8px;
+        }
+      }
+    }
+
+    .refresh-btn {
+      width: 40px;
+      height: 40px;
+
+      .mat-icon {
+        transition: transform 0.3s ease;
+
+        &.spinning {
+          animation: spin 1s linear infinite;
+        }
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    }
+  }
+}
+
+// ==================== LOADING STATE ====================
+
+.loading-content {
+  padding: 40px 24px;
+  text-align: center;
+
+  .loading-bar {
+    margin-bottom: 20px;
+  }
+
+  .loading-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #666;
+    font-size: 14px;
+
+    .loading-icon {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  }
+}
+
+// ==================== ERROR STATE ====================
+
+.error-content {
+  padding: 40px 24px;
+  text-align: center;
+
+  .error-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #f44336;
+    margin-bottom: 16px;
+  }
+
+  h4 {
+    margin: 0 0 8px 0;
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 20px 0;
+    color: #666;
+    font-size: 14px;
+  }
+}
+
+// ==================== MAIN CONTENT ====================
+
+.widget-content {
+  padding: 20px 24px 24px;
+}
+
+// ==================== SUMMARY GRID ====================
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  &.primary {
+    background: linear-gradient(135deg, #3f51b5 0%, #5c6bc0 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(63, 81, 181, 0.3);
+  }
+
+  &.accent {
+    background: linear-gradient(135deg, #ff5722 0%, #ff7043 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(255, 87, 34, 0.3);
+  }
+
+  &.success {
+    background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+  }
+
+  &.info {
+    background: linear-gradient(135deg, #2196f3 0%, #42a5f5 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+  }
+
+  .card-content {
+    flex: 1;
+
+    .card-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      line-height: 1;
+    }
+
+    .card-label {
+      font-size: 13px;
+      opacity: 0.9;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .card-change {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 8px;
+
+      &.up {
+        color: #c8e6c9;
+      }
+
+      &.down {
+        color: #ffcdd2;
+      }
+
+      &.neutral {
+        opacity: 0.7;
+      }
+
+      .change-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+
+  .card-icon {
+    opacity: 0.3;
+    margin-left: 12px;
+
+    .mat-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
+    }
+  }
+}
+
+// ==================== STATUS SECTION ====================
+
+.status-section {
+  margin-bottom: 24px;
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+
+    .mat-icon {
+      color: #3f51b5;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .status-chart {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+
+    .status-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .status-bar {
+      position: relative;
+      height: 32px;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 6px;
+      overflow: hidden;
+
+      .bar-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.5s ease;
+        
+        .status-confirmed & {
+          background: linear-gradient(90deg, #4caf50, #66bb6a);
+        }
+
+        .status-pending & {
+          background: linear-gradient(90deg, #ff9800, #ffb74d);
+        }
+
+        .status-cancelled & {
+          background: linear-gradient(90deg, #f44336, #ef5350);
+        }
+      }
+
+      .bar-label {
+        position: absolute;
+        top: 50%;
+        left: 12px;
+        transform: translateY(-50%);
+        display: flex;
+        justify-content: space-between;
+        width: calc(100% - 24px);
+        font-size: 13px;
+        font-weight: 500;
+        z-index: 2;
+
+        .status-name {
+          color: #1a1a1a;
+        }
+
+        .status-value {
+          color: #666;
+        }
+      }
+    }
+  }
+}
+
+// ==================== RECENT SECTION ====================
+
+.recent-section {
+  margin-bottom: 24px;
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+
+      .mat-icon {
+        color: #3f51b5;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    .view-all-btn {
+      font-size: 13px;
+      font-weight: 500;
+
+      .mat-icon {
+        margin-left: 4px;
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+
+  .recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .booking-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #e3f2fd;
+      transform: translateX(4px);
+    }
+
+    .booking-avatar {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3f51b5, #5c6bc0);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      margin-right: 12px;
+    }
+
+    .booking-details {
+      flex: 1;
+
+      .booking-client {
+        .client-name {
+          font-size: 14px;
+          font-weight: 600;
+          color: #1a1a1a;
+        }
+
+        .client-email {
+          font-size: 12px;
+          color: #666;
+          margin-left: 8px;
+        }
+      }
+
+      .booking-course {
+        margin: 4px 0;
+
+        .course-name {
+          font-size: 13px;
+          color: #3f51b5;
+          font-weight: 500;
+        }
+
+        .course-time {
+          font-size: 12px;
+          color: #666;
+          margin-left: 8px;
+        }
+      }
+
+      .booking-monitor {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: #666;
+
+        .monitor-icon {
+          font-size: 14px;
+          width: 14px;
+          height: 14px;
+        }
+      }
+    }
+
+    .booking-status {
+      text-align: right;
+      margin-right: 12px;
+
+      .status-badge {
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-weight: 500;
+        margin-bottom: 4px;
+        display: inline-block;
+
+        &.status-confirmed {
+          background: #e8f5e8;
+          color: #2e7d32;
+        }
+
+        &.status-pending {
+          background: #fff3e0;
+          color: #ef6c00;
+        }
+
+        &.status-cancelled {
+          background: #ffebee;
+          color: #c62828;
+        }
+      }
+
+      .booking-amount {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a1a;
+      }
+    }
+
+    .booking-actions {
+      .action-icon {
+        color: #999;
+        font-size: 20px;
+        transition: color 0.2s ease;
+      }
+    }
+
+    &:hover .action-icon {
+      color: #3f51b5;
+    }
+  }
+}
+
+// ==================== TIMELINE SECTION ====================
+
+.timeline-section {
+  margin-bottom: 24px;
+
+  .timeline-chart {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+
+    .timeline-bars {
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      height: 80px;
+    }
+
+    .timeline-bar {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+
+      .bar-fill {
+        width: 100%;
+        background: linear-gradient(to top, #3f51b5, #5c6bc0);
+        border-radius: 4px 4px 0 0;
+        min-height: 4px;
+        transition: all 0.3s ease;
+      }
+
+      .bar-date {
+        font-size: 11px;
+        color: #666;
+        margin-top: 4px;
+        font-weight: 500;
+      }
+
+      &:hover .bar-fill {
+        background: linear-gradient(to top, #303f9f, #3f51b5);
+        transform: scaleY(1.1);
+      }
+    }
+  }
+}
+
+// ==================== QUICK ACTIONS ====================
+
+.quick-actions-section {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+
+  .quick-action {
+    flex: 1;
+    height: 44px;
+    border-radius: 8px;
+    font-weight: 500;
+
+    .mat-icon {
+      margin-right: 8px;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+}
+
+// ==================== EMPTY STATE ====================
+
+.empty-content {
+  padding: 60px 24px;
+  text-align: center;
+
+  .empty-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    color: #ccc;
+    margin-bottom: 16px;
+  }
+
+  h4 {
+    margin: 0 0 8px 0;
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 24px 0;
+    color: #666;
+    font-size: 14px;
+  }
+
+  .mat-icon {
+    margin-right: 8px;
+  }
+}
+
+// ==================== RESPONSIVE DESIGN ====================
+
+@media (max-width: 768px) {
+  .widget-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+
+    .header-actions {
+      justify-content: space-between;
+    }
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .summary-card {
+    padding: 16px;
+
+    .card-content .card-value {
+      font-size: 24px;
+    }
+  }
+
+  .recent-section .booking-item {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+
+    .booking-avatar {
+      align-self: flex-start;
+      margin-right: 0;
+      margin-bottom: 12px;
+    }
+
+    .booking-status {
+      text-align: left;
+      margin-right: 0;
+      margin-top: 8px;
+    }
+  }
+
+  .quick-actions-section {
+    flex-direction: column;
+
+    .quick-action {
+      width: 100%;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .reservations-widget {
+    margin: 0 -16px;
+    border-radius: 0;
+  }
+
+  .widget-header {
+    padding: 16px 20px;
+  }
+
+  .widget-content {
+    padding: 16px 20px 20px;
+  }
+}

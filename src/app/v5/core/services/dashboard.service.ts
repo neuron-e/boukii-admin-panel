@@ -796,4 +796,78 @@ export class DashboardService {
     
     return matchedPrice?.basePrice || 85;
   }
+
+  // ==================== BOOKINGS DATA FOR WIDGET ====================
+
+  /**
+   * Get detailed bookings data for the ReservationsWidget
+   */
+  async getBookingsData(params: { period?: string; season_id?: number; school_id?: number }): Promise<any> {
+    try {
+      console.log('DashboardService: Loading bookings data', params);
+
+      // Call the dashboard/bookings endpoint
+      const response$ = this.apiV5.get('/dashboard/bookings', params);
+      const response = await response$.toPromise();
+      
+      if (response?.success && response?.data) {
+        console.log('DashboardService: Bookings data loaded successfully', {
+          total: response.data.summary?.total || 0,
+          today: response.data.summary?.today || 0
+        });
+        
+        return response;
+      } else {
+        throw new Error(response?.message || 'Error loading bookings data');
+      }
+
+    } catch (error: any) {
+      console.error('DashboardService: Error loading bookings data', error);
+      this.errorHandler.handleError(error);
+      
+      // Return fallback response structure
+      return {
+        success: false,
+        message: error.message || 'Error al cargar datos de reservas',
+        data: null
+      };
+    }
+  }
+
+  // ==================== REVENUE DATA FOR WIDGET ====================
+
+  /**
+   * Get detailed revenue data for the RevenueWidget
+   */
+  async getRevenueData(params: { period?: string; season_id?: number; school_id?: number }): Promise<any> {
+    try {
+      console.log('DashboardService: Loading revenue data', params);
+
+      // Call the dashboard/revenue endpoint
+      const response$ = this.apiV5.get('/dashboard/revenue', params);
+      const response = await response$.toPromise();
+      
+      if (response?.success && response?.data) {
+        console.log('DashboardService: Revenue data loaded successfully', {
+          total: response.data.summary?.total || 0,
+          thisMonth: response.data.summary?.thisMonth || 0
+        });
+        
+        return response;
+      } else {
+        throw new Error(response?.message || 'Error loading revenue data');
+      }
+
+    } catch (error: any) {
+      console.error('DashboardService: Error loading revenue data', error);
+      this.errorHandler.handleError(error);
+      
+      // Return fallback response structure
+      return {
+        success: false,
+        message: error.message || 'Error al cargar datos de ingresos',
+        data: null
+      };
+    }
+  }
 }

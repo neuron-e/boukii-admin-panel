@@ -1,0 +1,301 @@
+<div class="revenue-widget" [class.loading]="loading">
+  <!-- Widget Header -->
+  <div class="widget-header">
+    <div class="header-title">
+      <mat-icon class="title-icon">monetization_on</mat-icon>
+      <h3>{{ 'DASHBOARD.REVENUE.TITLE' | translate }}</h3>
+      <span class="last-updated" *ngIf="lastUpdated && !loading">
+        {{ formatTimeAgo(lastUpdated) }}
+      </span>
+    </div>
+    
+    <div class="header-actions">
+      <!-- Period Selector -->
+      <mat-button-toggle-group 
+        class="period-selector" 
+        [value]="currentPeriod" 
+        (change)="onPeriodChange($event.value)"
+        [disabled]="loading">
+        <mat-button-toggle value="today">{{ getPeriodLabel('today') }}</mat-button-toggle>
+        <mat-button-toggle value="week">{{ getPeriodLabel('week') }}</mat-button-toggle>
+        <mat-button-toggle value="month">{{ getPeriodLabel('month') }}</mat-button-toggle>
+        <mat-button-toggle value="season">{{ getPeriodLabel('season') }}</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <!-- View Selector -->
+      <mat-button-toggle-group 
+        class="view-selector" 
+        [value]="selectedView" 
+        (change)="onViewChange($event.value)"
+        [disabled]="loading">
+        <mat-button-toggle value="trend" matTooltip="Tendencia temporal">
+          <mat-icon>show_chart</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="breakdown" matTooltip="Desglose por tipo">
+          <mat-icon>pie_chart</mat-icon>
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <!-- Refresh Button -->
+      <button 
+        mat-icon-button 
+        class="refresh-btn"
+        (click)="onRefresh()"
+        [disabled]="loading"
+        matTooltip="Actualizar datos">
+        <mat-icon [class.spinning]="loading">refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-content">
+    <mat-progress-bar mode="indeterminate" class="loading-bar"></mat-progress-bar>
+    <div class="loading-text">
+      <mat-icon class="loading-icon">hourglass_empty</mat-icon>
+      <span>{{ 'DASHBOARD.LOADING.REVENUE' | translate }}</span>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="error-content">
+    <mat-icon class="error-icon">error_outline</mat-icon>
+    <h4>{{ 'DASHBOARD.ERRORS.TITLE' | translate }}</h4>
+    <p>{{ error }}</p>
+    <button mat-raised-button color="primary" (click)="loadRevenueData()">
+      {{ 'DASHBOARD.ACTIONS.RETRY' | translate }}
+    </button>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loading && !error && currentData" class="widget-content">
+    
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+      <!-- Total Revenue -->
+      <div class="summary-card primary">
+        <div class="card-content">
+          <div class="card-value">{{ formatCurrency(currentData.summary.total) }}</div>
+          <div class="card-label">{{ 'DASHBOARD.REVENUE.TOTAL' | translate }}</div>
+          <div class="card-change" [ngClass]="growthDirection">
+            <mat-icon class="change-icon">
+              {{ growthDirection === 'up' ? 'trending_up' : growthDirection === 'down' ? 'trending_down' : 'trending_flat' }}
+            </mat-icon>
+            <span>{{ formatPercentage(currentData.summary.growth) }}</span>
+          </div>
+        </div>
+        <div class="card-icon">
+          <mat-icon>account_balance_wallet</mat-icon>
+        </div>
+      </div>
+
+      <!-- This Month -->
+      <div class="summary-card success">
+        <div class="card-content">
+          <div class="card-value">{{ formatCurrency(currentData.summary.thisMonth) }}</div>
+          <div class="card-label">{{ 'DASHBOARD.REVENUE.THIS_MONTH' | translate }}</div>
+          <div class="card-subtitle">
+            vs {{ formatCurrency(currentData.summary.lastMonth) }} mes anterior
+          </div>
+        </div>
+        <div class="card-icon">
+          <mat-icon>calendar_today</mat-icon>
+        </div>
+      </div>
+
+      <!-- Pending Revenue -->
+      <div class="summary-card warning">
+        <div class="card-content">
+          <div class="card-value">{{ formatCurrency(currentData.summary.pending) }}</div>
+          <div class="card-label">{{ 'DASHBOARD.REVENUE.PENDING' | translate }}</div>
+          <div class="card-subtitle">
+            Por cobrar
+          </div>
+        </div>
+        <div class="card-icon">
+          <mat-icon>schedule</mat-icon>
+        </div>
+      </div>
+
+      <!-- Daily Average -->
+      <div class="summary-card info">
+        <div class="card-content">
+          <div class="card-value">{{ formatCurrency(currentData.summary.dailyAverage) }}</div>
+          <div class="card-label">{{ 'DASHBOARD.REVENUE.DAILY_AVERAGE' | translate }}</div>
+          <div class="card-subtitle">
+            Meta: {{ formatCurrency(currentData.comparison.dailyGoal) }}
+          </div>
+        </div>
+        <div class="card-icon">
+          <mat-icon>analytics</mat-icon>
+        </div>
+        <!-- Progress Bar to Goal -->
+        <div class="progress-section">
+          <mat-progress-bar 
+            mode="determinate" 
+            [value]="progressToGoal"
+            [color]="progressToGoal >= 80 ? 'primary' : progressToGoal >= 60 ? 'accent' : 'warn'">
+          </mat-progress-bar>
+          <span class="progress-text">{{ progressToGoal.toFixed(0) }}% de la meta</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="chart-section">
+      <div class="section-header">
+        <h4 class="section-title">
+          <mat-icon>{{ selectedView === 'trend' ? 'show_chart' : 'pie_chart' }}</mat-icon>
+          {{ selectedView === 'trend' ? 'Tendencia de Ingresos' : 'Desglose por Tipo' }}
+        </h4>
+        <div class="chart-legend" *ngIf="selectedView === 'trend'">
+          <div class="legend-item">
+            <span class="legend-color completed"></span>
+            <span class="legend-label">Completados</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color pending"></span>
+            <span class="legend-label">Pendientes</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <vex-chart
+          #chart
+          [options]="chartOptions">
+        </vex-chart>
+      </div>
+    </div>
+
+    <!-- Breakdown Section -->
+    <div class="breakdown-section" *ngIf="currentData.breakdown.courseTypes.length > 0">
+      <div class="section-tabs">
+        <mat-tab-group>
+          <!-- Course Types Tab -->
+          <mat-tab label="Por Tipo de Curso">
+            <div class="breakdown-content">
+              <div class="breakdown-list">
+                <div 
+                  *ngFor="let item of currentData.breakdown.courseTypes; trackBy: trackByCourseType" 
+                  class="breakdown-item">
+                  <div class="item-info">
+                    <div class="item-name">{{ item.courseType }}</div>
+                    <div class="item-count">{{ item.count }} reservas</div>
+                  </div>
+                  <div class="item-progress">
+                    <mat-progress-bar 
+                      mode="determinate" 
+                      [value]="item.percentage"
+                      color="primary">
+                    </mat-progress-bar>
+                    <span class="progress-label">{{ item.percentage.toFixed(1) }}%</span>
+                  </div>
+                  <div class="item-value">{{ formatCurrency(item.revenue) }}</div>
+                </div>
+              </div>
+            </div>
+          </mat-tab>
+          
+          <!-- Payment Methods Tab -->
+          <mat-tab label="Por Método de Pago">
+            <div class="breakdown-content">
+              <div class="breakdown-list">
+                <div 
+                  *ngFor="let item of currentData.breakdown.paymentMethods; trackBy: trackByPaymentMethod" 
+                  class="breakdown-item">
+                  <div class="item-info">
+                    <div class="item-name">{{ item.method }}</div>
+                    <div class="item-count">{{ item.count }} pagos</div>
+                  </div>
+                  <div class="item-progress">
+                    <mat-progress-bar 
+                      mode="determinate" 
+                      [value]="item.percentage"
+                      color="accent">
+                    </mat-progress-bar>
+                    <span class="progress-label">{{ item.percentage.toFixed(1) }}%</span>
+                  </div>
+                  <div class="item-value">{{ formatCurrency(item.revenue) }}</div>
+                </div>
+              </div>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      </div>
+    </div>
+
+    <!-- Status Overview -->
+    <div class="status-overview">
+      <div class="status-grid">
+        <!-- Completed Revenue -->
+        <div class="status-card completed">
+          <div class="status-icon">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+          <div class="status-content">
+            <div class="status-value">{{ formatCurrency(currentData.summary.completedRevenue) }}</div>
+            <div class="status-label">Ingresos Cobrados</div>
+          </div>
+        </div>
+
+        <!-- Pending Revenue -->
+        <div class="status-card pending">
+          <div class="status-icon">
+            <mat-icon>schedule</mat-icon>
+          </div>
+          <div class="status-content">
+            <div class="status-value">{{ formatCurrency(currentData.summary.pendingRevenue) }}</div>
+            <div class="status-label">Por Cobrar</div>
+          </div>
+        </div>
+
+        <!-- Refunded Revenue -->
+        <div class="status-card refunded">
+          <div class="status-icon">
+            <mat-icon>undo</mat-icon>
+          </div>
+          <div class="status-content">
+            <div class="status-value">{{ formatCurrency(currentData.summary.refundedRevenue) }}</div>
+            <div class="status-label">Reembolsado</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions-section">
+      <button 
+        mat-raised-button 
+        color="primary" 
+        class="quick-action"
+        (click)="onViewRevenue()">
+        <mat-icon>analytics</mat-icon>
+        {{ 'DASHBOARD.ACTIONS.VIEW_REVENUE_DETAILS' | translate }}
+      </button>
+      
+      <button 
+        mat-button 
+        color="accent" 
+        class="quick-action"
+        (click)="onViewBookings()">
+        <mat-icon>list</mat-icon>
+        {{ 'DASHBOARD.ACTIONS.MANAGE_BOOKINGS' | translate }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && !error && !hasData" class="empty-content">
+    <mat-icon class="empty-icon">money_off</mat-icon>
+    <h4>{{ 'DASHBOARD.REVENUE.NO_DATA' | translate }}</h4>
+    <p>{{ 'DASHBOARD.REVENUE.NO_DATA_DESCRIPTION' | translate }}</p>
+    <button 
+      mat-raised-button 
+      color="primary" 
+      (click)="onViewBookings()">
+      <mat-icon>add</mat-icon>
+      {{ 'DASHBOARD.ACTIONS.CREATE_BOOKING' | translate }}
+    </button>
+  </div>
+</div>
