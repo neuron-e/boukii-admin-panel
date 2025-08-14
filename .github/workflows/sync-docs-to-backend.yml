@@ -1,0 +1,51 @@
+name: Sync Shared Docs to Backend
+on:
+  push:
+    branches: [ v5 ]
+    paths:
+      - 'docs/shared/**'
+      - 'docs/frontend/**'
+jobs:
+  sync:
+    if: ${{ !contains(github.event.head_commit.message, 'docs-sync:') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+
+      - name: Push docs/shared to backend repo (branch for PR)
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.PAT_SYNC }}
+        with:
+          source-directory: 'docs/shared'
+          destination-github-username: 'boukii'
+          destination-repository-name: 'api-boukii'
+          target-branch: 'v5-docs-sync'
+          destination-directory: 'docs/shared'
+          commit-message: 'docs-sync: mirror shared docs from frontend → backend'
+
+      - name: Push docs/frontend to backend (optional)
+        if: ${{ false }}
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.PAT_SYNC }}
+        with:
+          source-directory: 'docs/frontend'
+          destination-github-username: 'boukii'
+          destination-repository-name: 'api-boukii'
+          target-branch: 'v5-docs-sync'
+          destination-directory: 'docs/frontend-from-admin'
+          commit-message: 'docs-sync: mirror frontend docs (optional)'
+
+      - name: Create PR in destination
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.PAT_SYNC }}
+          commit-message: 'docs-sync: mirror shared docs'
+          branch: 'v5-docs-sync'
+          base: 'v5'
+          title: 'docs-sync: mirror shared docs (frontend → backend)'
+          body: 'Automated docs-sync PR. Scope restricted to docs/**.'
+          labels: 'docs, automation'
+          draft: false
