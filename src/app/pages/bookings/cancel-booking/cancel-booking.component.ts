@@ -4,6 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable, map, startWith } from 'rxjs';
 import { ApiCrudService } from 'src/service/crud.service';
+import { SchoolService } from 'src/service/school.service';
 
 @Component({
   selector: 'vex-cancel-booking',
@@ -22,7 +23,7 @@ export class CancelBookingModalComponent implements OnInit {
   bonusForm: FormGroup;
 
   constructor(@Inject(MAT_DIALOG_DATA) public defaults: any, private crudService: ApiCrudService, private snackbar: MatSnackBar,
-    private fb: UntypedFormBuilder, private dialogRef: MatDialogRef<any>) {
+    private fb: UntypedFormBuilder, private dialogRef: MatDialogRef<any>, public schoolService: SchoolService) {
 
   }
 

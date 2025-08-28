@@ -374,7 +374,7 @@ export class BookingsComponent {
       case 1:
         return 'CASH';
       case 2:
-        return 'BOUKII PAY';
+        return this.schoolService.getPaymentProvider() === 'payyo' ? 'PAYYO' : 'BOUKII PAY';
       case 3:
         return 'ONLINE';
       case 4:

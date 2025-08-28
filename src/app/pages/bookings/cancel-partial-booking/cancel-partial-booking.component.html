@@ -29,7 +29,7 @@
     <!-- Pestaña Refund -->
     <mat-tab label="{{'bookings_page.cancelations.refund' | translate}}">
       <mat-tab-group>
-        <mat-tab label="Boukii Pay">
+        <mat-tab [label]="schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay'">
           <mat-dialog-content class="flex flex-col" *ngIf="!loading">
             <div style="width: 100%;">
               <p *ngIf="defaults.booking.payrexx_reference !== null">{{'bookings_page.cancelations.refund_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>

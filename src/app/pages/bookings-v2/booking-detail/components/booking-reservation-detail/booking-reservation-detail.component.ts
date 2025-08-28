@@ -14,6 +14,7 @@ import {Router} from '@angular/router';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {TranslateService} from '@ngx-translate/core';
 import {ApiCrudService} from '../../../../../../service/crud.service';
+import { SchoolService } from 'src/service/school.service';
 
 @Component({
   selector: 'booking-detail-reservation-detail',
@@ -51,7 +52,8 @@ export class BookingReservationDetailComponent implements OnInit {
     private translateService: TranslateService,
     private router: Router,
     private dialog: MatDialog,
-    private bookingService: BookingService
+    private bookingService: BookingService,
+    public schoolService: SchoolService
   ) {
     this.school = this.utilsService.getSchoolData();
     this.settings = JSON.parse(this.school.settings);

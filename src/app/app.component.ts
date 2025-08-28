@@ -182,6 +182,10 @@ export class AppComponent {
     /**
      * Add your own routes here
      */
+    const provider = this.schoolService.getPaymentProvider();
+    const gatewayLabel = provider === 'payyo' ? 'Payyo' : 'Boukii Pay';
+    const gatewayRoute = provider === 'payyo' ? 'https://merchant.payyo.ch/' : 'https://login.pay.boukii.com/fr/';
+
     this.navigationService.items = [
       /*{
         type: 'link',
@@ -307,8 +311,8 @@ export class AppComponent {
         children: [
           {
             type: "link",
-            label: "Boukii Pay",
-            route: "https://login.pay.boukii.com/fr/",
+            label: gatewayLabel,
+            route: gatewayRoute,
             icon: "../assets/img/icons/boukii_pay.svg",
             routerLinkActiveOptions: { exact: true },
           },

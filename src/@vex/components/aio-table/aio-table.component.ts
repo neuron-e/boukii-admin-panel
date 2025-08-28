@@ -38,6 +38,7 @@ import * as QRCode from 'qrcode';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExcelExportService } from '../../../service/excel.service';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { SchoolService } from 'src/service/school.service';
 
 @UntilDestroy()
 @Component({
@@ -146,7 +147,8 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   constructor(private dialog: MatDialog, public router: Router, private crudService: ApiCrudService,
     private excelExportService: ExcelExportService, private routeActive: ActivatedRoute,
-    private cdr: ChangeDetectorRef, public translateService: TranslateService, private snackbar: MatSnackBar) {
+    private cdr: ChangeDetectorRef, public translateService: TranslateService, private snackbar: MatSnackBar,
+    private schoolService: SchoolService) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.schoolId = this.user.schools[0].id;
   }
@@ -832,7 +834,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       case 1:
         return 'CASH';
       case 2:
-        return 'BOUKII PAY';
+        return this.schoolService.getPaymentProvider() === 'payyo' ? 'PAYYO' : 'BOUKII PAY';
       case 3:
         return 'ONLINE';
       case 4:

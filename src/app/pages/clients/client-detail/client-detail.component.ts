@@ -24,6 +24,7 @@ import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import { TranslateService } from '@ngx-translate/core';
 import { DateAdapter } from '@angular/material/core';
 import { switchMap } from 'rxjs/operators';
+import { SchoolService } from 'src/service/school.service';
 
 
 @Component({
@@ -182,7 +183,7 @@ export class ClientDetailComponent {
 
   constructor(private fb: UntypedFormBuilder, private cdr: ChangeDetectorRef, private crudService: ApiCrudService, private router: Router,
               private activatedRoute: ActivatedRoute, private snackbar: MatSnackBar, private dialog: MatDialog, private passwordGen: PasswordService,
-              private translateService: TranslateService, private dateAdapter: DateAdapter<Date>) {
+              private translateService: TranslateService, private dateAdapter: DateAdapter<Date>, private schoolService: SchoolService) {
     this.today = new Date();
     this.minDate = new Date(this.today);
     this.minDate.setFullYear(this.today.getFullYear() - 18);
@@ -1184,7 +1185,7 @@ export class ClientDetailComponent {
       case 1:
         return 'CASH';
       case 2:
-        return 'BOUKII PAY';
+        return this.schoolService.getPaymentProvider() === 'payyo' ? 'PAYYO' : 'BOUKII PAY';
       case 3:
         return 'ONLINE';
       case 4:

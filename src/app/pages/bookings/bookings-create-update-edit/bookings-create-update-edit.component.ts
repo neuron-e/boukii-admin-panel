@@ -27,6 +27,7 @@ import { MatSelectChange } from '@angular/material/select';
 import { AddDiscountBonusModalComponent } from '../bookings-create-update/add-discount-bonus/add-discount-bonus.component';
 import { AddReductionModalComponent } from '../bookings-create-update/add-reduction/add-reduction.component';
 import { BookingService } from 'src/service/bookings.service';
+import { SchoolService } from 'src/service/school.service';
 import { ConfirmModalEditBookingComponent } from './confirm-dialog-edit-booking/confirm-dialog-edit-booking.component';
 @Injectable()
 @Component({
@@ -275,7 +276,8 @@ export class BookingsCreateUpdateEditComponent implements OnInit {
   private subscription: Subscription;
 
   constructor(private fb: UntypedFormBuilder, private dialog: MatDialog, private crudService: ApiCrudService, private calendarService: CalendarService,
-    private snackbar: MatSnackBar, private passwordGen: PasswordService, private router: Router, public translateService: TranslateService, public bookingService: BookingService) {
+    private snackbar: MatSnackBar, private passwordGen: PasswordService, private router: Router, public translateService: TranslateService, public bookingService: BookingService,
+    public schoolService: SchoolService) {
 
     this.minDate = new Date(); // Establecer la fecha mínima como la fecha actual
     this.subscription = this.calendarService.monthChanged$.subscribe(firstDayOfMonth => {
