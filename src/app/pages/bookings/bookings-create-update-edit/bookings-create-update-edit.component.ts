@@ -201,6 +201,9 @@ export class BookingsCreateUpdateEditComponent implements OnInit {
     payrexx_transaction: null,
     attendance: null,
     payrexx_refund: null,
+    payyo_reference: null,
+    payyo_transaction: null,
+    payyo_refund: null,
     notes: null,
     notes_school: null,
     school_id: null,
@@ -300,6 +303,9 @@ export class BookingsCreateUpdateEditComponent implements OnInit {
     this.defaults.payrexx_transaction = this.bookingService.editData.booking.payrexx_transaction;
     this.defaults.attendance = this.bookingService.editData.booking.attendance;
     this.defaults.payrexx_refund = this.bookingService.editData.booking.payrexx_refund;
+    this.defaults.payyo_reference = this.bookingService.editData.booking.payyo_reference;
+    this.defaults.payyo_transaction = this.bookingService.editData.booking.payyo_transaction;
+    this.defaults.payyo_refund = this.bookingService.editData.booking.payyo_refund;
     this.defaults.notes = this.bookingService.editData.booking.notes;
     this.defaults.notes_school = this.bookingService.editData.booking.notes_school;
     this.defaults.school_id = this.bookingService.editData.booking.school_id;
