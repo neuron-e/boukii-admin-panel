@@ -231,7 +231,7 @@ export class BookingDetailComponent implements OnInit {
     private bookingService: BookingService,
     private snackbar: MatSnackBar,
     private activatedRoute: ActivatedRoute,
-    private schoolService: SchoolService,
+    public schoolService: SchoolService,
     private router: Router,
     public translateService: TranslateService,
     private dateAdapter: DateAdapter<Date>,

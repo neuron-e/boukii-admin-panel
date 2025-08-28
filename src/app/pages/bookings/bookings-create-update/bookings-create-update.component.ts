@@ -31,6 +31,7 @@ import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { AddClientSportModalComponent } from '../add-client-sport/add-client-sport.component';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
+import { SchoolService } from 'src/service/school.service';
 
 @Injectable()
 @Component({
@@ -281,7 +282,7 @@ export class BookingsCreateUpdateComponent implements OnInit {
   constructor(private fb: UntypedFormBuilder, private dialog: MatDialog, private crudService: ApiCrudService, private calendarService: CalendarService,
     private snackbar: MatSnackBar, private passwordGen: PasswordService, private router: Router,
     public translateService: TranslateService, private cdr: ChangeDetectorRef,
-    private dateAdapter: DateAdapter<Date>,
+    private dateAdapter: DateAdapter<Date>, public schoolService: SchoolService,
     @Optional() public dialogRef: MatDialogRef<BookingsCreateUpdateComponent>,
     @Optional() @Inject(MAT_DIALOG_DATA) public externalData: any) {
     this.dateAdapter.setLocale(this.translateService.getDefaultLang());

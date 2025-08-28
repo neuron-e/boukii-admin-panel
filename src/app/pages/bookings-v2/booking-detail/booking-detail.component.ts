@@ -12,6 +12,7 @@ import {
 } from '../../bookings/cancel-partial-booking/cancel-partial-booking.component';
 import {CancelBookingModalComponent} from '../../bookings/cancel-booking/cancel-booking.component';
 import {BookingDetailDialogComponent} from './components/booking-dialog/booking-dialog.component';
+import { SchoolService } from 'src/service/school.service';
 
 @Component({
   selector: 'booking-detail-v2',
@@ -37,10 +38,11 @@ export class BookingDetailV2Component implements OnInit {
   step: number = 1;  // Paso inicial
   selectedPaymentOption: string = 'Tarjeta';
   isPaid = false;
+  paymentProviderLabel = this.schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay';
   paymentOptions: any[] = [
     { type: 'Tarjeta', value: 4, translation: this.translateService.instant('credit_card') },
     { type: 'Efectivo', value: 1,  translation: this.translateService.instant('payment_cash') },
-    { type: 'Boukii Pay', value: 2, translation: 'Boukii Pay' }
+    { type: this.paymentProviderLabel, value: 2, translation: this.paymentProviderLabel }
   ];
 
   private activitiesChangedSubject = new Subject<void>();
@@ -55,6 +57,7 @@ export class BookingDetailV2Component implements OnInit {
     private crudService: ApiCrudService,
     private router: Router,
     private snackBar: MatSnackBar,
+    private schoolService: SchoolService,
     @Optional() @Inject(MAT_DIALOG_DATA) public incData: any
   ) {
 
@@ -457,7 +460,7 @@ export class BookingDetailV2Component implements OnInit {
       // Mapear la opción seleccionada con el método de pago
       if (this.selectedPaymentOption === 'Efectivo') {
         bookingData.payment_method_id = 1;
-      } else if (this.selectedPaymentOption === 'Boukii Pay') {
+      } else if (this.selectedPaymentOption === this.paymentProviderLabel) {
         bookingData.payment_method_id = 2;
       } else if (this.selectedPaymentOption === 'Tarjeta') {
         bookingData.payment_method_id = 4;

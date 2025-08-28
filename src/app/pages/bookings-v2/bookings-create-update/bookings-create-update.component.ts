@@ -8,6 +8,7 @@ import {ApiCrudService} from '../../../../service/crud.service';
 import {Router} from '@angular/router';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import moment from 'moment';
+import { SchoolService } from 'src/service/school.service';
 
 @Component({
   selector: "bookings-create-update-v2",
@@ -45,10 +46,11 @@ export class BookingsCreateUpdateV2Component {
   selectedPaymentOption: string = 'Tarjeta';
   isPaid = false;
   isConfirmingPayment = false;
+  paymentProviderLabel = this.schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay';
   paymentOptions: any[] = [
     { type: 'Tarjeta', value: 4, translation: this.translateService.instant('credit_card') },
     { type: 'Efectivo', value: 1,  translation: this.translateService.instant('payment_cash') },
-    { type: 'Boukii Pay', value: 2, translation: 'Boukii Pay' }
+    { type: this.paymentProviderLabel, value: 2, translation: this.paymentProviderLabel }
   ]; // Opciones de pago para "Pago directo"
 
   constructor(
@@ -60,6 +62,7 @@ export class BookingsCreateUpdateV2Component {
     private crudService: ApiCrudService,
     private router: Router,
     private snackBar: MatSnackBar,
+    private schoolService: SchoolService,
     @Optional() public dialogRef: MatDialogRef<BookingsCreateUpdateV2Component>,
     @Optional() @Inject(MAT_DIALOG_DATA) public externalData: any
   ) {
@@ -653,7 +656,7 @@ export class BookingsCreateUpdateV2Component {
       // Mapear la opción seleccionada con el método de pago
       if (this.selectedPaymentOption === 'Efectivo') {
         bookingData.payment_method_id = 1;
-      } else if (this.selectedPaymentOption === 'Boukii Pay') {
+      } else if (this.selectedPaymentOption === this.paymentProviderLabel) {
         bookingData.payment_method_id = 2;
       } else if (this.selectedPaymentOption === 'Tarjeta') {
         bookingData.payment_method_id = 4;

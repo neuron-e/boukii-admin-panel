@@ -337,7 +337,7 @@
         </div>
         <div>
           <span class="discounted-price">
-              {{ payment.status | translate }} - {{ payment.notes ?? 'Boukii Pay' | translate }}
+              {{ payment.status | translate }} - {{ (payment.notes ?? (schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay')) | translate }}
           </span>
           <span class="price">
             {{ payment.amount }} {{activities[0]?.course?.currency}}

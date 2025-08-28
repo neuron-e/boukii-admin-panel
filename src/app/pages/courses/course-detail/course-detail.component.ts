@@ -14,6 +14,7 @@ import { ConfirmModalComponent } from '../../monitors/monitor-detail/confirm-dia
 import { TranslateService } from '@ngx-translate/core';
 import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { SchoolService } from 'src/service/school.service';
 
 @Component({
   selector: 'vex-course-detail',
@@ -155,7 +156,7 @@ export class CourseDetailComponent implements OnInit {
   ];
 
   constructor(private fb: UntypedFormBuilder, private crudService: ApiCrudService, private activatedRoute: ActivatedRoute, private router: Router, private dialog: MatDialog,
-              private snackbar: MatSnackBar, private translateService: TranslateService, private sanitizer: DomSanitizer) {
+              private snackbar: MatSnackBar, private translateService: TranslateService, private sanitizer: DomSanitizer, private schoolService: SchoolService) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.settings = JSON.parse(this.user.schools[0].settings);
     this.id = this.activatedRoute.snapshot.params.id;
@@ -310,7 +311,7 @@ export class CourseDetailComponent implements OnInit {
       case 1:
         return 'CASH';
       case 2:
-        return 'BOUKII PAY';
+        return this.schoolService.getPaymentProvider() === 'payyo' ? 'PAYYO' : 'BOUKII PAY';
       case 3:
         return 'ONLINE';
       case 4:

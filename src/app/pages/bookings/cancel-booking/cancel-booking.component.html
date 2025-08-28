@@ -41,7 +41,7 @@
       [disabled]="!defaults.booking.paid">
 
       <mat-tab-group>
-        <mat-tab label="Boukii Pay">
+        <mat-tab [label]="schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay'">
 
           <mat-dialog-content class="flex flex-col" *ngIf="!loading">
             <div style="width: 100%;">
