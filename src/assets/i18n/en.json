@@ -612,7 +612,7 @@
   "partial_cancel": "Partial cancelation",
   "cancel_no_refund": "Cancellation without refund",
   "refund_cash": "Cash or other refund",
-  "voucher_refund": "Refund with bonus",
+  "refund_voucher": "Refund with bonus",
   "deactivate": "Deactivate",
   "activate": "Activate",
   "monitor_comments": "Monitor Comments",

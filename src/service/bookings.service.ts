@@ -313,10 +313,11 @@ export class BookingService {
   }
 
   private handleBoukiiPay(bookingId: number, bookTotalPrice: number, bookingUsers: any[], userData: any, reason: string): Observable<any> {
+    const provider = 'boukii_pay';
     const operations: Observable<any>[] = [
       this.createBookingLog({
         booking_id: bookingId,
-        action: 'refund_boukii_pay',
+        action: 'refund_' + provider,
         before_change: 'confirmed',
         user_id: userData.id,
         reason: reason
@@ -338,10 +339,11 @@ export class BookingService {
   }
 
   private handleCashRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, reason: string): Observable<any> {
+    const provider = 'cash';
     const operations = [
       this.createBookingLog({
         booking_id: bookingId,
-        action: 'refund_cash',
+        action: 'refund_' + provider,
         before_change: 'confirmed',
         user_id: userData.id,
         description: reason
@@ -360,6 +362,7 @@ export class BookingService {
   }
 
   private handleVoucherRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, clientMainId: number): Observable<any> {
+    const provider = 'voucher';
     const voucherData: VoucherData = {
       code: 'BOU-' + this.generateRandomNumber(),
       quantity: bookTotalPrice,
@@ -372,7 +375,7 @@ export class BookingService {
     return forkJoin([
       this.createBookingLog({
         booking_id: bookingId,
-        action: 'voucher_refund',
+        action: 'refund_' + provider,
         before_change: 'confirmed',
         user_id: userData.id
       }),

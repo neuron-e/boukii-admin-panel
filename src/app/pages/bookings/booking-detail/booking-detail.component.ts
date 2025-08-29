@@ -1972,10 +1972,11 @@ export class BookingDetailComponent implements OnInit {
               this.getData();
             });
         } else if (data.type === "boukii_pay") {
+          const provider = data.type;
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "refund_boukii_pay",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
               reason: data.reason,
@@ -2005,10 +2006,11 @@ export class BookingDetailComponent implements OnInit {
                 });
             });
         } else if (data.type === "refund") {
+          const provider = "cash";
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "refund",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
               reason: data.reason,
@@ -2051,10 +2053,11 @@ export class BookingDetailComponent implements OnInit {
             school_id: this.user.schools[0].id,
           };
 
+          const provider = "voucher";
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "voucher_refund",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
             })
@@ -2167,10 +2170,11 @@ export class BookingDetailComponent implements OnInit {
                 });
             });
         } else if (data.type === "boukii_pay") {
+          const provider = data.type;
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "refund_boukii_pay",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
               reason: data.reason,
@@ -2217,10 +2221,11 @@ export class BookingDetailComponent implements OnInit {
               }
             });
         } else if (data.type === "refund") {
+          const provider = "cash";
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "refund_cash",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
               reason: data.reason,
@@ -2268,10 +2273,11 @@ export class BookingDetailComponent implements OnInit {
             school_id: this.user.schools[0].id,
           };
 
+          const provider = "voucher";
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "voucher_refund",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
             })
@@ -2450,10 +2456,11 @@ export class BookingDetailComponent implements OnInit {
             { duration: 3000 }
           );
         } else if (data.type === "boukii_pay") {
+          const provider = data.type;
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "refund_boukii_pay",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
               reason: data.reason,
@@ -2499,10 +2506,11 @@ export class BookingDetailComponent implements OnInit {
 
             });
         } else if (data.type === "refund") {
+          const provider = "cash";
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "refund_cash",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
               description: data.reason,
@@ -2544,10 +2552,11 @@ export class BookingDetailComponent implements OnInit {
             client_id: this.booking.client_main_id,
             school_id: this.user.schools[0].id,
           };
+          const provider = "voucher";
           this.crudService
             .create("/booking-logs", {
               booking_id: this.id,
-              action: "voucher_refund",
+              action: "refund_" + provider,
               before_change: "confirmed",
               user_id: this.user.id,
             })

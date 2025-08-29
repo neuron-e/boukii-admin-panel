@@ -1315,13 +1315,13 @@
 									{{ "refund_cash" | translate }}
 								</div>
 							</div>
-							<div *ngIf="item.action == 'voucher_refund'">
-								<div class="list-box">
-									{{ item.created_at | date: "dd-MM-yyyy hh:mm:ss" }}:
-									<br>
-									{{ "voucher_refund" | translate }}
-								</div>
-							</div>
+                                                        <div *ngIf="item.action == 'refund_voucher'">
+                                                                <div class="list-box">
+                                                                        {{ item.created_at | date: "dd-MM-yyyy hh:mm:ss" }}:
+                                                                        <br>
+                                                                        {{ "refund_voucher" | translate }}
+                                                                </div>
+                                                        </div>
 							<div *ngIf="item.action == 'update'">
 								<div class="list-box">
 									{{ item.created_at | date: "dd-MM-yyyy hh:mm:ss" }}:

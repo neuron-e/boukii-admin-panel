@@ -636,7 +636,7 @@
   "partial_cancel": "Cancelación parcial",
   "cancel_no_refund": "Cancelación sin reembolso",
   "refund_cash": "Reembolso en efectivo u otros",
-  "voucher_refund": "Reembolso con bono",
+  "refund_voucher": "Reembolso con bono",
   "deactivate": "Desactivar",
   "activate": "Activar",
   "monitor_comments": "Comentarios del monitor",
