@@ -183,7 +183,7 @@ export class AppComponent {
      * Add your own routes here
      */
     const provider = this.schoolService.getPaymentProvider();
-    const gatewayLabel = provider === 'payyo' ? 'Payyo' : 'Boukii Pay';
+    const gatewayLabel = provider === 'payyo' ? this.translateService.instant('payment_payyo') : 'Boukii Pay';
     const gatewayRoute = provider === 'payyo' ? 'https://merchant.payyo.ch/' : 'https://login.pay.boukii.com/fr/';
 
     this.navigationService.items = [

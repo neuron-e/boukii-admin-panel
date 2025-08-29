@@ -38,7 +38,9 @@ export class BookingDetailV2Component implements OnInit {
   step: number = 1;  // Paso inicial
   selectedPaymentOption: string = 'Tarjeta';
   isPaid = false;
-  paymentProviderLabel = this.schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay';
+  paymentProviderLabel = this.schoolService.getPaymentProvider() === 'payyo'
+    ? this.translateService.instant('payment_payyo')
+    : 'Boukii Pay';
   paymentOptions: any[] = [
     { type: 'Tarjeta', value: 4, translation: this.translateService.instant('credit_card') },
     { type: 'Efectivo', value: 1,  translation: this.translateService.instant('payment_cash') },

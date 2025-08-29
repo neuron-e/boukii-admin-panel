@@ -2308,7 +2308,7 @@
                 <button mat-raised-button color="accent" class="square-button"
                   (click)="selectedSubButton='3'; defaults.payment_method_id = 2"
                   [class.selected]="selectedSubButton==='3'">
-                  {{ schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay' }}
+                  {{ schoolService.getPaymentProvider() === 'payyo' ? ('payment_payyo' | translate) : 'Boukii Pay' }}
                 </button>
               </div>
 
