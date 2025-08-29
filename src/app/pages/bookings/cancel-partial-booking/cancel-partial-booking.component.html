@@ -32,11 +32,11 @@
         <mat-tab [label]="schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay'">
           <mat-dialog-content class="flex flex-col" *ngIf="!loading">
             <div style="width: 100%;">
-              <p *ngIf="defaults.booking.payrexx_reference !== null">{{'bookings_page.cancelations.refund_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>
-              <p *ngIf="defaults.booking.payrexx_reference === null">{{'bookings_page.cancelations.refund_no_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>
+              <p *ngIf="defaults.booking[schoolService.getPaymentProvider() === 'payyo' ? 'payyo_reference' : 'payrexx_reference'] !== null">{{'bookings_page.cancelations.refund_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>
+              <p *ngIf="defaults.booking[schoolService.getPaymentProvider() === 'payyo' ? 'payyo_reference' : 'payrexx_reference'] === null">{{'bookings_page.cancelations.refund_no_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>
             </div>
             <mat-divider></mat-divider>
-            <mat-dialog-actions align="end" *ngIf="!loading && defaults.booking.payrexx_reference !== null">
+            <mat-dialog-actions align="end" *ngIf="!loading && defaults.booking[schoolService.getPaymentProvider() === 'payyo' ? 'payyo_reference' : 'payrexx_reference'] !== null">
               <button color="primary" mat-flat-button (click)="closeAndSave('boukii_pay')">{{'confirm' | translate}}</button>
               <button color="primary" mat-flat-button [mat-dialog-close]="false">{{'no' | translate}}</button>
             </mat-dialog-actions>
