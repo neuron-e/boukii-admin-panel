@@ -606,7 +606,7 @@
   "partial_cancel": "Teilstornierung",
   "cancel_no_refund": "Stornierung ohne Rückerstattung",
   "refund_cash": "Barzahlung oder andere Rückerstattung",
-  "voucher_refund": "Rückerstattung mit Bonus",
+  "refund_voucher": "Rückerstattung mit Bonus",
   "deactivate": "Deaktivieren",
   "activate": "Aktivieren",
   "monitor_comments": "Überwachen Sie Kommentare",

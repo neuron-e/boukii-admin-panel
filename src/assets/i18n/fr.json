@@ -610,7 +610,7 @@
   "partial_cancel": "Annulation partielle",
   "cancel_no_refund": "Annulation sans remboursement",
   "refund_cash": "Espèces ou autre remboursement",
-  "voucher_refund": "Remboursement avec bons",
+  "refund_voucher": "Remboursement avec bons",
   "deactivate": "Désactiver",
   "activate": "Activer",
   "monitor_comments": "Observations du moniteur.",
