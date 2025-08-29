@@ -206,6 +206,7 @@
   "payment_online": "Online",
   "payment_no_payment": "Confirm without payment",
   "payment_cash": "Cash",
+  "payment_payyo": "Payyo",
   "other_info": "Other data",
   "others": "Others",
   "is_paid": "Did the client pay for the reservation?",

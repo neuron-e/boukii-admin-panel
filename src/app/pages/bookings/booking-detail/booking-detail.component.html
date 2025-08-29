@@ -1363,7 +1363,7 @@
                                                                 <button [class.selected]="selectedSubButton === '3'" (click)="
                     selectedSubButton = '3'; defaults.payment_method_id = 2
                   " mat-raised-button color="accent" class="square-button">
-                                                                        {{ schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay' }}
+                                                                        {{ schoolService.getPaymentProvider() === 'payyo' ? ('payment_payyo' | translate) : 'Boukii Pay' }}
                                                                 </button>
 							</div>
 							<mat-divider *ngIf="selectedSubButton === '1' || selectedSubButton === '2'"

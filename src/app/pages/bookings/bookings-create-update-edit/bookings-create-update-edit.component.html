@@ -2786,7 +2786,7 @@
                 [class.selected]="selectedSubButton==='3'"
                 *ngIf="(bookingService.editData.price - finalPrice) > 0"
               >
-                {{ schoolService.getPaymentProvider() === 'payyo' ? 'Payyo' : 'Boukii Pay' }}
+                {{ schoolService.getPaymentProvider() === 'payyo' ? ('payment_payyo' | translate) : 'Boukii Pay' }}
               </button>
             </div>-->
             <!--            <mat-divider
