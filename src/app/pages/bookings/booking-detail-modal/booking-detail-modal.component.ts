@@ -209,7 +209,7 @@ export class BookingDetailModalComponent implements OnInit {
   degreesClient:any[]=[];
 
   constructor(private bookingService: BookingService, private dialog: MatDialog, private crudService: ApiCrudService, private calendarService: CalendarService,
-    private snackbar: MatSnackBar, public translateService: TranslateService, private schoolService: SchoolService, private router: Router,
+    private snackbar: MatSnackBar, public translateService: TranslateService, public schoolService: SchoolService, private router: Router,
     @Inject(MAT_DIALOG_DATA) public incData: any, private dialogRef: MatDialogRef<any>,) {
 
                 this.minDate = new Date(); // Establecer la fecha mínima como la fecha actual
