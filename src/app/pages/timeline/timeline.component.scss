@@ -176,6 +176,12 @@
 }
 .hours-container {
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.hours-scroll {
+  position: relative;
   overflow-x: auto;
 }
 .hours-row {
