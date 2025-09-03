@@ -853,6 +853,7 @@
   "export_data": "Export Data",
   "filters": "Filters",
   "weekends_only": "Weekends Only",
+  "only_weekends": "Only weekends",
   "revenue_trend": "Revenue Trend",
   "payment_methods": "Payment Methods",
   "course_type_performance": "Course Type Performance",

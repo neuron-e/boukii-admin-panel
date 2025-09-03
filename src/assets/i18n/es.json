@@ -861,6 +861,7 @@
   "export_data": "Exportar Datos",
   "filters": "Filtros",
   "weekends_only": "Solo Fines de Semana",
+  "only_weekends": "Solo fines de semana",
   "revenue_trend": "Tendencia de Ingresos",
   "payment_methods": "Métodos de Pago",
   "course_type_performance": "Rendimiento por Tipo de Curso",

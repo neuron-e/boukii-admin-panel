@@ -854,6 +854,7 @@
   "export_data": "Daten exportieren",
   "filters": "Filter",
   "weekends_only": "Nur am Wochenende",
+  "only_weekends": "Nur an Wochenenden",
   "revenue_trend": "Einnahmentrend",
   "payment_methods": "Zahlungsmethoden",
   "course_type_performance": "Leistung nach Kurstyp",
