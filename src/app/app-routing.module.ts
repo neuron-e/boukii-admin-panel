@@ -64,7 +64,7 @@ const childrenRoutes: VexRoutes = [
       },
       {
         path: 'stats',
-        loadChildren: () => import('./pages/analytics/analytics.module').then(m => m.AnalyticsModule),
+        loadChildren: () => import('./pages/analytics-v2/analytics.module').then(m => m.AnalyticsModule),
         canActivate: [AuthGuard],
       },
       {

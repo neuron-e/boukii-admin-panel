@@ -372,7 +372,7 @@
   </div>
 
 </div>
-<button *ngIf="!bookingData.paid"
+<button *ngIf="!bookingData.paid && bookingData.status != 2"
         class="client-button mobile-pay-button"
         color="primary"
         mat-raised-button

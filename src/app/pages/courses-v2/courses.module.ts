@@ -31,9 +31,15 @@ import { ComponenteInputModule } from 'src/@vex/components/form/input/app.module
 import { ComponenteEditorModule } from 'src/@vex/components/form/editor/app.module';
 import { ComponenteSelectModule } from 'src/@vex/components/form/select/app.module';
 import { CourseOpcionComponent } from './components/opcion/opcion.component';
+import { CourseStatisticsComponent } from './course-statistics/course-statistics.component';
+import {MatTooltipModule} from '@angular/material/tooltip';
+import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 
 @NgModule({
-  declarations: [CoursesComponent],
+  declarations: [CoursesComponent, CourseStatisticsComponent],
+  exports: [
+    CourseStatisticsComponent
+  ],
   imports: [
     CommonModule,
     LayoutModule,
@@ -66,6 +72,8 @@ import { CourseOpcionComponent } from './components/opcion/opcion.component';
     ComponenteEditorModule,
     ComponenteSelectModule,
     CourseOpcionComponent,
+    MatTooltipModule,
+    MatProgressSpinnerModule,
   ]
 })
 export class CoursesModule { }

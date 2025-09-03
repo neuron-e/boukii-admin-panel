@@ -100,23 +100,41 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
   ];
 
   columnsSales: TableColumn<any>[] = [
+    // 🔷 Curso
     { label: 'type', property: 'icon', type: 'booking_users_image', visible: true },
     { label: 'name', property: 'name', type: 'text', visible: true, cssClasses: ['font-medium'] },
+
+    // 🪑 Plazas
     { label: 'availability', property: 'available_places', type: 'text', visible: true, cssClasses: ['font-medium'] },
     { label: 'sold', property: 'booked_places', type: 'text', visible: true },
+    { label: 'no_paid', property: 'no_paid', type: 'text', visible: true, cssClasses: ['font-medium'] },
+
+    // 💳 Métodos de pago
     { label: 'cash', property: 'cash', type: 'price', visible: true, cssClasses: ['font-medium'] },
     { label: 'other', property: 'other', type: 'price', visible: true, cssClasses: ['font-medium'] },
     { label: 'T.Boukii', property: 'boukii', type: 'price', visible: true, cssClasses: ['font-medium'] },
     { label: 'T.Boukii Web', property: 'boukii_web', type: 'price', visible: true, cssClasses: ['font-medium'] },
     { label: 'Link', property: 'online', type: 'price', visible: true, cssClasses: ['font-medium'] },
-    { label: 'no_paid', property: 'no_paid', type: 'price', visible: true, cssClasses: ['font-medium'] },
+    { label: 'vouchers', property: 'vouchers', type: 'price', visible: true, cssClasses: ['font-medium'] },
+    { label: 'refunds', property: 'refunds', type: 'price', visible: true, cssClasses: ['font-medium'] },
+
+    // 🧭 Origen
     { label: 'admin', property: 'admin', type: 'text', visible: true, cssClasses: ['font-medium'] },
     { label: 'web', property: 'web', type: 'text', visible: true, cssClasses: ['font-medium'] },
-    { label: 'vouchers', property: 'vouchers', type: 'price', visible: true, cssClasses: ['font-medium'] },
+
+    // ➕ Extras y seguros
     { label: 'extras', property: 'extras', type: 'price', visible: true, cssClasses: ['font-medium'] },
     { label: 'bookings_page.cancelations.refund', property: 'insurance', type: 'price', visible: true, cssClasses: ['font-medium'] },
+/*
+
+    // ⚠️ Discrepancias
     { label: 'pending_payment', property: 'underpaid_count', type: 'price', visible: true, cssClasses: ['font-bold', 'text-red-600'] },
+*/
+
+    // 💰 Total
     { label: 'total', property: 'total_cost', type: 'price', visible: true },
+    { label: 'expected', property: 'total_cost_expected', type: 'price', visible: true },
+    { label: 'difference', property: 'difference_vs_expected', type: 'price', visible: true },
   ];
 
   columnsDetail: TableColumn<any>[] = [
@@ -128,7 +146,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
     { label: 'hours_nwd_payed', property: 'hours_nwd_payed', type: 'text', visible: true, cssClasses: ['font-medium'] },
     { label: 'base_price', property: 'hour_price', type: 'price', visible: true },
     { label: 'total_hours', property: 'total_hours', type: 'text', visible: true },
-    { label: 'total', property: 'total_cost', type: 'price', visible: true },
+    { label: 'total', property: 'total_cost', type: 'price', visible: true }
   ];
 
   constructor(

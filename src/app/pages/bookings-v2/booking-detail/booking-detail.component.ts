@@ -372,7 +372,6 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   processFullDelete() {
-    if(this.bookingData.paid) {
       const dialogRef = this.dialog.open(CancelBookingModalComponent, {
         width: "1000px", // Asegurarse de que no haya un ancho máximo
         panelClass: "full-screen-dialog", // Si necesitas estilos adicionales,
@@ -408,9 +407,6 @@ export class BookingDetailV2Component implements OnInit {
 
         }
       });
-    } else {
-      this.deleteFullModal = true;
-    }
 
   }
 
