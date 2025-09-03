@@ -239,7 +239,8 @@
                    *ngFor="let day of weekDays;let dayIndex = index">{{ day |
                 translate }} {{ getDayOfWeek(dayIndex) }}</div>
             </div>
-            <div class="grid-container">
+            <div class="hours-scroll">
+              <div class="grid-container">
               <!-- aplicar sombreado -->
               <div class="grid-row"
                    *ngFor="let monitor of filteredMonitors;let monitorIndex = index"
@@ -400,10 +401,10 @@
                   </ng-container>
                 </div>
               </ng-container>
-
             </div>
           </div>
         </div>
+      </div>
 
         <div class="schedule-container"
              *ngIf="filteredMonitors && filteredMonitors.length && timelineView == 'month'">
@@ -490,11 +491,12 @@
               </ng-container>
             </ng-container>
           </div>
-          <div class="hours-container">
-            <div class="hours-row">
-              <div class="day" *ngFor="let day of weekDays">{{ day }}</div>
-            </div>
-            <div class="grid-container">
+            <div class="hours-container">
+              <div class="hours-row">
+                <div class="day" *ngFor="let day of weekDays">{{ day }}</div>
+              </div>
+              <div class="hours-scroll">
+                <div class="grid-container">
               <ng-container
                 *ngFor="let monitor of filteredMonitors; let monitorIndex = index">
                 <div class="grid-row"
@@ -522,8 +524,8 @@
                 </div>
               </ng-container>
 
-              <!--TASKS-->
-              <ng-container *ngFor="let task of plannerTasks">
+                <!--TASKS-->
+                <ng-container *ngFor="let task of plannerTasks">
                 <!--MONTH-->
                 <div class="task-wrapper-week cursor-pointer"
                      (click)="task.block_id ? toggleBlock(task) : toggleDetail(task)"
@@ -575,8 +577,8 @@
                     </div>
                   </ng-container>
                 </div>
-              </ng-container>
-
+                </ng-container>
+              </div>
             </div>
           </div>
         </div>
