@@ -27,13 +27,13 @@
 }
 .header-navigation {
   position: sticky;
-  top: 118px;
+  top: 143px;
   width: 100%;
   z-index: 1000;
   background: var(--is-light-theme, #eff2f5) var(--is-dark-theme, #2f3844);
   color: var(--is-light-theme, #121212) var(--is-dark-theme, #dee6ea);
   padding: 16px;
-  margin-top: 24px;
+  margin-top: 33px;
   font-size: 15px;
 }
 .header-navigation2 {
@@ -176,8 +176,7 @@
 }
 .hours-container {
   flex-grow: 1;
-  display: flex;
-  flex-direction: column;
+  overflow-x: auto;
 }
 
 .hours-scroll {

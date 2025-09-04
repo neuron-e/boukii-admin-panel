@@ -1,10 +1,11 @@
 .secondary-toolbar {
+  z-index: 9999;
   background: var(--is-light-theme, #ffffff) var(--is-dark-theme, #222222);
   height: var(--secondary-toolbar-height);
   margin-top: calc(var(--secondary-toolbar-height) * -1);
 
   &.fixed {
-    z-index: 10;
+    z-index: 9999;
     width: var(--toolbar-width);
     border-bottom: 1px solid var(--is-light-theme, #dee6ea)
       var(--is-dark-theme, #121212);
