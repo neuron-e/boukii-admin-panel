@@ -299,7 +299,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   async getDegrees() {
     try {
-      const data: any = await this.crudService.get('/degrees?school_id=' + this.activeSchool + '&perPage=' + 99999).toPromise();
+      const data: any = await this.crudService.get('/degrees?school_id=' + this.activeSchool + '&perPage=' + 10000).toPromise();
       this.degrees = data.data.sort((a, b) => a.degree_order - b.degree_order);
       this.degrees.forEach((degree: any) => {
         degree.inactive_color = this.lightenColor(degree.color, 30);
