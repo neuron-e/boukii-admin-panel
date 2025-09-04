@@ -201,7 +201,15 @@ export class ClientsComponent {
       })
   }
 
-  getSportLevels(id: any) {
-    return this.allLevels.filter((a) => a.sport_id === id)
+  getSportLevels(id: any, client: any = null) {
+    const targetClient = client || this.detailData;
+    if (!targetClient || !targetClient.birth_date) {
+      return this.allLevels.filter((a) => a.sport_id === id);
+    }
+    
+    const age = this.calculateAge(targetClient.birth_date);
+    return this.allLevels.filter((a) => 
+      a.sport_id === id && age >= a.age_min && age <= a.age_max
+    );
   }
 }

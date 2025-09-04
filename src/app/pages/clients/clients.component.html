@@ -133,7 +133,7 @@
               </div>
 
               <app-level-user *ngIf="utilizer?.client_sports?.length"
-                [allLevels]="utilizer?.client_sports?.length ? getSportLevels(utilizer?.client_sports[0].sport.id) : []"
+                [allLevels]="utilizer?.client_sports?.length ? getSportLevels(utilizer?.client_sports[0].sport.id, utilizer) : []"
                 [selectLevel]="clientSportUtilizer?.length ? utilizer?.client_sports[0].degree_id : null"
                 [size]="60"
                 [userImage]="utilizer.image ? utilizer?.image : imageAvatar">
@@ -198,7 +198,7 @@
             </div>
 
             <app-level-user *ngIf="item?.client_sports?.length"
-              [allLevels]="item?.client_sports?.length ? getSportLevels(item?.client_sports[0].sport.id) : []"
+              [allLevels]="item?.client_sports?.length ? getSportLevels(item?.client_sports[0].sport.id, item) : []"
               [selectLevel]="item?.client_sports[0].degree_id"
               [size]="60"
               [userImage]="item.image ? item?.image : imageAvatar">

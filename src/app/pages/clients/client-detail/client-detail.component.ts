@@ -1343,13 +1343,64 @@ export class ClientDetailComponent {
 
   getAllLevelsBySport() {
     let ret = [];
-    this.schoolSports.forEach(element => {
-      if (element.sport_id === this.detailData.sport.id) {
-        ret = element.degrees;
+    const clientData = this.detailData || this.defaults;
+    
+    // Try to get sport info from selectedSport or detailData
+    const sportId = this.selectedSport?.sport_id || this.detailData?.sport?.id;
+    
+    // First try with schoolSports
+    if (sportId && this.schoolSports && clientData) {
+      this.schoolSports.forEach(element => {
+        if (element.sport_id === sportId) {
+          // Apply age filtering using the client's birth date
+          if (clientData.birth_date) {
+            const age = this.calculateAge(clientData.birth_date);
+            ret = element.degrees.filter(level => age >= level.age_min && age <= level.age_max);
+          } else {
+            ret = element.degrees;
+          }
+        }
+      });
+    }
+    
+    // Fallback: use allLevels filtered by sport
+    if (ret.length === 0 && this.allLevels && sportId && clientData) {
+      if (clientData.birth_date) {
+        const age = this.calculateAge(clientData.birth_date);
+        ret = this.allLevels.filter(level => 
+          level.sport_id === sportId && 
+          age >= level.age_min && 
+          age <= level.age_max
+        );
+      } else {
+        ret = this.allLevels.filter(level => level.sport_id === sportId);
       }
-    });
+    }
+    
+    // Last fallback: return all levels if we still have nothing
+    if (ret.length === 0 && this.allLevels) {
+      ret = this.allLevels;
+    }
 
     return ret;
+  }
+
+  getFilteredLevelsBySport() {
+    const clientData = this.detailData || this.defaults;
+    
+    // If we don't have client data or sport selection, return all levels
+    if (!clientData || !clientData.birth_date || !this.detailData?.sport) {
+      return this.allLevels;
+    }
+    
+    const age = this.calculateAge(clientData.birth_date);
+    
+    // Filter all levels by sport and age
+    return this.allLevels.filter(level => 
+      level.sport_id === this.detailData.sport.id && 
+      age >= level.age_min && 
+      age <= level.age_max
+    );
   }
 
   getClient(id: any) {

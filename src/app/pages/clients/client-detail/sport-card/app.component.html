@@ -15,7 +15,7 @@
     <div style="align-items: center">
         <div style="width: 100px;">
             <app-level-user
-                [allLevels]="user.allLevels"
+                [allLevels]="user.getAllLevelsBySport()"
                 [selectLevel]="level?.id"
                 [size]="100"
                 [userImage]="user.getGoalImage(goals)">

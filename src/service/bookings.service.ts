@@ -226,6 +226,28 @@ export class BookingService {
           bookingUser.hour_start = date.startHour;
           bookingUser.hour_end = date.endHour;
 
+          // Add school-specific fields for school 15
+          if (bookingData.school_id === 15) {
+            const courseDate = item.course.course_dates.find(d =>
+              moment(d.date).format('YYYY-MM-DD') == moment(date.date).format('YYYY-MM-DD'));
+            
+            if (courseDate && courseDate.course_groups) {
+              const matchingGroup = courseDate.course_groups.find(group => group.degree_id === item.sportLevel.id);
+              if (matchingGroup) {
+                bookingUser.group = matchingGroup.id;
+                bookingUser.group_name = matchingGroup.name;
+                
+                const availableSubgroup = matchingGroup.course_subgroups.find(subgroup =>
+                  subgroup.booking_users.length < subgroup.max_participants
+                );
+                if (availableSubgroup) {
+                  bookingUser.subgroup = availableSubgroup.id;
+                  bookingUser.subgroup_name = availableSubgroup.name;
+                }
+              }
+            }
+          }
+
           // Asignar los extras al usuario de la reserva
           bookingUser.extras = extras;
 
