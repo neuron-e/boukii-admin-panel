@@ -102,6 +102,11 @@ const childrenRoutes: VexRoutes = [
         loadChildren: () => import('./pages/discounts/discounts.module').then(m => m.DiscountsModule),
         canActivate: [AuthGuard],
       },
+      {
+        path: 'chrono/:courseId/:courseDateId',
+        loadChildren: () => import('./pages/chrono/chrono.module').then(m => m.ChronoModule),
+        canActivate: [AuthGuard],
+      },
     ]
   }
 ];

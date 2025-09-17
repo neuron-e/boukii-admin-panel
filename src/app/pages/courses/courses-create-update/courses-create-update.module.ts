@@ -40,6 +40,7 @@ import { FluxModalModule } from 'src/@vex/components/flux-component/flux-modal/a
 import { FluxDisponibilidadModule } from 'src/@vex/components/flux-component/flux-disponibilidad/app.module';
 import { TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
 import { ComponenteSelectModule } from 'src/@vex/components/form/select/app.module';
+import { CourseTimingModalModule } from '../course-timing-modal/course-timing-modal.module';
 
 @NgModule({
   imports: [
@@ -84,6 +85,7 @@ import { ComponenteSelectModule } from 'src/@vex/components/form/select/app.modu
     CoursesDetailCardModule,
     FluxModalModule,
     FluxDisponibilidadModule,
+    CourseTimingModalModule,
     MatProgressSpinnerModule],
   declarations: [CoursesCreateUpdateComponent],
   exports: [CoursesCreateUpdateComponent],

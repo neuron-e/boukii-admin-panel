@@ -30,6 +30,7 @@ import { AngularEditorModule } from '@kolkov/angular-editor';
 import { CourseDetailComponent } from './course-detail.component';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { PageLayoutModule } from 'src/@vex/components/page-layout/page-layout.module';
 import { ComponentsModule } from 'src/@vex/components/components.module';
@@ -71,6 +72,7 @@ import {IconComponent} from '../../../../@vex/components/icon/app.component';
         AngularEditorModule,
         MatTabsModule,
         MatProgressSpinnerModule,
+        MatTooltipModule,
         TranslateModule,
         PageLayoutModule,
         ComponentsModule,

@@ -115,6 +115,8 @@
 			<span style="margin: 20px;">
 				{{'dates' | translate}}
 			</span>
+
+
       <div [formGroup]="courses.courseFormGroup"
            style="padding: 0 20px; display: flex; flex-wrap: nowrap; column-gap: 20px;">
         <app-form-datepicker [required]="true" [form]="courses.courseFormGroup"
@@ -144,26 +146,43 @@
       <ng-container *ngIf="courses.courseFormGroup.controls['course_type'].value===1">
         <!-- INTERVALOS DE FECHAS -->
         <!-- Configuración global de intervalos (solo visible cuando useMultipleIntervals está activo) -->
-        <div *ngIf="useMultipleIntervals" class="global-interval-settings mb-4 p-3 border rounded bg-light">
-          <h4 class="mb-3">{{'global_interval_settings' | translate}}</h4>
-          <div class="row mb-3">
-            <div class="col-md-6">
-              <div class="form-check">
-                <mat-checkbox [(ngModel)]="mustBeConsecutive" (change)="syncIntervalsToCourseFormGroup()">
+        <div *ngIf="useMultipleIntervals" class="global-interval-settings mb-4 p-3 border rounded bg-light" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
+          <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
+            <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">settings</mat-icon>
+            {{'global_interval_settings' | translate}}
+          </h4>
+
+          <div class="row mb-3" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-check-container" style="padding: 16px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+              <mat-checkbox [(ngModel)]="mustBeConsecutive" (change)="syncIntervalsToCourseFormGroup()"
+                           style="margin-bottom: 8px;">
+                <span style="font-weight: 500; color: #495057;">
                   {{'dates_must_be_consecutive' | translate }}
-                </mat-checkbox>
+                </span>
+              </mat-checkbox>
+              <div style="margin-left: 32px; color: #6c757d; font-size: 14px; line-height: 1.4;">
+                <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
+                {{'consecutive_dates_explanation' | translate}}
               </div>
             </div>
-            <div class="col-md-6">
-              <div class="form-check">
-                <mat-checkbox [(ngModel)]="mustStartFromFirst" (change)="syncIntervalsToCourseFormGroup()">
+
+            <div class="form-check-container" style="padding: 16px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+              <mat-checkbox [(ngModel)]="mustStartFromFirst" (change)="syncIntervalsToCourseFormGroup()"
+                           style="margin-bottom: 8px;">
+                <span style="font-weight: 500; color: #495057;">
                   {{'must_start_from_first_day' | translate }}
-                </mat-checkbox>
+                </span>
+              </mat-checkbox>
+              <div style="margin-left: 32px; color: #6c757d; font-size: 14px; line-height: 1.4;">
+                <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
+                {{'start_from_first_explanation' | translate}}
               </div>
             </div>
           </div>
-          <div class="alert alert-info">
-            <small>{{'interval_global_settings_info' | translate}}</small>
+
+          <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px;">
+            <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">lightbulb</mat-icon>
+            {{'interval_global_settings_info' | translate}}
           </div>
         </div>
         <!-- Contenedor de intervalos múltiples -->
@@ -185,6 +204,99 @@
 
             </div>
 
+            <!-- Rango de fechas del intervalo -->
+            <div style="padding: 16px; background: #f8f9fa; border-top: 1px solid #DEE6EA;">
+              <h6 style="margin: 0 0 12px 0; color: #495057; font-size: 14px; font-weight: 600;">
+                {{ 'interval_date_range' | translate }}
+              </h6>
+              <div style="display: flex; gap: 16px; align-items: center;">
+                <div style="flex: 1;">
+                  <label style="display: block; font-size: 12px; color: #6c757d; margin-bottom: 4px;">{{ 'start_date' | translate }}</label>
+                  <input type="date"
+                         [(ngModel)]="interval.startDate"
+                         style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;">
+                </div>
+                <div style="flex: 1;">
+                  <label style="display: block; font-size: 12px; color: #6c757d; margin-bottom: 4px;">{{ 'end_date' | translate }}</label>
+                  <input type="date"
+                         [(ngModel)]="interval.endDate"
+                         [min]="interval.startDate"
+                         style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Configuración de generación de fechas por intervalo -->
+            <div style="padding: 16px; border-top: 1px solid #DEE6EA;">
+              <h6 style="margin: 0 0 12px 0; color: #495057; font-size: 14px; font-weight: 600;">
+                {{ 'date_generation_method' | translate }}
+              </h6>
+
+              <!-- Tarjetas de selección de método -->
+              <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                <!-- Días consecutivos -->
+                <div class="date-method-card"
+                     [class.selected]="interval.dateGenerationMethod === 'consecutive'"
+                     (click)="setIntervalDateGenerationMethod(i, 'consecutive')"
+                     style="flex: 1; min-width: 140px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; background: white; text-align: center;">
+                  <mat-icon style="color: #007bff; margin-bottom: 4px;">date_range</mat-icon>
+                  <div style="font-size: 12px; font-weight: 500; color: #495057;">{{ 'consecutive_days' | translate }}</div>
+                </div>
+
+                <!-- Días de la semana -->
+                <div class="date-method-card"
+                     [class.selected]="interval.dateGenerationMethod === 'weekly'"
+                     (click)="setIntervalDateGenerationMethod(i, 'weekly')"
+                     style="flex: 1; min-width: 140px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; background: white; text-align: center;">
+                  <mat-icon style="color: #28a745; margin-bottom: 4px;">event_repeat</mat-icon>
+                  <div style="font-size: 12px; font-weight: 500; color: #495057;">{{ 'weekly_pattern' | translate }}</div>
+                </div>
+
+                <!-- Manual -->
+                <div class="date-method-card"
+                     [class.selected]="interval.dateGenerationMethod === 'manual'"
+                     (click)="setIntervalDateGenerationMethod(i, 'manual')"
+                     style="flex: 1; min-width: 140px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; background: white; text-align: center;">
+                  <mat-icon style="color: #ffc107; margin-bottom: 4px;">edit_calendar</mat-icon>
+                  <div style="font-size: 12px; font-weight: 500; color: #495057;">{{ 'manual_selection' | translate }}</div>
+                </div>
+              </div>
+
+              <!-- Configuración específica para días consecutivos -->
+              <div *ngIf="interval.dateGenerationMethod === 'consecutive'" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f8f9fa; border-radius: 4px;">
+                <label style="color: #495057; font-size: 13px;">{{ 'consecutive_count' | translate }}:</label>
+                <input type="number"
+                       [(ngModel)]="interval.consecutiveDaysCount"
+                       min="2"
+                       max="20"
+                       style="width: 60px; padding: 6px; border: 1px solid #ced4da; border-radius: 3px; font-size: 12px;">
+                <button type="button"
+                        (click)="generateIntervalConsecutiveDates(i)"
+                        style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                  {{ 'generate_dates' | translate }}
+                </button>
+              </div>
+
+              <!-- Configuración específica para días de la semana -->
+              <div *ngIf="interval.dateGenerationMethod === 'weekly'" style="padding: 12px; background: #f8f9fa; border-radius: 4px;">
+                <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+                  <button type="button"
+                          *ngFor="let day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']"
+                          [class.active]="interval.weeklyPattern[day]"
+                          (click)="toggleIntervalWeekday(i, day)"
+                          style="padding: 6px 10px; border: 1px solid #ced4da; border-radius: 15px; cursor: pointer; font-size: 11px; background: white; color: #495057;">
+                    {{ day.substring(0, 3) | translate | titlecase }}
+                  </button>
+                </div>
+                <button type="button"
+                        (click)="generateIntervalWeeklyDates(i)"
+                        [disabled]="!hasSelectedWeekdaysForInterval(i)"
+                        style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                  {{ 'generate_dates' | translate }}
+                </button>
+              </div>
+            </div>
+
             <!-- Fechas del intervalo -->
             <div *ngFor="let date of interval?.dates; let j = index">
               <div
@@ -201,8 +313,8 @@
               </div>
               <div style="padding: 20px 20px 0px; display: flex; flex-wrap: nowrap; column-gap: 20px;">
                 <app-form-datepicker [required]="true"
-                                     [min]="interval?.dates.length > 0 ?
-                                     interval?.dates[interval?.dates.length -1].date : courses.courseFormGroup.controls['date_start'].value"
+                                     [min]="interval.startDate"
+                                     [max]="interval.endDate"
                                      [value]="date.date"
                                      (do)="date.date=$event.value"
                                      style="min-width: 0;width: 100%;" name="date">
@@ -286,7 +398,79 @@
           <div *ngIf="courses.courseFormGroup.controls['is_flexible'].value"
                style="background-color: var(--color-grey4);height: 20px;width: 100%;"></div>
           <div *ngIf="courses.courseFormGroup.controls['is_flexible'].value">
-            <!-- Mantén el código de descuentos existente -->
+            <!-- Configuración de descuentos por múltiples fechas -->
+            <div class="discount-configuration" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
+              <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
+                <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">local_offer</mat-icon>
+                {{ 'multidate_discount' | translate }}
+              </h4>
+
+              <mat-checkbox [(ngModel)]="enableMultiDateDiscounts" (change)="onMultiDateDiscountChange()" style="margin-bottom: 16px;">
+                <span style="font-weight: 500; color: #495057;">
+                  {{ 'enable_multidate_discounts' | translate }}
+                </span>
+              </mat-checkbox>
+
+              <div *ngIf="enableMultiDateDiscounts" style="margin-top: 16px;">
+                <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;">
+                  <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">info</mat-icon>
+                  {{ 'multidate_discount_explanation' | translate }}
+                </div>
+
+                <!-- Lista de descuentos por número de fechas -->
+                <div *ngFor="let discount of discountsByDates; let i = index" class="discount-item" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 12px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+                  <div style="min-width: 120px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ 'dates_quantity' | translate }}
+                    </label>
+                    <input type="number"
+                           [(ngModel)]="discount.dates"
+                           min="2"
+                           max="20"
+                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                           (change)="validateDiscountDates()">
+                  </div>
+
+                  <div style="min-width: 100px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ 'discount_type' | translate }}
+                    </label>
+                    <select [(ngModel)]="discount.type"
+                            style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                      <option value="percentage">{{ 'percentage' | translate }}</option>
+                      <option value="fixed">{{ 'fixed_amount' | translate }}</option>
+                    </select>
+                  </div>
+
+                  <div style="min-width: 120px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
+                    </label>
+                    <input type="number"
+                           [(ngModel)]="discount.value"
+                           [min]="discount.type === 'percentage' ? 1 : 0.01"
+                           [max]="discount.type === 'percentage' ? 100 : 9999"
+                           step="0.01"
+                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                  </div>
+
+                  <button type="button"
+                          *ngIf="discountsByDates.length > 1"
+                          (click)="removeDiscount(i)"
+                          style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; min-width: 36px; height: 36px;">
+                    <mat-icon style="font-size: 18px;">delete</mat-icon>
+                  </button>
+                </div>
+
+                <!-- Botón para agregar más descuentos -->
+                <button type="button"
+                        (click)="addNewDiscount()"
+                        style="border: 1px solid #007bff; color: #007bff; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px; margin-top: 8px;">
+                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
+                  {{ 'add_discount_by_date' | translate }}
+                </button>
+              </div>
+            </div>
           </div>
         </ng-container>
       </ng-container>
@@ -460,7 +644,8 @@
                      style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4);">
                   <vex-flux-disponibilidad [courseFormGroup]="courses.courseFormGroup" [level]="level"
                                            [group]="find(courses.courseFormGroup.controls['course_dates'].value[0].course_groups,'degree_id',level.id)"
-                                           [subgroup_index]="j" (monitorSelect)="monitorSelect($event,level,j);">
+                                           [subgroup_index]="j" (monitorSelect)="monitorSelect($event,level,j)"
+                                           (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel)">
                   </vex-flux-disponibilidad>
                 </div>
               </ng-container>

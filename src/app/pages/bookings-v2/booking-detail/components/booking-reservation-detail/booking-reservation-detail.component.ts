@@ -126,6 +126,9 @@ export class BookingReservationDetailComponent implements OnInit {
   }
 
   sumActivityTotal(): number {
+    if (!Array.isArray(this.activities) || this.activities.length === 0) {
+      return 0;
+    }
     return this.activities.reduce((acc: any, item: any) => {
       // Solo suma si el status es 1
       if (item.status != 2) {
@@ -139,8 +142,16 @@ export class BookingReservationDetailComponent implements OnInit {
     }, 0);
   }
 
+  getActivitiesCurrency(): string {
+    const first = Array.isArray(this.activities) && this.activities.length > 0 ? this.activities[0] : null;
+    return first?.course?.currency || this.bookingData?.currency || '';
+  }
+
   updateBookingData() {
-    this.bookingData.price_total = this.calculateTotal();
+    // Evitar sobreescribir el total del backend antes de tener actividades cargadas
+    if (Array.isArray(this.activities) && this.activities.length > 0) {
+      this.bookingData.price_total = this.calculateTotal();
+    }
     this.bookingService.setBookingData(this.bookingData);
   }
 
@@ -208,11 +219,11 @@ export class BookingReservationDetailComponent implements OnInit {
   }
 
   calculateTotalVoucherPrice(): number {
-
-    if(this.bookingData.vouchers) {
-      return this.bookingData.vouchers.reduce((acc, item) => acc + parseFloat(item.bonus.reducePrice), 0);
+    const vouchers = this.bookingData?.vouchers;
+    if (Array.isArray(vouchers)) {
+      return vouchers.reduce((acc, item) => acc + parseFloat(item?.bonus?.reducePrice ?? '0'), 0);
     }
-    return 0
+    return 0;
   }
 
   addBonus(): void {
@@ -223,7 +234,7 @@ export class BookingReservationDetailComponent implements OnInit {
         school_id: this.school.id,
         currentPrice: this.bookingData.price_total - this.calculateTotalVoucherPrice(),
         appliedBonus: this.bookingData.vouchers,
-        currency: this.activities[0].course.currency,
+        currency: this.getActivitiesCurrency(),
       },
     });
 
@@ -239,7 +250,7 @@ export class BookingReservationDetailComponent implements OnInit {
   addReduction(): void {
     const dialogRef = this.dialog.open(AddReductionModalComponent, {
       width: '530px',
-      data: { currentPrice: this.bookingData.price_total, currency: this.activities[0].course.currency },
+      data: { currentPrice: this.bookingData.price_total, currency: this.getActivitiesCurrency() },
     });
 
     dialogRef.afterClosed().subscribe(result => {

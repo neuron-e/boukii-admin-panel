@@ -100,9 +100,12 @@ export class ChatConversationComponent implements OnInit {
 
   send() {
     this.messages.push({
-      id: this.chat!.id,
+      id: Date.now(),
+      chatId: typeof this.chat!.id === 'number' ? this.chat!.id : parseInt(this.chat!.id as string),
       from: 'me',
-      message: this.form.controls.message.getRawValue()
+      sender: 'me',
+      message: this.form.controls.message.getRawValue(),
+      timestamp: new Date()
     });
 
     this.form.controls.message.setValue('');

@@ -26,6 +26,13 @@ import { MatRippleModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatInputModule } from '@angular/material/input';
+import { ReactiveFormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatCardModule } from '@angular/material/card';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
 
 @NgModule({
   declarations: [CommunicationsComponent],
@@ -62,7 +69,14 @@ import { MatInputModule } from '@angular/material/input';
     AsyncPipe,
     MatButtonModule,
     MatDividerModule,
-    MatInputModule
+    MatInputModule,
+    ReactiveFormsModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatCardModule,
+    MatSnackBarModule,
+    MatTooltipModule,
+    TranslateModule
   ]
 })
 export class CommunicationsModule {

@@ -44,6 +44,7 @@ export class BookingsV2Component {
     { label: 'type', property: 'sport', type: 'booking_users_image', visible: true },
     { label: 'course', property: 'booking_users', type: 'booking_users', visible: true },
     { label: 'client', property: 'client_main', type: 'client', visible: true },
+    { label: 'attendance.confirmation', property: 'acceptance_status', type: 'acceptance_status', visible: true },
     { label: 'obs', property: 'has_observations', type: 'warning', visible: true },
     { label: 'dates', property: 'dates', type: 'booking_dates', visible: true },
     { label: 'register', property: 'created_at', type: 'date', visible: true },

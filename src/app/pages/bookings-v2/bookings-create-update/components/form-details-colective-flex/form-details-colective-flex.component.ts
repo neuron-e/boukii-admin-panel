@@ -176,9 +176,44 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
 
 
   // Validación personalizada para asegurarse de que al menos una fecha esté seleccionada
-  atLeastOneSelectedValidator(formArray: FormArray): { [key: string]: boolean } | null {
-    const selectedDates = formArray.controls.some(control => control.get('selected')?.value);
-    return selectedDates ? null : { noDatesSelected: true };
+  // y que se cumplan las reglas de reserva del curso
+  atLeastOneSelectedValidator = (formArray: FormArray): { [key: string]: boolean } | null => {
+    const selectedDates = formArray.controls.filter(control => control.get('selected')?.value);
+
+    if (selectedDates.length === 0) {
+      return { noDatesSelected: true };
+    }
+
+    // Obtener las reglas de reserva del curso
+    const courseSettings = this.course.settings || {};
+    const mustBeConsecutive = courseSettings.mustBeConsecutive || false;
+    const mustStartFromFirst = courseSettings.mustStartFromFirst || false;
+
+    // Aplicar validación de "debe empezar desde el primer día"
+    if (mustStartFromFirst) {
+      const firstAvailableDate = formArray.controls[0]; // El primer control es la primera fecha disponible
+      if (!firstAvailableDate.get('selected')?.value) {
+        return { mustStartFromFirstDay: true };
+      }
+    }
+
+    // Aplicar validación de "fechas consecutivas"
+    if (mustBeConsecutive && selectedDates.length > 1) {
+      // Obtener los índices de las fechas seleccionadas
+      const selectedIndices = formArray.controls
+        .map((control, index) => control.get('selected')?.value ? index : null)
+        .filter(index => index !== null)
+        .sort((a, b) => a - b);
+
+      // Verificar que los índices sean consecutivos
+      for (let i = 1; i < selectedIndices.length; i++) {
+        if (selectedIndices[i] - selectedIndices[i - 1] !== 1) {
+          return { datesNotConsecutive: true };
+        }
+      }
+    }
+
+    return null;
   }
 
   createCourseDateGroup(courseDate: any, selected: boolean = false, extras: any[] = []): FormGroup {
@@ -201,9 +236,9 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
 
     if (matchingGroup) {
       // Busca el subgrupo que tiene menos participantes que el máximo permitido
-      const availableSubgroup = matchingGroup.course_subgroups.find(subgroup =>
-        subgroup.booking_users.length < subgroup.max_participants
-      );
+const availableSubgroup = matchingGroup.course_subgroups.find(
+  (subgroup) => ((subgroup.booking_users || []).length) < subgroup.max_participants
+);
 
       // Retorna el monitor si lo encuentra
       return availableSubgroup?.monitor || null;

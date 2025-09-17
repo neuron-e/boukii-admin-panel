@@ -45,6 +45,7 @@ import { ComponenteSelectModule } from 'src/@vex/components/form/select/app.modu
 import { CoursesModule } from '../courses.module';
 import { ComponenteButtonModule } from 'src/@vex/components/form/button/app.module';
 import { CourseOpcionComponent } from '../components/opcion/opcion.component';
+import { CourseTimingModalModule } from '../../courses/course-timing-modal/course-timing-modal.module';
 
 @NgModule({
   imports: [
@@ -95,6 +96,7 @@ import { CourseOpcionComponent } from '../components/opcion/opcion.component';
     FormsModule,
     ComponenteSelectModule,
     ComponenteButtonModule,
+    CourseTimingModalModule,
     CourseOpcionComponent
   ],
   declarations: [CoursesCreateUpdateComponent],

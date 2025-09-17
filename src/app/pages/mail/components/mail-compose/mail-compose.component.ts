@@ -1,10 +1,10 @@
 import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import moment from 'moment';
-import { dropdownAnimation } from 'src/@vex/animations/dropdown.animation';
-import { ApiCrudService } from 'src/service/crud.service';
-import { SchoolService } from 'src/service/school.service';
+import * as moment from 'moment';
+import { dropdownAnimation } from '../../../../../@vex/animations/dropdown.animation';
+import { ApiCrudService } from '../../../../../service/crud.service';
+import { SchoolService } from '../../../../../service/school.service';
 import { TranslateService } from '@ngx-translate/core';
 import { DateAdapter } from '@angular/material/core';
 

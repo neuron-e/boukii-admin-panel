@@ -663,55 +663,6 @@
           </div>
         </mat-card-header>
 
-        <!--<mat-card>
-        <mat-card-header style="display:block">
-          <div style="width: 100%;float: left;">
-            <mat-icon class="cursor-pointer" svgIcon="mat:close" (click)="hideDetail()"></mat-icon>
-            <mat-icon class="cursor-pointer" style="float: right;width: 10%;" svgIcon="mat:edit" (click)="goToEditCourse()"></mat-icon>
-          </div>
-          <div style="width: 100%;float:left;">
-            <mat-card-title class="font-bold" style="float: left;width: 100%;" *ngIf="taskDetail.type == 'private'">{{ 'course_detail' | translate}}
-              <span style="float:right; text-align: right;" [style.color]="taskDetail.paid ? '#66E055' : '#DFDB32'"> {{(taskDetail.paid ? 'payed' : 'no_paid') | translate }}</span>
-            </mat-card-title>
-            <mat-card-title class="font-bold" style="float: left;width: 100%;" *ngIf="taskDetail.type == 'activity'">{{ 'course_detail' | translate}}
-              <span style="float:right; text-align: right;" [style.color]="taskDetail.paid ? '#66E055' : '#DFDB32'"> {{(taskDetail.paid ? 'payed' : 'no_paid') | translate }}</span>
-            </mat-card-title>
-          </div>
-          <div style="width:100%; margin-top:5%;float:left">
-            <div style="width: 100%;">
-              <p style="float: left;width: 80%;text-align: left;"><b>{{ 'from' | translate}}</b></p>
-              <p style="float: left;width: 20%;text-align: right;"><b>{{ 'to' | translate}}</b></p>
-            </div>
-            <div style="width: 100%;">
-              <p style="float: left;width: 50%;text-align: left;"><b>{{taskDetail.date_start}}</b></p>
-              <p style="float: left;width: 50%;text-align: right;"><b>{{taskDetail.date_end}}</b></p>
-            </div>
-          </div>
-          <mat-divider style="float: left;width: 100%;margin: 2% 0 0 0;"></mat-divider>
-          <div style="width:100%; margin-top:5%;float:left">
-            <div style="width: 100%;">
-              <p style="float: left;width: 35%;text-align: left;"><b>{{ 'price' | translate}}</b></p>
-              <p style="float: left;width: 65%;text-align: right;"><b>{{ 'max_pax' | translate}}</b></p>
-            </div>
-            <div style="width: 100%;">
-              <p style="float: left;width: 50%;text-align: left;" *ngIf="taskDetail.course.course_type === 1 || ((taskDetail.course.course_type === 2 || taskDetail.course.course_type === 3) && !taskDetail.course.is_flexible)"><b>{{taskDetail.course.price}}</b> {{taskDetail.course.currency}}</p>
-              <p style="float: left;width: 50%;text-align: left;" *ngIf="(taskDetail.course.course_type === 2 || taskDetail.course.course_type === 3) && taskDetail.course.is_flexible"><b>{{'from' | translate }} {{ encontrarPrimeraClaveConValor(encontrarPrimeraCombinacionConValores(taskDetail.course.price_range)) }}
-              </b> {{taskDetail.course.currency}}</p>
-              <p style="float: left;width: 50%;text-align: right;"><b>{{taskDetail.course.max_participants}}</b></p>
-            </div>
-          </div>
-          <ng-container *ngIf="taskDetail.type == 'collective'">
-            <mat-divider style="float: left;width: 100%;margin: 2% 0 0 0;"></mat-divider>
-            <div style="float: left; width: 100%;margin-top: 5%;">
-              <ul>
-                <ng-container *ngFor="let date of taskDetail.course.course_dates">
-                  <li [ngClass]="{'font-bold': date.id == taskDetail.course_date_id}">{{getDateFormatLong(date.date)}} <i style="text-align: right;float:right">{{getHourRangeFormat(date.hour_start,date.hour_end)}}</i></li>
-                </ng-container>
-              </ul>
-            </div>
-          </ng-container>
-          <mat-divider style="float: left;width: 100%;margin: 2% 0 0 0;"></mat-divider>
-        </mat-card-header>-->
 
         <mat-card-content>
           <div class="title-status"
@@ -728,6 +679,34 @@
                 [style.color]="taskDetail?.paid ? '#66E055' : '#DFDB32'">
                   {{(taskDetail?.paid ? 'payed' : 'no_paid') | translate
                 }}</span></div>
+            </span>
+          </div>
+          <!-- Attendance Status for Private Course -->
+          <div *ngIf="taskDetail.type == 'private'" class="title-status">
+            <span class="col-left">
+              <b>{{ 'attendance' | translate}}:</b>
+            </span>
+            <span class="col-right">
+              <div style="display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
+                <mat-icon *ngIf="taskDetail.attended" style="color: #4CAF50; font-size: 18px;" svgIcon="mat:check_circle"></mat-icon>
+                <mat-icon *ngIf="taskDetail.attended === false" style="color: #F44336; font-size: 18px;" svgIcon="mat:cancel"></mat-icon>
+                <mat-icon *ngIf="taskDetail.attended === null" style="color: #FF9800; font-size: 18px;" svgIcon="mat:help_outline"></mat-icon>
+                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attended' | translate) : taskDetail.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+              </div>
+            </span>
+          </div>
+          <!-- Attendance Status for Activity Course -->
+          <div *ngIf="taskDetail.type == 'activity'" class="title-status">
+            <span class="col-left">
+              <b>{{ 'attendance' | translate}}:</b>
+            </span>
+            <span class="col-right">
+              <div style="display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
+                <mat-icon *ngIf="taskDetail.attended" style="color: #4CAF50; font-size: 18px;" svgIcon="mat:check_circle"></mat-icon>
+                <mat-icon *ngIf="taskDetail.attended === false" style="color: #F44336; font-size: 18px;" svgIcon="mat:cancel"></mat-icon>
+                <mat-icon *ngIf="taskDetail.attended === null" style="color: #FF9800; font-size: 18px;" svgIcon="mat:help_outline"></mat-icon>
+                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attended' | translate) : taskDetail.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+              </div>
             </span>
           </div>
           <div class="title-status" *ngIf="taskDetail.type != 'collective'">
@@ -1138,6 +1117,15 @@
                           [style.color]="taskDetail?.paid ? '#66E055' : '#DFDB32'">
                           {{(client.booking?.paid ? 'payed' : 'no_paid') |
                           translate }}</span>
+                      </div>
+                      <!-- Attendance Status for Collective Course Client -->
+                      <div style="width: 100%; margin-top: 8px; clear: both;">
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                          <mat-icon *ngIf="client.attended" style="color: #4CAF50; font-size: 16px;" svgIcon="mat:check_circle"></mat-icon>
+                          <mat-icon *ngIf="client.attended === false" style="color: #F44336; font-size: 16px;" svgIcon="mat:cancel"></mat-icon>
+                          <mat-icon *ngIf="client.attended === null" style="color: #FF9800; font-size: 16px;" svgIcon="mat:help_outline"></mat-icon>
+                          <span style="font-size: 12px; font-weight: 500;">{{ client.attended === true ? ('attended' | translate) : client.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>

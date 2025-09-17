@@ -183,7 +183,6 @@ export class CourseDetailComponent implements OnInit {
   }
 
   ngOnInit() {
-
     this.getData();
 
   }
@@ -1661,5 +1660,32 @@ export class CourseDetailComponent implements OnInit {
       return null;
     }
 
+  }
+
+  /**
+   * Open timing modal for subgroup students
+   */
+  openTimingModal(subGroup: any, groupLevel: any): void {
+    // Import the component at the top of the file when needed
+    import('../course-timing-modal/course-timing-modal.component').then(m => {
+      const dialogRef = this.dialog.open(m.CourseTimingModalComponent, {
+        width: '80%',
+        maxWidth: '1200px',
+        data: {
+          subGroup: subGroup,
+          groupLevel: groupLevel,
+          courseId: this.id,
+          courseDates: this.defaults.course_dates,
+          students: this.getCourseUsers(subGroup)
+        }
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        // Handle any result from the modal if needed
+        if (result) {
+          console.log('Timing modal closed with result:', result);
+        }
+      });
+    });
   }
 }

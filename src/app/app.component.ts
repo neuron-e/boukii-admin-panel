@@ -251,17 +251,9 @@ export class AppComponent {
           {
             type: "link",
             label: "menu.communication",
-            route: "/mail",
+            route: "/communications",
             icon: "../assets/img/icons/comunicacion-2.svg",
             icon_active: "../assets/img/icons/comunicacion.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: "link",
-            label: "Chat",
-            route: "/communications",
-            icon: "../assets/img/icons/chat-2.svg",
-            icon_active: "../assets/img/icons/chat.svg",
             routerLinkActiveOptions: { exact: true },
           },
           {

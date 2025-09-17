@@ -76,7 +76,8 @@ import { EditDateComponent } from './edit-date/edit-date.component';
     MatDatepickerModule,
     ConfirmUnmatchMonitorModule,
     MatAutocompleteModule
-  ]
+  ],
+  exports: [TimelineComponent]
 })
 export class TimelineModule {
 }

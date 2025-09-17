@@ -146,7 +146,8 @@ export class BookingDetailV2Component implements OnInit {
       .subscribe((data) => {
         this.bookingData$.next(data.data);
         this.bookingData = data.data;
-        this.groupedActivities  = data.data.grouped_activities;
+        // Asegurar estructura de actividades agrupadas y totales calculados
+        this.groupedActivities = this.groupBookingUsersByGroupId(data.data);
         this.mainClient = data.data.client_main;
       });
   }
@@ -511,7 +512,13 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   calculateTotalVoucherPrice(): number {
-    return this.bookingData.vouchers ? this.bookingData.vouchers.reduce( (e, i) => e + parseFloat(i.bonus.reducePrice), 0) : 0
+    const vouchers = this.bookingData?.vouchers;
+    if (!vouchers || !Array.isArray(vouchers)) return 0;
+    return vouchers.reduce((total: number, item: any) => {
+      const value = item?.bonus?.reducePrice;
+      const num = typeof value === 'number' ? value : parseFloat(value ?? '0');
+      return total + (isNaN(num) ? 0 : num);
+    }, 0);
   }
 
 

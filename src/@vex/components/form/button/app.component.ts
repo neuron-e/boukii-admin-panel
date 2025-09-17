@@ -10,4 +10,5 @@ export class ComponenteButtonComponent {
   @Input() disabled: boolean = false
   @Input() icon: string = ""
   @Input() name: string = ""
+  @Input() loading: boolean = false
 }

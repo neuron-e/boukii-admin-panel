@@ -204,9 +204,9 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
 
     if (matchingGroup) {
       // Busca el subgrupo que tiene menos participantes que el máximo permitido
-      const availableSubgroup = matchingGroup.course_subgroups.find(subgroup =>
-        subgroup.booking_users.length < subgroup.max_participants
-      );
+const availableSubgroup = matchingGroup.course_subgroups.find(
+  (subgroup) => ((subgroup.booking_users || []).length) < subgroup.max_participants
+);
 
       // Retorna el monitor si lo encuentra
       return availableSubgroup?.monitor || null;

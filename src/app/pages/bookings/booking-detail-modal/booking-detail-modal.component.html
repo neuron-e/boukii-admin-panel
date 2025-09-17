@@ -159,11 +159,34 @@
             <mat-card-content>
               <ul
                 style="font-size: 12px;padding: 0 0 0 18%;margin: 10px 0 0 0; width: 100%;">
-                <li *ngFor="let date of item?.courseDates">
-                  <mat-icon style="height: 15px;width: 20px;"
-                    svgIcon="mat:calendar_today"></mat-icon>{{ date.date |
-                  date:'fullDate': '' : translateService.currentLang }} -
-                  {{date.hour_start}} / {{ date.hour_end }}
+                <li *ngFor="let date of item?.courseDates" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <div style="display: flex; align-items: center;">
+                    <mat-icon style="height: 15px;width: 20px;"
+                      svgIcon="mat:calendar_today"></mat-icon>
+                    <span style="margin-left: 5px;">
+                      {{ date.date | date:'fullDate': '' : translateService.currentLang }} -
+                      {{date.hour_start}} / {{ date.hour_end }}
+                    </span>
+                  </div>
+                  
+                  <!-- Attendance Status -->
+                  <div style="display: flex; align-items: center;">
+                    <mat-icon *ngIf="date.attended" 
+                      style="height: 16px; width: 16px; color: #4CAF50;" 
+                      svgIcon="mat:check_circle">
+                    </mat-icon>
+                    <mat-icon *ngIf="date.attended === false" 
+                      style="height: 16px; width: 16px; color: #F44336;" 
+                      svgIcon="mat:cancel">
+                    </mat-icon>
+                    <mat-icon *ngIf="date.attended === null || date.attended === undefined" 
+                      style="height: 16px; width: 16px; color: #FF9800;" 
+                      svgIcon="mat:help_outline">
+                    </mat-icon>
+                    <span style="margin-left: 4px; font-size: 9px; color: #666;">
+                      {{ date.attended === true ? 'Asistió' : date.attended === false ? 'No asistió' : 'Sin marcar' }}
+                    </span>
+                  </div>
                 </li>
               </ul>
             </mat-card-content>

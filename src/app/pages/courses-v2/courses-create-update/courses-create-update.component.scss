@@ -11,6 +11,22 @@
 .selected {
   background-color: #e91e63;
 }
+
+// Estilos para las tarjetas de método de generación de fechas
+.date-method-card {
+  transition: all 0.2s ease;
+
+  &.selected {
+    border-color: #007bff !important;
+    background: #e7f1ff !important;
+    transform: scale(1.02);
+  }
+
+  &:hover {
+    border-color: #007bff !important;
+    transform: translateY(-1px);
+  }
+}
 button {
   border-radius: 3px !important;
 }
@@ -59,4 +75,32 @@ mat-form-field,
 .mat-mdc-form-field,
 ::ng-deep.mat-mdc-form-field {
   width: 100%;
+}
+
+// Date selection method cards
+.date-method-card {
+  &.selected {
+    border-color: #007bff !important;
+    background: linear-gradient(135deg, #f8f9ff, #e6f3ff) !important;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+    transform: translateY(-2px);
+  }
+
+  &:hover {
+    border-color: #007bff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
+}
+
+// Weekly pattern buttons
+button.active {
+  background: #007bff !important;
+  color: white !important;
+  border-color: #007bff !important;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed !important;
 }

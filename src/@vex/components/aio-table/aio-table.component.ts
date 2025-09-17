@@ -1289,4 +1289,28 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         this.getData(this.pageIndex, this.pageSize);
       })
   }
+
+  /**
+   * Get acceptance status icon
+   */
+  getAcceptanceIcon(accepted: boolean | null): string {
+    if (accepted === true) {
+      return 'check_circle';
+    } else if (accepted === false || accepted === null) {
+      return 'pending';
+    }
+    return 'help_outline';
+  }
+
+  /**
+   * Get acceptance status color
+   */
+  getAcceptanceColor(accepted: boolean | null): string {
+    if (accepted === true) {
+      return '#2196F3'; // Blue for confirmed
+    } else if (accepted === false || accepted === null) {
+      return '#FF9800'; // Orange for pending
+    }
+    return '#9E9E9E'; // Gray for unknown
+  }
 }

@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import { DateTime } from 'luxon';
 import { BehaviorSubject, Observable, ObservedValueOf, combineLatest, forkJoin } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ApiCrudService } from 'src/service/crud.service';
-import { SchoolService } from 'src/service/school.service';
+import { ApiCrudService } from '../../../../service/crud.service';
+import { SchoolService } from '../../../../service/school.service';
 import { TranslateService } from '@ngx-translate/core';
 
 @Injectable({

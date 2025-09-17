@@ -1,0 +1,230 @@
+.dialog-header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  
+  .subtitle {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+  }
+}
+
+.dialog-content {
+  max-height: 70vh;
+  padding: 24px;
+}
+
+.timing-container {
+  .date-selector {
+    margin-bottom: 24px;
+  }
+
+  .center-spinner {
+    margin: 40px auto;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    
+    .timing-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 800px;
+      
+      thead {
+        tr {
+          background-color: #f5f5f5;
+          
+          th {
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e0e0e0;
+            color: #333;
+            
+            &.student-col {
+              min-width: 250px;
+            }
+            
+            &.lap1-col, &.lap2-col, &.lap3-col {
+              min-width: 120px;
+              text-align: center;
+            }
+            
+            &.best-col {
+              min-width: 100px;
+              text-align: center;
+            }
+            
+            &.actions-col {
+              min-width: 120px;
+              text-align: center;
+            }
+          }
+        }
+      }
+      
+      tbody {
+        tr {
+          border-bottom: 1px solid #f0f0f0;
+          
+          &:hover {
+            background-color: #fafafa;
+          }
+          
+          &:last-child {
+            border-bottom: none;
+          }
+          
+          td {
+            padding: 16px;
+            vertical-align: middle;
+            
+            &.student-info {
+              display: flex;
+              align-items: center;
+              
+              .student-avatar {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                object-fit: cover;
+                margin-right: 12px;
+              }
+              
+              .student-details {
+                .student-name {
+                  font-weight: 500;
+                  margin-bottom: 4px;
+                  color: #333;
+                  font-size: 14px;
+                }
+                
+                .student-meta {
+                  font-size: 12px;
+                  color: #666;
+                  margin: 0;
+                }
+              }
+            }
+            
+            &.time-cell {
+              text-align: center;
+              
+              .time-display {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                
+                span {
+                  font-family: 'Courier New', monospace;
+                  font-weight: bold;
+                  font-size: 16px;
+                  color: #333;
+                  
+                  &.status-valid {
+                    color: #4caf50;
+                  }
+                  
+                  &.status-invalid {
+                    color: #f44336;
+                  }
+                  
+                  &.status-dns {
+                    color: #ff9800;
+                  }
+                  
+                  &.status-dnf {
+                    color: #9c27b0;
+                  }
+                }
+                
+                .time-actions {
+                  display: flex;
+                  gap: 4px;
+                  
+                  button {
+                    width: 32px;
+                    height: 32px;
+                    line-height: 32px;
+                    
+                    mat-icon {
+                      font-size: 16px;
+                      width: 16px;
+                      height: 16px;
+                    }
+                  }
+                }
+              }
+              
+              .add-time-btn {
+                font-size: 12px;
+                height: 32px;
+                line-height: 32px;
+                
+                mat-icon {
+                  font-size: 14px;
+                  margin-right: 4px;
+                }
+              }
+            }
+            
+            &.best-time {
+              text-align: center;
+              
+              .best-time-value {
+                font-family: 'Courier New', monospace;
+                font-weight: bold;
+                font-size: 18px;
+                color: #ff3085;
+              }
+            }
+            
+            &.actions-cell {
+              text-align: center;
+              
+              .add-more {
+                font-size: 12px;
+                
+                mat-icon {
+                  font-size: 14px;
+                  margin-right: 4px;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Status colors
+:host ::ng-deep {
+  .status-valid {
+    background-color: #4caf50 !important;
+    color: white !important;
+  }
+
+  .status-invalid {
+    background-color: #f44336 !important;
+    color: white !important;
+  }
+
+  .status-dns {
+    background-color: #ff9800 !important;
+    color: white !important;
+  }
+
+  .status-dnf {
+    background-color: #9c27b0 !important;
+    color: white !important;
+  }
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+}

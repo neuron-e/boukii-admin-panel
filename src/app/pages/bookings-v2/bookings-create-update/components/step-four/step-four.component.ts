@@ -99,7 +99,7 @@ export class StepFourComponent {
         (group) => group.degree_id === this.sportLevel.id
       );
       this.selectedSubGroups = group[0].course_subgroups.filter(
-        (subgroup) => subgroup.booking_users.length < subgroup.max_participants
+        (subgroup) => (subgroup.booking_users?.length ?? 0) < subgroup.max_participants
       );
     } else {
       this.selectedSubGroups = []; // Si no es colectivo, limpiar los subgrupos

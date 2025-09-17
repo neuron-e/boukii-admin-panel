@@ -1,139 +1,1179 @@
-<vex-secondary-toolbar current="">
-  <vex-breadcrumbs [crumbs]="[
-    {icon:'chat'},
-    {text:'Chat', title: true},
-    ]" class="flex"></vex-breadcrumbs>
-</vex-secondary-toolbar>
-<mat-drawer-container class="overflow-hidden h-full w-full relative">
+<vex-page-layout>
+  <vex-secondary-toolbar current>
+    <vex-breadcrumbs [crumbs]="breadcrumbs" class="flex"></vex-breadcrumbs>
+  </vex-secondary-toolbar>
 
-  <mat-drawer
-    (openedChange)="drawerChange($event)"
-    [mode]="(mobileQuery$ | async) ? 'over' : 'side'"
-    [opened]="!!(drawerOpen$ | async)"
-    class="drawer"
-    position="start">
-    <div class="h-full flex flex-col">
-      <div
-        class="flex-none py-4 bg-gray-50 dark:bg-gray-900 space-y-4 border-b" style="  background: var(--is-light-theme, #ffffff) var(--is-dark-theme, #222222);">
-        <div class="flex items-center mx-4">
-          <div class="flex-1 text-3xl font-semibold">Chats</div>
-
-          <button
-            [matMenuTriggerFor]="newChatMenu"
-            color="primary"
-            mat-raised-button
-            type="button">
-            <mat-icon svgIcon="mat:add_circle"></mat-icon>
-            <span>New Chat</span>
-          </button>
-
-          <mat-menu #newChatMenu="matMenu" xPosition="after" yPosition="below">
-            <button mat-menu-item>
-              <mat-icon matMenuItemIcon svgIcon="mat:add_circle"></mat-icon>
-              <span>Add Contact</span>
-            </button>
-            <mat-divider></mat-divider>
-            <button mat-menu-item>
-              <mat-icon matMenuItemIcon svgIcon="mat:group"></mat-icon>
-              <span>New Group</span>
-            </button>
-            <button mat-menu-item>
-              <mat-icon matMenuItemIcon svgIcon="mat:workspaces"></mat-icon>
-              <span>New Workspace</span>
-            </button>
-            <button mat-menu-item>
-              <mat-icon matMenuItemIcon svgIcon="mat:token"></mat-icon>
-              <span>New Community</span>
-            </button>
-          </mat-menu>
+  <vex-page-layout-content class="-mt-6">
+    
+    <!-- Header Section with Stats -->
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-6 mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold mb-2">{{ headerTexts.centerTitle }}</h1>
+          <p class="text-blue-100">{{ headerTexts.centerDescription }}</p>
         </div>
-
-        <div class="flex px-4">
-          <mat-form-field appearance="outline"
-
-            class="vex-mat-dense-xs flex-1 bg-foreground"
-            subscriptSizing="dynamic">
-            <mat-icon
-              class="icon-sm"
-              matIconPrefix
-              svgIcon="mat:search"></mat-icon>
-            <input matInput placeholder="Search chats..." type="text" />
-          </mat-form-field>
-        </div>
-      </div>
-
-      <div class="flex-1 min-h-0" data-simplebar>
-        <div class="pt-2">
-          <div class="flex items-center px-4 pb-2 gap-2">
-            <button
-              class="text-primary-600 bg-primary-100 dark:text-primary-200 dark:bg-primary-700/20 font-semibold text-sm px-4 py-2 rounded-lg hover:bg-primary-200 hover:dark:bg-primary-700/30 transition flex-1 text-center relative"
-              matRipple
-              type="button">
-              All
-            </button>
-            <button
-              class="text-gray-400 font-medium text-sm px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition flex-1 text-center relative"
-              matRipple
-              type="button">
-              Teams
-            </button>
-            <button
-              class="text-gray-400 font-medium text-sm px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition flex-1 text-center relative"
-              matRipple
-              type="button">
-              Workspaces
-            </button>
-          </div>
-
-          <div class="space-y-1">
-            <ng-container *ngFor="let chat of chats$ | async">
-              <a
-                #rla="routerLinkActive"
-                [ngClass]="{
-                  'text-primary-600 bg-primary-50 dark:text-primary-200 dark:bg-primary-700/20':
-                    rla.isActive
-                }"
-                [routerLink]="['./', chat.id]"
-                class="relative text-sm mx-2 px-3 py-2 rounded hover:bg-primary-100 hover:dark:bg-primary-700/10 flex items-center gap-3 transition ease-out"
-                matRipple
-                routerLinkActive>
-                <div
-                  *ngIf="rla.isActive"
-                  class="w-1 bg-primary-600 absolute left-0 top-0 bottom-0 rounded-full my-1"></div>
-
-                <img
-                  class="h-10 w-10 rounded-full flex-none select-none"
-                  src="{{ chat.imageUrl }}" />
-                <div class="flex-1 select-none truncate">
-                  <div class="truncate flex mb-0.5">
-                    <div class="font-medium flex-1">{{ chat.name }}</div>
-                    <div class="flex-none text-xs text-gray-500">
-                      {{ chat.timestamp }}
-                    </div>
-                  </div>
-                  <div class="text-xs text-gray-500 truncate">
-                    {{ chat.lastMessage }}
-                  </div>
-                </div>
-              </a>
-            </ng-container>
-          </div>
-
-          <a
-            class="inline-block text-gray-600 dark:text-gray-300 font-medium text-xs mx-6 mt-3"
-            href="javascript:void(0);">
-            <span>Show more</span>
-            <mat-icon
-              class="icon-xs align-middle select-none"
-              svgIcon="mat:expand_more"></mat-icon>
-          </a>
+        <div class="text-right">
+          <div class="text-2xl font-bold">{{ newsletterStats.totalSubscribers }}</div>
+          <div class="text-blue-100 text-sm">{{ headerTexts.totalSubscribers }}</div>
         </div>
       </div>
     </div>
-  </mat-drawer>
 
-  <mat-drawer-content class="relative">
-    <div class="watermark">DEMO</div>
-    <router-outlet></router-outlet>
-  </mat-drawer-content>
-</mat-drawer-container>
+    <!-- Navigation Tabs -->
+    <mat-card class="mb-6">
+      <mat-tab-group [(selectedIndex)]="selectedTabIndex" class="communications-tabs">
+        
+        <!-- Newsletter Tab -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="mr-2">campaign</mat-icon>
+            {{ tabLabels.newsletter }}
+          </ng-template>
+          
+          <div class="p-6">
+            <!-- Newsletter Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <!-- Total Subscribers -->
+              <mat-card class="stats-card">
+                <mat-card-content class="p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-2xl font-bold text-primary">{{ newsletterStats.totalSubscribers }}</div>
+                      <div class="text-gray-600 text-sm">{{ 'communications.subscribers' | translate }}</div>
+                    </div>
+                    <mat-icon class="text-blue-500 text-3xl">people</mat-icon>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- Sent Newsletters -->
+              <mat-card class="stats-card">
+                <mat-card-content class="p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-2xl font-bold text-green-600">{{ newsletterStats.totalSent }}</div>
+                      <div class="text-gray-600 text-sm">{{ 'communications.sent' | translate }}</div>
+                    </div>
+                    <mat-icon class="text-green-500 text-3xl">send</mat-icon>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- Open Rate -->
+              <mat-card class="stats-card">
+                <mat-card-content class="p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-2xl font-bold text-orange-600">{{ newsletterStats.openRate }}%</div>
+                      <div class="text-gray-600 text-sm">{{ 'communications.open_rate' | translate }}</div>
+                    </div>
+                    <mat-icon class="text-orange-500 text-3xl">mark_email_read</mat-icon>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- New Subscribers -->
+              <mat-card class="stats-card">
+                <mat-card-content class="p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-2xl font-bold text-purple-600">+24</div>
+                      <div class="text-gray-600 text-sm">{{ 'communications.new_this_month' | translate }}</div>
+                    </div>
+                    <mat-icon class="text-purple-500 text-3xl">trending_up</mat-icon>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+
+            <!-- Newsletter Creation and Management -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              <!-- Newsletter Creation Form -->
+              <div class="lg:col-span-2">
+                <mat-card class="newsletter-form-card">
+                  <mat-card-header class="bg-gray-50 border-b">
+                    <div class="flex items-center justify-between w-full">
+                      <mat-card-title class="text-xl font-bold flex items-center">
+                        <mat-icon class="mr-2 text-primary">edit</mat-icon>
+                        {{ 'communications.create_newsletter' | translate }}
+                      </mat-card-title>
+                      <button mat-icon-button [matMenuTriggerFor]="templateMenu" matTooltip="{{ 'communications.templates' | translate }}">
+                        <mat-icon>template_add</mat-icon>
+                      </button>
+                    </div>
+                  </mat-card-header>
+                  
+                  <mat-card-content class="p-6">
+                    <form [formGroup]="newsletterForm" class="space-y-6">
+                      
+                      <!-- Subject and Recipients Row -->
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Subject -->
+                        <mat-form-field appearance="outline" class="w-full">
+                          <mat-label>{{ 'communications.subject' | translate }}</mat-label>
+                          <input matInput formControlName="subject" required [placeholder]="'communications.subject_placeholder' | translate">
+                          <mat-icon matSuffix>title</mat-icon>
+                          <mat-error *ngIf="newsletterForm.get('subject')?.hasError('required')">
+                            {{ 'communications.subject_required' | translate }}
+                          </mat-error>
+                        </mat-form-field>
+
+                        <!-- Recipients -->
+                        <mat-form-field appearance="outline" class="w-full">
+                          <mat-label>{{ 'communications.recipients' | translate }}</mat-label>
+                          <mat-select formControlName="recipients" multiple>
+                            <mat-option value="all">
+                              <mat-icon class="mr-2">select_all</mat-icon>
+                              {{ 'communications.all_subscribers' | translate }}
+                            </mat-option>
+                            <mat-option value="active">
+                              <mat-icon class="mr-2">check_circle</mat-icon>
+                              {{ 'communications.active_clients' | translate }}
+                            </mat-option>
+                            <mat-option value="inactive">
+                              <mat-icon class="mr-2">pause_circle</mat-icon>
+                              {{ 'communications.inactive_clients' | translate }}
+                            </mat-option>
+                            <mat-option value="vip">
+                              <mat-icon class="mr-2">star</mat-icon>
+                              {{ 'communications.vip_clients' | translate }}
+                            </mat-option>
+                          </mat-select>
+                          <mat-icon matSuffix>people</mat-icon>
+                        </mat-form-field>
+                      </div>
+
+                      <!-- Rich Text Editor -->
+                      <div class="newsletter-editor">
+                        <label class="text-sm font-medium text-gray-700 mb-3 block">
+                          {{ 'communications.message' | translate }}
+                        </label>
+                        <div class="border border-gray-300 rounded-lg overflow-hidden">
+                          <!-- Rich Text Editor Toolbar -->
+                          <div class="border-b border-gray-200 p-3 flex items-center space-x-2 bg-gray-50">
+                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_bold' | translate }}" (click)="formatText('bold')">
+                              <mat-icon>format_bold</mat-icon>
+                            </button>
+                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_italic' | translate }}" (click)="formatText('italic')">
+                              <mat-icon>format_italic</mat-icon>
+                            </button>
+                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_underline' | translate }}" (click)="formatText('underline')">
+                              <mat-icon>format_underlined</mat-icon>
+                            </button>
+                            <mat-divider vertical class="mx-2"></mat-divider>
+                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_list' | translate }}" (click)="formatText('insertUnorderedList')">
+                              <mat-icon>format_list_bulleted</mat-icon>
+                            </button>
+                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_ordered_list' | translate }}" (click)="formatText('insertOrderedList')">
+                              <mat-icon>format_list_numbered</mat-icon>
+                            </button>
+                            <mat-divider vertical class="mx-2"></mat-divider>
+                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_link' | translate }}" (click)="insertLink()">
+                              <mat-icon>link</mat-icon>
+                            </button>
+                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_image' | translate }}" (click)="insertImage()">
+                              <mat-icon>image</mat-icon>
+                            </button>
+                          </div>
+                          
+                          <!-- Rich Text Editor Content -->
+                          <div
+                            contenteditable="true"
+                            class="min-h-[300px] p-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            (input)="onContentChange($event)"
+                            [attr.data-placeholder]="'communications.editor_placeholder' | translate"
+                            #editor>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Action Buttons -->
+                      <div class="flex justify-between items-center pt-4">
+                        <div class="flex space-x-3">
+                          <button mat-button type="button" (click)="saveDraft()" class="flex items-center">
+                            <mat-icon class="mr-1">save</mat-icon>
+                            {{ 'communications.save_draft' | translate }}
+                          </button>
+                          <button mat-button type="button" (click)="previewNewsletter()" class="flex items-center">
+                            <mat-icon class="mr-1">preview</mat-icon>
+                            {{ 'communications.preview' | translate }}
+                          </button>
+                        </div>
+                        <button mat-raised-button color="primary" type="button" 
+                                (click)="sendNewsletter()" 
+                                [disabled]="!newsletterForm.valid || sending"
+                                class="px-6 py-2">
+                          <mat-icon *ngIf="sending" class="mr-2 animate-spin">sync</mat-icon>
+                          <mat-icon *ngIf="!sending" class="mr-2">send</mat-icon>
+                          {{ sending ? ('communications.sending' | translate) : ('communications.send_now' | translate) }}
+                        </button>
+                      </div>
+                    </form>
+                  </mat-card-content>
+                </mat-card>
+              </div>
+
+              <!-- Sidebar -->
+              <div class="space-y-6">
+                
+                <!-- Drafts -->
+                <mat-card class="mb-4">
+                  <mat-card-header class="bg-yellow-50 border-b">
+                    <mat-card-title class="text-lg flex items-center">
+                      <mat-icon class="mr-2 text-yellow-600">edit</mat-icon>
+                      {{ 'communications.drafts' | translate }}
+                    </mat-card-title>
+                  </mat-card-header>
+                  <mat-card-content class="p-4">
+                    <div class="space-y-3" *ngIf="draftNewsletters.length > 0; else noDrafts">
+                      <div *ngFor="let draft of draftNewsletters"
+                           class="newsletter-item p-4 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <div class="flex justify-between items-start">
+                          <div class="flex-1">
+                            <h4 class="font-semibold text-gray-900 mb-1">{{ draft.subject }}</h4>
+                            <p class="text-sm text-gray-600 mb-2">
+                              {{ 'communications.recipients' | translate }}:
+                              <span *ngFor="let recipient of draft.recipients_config; let last = last">
+                                {{ 'communications.' + recipient | translate }}<span *ngIf="!last">, </span>
+                              </span>
+                            </p>
+                            <div class="text-xs text-gray-500 flex items-center space-x-4">
+                              <span class="flex items-center">
+                                <mat-icon class="text-sm mr-1">access_time</mat-icon>
+                                {{ draft.created_at | date:'short' }}
+                              </span>
+                              <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                                {{ 'communications.draft' | translate }}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="flex space-x-2 ml-4">
+                            <button mat-mini-fab color="primary"
+                                    [matTooltip]="'communications.use_draft' | translate"
+                                    (click)="useDraft(draft)">
+                              <mat-icon>edit</mat-icon>
+                            </button>
+                            <button mat-mini-fab color="warn"
+                                    [matTooltip]="'communications.delete' | translate"
+                                    (click)="deleteDraft(draft)">
+                              <mat-icon>delete</mat-icon>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <ng-template #noDrafts>
+                      <div class="text-center py-8 text-gray-500">
+                        <mat-icon class="text-4xl mb-2 opacity-50">edit_off</mat-icon>
+                        <p>{{ 'communications.no_drafts' | translate }}</p>
+                      </div>
+                    </ng-template>
+                  </mat-card-content>
+                </mat-card>
+
+                <!-- Recent Newsletters -->
+                <mat-card>
+                  <mat-card-header class="bg-gray-50 border-b">
+                    <mat-card-title class="text-lg flex items-center">
+                      <mat-icon class="mr-2 text-primary">history</mat-icon>
+                      {{ 'communications.recent_newsletters' | translate }}
+                    </mat-card-title>
+                  </mat-card-header>
+                  <mat-card-content class="p-4">
+                    <div class="space-y-3">
+                      <div *ngFor="let newsletter of recentNewsletters" 
+                           class="newsletter-item p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <div class="flex items-start justify-between">
+                          <div class="flex-1">
+                            <div class="font-medium text-sm text-gray-900">{{ newsletter.subject }}</div>
+                            <div class="text-xs text-gray-500 mt-1">{{ newsletter.sentDate | date:'short' }}</div>
+                            <div class="text-xs text-blue-600 mt-1">
+                              <mat-icon class="text-xs mr-1">people</mat-icon>
+                              {{ newsletter.recipients }} {{ 'communications.recipients' | translate }}
+                            </div>
+                          </div>
+                          <button mat-icon-button [matMenuTriggerFor]="newsletterMenu" [matMenuTriggerData]="{newsletter: newsletter}" class="ml-2">
+                            <mat-icon class="text-gray-400">more_vert</mat-icon>
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div *ngIf="recentNewsletters.length === 0" class="text-center py-8 text-gray-500">
+                        <mat-icon class="text-4xl mb-2 text-gray-300">mail_outline</mat-icon>
+                        <div class="text-sm">{{ 'communications.no_newsletters' | translate }}</div>
+                      </div>
+                    </div>
+                  </mat-card-content>
+                </mat-card>
+
+                <!-- Quick Actions -->
+                <mat-card>
+                  <mat-card-header class="bg-gray-50 border-b">
+                    <mat-card-title class="text-lg flex items-center">
+                      <mat-icon class="mr-2 text-primary">flash_on</mat-icon>
+                      {{ 'communications.quick_actions' | translate }}
+                    </mat-card-title>
+                  </mat-card-header>
+                  <mat-card-content class="p-4">
+                    <div class="space-y-2">
+                      <button mat-button class="w-full justify-start text-left" (click)="viewSubscribers()">
+                        <mat-icon class="mr-3">people</mat-icon>
+                        {{ 'communications.manage_subscribers' | translate }}
+                      </button>
+                      <button mat-button class="w-full justify-start text-left" (click)="openTemplateLibrary()">
+                        <mat-icon class="mr-3">template_add</mat-icon>
+                        {{ 'communications.use_template' | translate }}
+                      </button>
+                      <button mat-button class="w-full justify-start text-left" (click)="viewSentNewsletters()">
+                        <mat-icon class="mr-3">history</mat-icon>
+                        {{ 'communications.sent_newsletters' | translate }}
+                      </button>
+                      <button mat-button class="w-full justify-start text-left" (click)="exportSubscribers()">
+                        <mat-icon class="mr-3">download</mat-icon>
+                        {{ 'communications.export_data' | translate }}
+                      </button>
+                      <button mat-button class="w-full justify-start text-left" (click)="viewAnalytics()">
+                        <mat-icon class="mr-3">analytics</mat-icon>
+                        {{ 'communications.view_analytics' | translate }}
+                      </button>
+                    </div>
+                  </mat-card-content>
+                </mat-card>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Messages/Inbox Tab -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="mr-2">inbox</mat-icon>
+            {{ tabLabels.inbox }}
+          </ng-template>
+          
+          <div class="p-6">
+            <!-- Inbox Header -->
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-2xl font-bold text-gray-900">{{ headerTexts.systemMessages }}</h2>
+                <p class="text-gray-600 text-sm">{{ headerTexts.systemMessagesDesc }}</p>
+              </div>
+              <div class="flex space-x-3">
+                <button mat-raised-button color="primary" (click)="composeMessage()">
+                  <mat-icon class="mr-2">edit</mat-icon>
+                  {{ 'communications.compose' | translate }}
+                </button>
+                <button mat-button (click)="refreshMessages()">
+                  <mat-icon class="mr-2">refresh</mat-icon>
+                  {{ 'communications.refresh' | translate }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Messages List -->
+            <mat-card>
+              <mat-card-content class="p-0">
+
+                <div class="messages-list max-h-96 overflow-y-auto">
+                  <!-- Dynamic Message Items -->
+                  <div *ngFor="let mail of filteredMails$ | async"
+                       class="message-item p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors"
+                       (click)="onMessageClick(mail)">
+                    <div class="flex items-start space-x-4">
+                      <div class="flex-shrink-0">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <mat-icon class="text-blue-600" *ngIf="mail.type === 'info'">info</mat-icon>
+                          <mat-icon class="text-orange-600" *ngIf="mail.type === 'warning'">warning</mat-icon>
+                          <mat-icon class="text-green-600" *ngIf="mail.type === 'success'">check_circle</mat-icon>
+                          <mat-icon class="text-blue-600" *ngIf="!mail.type">email</mat-icon>
+                        </div>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                          <p class="text-sm font-medium text-gray-900 truncate">
+                            {{ mail.subject || mail.title }}
+                          </p>
+                          <p class="text-sm text-gray-500">{{ mail.date | date:'short' }}</p>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1" [innerHTML]="getMessagePreview(mail)">
+                        </p>
+                        <div class="flex items-center mt-2" *ngIf="mail.from">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {{ mail.from.name || mail.from.email || ('communications.system_label' | translate) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Empty state -->
+                  <div *ngIf="(filteredMails$ | async)?.length === 0" class="text-center py-12">
+                    <mat-icon class="text-6xl text-gray-300 mb-4">inbox</mat-icon>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">{{ 'communications.no_messages' | translate }}</h3>
+                    <p class="text-gray-600">{{ 'communications.no_messages_desc' | translate }}</p>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </mat-tab>
+
+        <!-- Analytics Tab -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="mr-2">analytics</mat-icon>
+            {{ tabLabels.analytics }}
+          </ng-template>
+
+          <div class="p-6">
+            <!-- Analytics Header -->
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-2xl font-bold text-gray-900">{{ 'communications.analytics_dashboard' | translate }}</h2>
+                <p class="text-gray-600 text-sm">{{ 'communications.analytics_dashboard_desc' | translate }}</p>
+              </div>
+            </div>
+
+            <!-- Analytics Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <!-- Total Emails Sent -->
+              <mat-card class="stats-card">
+                <mat-card-content class="p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-2xl font-bold text-gray-900">{{ (mails$ | async)?.length || 0 }}</div>
+                      <div class="text-gray-600 text-sm">{{ 'communications.analytics_total_sent' | translate }}</div>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <mat-icon class="text-blue-600">send</mat-icon>
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- This Month -->
+              <mat-card class="stats-card">
+                <mat-card-content class="p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-2xl font-bold text-gray-900">{{ getEmailsThisMonth() }}</div>
+                      <div class="text-gray-600 text-sm">{{ 'communications.analytics_this_month' | translate }}</div>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <mat-icon class="text-green-600">trending_up</mat-icon>
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- Email Types -->
+              <mat-card class="stats-card">
+                <mat-card-content class="p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-2xl font-bold text-gray-900">{{ getEmailTypes() }}</div>
+                      <div class="text-gray-600 text-sm">{{ 'communications.analytics_email_types' | translate }}</div>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <mat-icon class="text-purple-600">category</mat-icon>
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- Active Subscribers -->
+              <mat-card class="stats-card">
+                <mat-card-content class="p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-2xl font-bold text-gray-900">{{ newsletterStats.totalSubscribers }}</div>
+                      <div class="text-gray-600 text-sm">{{ 'communications.analytics_subscribers' | translate }}</div>
+                    </div>
+                    <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <mat-icon class="text-orange-600">people</mat-icon>
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+
+            <!-- Email Timeline Chart -->
+            <mat-card class="mb-6">
+              <mat-card-header>
+                <mat-card-title>{{ 'communications.analytics_email_timeline' | translate }}</mat-card-title>
+                <mat-card-subtitle>{{ 'communications.analytics_timeline_desc' | translate }}</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="h-64 flex items-center justify-center text-gray-500">
+                  <div class="text-center">
+                    <mat-icon class="text-4xl mb-2">timeline</mat-icon>
+                    <p>{{ 'communications.analytics_chart_placeholder' | translate }}</p>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- Recent Activity -->
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>{{ 'communications.analytics_recent_activity' | translate }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content class="p-0">
+                <div class="max-h-64 overflow-y-auto">
+                  <div *ngFor="let mail of (mails$ | async)?.slice(0, 10)" class="p-4 border-b border-gray-100 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <mat-icon class="text-blue-600 text-sm">email</mat-icon>
+                      </div>
+                      <div>
+                        <p class="text-sm font-medium text-gray-900">{{ mail.subject || mail.title }}</p>
+                        <p class="text-xs text-gray-500">{{ mail.date | date:'medium' }}</p>
+                      </div>
+                    </div>
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {{ 'communications.analytics_sent' | translate }}
+                    </span>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+
+    <!-- Templates Menu -->
+    <mat-menu #templateMenu="matMenu">
+      <div class="p-4 w-96">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-medium">{{ 'communications.template_library' | translate }}</h3>
+          <button mat-icon-button (click)="createTemplate()" matTooltip="{{ 'communications.create_template' | translate }}">
+            <mat-icon class="text-sm">add</mat-icon>
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div *ngFor="let template of templates"
+               class="template-card p-3 border rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+               [class.bg-blue-50]="selectedTemplate === template.id"
+               [class.border-blue-500]="selectedTemplate === template.id"
+               (click)="useTemplate(template)">
+            <div class="w-full h-12 bg-gray-200 rounded mb-2 flex items-center justify-center">
+              <mat-icon class="text-gray-500">{{ template.icon }}</mat-icon>
+            </div>
+            <div class="text-xs text-center font-medium">{{ template.name | translate }}</div>
+            <div class="flex justify-center mt-1">
+              <button mat-icon-button class="scale-75" (click)="editTemplate(template); $event.stopPropagation()">
+                <mat-icon class="text-xs">edit</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+        <mat-divider class="my-3"></mat-divider>
+        <button mat-button class="w-full" (click)="openTemplateLibrary()">
+          {{ 'communications.view_all_templates' | translate }}
+        </button>
+      </div>
+    </mat-menu>
+
+    <!-- Newsletter Actions Menu -->
+    <mat-menu #newsletterMenu="matMenu">
+      <ng-template matMenuContent let-newsletter="newsletter">
+        <button mat-menu-item (click)="viewNewsletter(newsletter)">
+          <mat-icon>visibility</mat-icon>
+          {{ 'communications.view' | translate }}
+        </button>
+        <button mat-menu-item (click)="duplicateNewsletter(newsletter)">
+          <mat-icon>content_copy</mat-icon>
+          {{ 'communications.duplicate' | translate }}
+        </button>
+      </ng-template>
+    </mat-menu>
+
+  </vex-page-layout-content>
+</vex-page-layout>
+
+<!-- Message Detail Modal - Fixed Z-index and Positioning -->
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4"
+     *ngIf="selectedMessage"
+     (click)="closeMessageDetail()"
+     style="z-index: 9999;">
+  <div class="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-start p-4 border-b bg-white flex-shrink-0">
+      <div class="flex-1 min-w-0 pr-4">
+        <h2 class="text-lg font-semibold text-gray-900 truncate">{{ selectedMessage?.subject || selectedMessage?.title }}</h2>
+        <div class="flex items-center mt-2">
+          <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+            <mat-icon class="text-blue-600 text-sm" *ngIf="selectedMessage?.type === 'info'">info</mat-icon>
+            <mat-icon class="text-orange-600 text-sm" *ngIf="selectedMessage?.type === 'warning'">warning</mat-icon>
+            <mat-icon class="text-green-600 text-sm" *ngIf="selectedMessage?.type === 'success'">check_circle</mat-icon>
+            <mat-icon class="text-blue-600 text-sm" *ngIf="!selectedMessage?.type">email</mat-icon>
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">
+              {{ selectedMessage?.from?.name || selectedMessage?.from?.email || ('communications.system_label' | translate) }}
+            </p>
+            <p class="text-xs text-gray-500">{{ selectedMessage?.date | date:'medium' }}</p>
+          </div>
+        </div>
+      </div>
+      <button mat-icon-button (click)="closeMessageDetail()" class="flex-shrink-0">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-4 overflow-y-auto flex-1">
+      <!-- Recipients Section -->
+      <div class="mb-6" *ngIf="getMessageRecipients(selectedMessage)?.length > 0">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ 'communications.recipients' | translate }}</h3>
+        <div class="space-y-3">
+          <!-- Clients -->
+          <div *ngIf="getRecipientsByType(selectedMessage, 'client').length > 0">
+            <div class="flex items-center mb-2">
+              <mat-icon class="text-blue-600 text-sm mr-2">people</mat-icon>
+              <span class="text-sm font-medium text-gray-700">
+                {{ 'communications.clients_sent' | translate }} ({{ getRecipientsByType(selectedMessage, 'client').length }})
+              </span>
+            </div>
+            <div class="ml-6 space-y-1">
+              <div *ngFor="let client of getVisibleRecipients(getRecipientsByType(selectedMessage, 'client'), 'client')"
+                   class="text-xs text-gray-600 flex items-center">
+                <mat-icon class="text-xs mr-1 text-gray-400">person</mat-icon>
+                {{ client.name }} - {{ client.email }}
+              </div>
+              <div *ngIf="getRecipientsByType(selectedMessage, 'client').length > 5"
+                   class="text-xs">
+                <button (click)="toggleRecipientGroup('client')"
+                        class="text-blue-600 hover:text-blue-800 italic underline transition-colors">
+                  <span *ngIf="!isRecipientGroupExpanded('client')">
+                    {{ 'communications.show_more' | translate: {count: getRecipientsByType(selectedMessage, 'client').length - 5} }}
+                  </span>
+                  <span *ngIf="isRecipientGroupExpanded('client')">
+                    {{ 'communications.show_less' | translate }}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monitors -->
+          <div *ngIf="getRecipientsByType(selectedMessage, 'monitor').length > 0">
+            <div class="flex items-center mb-2">
+              <mat-icon class="text-green-600 text-sm mr-2">school</mat-icon>
+              <span class="text-sm font-medium text-gray-700">
+                {{ 'communications.monitors_sent' | translate }} ({{ getRecipientsByType(selectedMessage, 'monitor').length }})
+              </span>
+            </div>
+            <div class="ml-6 space-y-1">
+              <div *ngFor="let monitor of getVisibleRecipients(getRecipientsByType(selectedMessage, 'monitor'), 'monitor')"
+                   class="text-xs text-gray-600 flex items-center">
+                <mat-icon class="text-xs mr-1 text-gray-400">school</mat-icon>
+                {{ monitor.name }} - {{ monitor.email }}
+              </div>
+              <div *ngIf="getRecipientsByType(selectedMessage, 'monitor').length > 5"
+                   class="text-xs">
+                <button (click)="toggleRecipientGroup('monitor')"
+                        class="text-blue-600 hover:text-blue-800 italic underline transition-colors">
+                  <span *ngIf="!isRecipientGroupExpanded('monitor')">
+                    {{ 'communications.show_more' | translate: {count: getRecipientsByType(selectedMessage, 'monitor').length - 5} }}
+                  </span>
+                  <span *ngIf="isRecipientGroupExpanded('monitor')">
+                    {{ 'communications.show_less' | translate }}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- System messages -->
+          <div *ngIf="getRecipientsByType(selectedMessage, 'system').length > 0">
+            <div class="flex items-center mb-2">
+              <mat-icon class="text-orange-600 text-sm mr-2">admin_panel_settings</mat-icon>
+              <span class="text-sm font-medium text-gray-700">
+                {{ 'communications.system_recipients' | translate }} ({{ getRecipientsByType(selectedMessage, 'system').length }})
+              </span>
+            </div>
+            <div class="ml-6 space-y-1">
+              <div *ngFor="let admin of getVisibleRecipients(getRecipientsByType(selectedMessage, 'system'), 'system', 3)"
+                   class="text-xs text-gray-600 flex items-center">
+                <mat-icon class="text-xs mr-1 text-gray-400">admin_panel_settings</mat-icon>
+                {{ admin.name }} - {{ admin.email }}
+              </div>
+              <div *ngIf="getRecipientsByType(selectedMessage, 'system').length > 3"
+                   class="text-xs">
+                <button (click)="toggleRecipientGroup('system')"
+                        class="text-blue-600 hover:text-blue-800 italic underline transition-colors">
+                  <span *ngIf="!isRecipientGroupExpanded('system')">
+                    {{ 'communications.show_more' | translate: {count: getRecipientsByType(selectedMessage, 'system').length - 3} }}
+                  </span>
+                  <span *ngIf="isRecipientGroupExpanded('system')">
+                    {{ 'communications.show_less' | translate }}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <hr class="my-4">
+      </div>
+
+      <!-- Message Body -->
+      <div [innerHTML]="selectedMessage?.body || selectedMessage?.message || selectedMessage?.content"
+           class="text-gray-700 leading-relaxed text-sm prose prose-sm max-w-none">
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex flex-col sm:flex-row justify-end gap-2 p-4 border-t bg-gray-50 flex-shrink-0">
+      <button mat-stroked-button (click)="closeMessageDetail()" class="order-2 sm:order-1">
+        {{ 'communications.close' | translate }}
+      </button>
+      <button mat-raised-button color="primary" (click)="replyToMessage(selectedMessage)"
+              class="order-1 sm:order-2" *ngIf="selectedMessage?.from?.email">
+        <mat-icon class="mr-2">reply</mat-icon>
+        {{ 'communications.reply' | translate }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Template Library Modal -->
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4"
+     *ngIf="showTemplateLibrary"
+     (click)="closeTemplateLibrary()"
+     style="z-index: 9999;">
+  <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-6 border-b bg-white flex-shrink-0">
+      <h2 class="text-xl font-semibold text-gray-900">{{ 'communications.template_library' | translate }}</h2>
+      <div class="flex items-center space-x-3">
+        <button mat-raised-button color="primary" (click)="openCreateTemplateModal()">
+          <mat-icon class="mr-2">add</mat-icon>
+          {{ 'communications.create_template' | translate }}
+        </button>
+        <button mat-icon-button (click)="closeTemplateLibrary()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div *ngFor="let template of allTemplates" class="template-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+          <!-- Template Preview -->
+          <div class="h-32 bg-gray-100 flex items-center justify-center border-b">
+            <mat-icon class="text-4xl text-gray-400">{{ getTemplateIcon(template) }}</mat-icon>
+          </div>
+
+          <!-- Template Info -->
+          <div class="p-4">
+            <h3 class="font-medium text-gray-900 mb-2">{{ template.name | translate }}</h3>
+            <p class="text-sm text-gray-600 mb-4">{{ getTemplateDescription(template.id?.toString() || '') | translate }}</p>
+
+            <!-- Actions -->
+            <div class="flex justify-between">
+              <button mat-stroked-button (click)="previewTemplate(template)" class="flex-1 mr-2">
+                <mat-icon class="mr-1">visibility</mat-icon>
+                {{ 'communications.preview' | translate }}
+              </button>
+              <button mat-raised-button color="primary" (click)="useTemplateFromLibrary(template)" class="flex-1">
+                <mat-icon class="mr-1">check</mat-icon>
+                {{ 'communications.use' | translate }}
+              </button>
+            </div>
+
+            <!-- Edit/Delete for custom templates -->
+            <div *ngIf="template.id?.toString().startsWith('custom_')" class="flex justify-center mt-2 space-x-2">
+              <button mat-icon-button (click)="editCustomTemplate(template)" matTooltip="{{ 'communications.edit' | translate }}">
+                <mat-icon class="text-sm">edit</mat-icon>
+              </button>
+              <button mat-icon-button (click)="deleteCustomTemplate(template)" matTooltip="{{ 'communications.delete' | translate }}" class="text-red-600">
+                <mat-icon class="text-sm">delete</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div *ngIf="allTemplates.length === 0" class="text-center py-12">
+        <mat-icon class="text-6xl text-gray-300 mb-4">template_add</mat-icon>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">{{ 'communications.no_templates' | translate }}</h3>
+        <p class="text-gray-600 mb-4">{{ 'communications.no_templates_desc' | translate }}</p>
+        <button mat-raised-button color="primary" (click)="openCreateTemplateModal()">
+          <mat-icon class="mr-2">add</mat-icon>
+          {{ 'communications.create_first_template' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sent Newsletters Modal -->
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4"
+     *ngIf="showSentNewsletters"
+     (click)="closeSentNewsletters()"
+     style="z-index: 9999;">
+  <div class="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-6 border-b bg-white flex-shrink-0">
+      <h2 class="text-xl font-semibold text-gray-900">{{ 'communications.sent_newsletters' | translate }}</h2>
+      <button mat-icon-button (click)="closeSentNewsletters()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <div class="space-y-4">
+        <div *ngFor="let newsletter of recentNewsletters" class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <h3 class="font-medium text-gray-900 mb-2">{{ newsletter.subject }}</h3>
+              <div class="flex items-center space-x-4 text-sm text-gray-600 mb-2">
+                <span class="flex items-center">
+                  <mat-icon class="text-sm mr-1">people</mat-icon>
+                  {{ newsletter.recipients }} {{ 'communications.recipients_count' | translate }}
+                </span>
+                <span class="flex items-center">
+                  <mat-icon class="text-sm mr-1">schedule</mat-icon>
+                  {{ newsletter.sentDate | date:'medium' }}
+                </span>
+                <span class="flex items-center" [ngClass]="{
+                  'text-green-600': newsletter.status === 'sent',
+                  'text-orange-600': newsletter.status === 'draft',
+                  'text-blue-600': newsletter.status === 'scheduled'
+                }">
+                  <mat-icon class="text-sm mr-1">{{ getNewsletterStatusIcon(newsletter.status) }}</mat-icon>
+                  {{ 'communications.status_' + newsletter.status | translate }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-600">{{ getNewsletterPreview(newsletter.content) }}</p>
+            </div>
+            <div class="flex items-center space-x-2 ml-4">
+              <button mat-stroked-button (click)="viewNewsletterDetails(newsletter)">
+                <mat-icon class="mr-1">visibility</mat-icon>
+                {{ 'communications.view_details' | translate }}
+              </button>
+              <button mat-stroked-button (click)="viewNewsletterRecipients(newsletter)">
+                <mat-icon class="mr-1">people</mat-icon>
+                {{ 'communications.view_recipients' | translate }}
+              </button>
+              <button mat-icon-button [matMenuTriggerFor]="newsletterActionsMenu" [matMenuTriggerData]="{newsletter: newsletter}">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div *ngIf="recentNewsletters.length === 0" class="text-center py-12">
+        <mat-icon class="text-6xl text-gray-300 mb-4">email</mat-icon>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">{{ 'communications.no_newsletters_sent' | translate }}</h3>
+        <p class="text-gray-600">{{ 'communications.no_newsletters_sent_desc' | translate }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Subscriber Management Modal -->
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4"
+     *ngIf="showSubscriberManagement"
+     (click)="closeSubscriberManagement()"
+     style="z-index: 9999;">
+  <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-6 border-b bg-white flex-shrink-0">
+      <h2 class="text-xl font-semibold text-gray-900">{{ 'communications.subscriber_management' | translate }}</h2>
+      <div class="flex items-center space-x-3">
+        <button mat-stroked-button (click)="exportSubscribersList()">
+          <mat-icon class="mr-2">download</mat-icon>
+          {{ 'communications.export' | translate }}
+        </button>
+        <button mat-icon-button (click)="closeSubscriberManagement()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <!-- Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <div class="text-2xl font-bold text-blue-600">{{ newsletterStats.totalSubscribers }}</div>
+          <div class="text-blue-600 text-sm">{{ 'communications.total_subscribers' | translate }}</div>
+        </div>
+        <div class="bg-green-50 p-4 rounded-lg">
+          <div class="text-2xl font-bold text-green-600">{{ getActiveSubscribers() }}</div>
+          <div class="text-green-600 text-sm">{{ 'communications.active_subscribers' | translate }}</div>
+        </div>
+        <div class="bg-orange-50 p-4 rounded-lg">
+          <div class="text-2xl font-bold text-orange-600">{{ getInactiveSubscribers() }}</div>
+          <div class="text-orange-600 text-sm">{{ 'communications.inactive_subscribers' | translate }}</div>
+        </div>
+      </div>
+
+      <!-- Subscriber groups -->
+      <div class="space-y-4">
+        <div class="border rounded-lg p-4">
+          <h3 class="font-medium text-gray-900 mb-2 flex items-center">
+            <mat-icon class="mr-2 text-blue-600">people</mat-icon>
+            {{ 'communications.all_subscribers' | translate }}
+          </h3>
+          <p class="text-sm text-gray-600 mb-3">{{ 'communications.all_subscribers_desc' | translate }}</p>
+          <div class="flex justify-between items-center">
+            <span class="text-sm font-medium">{{ newsletterStats.totalSubscribers }} {{ 'communications.subscribers' | translate }}</span>
+            <button mat-stroked-button (click)="viewSubscriberGroup('all')">
+              {{ 'communications.view_list' | translate }}
+            </button>
+          </div>
+        </div>
+
+        <div class="border rounded-lg p-4">
+          <h3 class="font-medium text-gray-900 mb-2 flex items-center">
+            <mat-icon class="mr-2 text-green-600">trending_up</mat-icon>
+            {{ 'communications.active_subscribers' | translate }}
+          </h3>
+          <p class="text-sm text-gray-600 mb-3">{{ 'communications.active_subscribers_desc' | translate }}</p>
+          <div class="flex justify-between items-center">
+            <span class="text-sm font-medium">{{ getActiveSubscribers() }} {{ 'communications.subscribers' | translate }}</span>
+            <button mat-stroked-button (click)="viewSubscriberGroup('active')">
+              {{ 'communications.view_list' | translate }}
+            </button>
+          </div>
+        </div>
+
+        <div class="border rounded-lg p-4">
+          <h3 class="font-medium text-gray-900 mb-2 flex items-center">
+            <mat-icon class="mr-2 text-purple-600">star</mat-icon>
+            {{ 'communications.vip_subscribers' | translate }}
+          </h3>
+          <p class="text-sm text-gray-600 mb-3">{{ 'communications.vip_subscribers_desc' | translate }}</p>
+          <div class="flex justify-between items-center">
+            <span class="text-sm font-medium">{{ getVipSubscribers() }} {{ 'communications.subscribers' | translate }}</span>
+            <button mat-stroked-button (click)="viewSubscriberGroup('vip')">
+              {{ 'communications.view_list' | translate }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Newsletter Actions Menu -->
+<mat-menu #newsletterActionsMenu="matMenu">
+  <ng-template matMenuContent let-newsletter="newsletter">
+    <button mat-menu-item (click)="duplicateNewsletter(newsletter)">
+      <mat-icon>content_copy</mat-icon>
+      {{ 'communications.duplicate' | translate }}
+    </button>
+  </ng-template>
+</mat-menu>
+
+<!-- Create/Edit Template Modal -->
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-start justify-center p-4"
+     *ngIf="showCreateTemplateModal"
+     (click)="closeCreateTemplateModal()"
+     style="z-index: 9999;">
+  <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col mt-8" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-6 border-b bg-white flex-shrink-0">
+      <h2 class="text-xl font-semibold text-gray-900">
+        {{ editingTemplate ? ('communications.edit_template' | translate) : ('communications.create_template' | translate) }}
+      </h2>
+      <button mat-icon-button (click)="closeCreateTemplateModal()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <form [formGroup]="templateForm" class="space-y-6">
+        <!-- Template Name -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            {{ 'communications.template_name' | translate }} *
+          </label>
+          <mat-form-field appearance="outline" class="w-full">
+            <input matInput
+                   formControlName="name"
+                   [placeholder]="'communications.template_name_placeholder' | translate">
+            <mat-error *ngIf="templateForm.get('name')?.hasError('required')">
+              {{ 'communications.template_name_required' | translate }}
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <!-- Template Description -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            {{ 'communications.template_description' | translate }}
+          </label>
+          <mat-form-field appearance="outline" class="w-full">
+            <textarea matInput
+                      formControlName="description"
+                      rows="3"
+                      [placeholder]="'communications.template_description_placeholder' | translate"></textarea>
+          </mat-form-field>
+        </div>
+
+        <!-- Template Subject -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            {{ 'communications.subject' | translate }} *
+          </label>
+          <mat-form-field appearance="outline" class="w-full">
+            <input matInput
+                   formControlName="subject"
+                   [placeholder]="'communications.subject_placeholder' | translate">
+            <mat-error *ngIf="templateForm.get('subject')?.hasError('required')">
+              {{ 'communications.subject_required' | translate }}
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <!-- Template Content -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            {{ 'communications.content' | translate }} *
+          </label>
+
+          <!-- Editor Toolbar -->
+          <div class="border border-gray-300 rounded-t-md bg-gray-50 p-2 flex flex-wrap gap-1">
+            <button type="button" mat-icon-button (click)="formatText('bold')" title="{{ 'communications.bold' | translate }}">
+              <mat-icon>format_bold</mat-icon>
+            </button>
+            <button type="button" mat-icon-button (click)="formatText('italic')" title="{{ 'communications.italic' | translate }}">
+              <mat-icon>format_italic</mat-icon>
+            </button>
+            <button type="button" mat-icon-button (click)="formatText('underline')" title="{{ 'communications.underline' | translate }}">
+              <mat-icon>format_underlined</mat-icon>
+            </button>
+            <mat-divider [vertical]="true" class="mx-2"></mat-divider>
+            <button type="button" mat-icon-button (click)="formatText('justifyLeft')" title="{{ 'communications.align_left' | translate }}">
+              <mat-icon>format_align_left</mat-icon>
+            </button>
+            <button type="button" mat-icon-button (click)="formatText('justifyCenter')" title="{{ 'communications.align_center' | translate }}">
+              <mat-icon>format_align_center</mat-icon>
+            </button>
+            <button type="button" mat-icon-button (click)="formatText('justifyRight')" title="{{ 'communications.align_right' | translate }}">
+              <mat-icon>format_align_right</mat-icon>
+            </button>
+            <mat-divider [vertical]="true" class="mx-2"></mat-divider>
+            <button type="button" mat-icon-button (click)="insertLink()" title="{{ 'communications.insert_link' | translate }}">
+              <mat-icon>link</mat-icon>
+            </button>
+            <button type="button" mat-icon-button (click)="insertImage()" title="{{ 'communications.insert_image' | translate }}">
+              <mat-icon>image</mat-icon>
+            </button>
+          </div>
+
+          <!-- Content Editor -->
+          <div class="border border-gray-300 border-t-0 rounded-b-md min-h-[300px] p-4 bg-white"
+               contenteditable="true"
+               #templateEditor
+               (input)="updateTemplateContent($event)"
+               [innerHTML]="templateForm.get('content')?.value || ''">
+          </div>
+
+          <div *ngIf="templateForm.get('content')?.hasError('required')" class="text-red-600 text-sm mt-1">
+            {{ 'communications.content_required' | translate }}
+          </div>
+        </div>
+
+        <!-- Template Variables Info -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 class="text-sm font-medium text-blue-900 mb-2">
+            {{ 'communications.template_variables' | translate }}
+          </h4>
+          <p class="text-sm text-blue-700 mb-2">{{ 'communications.template_variables_desc' | translate }}</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium cursor-pointer"
+                  (click)="insertNameVariable()">{{ getVariableText('name') }}</span>
+            <span class="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium cursor-pointer"
+                  (click)="insertEmailVariable()">{{ getVariableText('email') }}</span>
+            <span class="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium cursor-pointer"
+                  (click)="insertSchoolNameVariable()">{{ getVariableText('school_name') }}</span>
+            <span class="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium cursor-pointer"
+                  (click)="insertDateVariable()">{{ getVariableText('date') }}</span>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex justify-end items-center space-x-3 p-6 border-t bg-gray-50 flex-shrink-0">
+      <button mat-button (click)="closeCreateTemplateModal()">
+        {{ 'communications.cancel' | translate }}
+      </button>
+      <button mat-raised-button
+              color="primary"
+              (click)="saveTemplate()"
+              [disabled]="templateForm.invalid || isSavingTemplate">
+        <mat-icon *ngIf="isSavingTemplate" class="animate-spin mr-2">refresh</mat-icon>
+        {{ editingTemplate ? ('communications.update_template' | translate) : ('communications.create_template' | translate) }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Newsletter Preview Modal -->
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4"
+     *ngIf="showNewsletterPreview"
+     (click)="closePreview()"
+     style="z-index: 9999;">
+  <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-6 border-b bg-white flex-shrink-0">
+      <h2 class="text-xl font-semibold text-gray-900">{{ 'communications.preview_newsletter' | translate }}</h2>
+      <button mat-icon-button (click)="closePreview()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <!-- Subject -->
+      <div class="mb-4">
+        <div class="text-sm font-medium text-gray-700 mb-2">{{ 'communications.subject' | translate }}</div>
+        <div class="text-lg font-semibold">{{ previewContent.subject }}</div>
+      </div>
+
+      <!-- Recipients -->
+      <div class="mb-6">
+        <div class="text-sm font-medium text-gray-700 mb-2">{{ 'communications.recipients' | translate }}</div>
+        <div class="flex flex-wrap gap-2">
+          <span *ngFor="let recipient of previewContent.recipients"
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            {{ 'communications.' + recipient | translate }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Content Preview -->
+      <div class="mb-4">
+        <div class="text-sm font-medium text-gray-700 mb-2">{{ 'communications.content' | translate }}</div>
+        <div class="border rounded-lg p-4 bg-gray-50 min-h-[300px]"
+             [innerHTML]="previewContent.content">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex justify-end items-center space-x-3 p-6 border-t bg-gray-50 flex-shrink-0">
+      <button mat-button (click)="closePreview()">
+        {{ 'communications.close' | translate }}
+      </button>
+      <button mat-raised-button color="primary" (click)="sendNewsletter(); closePreview()">
+        <mat-icon class="mr-2">send</mat-icon>
+        {{ 'communications.send_now' | translate }}
+      </button>
+    </div>
+  </div>
+</div>

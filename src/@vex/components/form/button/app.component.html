@@ -1,23 +1,26 @@
 <ng-container [ngSwitch]="form">
 	<ng-container *ngSwitchCase="'stroked'">
-		<button mat-stroked-button type="button" [disabled]="disabled">
+		<button mat-stroked-button type="button" [disabled]="disabled || loading">
 			<span>
+				<mat-progress-spinner *ngIf="loading" diameter="16" mode="indeterminate" style="margin-right: 8px; vertical-align: middle;"></mat-progress-spinner>
 				<mat-icon *ngIf="icon" class="icon-sm" [svgIcon]="icon"></mat-icon>
 				{{ name | translate }}
 			</span>
 		</button>
 	</ng-container>
 	<ng-container *ngSwitchCase="'flat'">
-		<button mat-flat-button type="button" [disabled]="disabled" style="color: white;">
+		<button mat-flat-button type="button" [disabled]="disabled || loading" style="color: white;">
 			<span style="color: white;">
+				<mat-progress-spinner *ngIf="loading" diameter="16" mode="indeterminate" style="margin-right: 8px; vertical-align: middle;"></mat-progress-spinner>
 				<mat-icon *ngIf="icon" class="icon-sm" [svgIcon]="icon"></mat-icon>
 				{{ name | translate }}
 			</span>
 		</button>
 	</ng-container>
 	<ng-container *ngSwitchCase="'back'">
-		<button mat-button type="button" [disabled]="disabled" class="back">
+		<button mat-button type="button" [disabled]="disabled || loading" class="back">
 			<span>
+				<mat-progress-spinner *ngIf="loading" diameter="16" mode="indeterminate" style="margin-right: 8px; vertical-align: middle;"></mat-progress-spinner>
 				<mat-icon *ngIf="icon" class="icon-sm" [svgIcon]="icon"></mat-icon>
 				{{ name | translate }}
 			</span>

@@ -754,6 +754,24 @@
           </ng-container>
         </ng-container>
 
+        <!-- Acceptance Status Columns -->
+        <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
+          <ng-container *ngIf="column.type === 'acceptance_status'" [matColumnDef]="column.property">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
+              {{ column.label | translate }}
+            </th>
+            <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <mat-icon *ngFor="let bookingUser of row.booking_users"
+                          [style.color]="getAcceptanceColor(bookingUser.accepted)"
+                          style="font-size: 16px; width: 16px; height: 16px;">
+                  {{ getAcceptanceIcon(bookingUser.accepted) }}
+                </mat-icon>
+              </div>
+            </td>
+          </ng-container>
+        </ng-container>
+
         <!-- Light Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'light'" [matColumnDef]="column.property">

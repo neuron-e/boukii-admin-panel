@@ -203,3 +203,18 @@ $border-color: rgba(
   flex-direction: row;
   width: 100%;
 }
+
+/* Responsive grid for social links */
+.social-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 768px) {
+  .social-grid { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 1280px) {
+  .social-grid { grid-template-columns: repeat(3, 1fr); }
+}

@@ -13,7 +13,7 @@ import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import { SalaryCreateUpdateModalComponent } from './salary-create-update-modal/salary-create-update-modal.component';
 import { stagger20ms } from 'src/@vex/animations/stagger.animation';
 import { LEVELS } from 'src/app/static-data/level-data';
-import { FormControl, FormGroup, UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormControl, FormGroup, UntypedFormBuilder, UntypedFormGroup, ValidationErrors, Validators } from '@angular/forms';
 import { Observable, forkJoin, map, startWith } from 'rxjs';
 import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { MOCK_PROVINCES } from 'src/app/static-data/province-data';
@@ -155,6 +155,8 @@ export class SettingsComponent implements OnInit {
   };
 
   theme = 'light';
+  bookingForm: FormGroup;
+  savingBooking = false;
   @HostListener('wheel', ['$event'])
   onScroll(event: WheelEvent) {
     this.ngZone.runOutsideAngular(() => {
@@ -353,6 +355,16 @@ export class SettingsComponent implements OnInit {
               desktopImg: [settings?.bookingPage?.banner.desktopImg],
               mobileImg: [settings?.bookingPage?.banner.mobileImg],
             })
+            const bookingSocial = settings?.booking?.social || {};
+            const legacySocials = settings?.bookingPage?.socials || {};
+            this.PageForm.Socials = this.fb.group({
+              facebook: [bookingSocial.facebook ?? legacySocials.facebook ?? '', [this.socialInputValidator]],
+              instagram: [bookingSocial.instagram ?? legacySocials.instagram ?? '', [this.socialInputValidator]],
+              x: [bookingSocial.x ?? legacySocials.twitter ?? '', [this.socialInputValidator]],
+              youtube: [bookingSocial.youtube ?? legacySocials.youtube ?? '', [this.socialInputValidator]],
+              tiktok: [bookingSocial.tiktok ?? legacySocials.tiktok ?? '', [this.socialInputValidator]],
+              linkedin: [bookingSocial.linkedin ?? '', [this.socialInputValidator]],
+            })
             this.PageForm.Conditions = this.fb.group({
               terms: [settings?.bookingPage?.conditions?.terms || { es: '', en: '', fr: '', de: '', it: '' }],
               privacy: [settings?.bookingPage?.conditions?.privacy || { es: '', en: '', fr: '', de: '', it: '' }],
@@ -366,6 +378,31 @@ export class SettingsComponent implements OnInit {
                         })*/
             this.MessageStorage = settings?.bookingPage?.messages || []
             this.SponsorImg = settings?.bookingPage?.sponsors || []
+
+            // Build unified Booking tab reactive form
+            const sponsorsFA = this.fb.array(
+              (this.SponsorImg || []).map(s => this.fb.group({
+                img: [s.img || ''],
+                link: [s.link || '']
+              }))
+            );
+            const infoMessagesFA = this.fb.array(
+              (this.MessageStorage || []).map(m => this.fb.group({
+                title: [m.title || ''],
+                desc: [m.desc || ''],
+                type: [!!m.type],
+                color: [m.type ? '#D2EFFF' : '#FFEBEB']
+              }))
+            );
+
+            this.bookingForm = this.fb.group({
+              theme: [this.layoutService.isDarkMode ? 'dark' : 'light'],
+              banner: this.PageForm.BannerPromocional,
+              social: this.PageForm.Socials,
+              conditions: this.PageForm.Conditions,
+              sponsors: sponsorsFA,
+              infoMessages: infoMessagesFA,
+            });
 
             setTimeout(() => {
               this.dataSourceLevels.data = this.schoolSports[0].degrees;
@@ -1064,34 +1101,10 @@ export class SettingsComponent implements OnInit {
   }
 
   saveBookingPage() {
-
-    /*const data = {
-      taxes: {
-        cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-        boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
-        tva: this.hasTVA ? this.tva : 0
-      },
-      cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
-      prices_range: { people: this.people, prices: this.dataSource },
-      monitor_app_client_messages_permission: this.authorized,
-      monitor_app_client_bookings_permission: this.authorizedBookingComm,
-      extras: { forfait: this.dataSourceForfait.data, food: this.dataSourceFood.data, transport: this.dataSourceTransport.data },
-      degrees: this.dataSourceLevels.data
-    }
-
-
-    this.crudService.update('/schools', {
-      name: this.school.name,
-      description: this.school.description,
-      settings: JSON.stringify(data)
-    }, this.school.id)
-      .subscribe(() => {
-
-        this.snackbar.open(this.translateService.instant('snackbar.settings.taxes'), 'OK', { duration: 3000 });
-        this.schoolService.refreshSchoolData();
-        this.getData();
-
-      })*/
+    if (!this.bookingForm) return;
+    if (this.bookingForm.invalid) return;
+    this.savingBooking = true;
+    this.bookingForm.disable({ emitEvent: false });
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
@@ -1105,10 +1118,21 @@ export class SettingsComponent implements OnInit {
       extras: { forfait: this.dataSourceForfait.data, food: this.dataSourceFood.data, transport: this.dataSourceTransport.data },
       degrees: this.dataSourceLevels.data,
       bookingPage: {
-        messages: this.MessageStorage,
-        sponsors: this.SponsorImg,
-        banner: this.PageForm.BannerPromocional.value,
-        conditions: this.PageForm.Conditions.value
+        theme: this.bookingForm.value.theme,
+        messages: this.bookingForm.value.infoMessages || [],
+        sponsors: this.bookingForm.value.sponsors || [],
+        banner: this.bookingForm.value.banner,
+        conditions: this.bookingForm.value.conditions,
+      },
+      booking: {
+        social: {
+          facebook: this.bookingForm.value.social?.facebook || null,
+          instagram: this.bookingForm.value.social?.instagram || null,
+          x: this.bookingForm.value.social?.x || null,
+          youtube: this.bookingForm.value.social?.youtube || null,
+          tiktok: this.bookingForm.value.social?.tiktok || null,
+          linkedin: this.bookingForm.value.social?.linkedin || null,
+        }
       }
     }
 
@@ -1120,8 +1144,33 @@ export class SettingsComponent implements OnInit {
       .subscribe(() => {
         this.snackbar.open(this.translateService.instant('snackbar.settings.save'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
+        this.bookingForm.enable({ emitEvent: false });
+        this.bookingForm.markAsPristine();
+        this.savingBooking = false;
         this.getData();
+      }, () => {
+        this.bookingForm.enable({ emitEvent: false });
+        this.savingBooking = false;
       })
+  }
+
+  // Validación: acepta http(s) URL; si detecta otro esquema -> inválido; si no hay esquema, se acepta como handle
+  socialInputValidator = (control: AbstractControl): ValidationErrors | null => {
+    const val: string = (control?.value ?? '').toString().trim();
+    if (!val) return null;
+    const hasScheme = /^[a-zA-Z][a-zA-Z0-9+\-.]*:/.test(val);
+    if (!hasScheme) return null; // se acepta handle
+    const scheme = val.split(':')[0].toLowerCase();
+    if (scheme !== 'http' && scheme !== 'https') {
+      return { invalidUrl: true };
+    }
+    try {
+      // URL con http(s), permitir
+      new URL(val);
+      return null;
+    } catch {
+      return { invalidUrl: true };
+    }
   }
 
   trackLang(index: number, lang: any) {
@@ -1159,6 +1208,14 @@ export class SettingsComponent implements OnInit {
     this.cancellationRem = parseInt(event.target.value);
   }
 
+  get sponsorsFA(): FormArray {
+    return (this.bookingForm?.get('sponsors') as FormArray);
+  }
+
+  get infoMessagesFA(): FormArray {
+    return (this.bookingForm?.get('infoMessages') as FormArray);
+  }
+
   updateInsuranceValue(event: any) {
 
     this.cancellationInsurancePercent = parseInt(event.target.value) / 100;
@@ -1181,12 +1238,20 @@ export class SettingsComponent implements OnInit {
   //PAGINA DE RESERVA, MODAL
   PageModal: { BannerPromocional: boolean, MessageInformation: boolean, SponsoLink: boolean, Previum: boolean } =
     { BannerPromocional: false, MessageInformation: false, SponsoLink: false, Previum: false }
-  PageForm: { BannerPromocional: FormGroup, MessageInformation: FormGroup, SponsoLink: FormGroup, Conditions: FormGroup } =
+  PageForm: { BannerPromocional: FormGroup, MessageInformation: FormGroup, SponsoLink: FormGroup, Conditions: FormGroup, Socials: FormGroup } =
     {
       BannerPromocional: this.fb.group({
         link: ["", Validators.required],
         desktopImg: ["", Validators.required],
         mobileImg: ["", Validators.required],
+      }),
+      Socials: this.fb.group({
+        facebook: ["", [this.socialInputValidator]],
+        instagram: ["", [this.socialInputValidator]],
+        x: ["", [this.socialInputValidator]],
+        youtube: ["", [this.socialInputValidator]],
+        tiktok: ["", [this.socialInputValidator]],
+        linkedin: ["", [this.socialInputValidator]]
       }),
       MessageInformation: this.fb.group({
         index: [0, Validators.required],
@@ -1236,9 +1301,68 @@ export class SettingsComponent implements OnInit {
   MessageStorage: { index: number, title: string, desc: string, type: boolean }[] = []
 
   removeSponsor(index: number): void {
-    this.SponsorImg.splice(index, 1);
+    if (this.sponsorsFA && index > -1 && index < this.sponsorsFA.length) {
+      this.sponsorsFA.removeAt(index);
+      this.sponsorsFA.markAsDirty();
+    }
   }
   removeMessage(index: number): void {
-    this.MessageStorage.splice(index, 1);
+    if (this.infoMessagesFA && index > -1 && index < this.infoMessagesFA.length) {
+      this.infoMessagesFA.removeAt(index);
+      this.infoMessagesFA.markAsDirty();
+    }
+  }
+
+  onSponsorLinkOpen(index: number, ctrl: AbstractControl | null | undefined) {
+    // Abrir modal
+    this.PageModal.SponsoLink = true;
+
+    // Obtener el FormGroup donde se guardan los datos del sponsor link
+    // Si existe this.PageForm.SponsoLink, úsalo; si no, usa this.PageForm.get('SponsoLink') como fallback.
+    const group = (this.PageForm && (this.PageForm as any).SponsoLink)
+      ? (this.PageForm as any).SponsoLink
+      : (this as any).PageForm?.get?.('SponsoLink');
+
+    const value = (ctrl && (ctrl as any).value) ? (ctrl as any).value : {};
+    // Parchar incluyendo el índice
+    if (group?.patchValue) {
+      group.patchValue({ ...value, index });
+    }
+  }
+
+  addOrUpdateSponsorFromModal(): void {
+    const idx = this.PageForm.SponsoLink.controls['index'].value;
+    const value = this.PageForm.SponsoLink.getRawValue();
+    if (idx === this.sponsorsFA.length) {
+      this.sponsorsFA.push(this.fb.group({ img: [value.img], link: [value.link] }));
+    } else if (idx > -1 && idx < this.sponsorsFA.length) {
+      this.sponsorsFA.at(idx).patchValue({ img: value.img, link: value.link });
+    }
+    this.sponsorsFA.markAsDirty();
+    this.PageForm.SponsoLink.reset();
+    this.PageModal.SponsoLink = false;
+  }
+
+  addOrUpdateMessageFromModal(): void {
+    const idx = this.PageForm.MessageInformation.controls['index'].value;
+    const value = this.PageForm.MessageInformation.getRawValue();
+    if (idx === this.infoMessagesFA.length) {
+      this.infoMessagesFA.push(this.fb.group({
+        title: [value.title],
+        desc: [value.desc],
+        type: [!!value.type],
+        color: [value.color || (value.type ? '#D2EFFF' : '#FFEBEB')]
+      }));
+    } else if (idx > -1 && idx < this.infoMessagesFA.length) {
+      this.infoMessagesFA.at(idx).patchValue({
+        title: value.title,
+        desc: value.desc,
+        type: !!value.type,
+        color: value.color || (value.type ? '#D2EFFF' : '#FFEBEB')
+      });
+    }
+    this.infoMessagesFA.markAsDirty();
+    this.PageForm.MessageInformation.reset();
+    this.PageModal.MessageInformation = false;
   }
 }

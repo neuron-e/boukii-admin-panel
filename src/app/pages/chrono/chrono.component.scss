@@ -1,0 +1,670 @@
+// Variables para temas
+:host {
+  --primary-color: #ff3085;
+  --success-color: #4caf50;
+  --warning-color: #ff9800;
+  --error-color: #f44336;
+  --info-color: #2196f3;
+  --background-color: #f5f5f5;
+  --surface-color: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-color: #e0e0e0;
+  --highlight-color: rgba(255, 48, 133, 0.1);
+}
+
+.chrono-container {
+  min-height: 100vh;
+  background: var(--background-color);
+  display: flex;
+  flex-direction: column;
+  font-family: 'DM Sans', sans-serif;
+  
+  &.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background: var(--background-color);
+  }
+}
+
+// Header
+.chrono-header {
+  background: var(--surface-color);
+  border-bottom: 2px solid var(--border-color);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+  
+  &.auto-hide {
+    transform: translateY(-100%);
+  }
+  
+  .course-info {
+    .course-title {
+      margin: 0 0 4px 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    
+    .course-details {
+      margin: 0;
+      font-size: 14px;
+      color: var(--text-secondary);
+      
+      .separator {
+        margin: 0 8px;
+      }
+      
+      .current-time {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+      }
+    }
+  }
+  
+  .status-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      
+      &.status-connected {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--success-color);
+      }
+      
+      &.status-reconnecting {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--warning-color);
+        
+        mat-icon {
+          animation: spin 1s linear infinite;
+        }
+      }
+      
+      &.status-disconnected {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--error-color);
+      }
+      
+      &.status-loading {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--info-color);
+        
+        mat-icon {
+          animation: spin 1s linear infinite;
+        }
+      }
+    }
+    
+    .control-buttons {
+      display: flex;
+      gap: 8px;
+    }
+  }
+}
+
+// Panel de último evento
+.last-event-panel {
+  background: var(--surface-color);
+  margin: 24px;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid var(--primary-color);
+  
+  .event-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    
+    .event-icon {
+      color: var(--primary-color);
+      font-size: 20px;
+    }
+    
+    .event-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+  
+  .event-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    
+    .student-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .event-time {
+      font-family: 'Courier New', monospace;
+      font-size: 32px;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+    
+    .event-details {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      
+      .lap {
+        font-size: 12px;
+        color: var(--text-secondary);
+        font-weight: 500;
+      }
+    }
+  }
+}
+
+// Área principal
+.chrono-main {
+  display: flex;
+  flex: 1;
+  gap: 24px;
+  padding: 0 24px 24px;
+}
+
+// Paneles comunes
+.ranking-panel, .students-panel {
+  background: var(--surface-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  
+  .panel-header {
+    background: linear-gradient(135deg, var(--primary-color), #ff4da6);
+    color: white;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    
+    h3 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      
+      mat-icon {
+        font-size: 20px;
+      }
+    }
+    
+    .ranking-stats, .student-stats {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+  }
+}
+
+// Panel de ranking
+.ranking-panel {
+  flex: 0 0 400px;
+  
+  .ranking-list {
+    padding: 16px 0;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background: var(--highlight-color);
+      }
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      &.podium {
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.05), transparent);
+        
+        &:nth-child(1) {
+          background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent);
+        }
+        
+        &:nth-child(2) {
+          background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent);
+        }
+        
+        &:nth-child(3) {
+          background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent);
+        }
+      }
+      
+      .position {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        margin-right: 16px;
+        
+        .position-number {
+          font-size: 18px;
+          font-weight: bold;
+          color: var(--text-primary);
+        }
+        
+        .medal {
+          font-size: 24px;
+          
+          &.gold { color: #ffd700; }
+          &.silver { color: #c0c0c0; }
+          &.bronze { color: #cd7f32; }
+        }
+      }
+      
+      .athlete-info {
+        flex: 1;
+        
+        .athlete-name {
+          font-weight: 500;
+          color: var(--text-primary);
+        }
+      }
+      
+      .best-time {
+        font-family: 'Courier New', monospace;
+        font-size: 16px;
+        font-weight: bold;
+        color: var(--primary-color);
+      }
+    }
+  }
+}
+
+// Panel de estudiantes
+.students-panel {
+  flex: 1;
+  
+  .students-list {
+    padding: 16px;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    
+    .student-card {
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      background: var(--surface-color);
+      transition: all 0.3s ease;
+      
+      &:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+      }
+      
+      &.highlighted {
+        border-color: var(--primary-color);
+        background: var(--highlight-color);
+        transform: scale(1.02);
+        box-shadow: 0 8px 24px rgba(255, 48, 133, 0.3);
+        animation: highlight-pulse 2s ease-out;
+      }
+      
+      &.student-valid {
+        border-left: 4px solid var(--success-color);
+      }
+      
+      &.student-invalid {
+        border-left: 4px solid var(--error-color);
+      }
+      
+      &.student-dns {
+        border-left: 4px solid var(--warning-color);
+        opacity: 0.7;
+      }
+      
+      &.student-dnf {
+        border-left: 4px solid var(--info-color);
+        opacity: 0.8;
+      }
+      
+      &.student-pending {
+        border-left: 4px solid var(--border-color);
+        opacity: 0.6;
+      }
+      
+      .student-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        
+        .student-name {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--text-primary);
+          
+          .bib {
+            font-size: 12px;
+            background: var(--primary-color);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+            font-weight: 500;
+          }
+        }
+      }
+      
+      .student-times {
+        margin-bottom: 12px;
+        
+        .time-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 4px;
+          
+          label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+          }
+          
+          .best-time {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: var(--primary-color);
+          }
+          
+          .last-time {
+            font-family: 'Courier New', monospace;
+            color: var(--text-primary);
+          }
+          
+          .laps {
+            font-weight: 600;
+            color: var(--text-primary);
+          }
+        }
+      }
+      
+      .student-times-detail {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        
+        .time-chip {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 6px 8px;
+          border-radius: 8px;
+          background: var(--border-color);
+          font-size: 10px;
+          
+          &.status-valid {
+            background: rgba(76, 175, 80, 0.1);
+            color: var(--success-color);
+          }
+          
+          &.status-invalid {
+            background: rgba(244, 67, 54, 0.1);
+            color: var(--error-color);
+          }
+          
+          &.status-dns {
+            background: rgba(255, 152, 0, 0.1);
+            color: var(--warning-color);
+          }
+          
+          &.status-dnf {
+            background: rgba(33, 150, 243, 0.1);
+            color: var(--info-color);
+          }
+          
+          .lap-number {
+            font-weight: 600;
+            margin-bottom: 2px;
+          }
+          
+          .time-value {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Estado sin datos
+.no-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--text-secondary);
+  
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+  
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+// Overlays
+.error-overlay, .loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  
+  .error-content {
+    text-align: center;
+    max-width: 400px;
+    
+    mat-icon {
+      font-size: 64px;
+      width: 64px;
+      height: 64px;
+      color: var(--error-color);
+      margin-bottom: 16px;
+    }
+    
+    h3 {
+      margin: 0 0 8px 0;
+      color: var(--text-primary);
+    }
+    
+    p {
+      margin: 0 0 24px 0;
+      color: var(--text-secondary);
+    }
+  }
+  
+  p {
+    margin-top: 16px;
+    color: var(--text-secondary);
+  }
+}
+
+// Chips de estado
+mat-chip {
+  font-size: 10px;
+  height: 20px;
+  line-height: 20px;
+  
+  &.student-valid, &.status-valid {
+    background-color: rgba(76, 175, 80, 0.1) !important;
+    color: var(--success-color) !important;
+  }
+  
+  &.student-invalid, &.status-invalid {
+    background-color: rgba(244, 67, 54, 0.1) !important;
+    color: var(--error-color) !important;
+  }
+  
+  &.student-dns, &.status-dns {
+    background-color: rgba(255, 152, 0, 0.1) !important;
+    color: var(--warning-color) !important;
+  }
+  
+  &.student-dnf, &.status-dnf {
+    background-color: rgba(33, 150, 243, 0.1) !important;
+    color: var(--info-color) !important;
+  }
+}
+
+// Ayuda de teclado
+.keyboard-help {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 2000;
+  
+  h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+  }
+  
+  ul {
+    margin: 0;
+    padding-left: 16px;
+  }
+  
+  kbd {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+  }
+}
+
+// Animaciones
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes highlight-pulse {
+  0% {
+    box-shadow: 0 8px 24px rgba(255, 48, 133, 0.3);
+  }
+  50% {
+    box-shadow: 0 12px 32px rgba(255, 48, 133, 0.5);
+  }
+  100% {
+    box-shadow: 0 8px 24px rgba(255, 48, 133, 0.3);
+  }
+}
+
+// Responsive
+@media (max-width: 1200px) {
+  .chrono-main {
+    flex-direction: column;
+  }
+  
+  .ranking-panel {
+    flex: none;
+  }
+  
+  .students-list {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .chrono-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .last-event-panel .event-content {
+    flex-direction: column;
+    text-align: center;
+    
+    .event-time {
+      font-size: 28px;
+    }
+  }
+  
+  .students-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .ranking-list .ranking-item {
+    padding: 8px 16px;
+  }
+}
+
+// Modo pantalla completa específico
+.fullscreen {
+  .chrono-header .course-title {
+    font-size: 28px;
+  }
+  
+  .last-event-panel .event-time {
+    font-size: 48px;
+  }
+  
+  .ranking-item .best-time {
+    font-size: 18px;
+  }
+  
+  .student-card .student-name {
+    font-size: 18px;
+  }
+}

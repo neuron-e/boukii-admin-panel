@@ -1,0 +1,195 @@
+<div class="chrono-container" [class.fullscreen]="isFullscreen">
+  
+  <!-- Header con información del curso y estado -->
+  <div class="chrono-header" [class.auto-hide]="displayConfig.autoHideControls && isFullscreen">
+    <div class="course-info">
+      <h1 class="course-title">{{courseName}}</h1>
+      <p class="course-details">
+        <span class="course-date">{{courseDate | date:'dd/MM/yyyy'}}</span>
+        <span class="separator">•</span>
+        <span class="current-time">{{currentTime | date:'HH:mm:ss'}}</span>
+      </p>
+    </div>
+    
+    <div class="status-controls">
+      <div class="connection-status" [ngClass]="getConnectionStatus().class">
+        <mat-icon>{{getConnectionStatus().icon}}</mat-icon>
+        <span>{{getConnectionStatus().text | translate}}</span>
+      </div>
+      
+      <div class="control-buttons">
+        <button mat-icon-button 
+                (click)="forceReconnect()" 
+                [matTooltip]="'chrono.reconnect' | translate"
+                [disabled]="!state?.isConnected">
+          <mat-icon>refresh</mat-icon>
+        </button>
+        
+        <button mat-icon-button 
+                (click)="toggleFullscreen()" 
+                [matTooltip]="'chrono.fullscreen' | translate">
+          <mat-icon>{{isFullscreen ? 'fullscreen_exit' : 'fullscreen'}}</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel de último evento -->
+  <div class="last-event-panel" *ngIf="state?.lastEvent">
+    <div class="event-header">
+      <mat-icon class="event-icon">timer</mat-icon>
+      <span class="event-label">{{'chrono.last_event' | translate}}</span>
+    </div>
+    
+    <div class="event-content">
+      <div class="student-name">{{getLastEventStudent()}}</div>
+      <div class="event-time">{{getLastEventTime()}}</div>
+      <div class="event-details">
+        <span class="lap">Vuelta {{state.lastEvent.lap_no}}</span>
+        <mat-chip [ngClass]="getStatusClass(state.lastEvent.status)">
+          {{getStatusText(state.lastEvent.status) | translate}}
+        </mat-chip>
+      </div>
+    </div>
+  </div>
+
+  <!-- Área principal de contenido -->
+  <div class="chrono-main">
+    
+    <!-- Panel de ranking -->
+    <div class="ranking-panel">
+      <div class="panel-header">
+        <h3>
+          <mat-icon>emoji_events</mat-icon>
+          {{'chrono.ranking' | translate}}
+        </h3>
+        <div class="ranking-stats">
+          <span>{{getRankingStats().withTimes}}/{{getRankingStats().total}}</span>
+        </div>
+      </div>
+      
+      <div class="ranking-list" *ngIf="state?.summary?.ranking?.length; else noRanking">
+        <div class="ranking-item" 
+             *ngFor="let entry of state.summary.ranking; let i = index; trackBy: trackByRankingId"
+             [class.podium]="i < 3">
+          
+          <div class="position">
+            <span class="position-number">{{i + 1}}</span>
+            <mat-icon *ngIf="i === 0" class="medal gold">emoji_events</mat-icon>
+            <mat-icon *ngIf="i === 1" class="medal silver">emoji_events</mat-icon>
+            <mat-icon *ngIf="i === 2" class="medal bronze">emoji_events</mat-icon>
+          </div>
+          
+          <div class="athlete-info">
+            <span class="athlete-name">{{entry.name}}</span>
+          </div>
+          
+          <div class="best-time">
+            {{chronoService.formatTime(entry.best_time_ms)}}
+          </div>
+        </div>
+      </div>
+      
+      <ng-template #noRanking>
+        <div class="no-data">
+          <mat-icon>timer_off</mat-icon>
+          <p>{{'chrono.no_times_yet' | translate}}</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Panel de estudiantes -->
+    <div class="students-panel">
+      <div class="panel-header">
+        <h3>
+          <mat-icon>group</mat-icon>
+          {{'chrono.students' | translate}}
+        </h3>
+        <div class="student-stats">
+          <span>{{state?.summary?.students?.length || 0}} {{'students' | translate}}</span>
+        </div>
+      </div>
+      
+      <div class="students-list" *ngIf="state?.summary?.students?.length; else noStudents">
+        <div class="student-card" 
+             *ngFor="let student of state.summary.students; trackBy: trackByStudentId"
+             [ngClass]="getStudentStatusClass(student)"
+             [class.highlighted]="isStudentHighlighted(student)">
+          
+          <div class="student-header">
+            <div class="student-name">
+              {{student.name}}
+              <span class="bib" *ngIf="displayConfig.showBib && student.bib">#{{student.bib}}</span>
+            </div>
+            <div class="student-status" *ngIf="getStudentStatusText(student)">
+              <mat-chip [ngClass]="getStudentStatusClass(student)">
+                {{getStudentStatusText(student) | translate}}
+              </mat-chip>
+            </div>
+          </div>
+          
+          <div class="student-times">
+            <div class="time-row">
+              <label>{{'chrono.best' | translate}}:</label>
+              <span class="best-time">{{getStudentBestTime(student)}}</span>
+            </div>
+            
+            <div class="time-row" *ngIf="displayConfig.showLastTime && student.last_time_ms">
+              <label>{{'chrono.last' | translate}}:</label>
+              <span class="last-time">{{getStudentLastTime(student)}}</span>
+            </div>
+            
+            <div class="time-row" *ngIf="displayConfig.showLaps">
+              <label>{{'chrono.laps' | translate}}:</label>
+              <span class="laps">{{student.laps}}</span>
+            </div>
+          </div>
+          
+          <div class="student-times-detail" *ngIf="student.times?.length">
+            <div class="time-chip" 
+                 *ngFor="let time of student.times"
+                 [ngClass]="getStatusClass(time.status)">
+              <span class="lap-number">V{{time.lap_no}}</span>
+              <span class="time-value">{{chronoService.formatTime(time.time_ms)}}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <ng-template #noStudents>
+        <div class="no-data">
+          <mat-icon>person_off</mat-icon>
+          <p>{{'chrono.no_students' | translate}}</p>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+
+  <!-- Error overlay -->
+  <div class="error-overlay" *ngIf="state?.error && !state.isConnected">
+    <div class="error-content">
+      <mat-icon>error_outline</mat-icon>
+      <h3>{{'chrono.connection_error' | translate}}</h3>
+      <p>{{state.error}}</p>
+      <button mat-raised-button color="primary" (click)="forceReconnect()">
+        {{'chrono.retry' | translate}}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" *ngIf="!state">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>{{'chrono.loading' | translate}}</p>
+  </div>
+</div>
+
+<!-- Keyboard shortcuts help (shown on keypress) -->
+<div class="keyboard-help" *ngIf="false">
+  <h4>{{'chrono.keyboard_shortcuts' | translate}}</h4>
+  <ul>
+    <li><kbd>F</kbd> o <kbd>F11</kbd> - {{'chrono.toggle_fullscreen' | translate}}</li>
+    <li><kbd>Esc</kbd> - {{'chrono.exit_fullscreen' | translate}}</li>
+    <li><kbd>R</kbd> - {{'chrono.reconnect' | translate}}</li>
+  </ul>
+</div>

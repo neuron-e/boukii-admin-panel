@@ -16,6 +16,12 @@ import { WidgetLargeChartModule } from 'src/@vex/components/widgets/widget-large
 import { WidgetTableModule } from 'src/@vex/components/widgets/widget-table/widget-table.module';
 import { ComponentsModule } from 'src/@vex/components/components.module';
 import { MatDialogModule } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CoursesComponent } from './courses.component';
 import { CoursesRoutingModule } from './courses-routing.module';
 import { CoursesCreateUpdateModule } from './courses-create-update/courses-create-update.module';
@@ -27,6 +33,7 @@ import { CoursesDetailModalModule } from './course-detail-modal/course-detail-mo
 import { TranslateModule } from '@ngx-translate/core';
 import { CoursesCreateUpdateModalModule } from './courses-create-update-modal/courses-create-update-modal.module';
 import { CourseDetailNewModule } from './course-detail-new/course-detail-new.module';
+import { CourseTimingModalModule } from './course-timing-modal/course-timing-modal.module';
 
 @NgModule({
   declarations: [CoursesComponent],
@@ -53,6 +60,13 @@ import { CourseDetailNewModule } from './course-detail-new/course-detail-new.mod
     CoursesDetailModalModule,
     CoursesCreateUpdateModalModule,
     MatDialogModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatChipsModule,
+    MatProgressSpinnerModule,
+    MatTooltipModule,
+    CourseTimingModalModule,
     ComponentsModule,
     MatDividerModule,
     MatCardModule,

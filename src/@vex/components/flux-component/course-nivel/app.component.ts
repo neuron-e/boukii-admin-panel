@@ -12,6 +12,7 @@ export class CourseDetailCardNivelComponent {
   @Input() checkbox: boolean = false
   @Input() selectedSubgroup: any;
   @Output() changeMonitor = new EventEmitter<any>()
+  @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any }>()
 
   today: Date = new Date()
 
@@ -53,6 +54,9 @@ export class CourseDetailCardNivelComponent {
     );
   }
 
-
+  onTimingClick(subGroup: any, groupLevel: any): void {
+    console.log('onTimingClick called with:', { subGroup, groupLevel });
+    this.viewTimes.emit({ subGroup, groupLevel });
+  }
 
 }

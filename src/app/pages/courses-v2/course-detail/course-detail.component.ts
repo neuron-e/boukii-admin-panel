@@ -7,6 +7,7 @@ import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import {MonitorsCreateUpdateComponent} from '../../monitors/monitors-create-update/monitors-create-update.component';
 import moment from 'moment';
 import {MAT_DIALOG_DATA, MatDialog} from '@angular/material/dialog';
+import { CourseTimingModalComponent } from '../../courses/course-timing-modal/course-timing-modal.component';
 
 @Component({
   selector: 'vex-course-detail',
@@ -47,6 +48,7 @@ export class CourseDetailComponent implements OnInit {
   detailData: any
 
   ngOnInit(): void {
+    console.log('CourseDetailComponent ngOnInit - ID:', this.id);
     if (!this.incData) this.id = this.activatedRoute.snapshot.params.id;
     else this.id = this.incData.id;
     this.crudService.get('/admin/courses/' + this.id,
@@ -183,4 +185,63 @@ export class CourseDetailComponent implements OnInit {
   ];
 
   protected readonly createComponent = MonitorsCreateUpdateComponent;
+
+  /**
+   * Open timing modal for subgroup students (cronometraje)
+   */
+  openTimingModal(subGroup: any, groupLevel: any): void {
+    // Debug visual para confirmar clic
+    console.log('openTimingModal called with:', { subGroup, groupLevel });
+    console.log('detailData:', this.detailData);
+
+    if (!subGroup || !groupLevel) {
+      console.error('No hay datos de subgrupo o nivel para mostrar tiempos.');
+      alert('No hay datos de subgrupo o nivel para mostrar tiempos.');
+      return;
+    }
+
+    const courseDates = this.detailData?.course_dates || [];
+    const students = (this.detailData?.users || []).map((u: any) => ({
+      id: u.client_id,
+      first_name: u.client?.first_name,
+      last_name: u.client?.last_name,
+      birth_date: u.client?.birth_date,
+      country: u.client?.country,
+      image: u.client?.image
+    }));
+
+    console.log('About to open dialog with data:', {
+      subGroup,
+      groupLevel,
+      courseId: this.id,
+      courseDates,
+      students
+    });
+
+    try {
+      const ref = this.dialog.open(CourseTimingModalComponent, {
+        width: '80%',
+        maxWidth: '1200px',
+        data: {
+          subGroup,
+          groupLevel,
+          courseId: this.id,
+          courseDates,
+          students
+        }
+      });
+
+
+      ref.afterOpened().subscribe(() => {
+        console.log('Timing modal abierto exitosamente');
+      });
+
+      ref.afterClosed().subscribe(result => {
+        console.log('Modal cerrado con resultado:', result);
+      });
+    } catch (error) {
+      console.error('Error al abrir modal:', error);
+      alert('Error al abrir modal: ' + error);
+    }
+  }
 }

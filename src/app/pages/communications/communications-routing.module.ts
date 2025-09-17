@@ -13,18 +13,7 @@ const routes: VexRoutes = [
       scrollDisabled: true,
       toolbarShadowEnabled: false,
       footerVisible: false
-    },
-    children: [
-      {
-        path: '',
-        pathMatch: 'full',
-        component: ChatEmptyComponent
-      },
-      {
-        path: ':chatId',
-        component: ChatConversationComponent
-      }
-    ]
+    }
   }
 ];
 

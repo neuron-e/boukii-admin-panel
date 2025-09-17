@@ -53,21 +53,21 @@
     </booking-detail-reservation-detail>
   </div>
 </div>
-<div class="mobileFixe">
+<div class="mobileFixe" *ngIf="bookingData && groupedActivities?.length > 0">
   {{ "bookings_page.description.total" | translate }}
   <ng-container>
       <span class="totalPrice">
-        {{ bookingData.price_total  | number:'0.2-2'}}
-        {{ groupedActivities[0].course.currency }}
+        {{ bookingData?.price_total  | number:'0.2-2'}}
+        {{ groupedActivities[0]?.course?.currency }}
       </span>
   </ng-container>
   <ng-container >
-    <span *ngIf="!bookingData.paid && bookingData.price_total - calculateTotalVoucherPrice() > 0">{{ "to_pay" | translate }}</span>
+    <span *ngIf="!bookingData?.paid && bookingData?.price_total - calculateTotalVoucherPrice() > 0">{{ "to_pay" | translate }}</span>
   </ng-container>
-  <ng-container *ngIf="!bookingData.paid && bookingData.price_total - calculateTotalVoucherPrice() > 0">
-      <span class="totalPrice" *ngIf="bookingData.price_total - calculateTotalVoucherPrice() != 0">
-        {{ bookingData.price_total - calculateTotalVoucherPrice()  | number:'0.2-2' }}
-        {{ groupedActivities[0].course.currency}}
+  <ng-container *ngIf="!bookingData?.paid && bookingData?.price_total - calculateTotalVoucherPrice() > 0">
+      <span class="totalPrice" *ngIf="bookingData?.price_total - calculateTotalVoucherPrice() != 0">
+        {{ bookingData?.price_total - calculateTotalVoucherPrice()  | number:'0.2-2' }}
+        {{ groupedActivities[0]?.course?.currency}}
       </span>
   </ng-container>
 
@@ -80,9 +80,9 @@
       mat-raised-button
       type="button"
       class="client-button"
-      [disabled]="bookingData.paid"
+      [disabled]="bookingData?.paid"
       (click)="payModal = true">
-      {{  (bookingData.paid ? "ispaid" : "to_pay") | translate }}
+      {{  (bookingData?.paid ? "ispaid" : "to_pay") | translate }}
     </button>
   </div>
 </div>
@@ -143,7 +143,7 @@
   <div body>
     <div style="margin: 10px;" class="sectionTitle" *ngIf="step === 1">
       <ng-container *ngIf="bookingService.calculatePendingPrice() > 0; else confirmReservation">
-        {{"pending_payment" | translate}}: <span class="totalPrice">{{ bookingService.calculatePendingPrice() }} {{ groupedActivities[0].course.currency }}</span>
+        {{"pending_payment" | translate}}: <span class="totalPrice">{{ bookingService.calculatePendingPrice() }} {{ groupedActivities[0]?.course?.currency }}</span>
       </ng-container>
       <ng-template #confirmReservation>
         <p>{{ "confirm_booking_message" | translate }}</p>

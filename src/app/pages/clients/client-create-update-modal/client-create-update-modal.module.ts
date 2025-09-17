@@ -23,6 +23,7 @@ import { BreadcrumbsModule } from 'src/@vex/components/breadcrumbs/breadcrumbs.m
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { MatSortModule } from '@angular/material/sort';
 import { ClientCreateUpdateModalComponent } from './client-create-update-modal.component';
@@ -64,6 +65,7 @@ import { ComponenteInputModule } from 'src/@vex/components/form/input/app.module
     MatTableModule,
     MatSortModule,
     MatChipsModule,
+    MatCheckboxModule,
     ComponenteButtonModule,
     FluxUploadImgModule,
     ComponenteInputModule

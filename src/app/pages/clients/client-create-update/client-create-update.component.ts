@@ -83,7 +83,9 @@ export class ClientCreateUpdateComponent implements OnInit {
     language5_id: null,
     language6_id: null,
     user_id: null,
-    station_id: null
+    station_id: null,
+    accepts_newsletter: false,
+    is_vip: false
   }
 
   defaultsObservations = {

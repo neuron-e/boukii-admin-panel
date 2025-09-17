@@ -418,6 +418,12 @@
 																					svgIcon="mat:delete"
 																					style="color:red;cursor: pointer;float:left;">
 																				</mat-icon>
+																				<button mat-icon-button
+																					(click)="openTimingModal(subGroup, groupLevel)"
+																					matTooltip="{{'timing.view_times' | translate}}"
+																					style="background: #ff3085; color: white; margin-left: 8px; border-radius: 50%;">
+																					<mat-icon>schedule</mat-icon>
+																				</button>
 																				<span [style.color]="colorKey">
 																					<strong>
 																						{{groupLevel.annotation}}
@@ -788,7 +794,7 @@
 															<!-- Para course_type 1 -->
 															<ng-container *ngIf="bUsers?.course?.course_type === 1">
 																<ng-container *ngFor="let item of bUsers.bookingusers">
-																	<div>
+																	<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
 																		<span class="date-course">
 																			<img class="icon-calendar"
 																				src="assets/img/icons/calendar-1.svg">
@@ -800,6 +806,25 @@
 																			- {{ item?.hour_end.substring(0,
 																			5) }}h
 																		</span>
+																		
+																		<!-- Attendance Status -->
+																		<div style="display: flex; align-items: center; margin-left: 10px;">
+																			<mat-icon *ngIf="item.attended" 
+																				style="height: 16px; width: 16px; color: #4CAF50;" 
+																				svgIcon="mat:check_circle">
+																			</mat-icon>
+																			<mat-icon *ngIf="item.attended === false" 
+																				style="height: 16px; width: 16px; color: #F44336;" 
+																				svgIcon="mat:cancel">
+																			</mat-icon>
+																			<mat-icon *ngIf="item.attended === null || item.attended === undefined" 
+																				style="height: 16px; width: 16px; color: #FF9800;" 
+																				svgIcon="mat:help_outline">
+																			</mat-icon>
+																			<span style="margin-left: 4px; font-size: 10px; color: #666;">
+																				{{ item.attended === true ? 'Asistió' : item.attended === false ? 'No asistió' : 'Sin marcar' }}
+																			</span>
+																		</div>
 																	</div>
 																</ng-container>
 															</ng-container>

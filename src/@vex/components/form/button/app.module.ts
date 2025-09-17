@@ -4,6 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 
 @NgModule({
@@ -12,7 +13,8 @@ import { TranslateModule } from '@ngx-translate/core';
     MatButtonModule,
     CommonModule,
     MatIconModule,
-    TranslateModule
+    TranslateModule,
+    MatProgressSpinnerModule
   ],
   exports: [ComponenteButtonComponent]
 })

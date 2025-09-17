@@ -49,11 +49,18 @@ flex-direction: column;">
         <div *ngFor="let ix of find(courseFormGroup.controls['course_dates'].value[0].course_groups,'degree_id',item.id).course_subgroups;index as i"
              style="padding: 10px;width: 100%;border: 1px solid var(--color-grey2);display: flex;align-items: flex-start;height: 60%;background-color: var(--color-grey5);flex-direction: column;flex-wrap: nowrap;">
           <div style="width: 100%;">
-            <div style="display: flex;justify-content: space-between;width: 100%;margin-bottom: 10px;">
-							<span style="font-weight: 600;">
-								{{item.annotation}}
+            <div style="display: flex;justify-content: space-between;width: 100%;margin-bottom: 10px;align-items: center;">
+              <span style="font-weight: 600;">
+                {{item.annotation}}
                 {{item.level}} {{i+1}}
-							</span>
+              </span>
+              <button mat-icon-button color="primary"
+                      (click)="onTimingClick(ix, item); $event.stopPropagation()"
+                      [matTooltip]="'timing.view_times' | translate"
+                      [attr.aria-label]="'timing.view_times' | translate"
+                      style="margin-right: 8px;">
+                <mat-icon>schedule</mat-icon>
+              </button>
               <button
                 (click)="changeMonitor.emit({date: courseFormGroup.controls['course_dates'].value, subgroup: ix})"
                 *ngIf="checkbox && selectedSubgroup.id != ix.id" style="height: 20px; width: 100px;" color="primary" mat-raised-button

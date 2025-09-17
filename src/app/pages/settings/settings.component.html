@@ -548,6 +548,17 @@
         </div>
       </mat-tab>
       <mat-tab label="{{'settings.book_page' | translate}}">
+        <!-- Booking tab header actions -->
+        <div class="flex items-center gap-4 p-4" [formGroup]="bookingForm">
+          <app-form-button
+            name="save_changes"
+            form="flat"
+            [disabled]="!bookingForm?.valid || !bookingForm?.dirty || savingBooking"
+            [loading]="savingBooking"
+            (click)="saveBookingPage()"
+          ></app-form-button>
+          <app-form-button name="view_preview" (click)="PageModal.Previum=true" form="stroked"></app-form-button>
+        </div>
         <mat-tab-group>
           <mat-tab label="{{'courses.config' | translate}}">
             <div class="paginaReserva">
@@ -556,10 +567,72 @@
                   <div>
                     {{'configure_options'|translate}}
                   </div>
-                  <app-form-button name="save_changes" (click)="saveBookingPage()"
-                                   form="flat"></app-form-button>
-                  <app-form-button name="view_preview" style="margin-left: auto;"
-                                   (click)="PageModal.Previum=true" form="flat"></app-form-button>
+                  <!-- Save/Preview moved to tab header -->
+                  <!-- Social links configuration -->
+                  <h2 class="mt-4">{{'settings.booking.social.title'|translate}}</h2>
+                  <p class="Small b12">{{'settings.booking.social.description'|translate}}</p>
+                  <div [formGroup]="PageForm.Socials" class="social-grid">
+                    <mat-form-field appearance="outline">
+                      <mat-label>
+                        <mat-icon svgIcon="mat:public" style="vertical-align: middle;"></mat-icon>
+                        {{'settings.booking.social.facebook'|translate}}
+                        <mat-icon matTooltip="{{'settings.booking.social.help'|translate}}" style="vertical-align: middle; cursor: help; margin-left: 6px;">help_outline</mat-icon>
+                      </mat-label>
+                      <input matInput formControlName="facebook" [placeholder]="'settings.booking.social.placeholder'|translate">
+                      <mat-error *ngIf="PageForm.Socials.controls['facebook'].hasError('invalidUrl')">{{'settings.booking.social.invalidUrl'|translate}}</mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>
+                        <mat-icon svgIcon="mat:public" style="vertical-align: middle;"></mat-icon>
+                        {{'settings.booking.social.instagram'|translate}}
+                        <mat-icon matTooltip="{{'settings.booking.social.help'|translate}}" style="vertical-align: middle; cursor: help; margin-left: 6px;">help_outline</mat-icon>
+                      </mat-label>
+                      <input matInput formControlName="instagram" [placeholder]="'settings.booking.social.placeholder'|translate">
+                      <mat-error *ngIf="PageForm.Socials.controls['instagram'].hasError('invalidUrl')">{{'settings.booking.social.invalidUrl'|translate}}</mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>
+                        <mat-icon svgIcon="mat:public" style="vertical-align: middle;"></mat-icon>
+                        {{'settings.booking.social.x'|translate}}
+                        <mat-icon matTooltip="{{'settings.booking.social.help'|translate}}" style="vertical-align: middle; cursor: help; margin-left: 6px;">help_outline</mat-icon>
+                      </mat-label>
+                      <input matInput formControlName="x" [placeholder]="'settings.booking.social.placeholder'|translate">
+                      <mat-error *ngIf="PageForm.Socials.controls['x'].hasError('invalidUrl')">{{'settings.booking.social.invalidUrl'|translate}}</mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>
+                        <mat-icon svgIcon="mat:public" style="vertical-align: middle;"></mat-icon>
+                        {{'settings.booking.social.youtube'|translate}}
+                        <mat-icon matTooltip="{{'settings.booking.social.help'|translate}}" style="vertical-align: middle; cursor: help; margin-left: 6px;">help_outline</mat-icon>
+                      </mat-label>
+                      <input matInput formControlName="youtube" [placeholder]="'settings.booking.social.placeholder'|translate">
+                      <mat-error *ngIf="PageForm.Socials.controls['youtube'].hasError('invalidUrl')">{{'settings.booking.social.invalidUrl'|translate}}</mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>
+                        <mat-icon svgIcon="mat:public" style="vertical-align: middle;"></mat-icon>
+                        {{'settings.booking.social.tiktok'|translate}}
+                        <mat-icon matTooltip="{{'settings.booking.social.help'|translate}}" style="vertical-align: middle; cursor: help; margin-left: 6px;">help_outline</mat-icon>
+                      </mat-label>
+                      <input matInput formControlName="tiktok" [placeholder]="'settings.booking.social.placeholder'|translate">
+                      <mat-error *ngIf="PageForm.Socials.controls['tiktok'].hasError('invalidUrl')">{{'settings.booking.social.invalidUrl'|translate}}</mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>
+                        <mat-icon svgIcon="mat:public" style="vertical-align: middle;"></mat-icon>
+                        {{'settings.booking.social.linkedin'|translate}}
+                        <mat-icon matTooltip="{{'settings.booking.social.help'|translate}}" style="vertical-align: middle; cursor: help; margin-left: 6px;">help_outline</mat-icon>
+                      </mat-label>
+                      <input matInput formControlName="linkedin" [placeholder]="'settings.booking.social.placeholder'|translate">
+                      <mat-error *ngIf="PageForm.Socials.controls['linkedin'].hasError('invalidUrl')">{{'settings.booking.social.invalidUrl'|translate}}</mat-error>
+                    </mat-form-field>
+                  </div>
+                  <!-- Removed inner save; single save at tab header -->
                 </div>
               </div>
               <div class="left">
@@ -568,13 +641,13 @@
                     {{"theme"|translate}}
                   </div>
                   <div style="display: flex;width: 100%;">
-                    <mat-radio-button class="radio" (click)="layoutService.toggleDarkMode()"
+                    <mat-radio-button class="radio" (click)="layoutService.toggleDarkMode(); bookingForm?.patchValue({ theme: 'light' })"
                                       [checked]="!layoutService.isDarkMode" style="width: 100%;">
                       {{'settings.book_page.light' | translate}}
                     </mat-radio-button>
                     <mat-radio-button class="radio" style="width: 100%;"
                                       [checked]="layoutService.isDarkMode"
-                                      (click)="layoutService.toggleDarkMode()">
+                                      (click)="layoutService.toggleDarkMode(); bookingForm?.patchValue({ theme: 'dark' })">
                       {{'settings.book_page.dark' | translate}}
                     </mat-radio-button>
                   </div>
@@ -648,26 +721,26 @@
                   <div class="SmallB b12" style="width: 100%;">
                     {{"sponsors"|translate}}
                   </div>
-                  <div class="Small b12" *ngIf="SponsorImg.length===0" style="width: 100%;">
+                  <div class="Small b12" *ngIf="(sponsorsFA?.length || 0)===0" style="width: 100%;">
                     · {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
                     {{'image_recomendation'|translate}} 160x85px
                     <br>
                     · {{'link_to_logo_url'|translate}}
                   </div>
-                  <div *ngFor="let Img of SponsorImg; index as i" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
+                  <div *ngFor="let ctrl of sponsorsFA.controls; index as i" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
 									border-style: dashed;
 									padding: 10px;
 									width: 150px;align-content: space-evenly;
 									height: 150px;text-align: -webkit-center;
 									border-radius: 8px;">
-                    <img [src]="Img.img" style="max-height: 100%;max-width: 100%;cursor: pointer;"
-                         (click)="PageModal.SponsoLink=true;PageForm.SponsoLink.patchValue(Img)">
+                    <img [src]="ctrl.value.img" style="max-height: 100%;max-width: 100%;cursor: pointer;"
+                         (click)="onSponsorLinkOpen(i, ctrl)">
                     <img src="assets/icons/icon/x.png" class="icon24"
                          style="position: absolute; top: 0; right: 0;cursor: pointer;"
                          (click)="removeSponsor(i)">
                   </div>
                   <app-form-button name="add_sponsor"
-                                   (click)="PageForm.SponsoLink.patchValue({index:SponsorImg.length});PageModal.SponsoLink=true"></app-form-button>
+                                   (click)="PageForm.SponsoLink.patchValue({index:sponsorsFA?.length || 0});PageModal.SponsoLink=true"></app-form-button>
                 </div>
                 <div>
                   <div class="SmallB b12" style="width: 100%;">
@@ -676,26 +749,26 @@
                   <div style="width: 100%;">
                     {{"info_message_description"|translate}}
                   </div>
-                  <div *ngFor="let message of MessageStorage;index as i" style="width: 100%;display: flex;
+                  <div *ngFor="let ctrl of infoMessagesFA.controls;index as i" style="width: 100%;display: flex;
 										flex-direction: row;
 										align-items: center;
 										gap: 10px;">
                     <div class="info_message"
-                         [style.backgroundColor]="message.type?'#D2EFFF':'#FFEBEB'">
+                         [style.backgroundColor]="ctrl.value.type?'#D2EFFF':'#FFEBEB'">
                       <img src="assets/icons/icon/info_message1.png" class="icon24"
-                           *ngIf="message.type">
+                           *ngIf="ctrl.value.type">
                       <img src="assets/icons/icon/info_message2.png" class="icon24"
-                           *ngIf="!message.type">
+                           *ngIf="!ctrl.value.type">
                       <div style="display: flex;flex-direction: column;gap: 4px;">
-                        <div style="font-weight: 700;width: 100%;"> {{message.title}} </div>
-                        <div> {{message.desc}} </div>
+                        <div style="font-weight: 700;width: 100%;"> {{ctrl.value.title}} </div>
+                        <div> {{ctrl.value.desc}} </div>
                       </div>
                     </div>
                     <img src="assets/icons/icon/x.png" class="icon24" style="cursor: pointer;"
                          (click)="removeMessage(i)">
                   </div>
                   <app-form-button name="add_message"
-                                   (click)="PageForm.MessageInformation.patchValue({index:MessageStorage.length});PageModal.MessageInformation=true"></app-form-button>
+                                   (click)="PageForm.MessageInformation.patchValue({index:infoMessagesFA?.length || 0});PageModal.MessageInformation=true"></app-form-button>
                 </div>
               </div>
             </div>
@@ -734,14 +807,7 @@
                   </ng-container>
                 </mat-tab>
               </mat-tab-group>
-              <div class="paginaReserva">
-                <div style="width: 100%;">
-                  <div>
-                    <app-form-button name="save_changes" (click)="saveBookingPage()"
-                                     form="flat"></app-form-button>
-                  </div>
-                </div>
-              </div>
+              <!-- Save button moved to tab header -->
             </div>
           </mat-tab>
         </mat-tab-group>
@@ -1814,22 +1880,47 @@
 <vex-flux-modal *ngIf="PageModal.BannerPromocional" title="promotional_banner"
                 (Close)="PageModal.BannerPromocional=false" [formGroup]="PageForm.BannerPromocional">
   <div body style="display: flex; gap: 10px;flex-wrap: wrap;">
+    <!-- Info box -->
+    <div style="width: 100%; padding: 12px; border: 1px solid var(--Grey-02, #C7D0D3); border-radius: 8px; background: var(--is-light-theme, #F7F9FA) var(--is-dark-theme, #121212);">
+      <div class="SmallB b12" style="margin-bottom: 6px;">{{'settings.booking.banner.info.title'|translate}}</div>
+      <div class="Small b12">{{'settings.booking.banner.info.body'|translate}}</div>
+    </div>
+
+    <!-- Click link target for banner -->
     <app-form-input name="link" style="width: 100%;" control="link"
                     [form]="PageForm.BannerPromocional"></app-form-input>
+
+    <!-- Upload images section -->
     <div style="width: 100%;"> {{"desktop_version"|translate}} </div>
-    <vex-flux-upload-img style="width: 100%;" [width]="600" [height]="100" [edit]="true"
-                         [imagePreviewUrl]="PageForm.BannerPromocional.controls['desktopImg'].value"
-                         (upload)="PageForm.BannerPromocional.patchValue({desktopImg:$event})">
-    </vex-flux-upload-img>
-    <div style="width: 100%;"> {{"or_add_a_link"|translate}} </div>
+    <div style="display:flex; align-items:center; gap:12px; width: 100%;">
+      <vex-flux-upload-img style="flex:1;" [width]="600" [height]="100" [edit]="true"
+                           [imagePreviewUrl]="PageForm.BannerPromocional.controls['desktopImg'].value"
+                           (upload)="PageForm.BannerPromocional.patchValue({desktopImg:$event})">
+      </vex-flux-upload-img>
+      <button class="btn-primary-accent" type="button" (click)="PageForm.BannerPromocional.patchValue({desktopImg:null})">{{'change'|translate}}</button>
+    </div>
+
+    <!-- Or image URL -->
+    <div style="width: 100%;">
+      {{"or_add_a_link"|translate}}
+      <mat-icon matTooltip="{{'banner_help_upload_or_url'|translate}}" style="vertical-align: middle; cursor: help;">help_outline</mat-icon>
+    </div>
     <app-form-input name="url" style="width: 100%;" control="desktopImg"
                     [form]="PageForm.BannerPromocional"></app-form-input>
+
+    <!-- Mobile -->
     <div style="width: 100%;"> {{"mobile_version"|translate}} </div>
-    <vex-flux-upload-img style="width: 40%;" [width]="200" [height]="100" [edit]="true"
-                         [imagePreviewUrl]="PageForm.BannerPromocional.controls['mobileImg'].value"
-                         (upload)="PageForm.BannerPromocional.patchValue({mobileImg:$event})">
-    </vex-flux-upload-img>
-    <div style="width: 100%;"> {{"or_add_a_link"|translate}} </div>
+    <div style="display:flex; align-items:center; gap:12px; width: 100%;">
+      <vex-flux-upload-img style="width: 40%;" [width]="200" [height]="100" [edit]="true"
+                           [imagePreviewUrl]="PageForm.BannerPromocional.controls['mobileImg'].value"
+                           (upload)="PageForm.BannerPromocional.patchValue({mobileImg:$event})">
+      </vex-flux-upload-img>
+      <button class="btn-primary-accent" type="button" (click)="PageForm.BannerPromocional.patchValue({mobileImg:null})">{{'change'|translate}}</button>
+    </div>
+    <div style="width: 100%;">
+      {{"or_add_a_link"|translate}}
+      <mat-icon matTooltip="{{'banner_help_sizes'|translate}}" style="vertical-align: middle; cursor: help;">info</mat-icon>
+    </div>
     <app-form-input name="url" style="width: 100%;" control="mobileImg"
                     [form]="PageForm.BannerPromocional"></app-form-input>
   </div>
@@ -1838,6 +1929,8 @@
     <app-form-button form="flat" name="confirm" (click)="PageModal.BannerPromocional=false"></app-form-button>
   </ng-container>
 </vex-flux-modal>
+
+
 
 <vex-flux-modal *ngIf="PageModal.MessageInformation" title="info_message" (Close)="PageModal.MessageInformation=false"
                 [formGroup]="PageForm.MessageInformation">
@@ -1874,8 +1967,7 @@
   </div>
   <ng-container footer>
     <app-form-button name="cancel" (click)="PageModal.MessageInformation=false"></app-form-button>
-    <app-form-button form="flat" name="confirm"
-                     (click)="PageModal.MessageInformation=false;MessageStorage[PageForm.MessageInformation.controls['index'].value]=PageForm.MessageInformation.getRawValue();PageForm.MessageInformation.reset()"></app-form-button>
+    <app-form-button form="flat" name="confirm" (click)="addOrUpdateMessageFromModal()"></app-form-button>
   </ng-container>
 </vex-flux-modal>
 
@@ -1888,8 +1980,7 @@
   </div>
   <ng-container footer>
     <app-form-button name="cancel" (click)="PageModal.SponsoLink=false;"></app-form-button>
-    <app-form-button form="flat" name="confirm"
-                     (click)="PageModal.SponsoLink=false;SponsorImg[PageForm.SponsoLink.controls['index'].value]=PageForm.SponsoLink.getRawValue();PageForm.SponsoLink.reset()"></app-form-button>
+    <app-form-button form="flat" name="confirm" (click)="addOrUpdateSponsorFromModal()"></app-form-button>
   </ng-container>
 </vex-flux-modal>
 

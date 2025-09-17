@@ -10,6 +10,7 @@ import { SchoolService } from 'src/service/school.service';
 import { CoursesService } from 'src/service/courses.service';
 import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
+import { CourseTimingModalComponent } from '../../courses/course-timing-modal/course-timing-modal.component';
 
 @Component({
   selector: 'vex-courses-create-update',
@@ -77,6 +78,26 @@ export class CoursesCreateUpdateComponent implements OnInit {
   useMultipleIntervals = false;
   mustBeConsecutive = false;
   mustStartFromFirst = false;
+
+  // Discount system properties
+  enableMultiDateDiscounts = false;
+  discountsByDates: any[] = [
+    { dates: 2, type: 'percentage', value: 10 }
+  ];
+
+  // Date selection method properties (global fallback)
+  selectedDateMethod: 'consecutive' | 'weekly' | 'manual' = 'consecutive';
+  weeklyPattern: { [key: string]: boolean } = {
+    monday: false,
+    tuesday: false,
+    wednesday: false,
+    thursday: false,
+    friday: false,
+    saturday: false,
+    sunday: false
+  };
+  consecutiveDaysCount: number = 5;
+  maxSelectableDates: number = 15;
 
   constructor(private fb: UntypedFormBuilder, public dialog: MatDialog,
               private crudService: ApiCrudService, private activatedRoute: ActivatedRoute,
@@ -184,6 +205,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
           // Cargar los intervalos después de que el FormGroup esté listo
           this.loadIntervalsFromCourse(this.detailData, this);
         }
+
+        // Cargar descuentos existentes
+        this.loadDiscountsFromCourse();
         this.loading = false
        // setTimeout(() => (this.loading = false), 0);
       });
@@ -831,15 +855,36 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Añadir un nuevo intervalo
   addIntervalUI(i:number) {
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+
     const newInterval = {
       id: Date.now().toString(),
       name: `${this.translateService.instant('interval')} ${this.intervals.length + 1}`,
-      dates: []
+      dates: [],
+      // Rango de fechas del intervalo
+      startDate: today.toISOString().split('T')[0],
+      endDate: nextWeek.toISOString().split('T')[0],
+      // Configuración de generación de fechas por intervalo
+      dateGenerationMethod: 'manual' as 'consecutive' | 'weekly' | 'manual',
+      consecutiveDaysCount: 5,
+      weeklyPattern: {
+        monday: false,
+        tuesday: false,
+        wednesday: false,
+        thursday: false,
+        friday: false,
+        saturday: false,
+        sunday: false
+      }
     };
 
     this.intervals.push(newInterval);
 
-    this.addCourseDateToInterval(i);
+    // Añadir una fecha inicial al nuevo intervalo
+    const intervalIndex = this.intervals.length - 1;
+    this.addCourseDateToInterval(intervalIndex);
 
   }
 
@@ -856,8 +901,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
 
     const interval = this.intervals[intervalIndex];
-    const now = new Date();
-    let newDate = now.toISOString().split('T')[0];
+    let newDate = interval.startDate || new Date().toISOString().split('T')[0];
 
     // Si ya hay fechas, generar la siguiente fecha
     if (interval.dates.length > 0) {
@@ -865,7 +909,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
       if (lastDateStr) {
         const lastDate = new Date(lastDateStr);
         lastDate.setDate(lastDate.getDate() + 1);
-        newDate = lastDate.toISOString().split('T')[0];
+        const proposedDate = lastDate.toISOString().split('T')[0];
+
+        // Solo usar la fecha propuesta si está dentro del rango
+        if (interval.endDate && proposedDate <= interval.endDate) {
+          newDate = proposedDate;
+        } else {
+          newDate = interval.startDate || new Date().toISOString().split('T')[0];
+        }
       }
     }
 
@@ -916,13 +967,23 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
     }
 
-    // Actualizar el curso con las fechas generadas
+    // Las validaciones de fechas consecutivas y empezar desde el primer día
+    // son reglas de negocio para las reservas de clientes, no para la creación del curso
+    // Solo las guardamos en la configuración del curso
+
+    // Actualizar el curso con las fechas generadas y configuraciones
     if (courseDates.length > 0) {
       this.courses.courseFormGroup.patchValue({
-        course_dates: courseDates
+        course_dates: courseDates,
+        settings: {
+          ...this.courses.courseFormGroup.get('settings')?.value,
+          mustBeConsecutive: this.mustBeConsecutive,
+          mustStartFromFirst: this.mustStartFromFirst
+        }
       });
     }
   }
+
 
   // Obtener los grupos de curso para cada fecha nueva
   getCourseDateGroups() {
@@ -946,6 +1007,141 @@ export class CoursesCreateUpdateComponent implements OnInit {
       });
     }
   }
+
+  // Métodos de generación de fechas por intervalo
+  generateIntervalConsecutiveDates(intervalIndex: number) {
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
+
+    const interval = this.intervals[intervalIndex];
+    const count = interval.consecutiveDaysCount || 5;
+
+    // Validar que tenga fechas de inicio y fin
+    if (!interval.startDate || !interval.endDate) {
+      return;
+    }
+
+    // Limpiar fechas existentes
+    interval.dates = [];
+
+    // Generar fechas consecutivas dentro del rango
+    const startDate = new Date(interval.startDate);
+    const endDate = new Date(interval.endDate);
+
+    for (let i = 0; i < count; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+
+      // Solo añadir si está dentro del rango
+      if (currentDate <= endDate) {
+        interval.dates.push({
+          date: currentDate.toISOString().split('T')[0],
+          hour_start: this.courses.hours[0],
+          duration: this.courses.duration[0],
+          interval_id: interval.id,
+          order: i + 1
+        });
+      } else {
+        break; // Parar si nos salimos del rango
+      }
+    }
+
+    this.syncIntervalsToCourseFormGroup();
+  }
+
+  generateIntervalWeeklyDates(intervalIndex: number) {
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
+
+    const interval = this.intervals[intervalIndex];
+    const pattern = interval.weeklyPattern;
+
+    if (!this.hasSelectedWeekdaysForInterval(intervalIndex)) {
+      return; // No generar si no hay días seleccionados
+    }
+
+    // Validar que tenga fechas de inicio y fin
+    if (!interval.startDate || !interval.endDate) {
+      return;
+    }
+
+    // Limpiar fechas existentes
+    interval.dates = [];
+
+    const selectedDays = [];
+    if (pattern.monday) selectedDays.push(1);
+    if (pattern.tuesday) selectedDays.push(2);
+    if (pattern.wednesday) selectedDays.push(3);
+    if (pattern.thursday) selectedDays.push(4);
+    if (pattern.friday) selectedDays.push(5);
+    if (pattern.saturday) selectedDays.push(6);
+    if (pattern.sunday) selectedDays.push(0);
+
+    // Generar fechas dentro del rango especificado
+    const startDate = new Date(interval.startDate);
+    const endDate = new Date(interval.endDate);
+    let generatedCount = 0;
+
+    // Iterar día por día dentro del rango
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay();
+
+      // Si este día está seleccionado en el patrón
+      if (selectedDays.includes(dayOfWeek)) {
+        interval.dates.push({
+          date: currentDate.toISOString().split('T')[0],
+          hour_start: this.courses.hours[0],
+          duration: this.courses.duration[0],
+          interval_id: interval.id,
+          order: generatedCount + 1
+        });
+        generatedCount++;
+      }
+
+      // Avanzar al siguiente día
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    this.syncIntervalsToCourseFormGroup();
+  }
+
+  hasSelectedWeekdaysForInterval(intervalIndex: number): boolean {
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return false;
+
+    const pattern = this.intervals[intervalIndex].weeklyPattern;
+    return pattern.monday || pattern.tuesday || pattern.wednesday ||
+           pattern.thursday || pattern.friday || pattern.saturday || pattern.sunday;
+  }
+
+  setIntervalDateGenerationMethod(intervalIndex: number, method: 'consecutive' | 'weekly' | 'manual') {
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
+
+    this.intervals[intervalIndex].dateGenerationMethod = method;
+
+    // Si cambia a manual, no hacer nada automáticamente
+    if (method === 'manual') {
+      return;
+    }
+
+    // Si cambia a consecutive o weekly, generar fechas automáticamente
+    if (method === 'consecutive') {
+      this.generateIntervalConsecutiveDates(intervalIndex);
+    } else if (method === 'weekly') {
+      this.generateIntervalWeeklyDates(intervalIndex);
+    }
+  }
+
+  toggleIntervalWeekday(intervalIndex: number, day: string) {
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
+
+    const interval = this.intervals[intervalIndex];
+    interval.weeklyPattern[day] = !interval.weeklyPattern[day];
+
+    // Si está en modo weekly, regenerar fechas
+    if (interval.dateGenerationMethod === 'weekly') {
+      this.generateIntervalWeeklyDates(intervalIndex);
+    }
+  }
+
 
   // Cargar intervalos desde un curso existente
   loadIntervalsFromCourse(courseData: any, component: any) {
@@ -1057,5 +1253,279 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
   deleteCourseDate(i: number) {
     this.courses.courseFormGroup.controls['course_dates'].value.splice(i, 1)
+  }
+
+  /**
+   * Open timing modal for subgroup students (cronometraje)
+   * Solo muestra el modal si hay alumnos en el subgrupo
+   */
+  openTimingModal(subGroup: any, groupLevel: any): void {
+    
+    if (!subGroup || !groupLevel) {
+      console.error('No hay datos de subgrupo o nivel para mostrar tiempos.');
+      return;
+    }
+
+    // Verificar si hay alumnos en este subgrupo
+    const bookingUsers = this.courses.courseFormGroup.controls['booking_users']?.value || [];
+    const studentsInSubgroup = bookingUsers.filter((user: any) => user.course_subgroup_id === subGroup.id);
+    
+    if (studentsInSubgroup.length === 0) {
+      this.snackBar.open('No hay alumnos registrados en este subgrupo para cronometrar.', 'Cerrar', {
+        duration: 3000
+      });
+      return;
+    }
+
+    const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
+    
+    // Mostrar opciones al usuario: Modal tradicional o Pantalla en tiempo real
+    const action = confirm('¿Qué deseas hacer?\n\n• Aceptar: Abrir pantalla de cronometraje en tiempo real\n• Cancelar: Abrir modal de gestión de tiempos');
+    
+    if (action) {
+      // Abrir pantalla de cronometraje en tiempo real
+      this.openChronoScreen(subGroup, courseDates);
+    } else {
+      // Abrir modal tradicional
+      this.openTimingModalDialog(subGroup, groupLevel, courseDates, studentsInSubgroup);
+    }
+  }
+
+  /**
+   * Abre la pantalla de cronometraje en tiempo real
+   */
+  private openChronoScreen(subGroup: any, courseDates: any[]): void {
+    if (!courseDates.length) {
+      this.snackBar.open('No hay fechas de curso disponibles.', 'Cerrar', {
+        duration: 3000
+      });
+      return;
+    }
+
+    // Para simplicidad, usar la primera fecha disponible
+    const firstDate = courseDates[0];
+    const chronoUrl = `/chrono/${this.id}/${firstDate.id}?courseName=${encodeURIComponent(this.courses.courseFormGroup.get('name')?.value || 'Curso')}&courseDate=${encodeURIComponent(firstDate.date)}`;
+    
+    // Abrir en nueva pestaña
+    window.open(chronoUrl, '_blank');
+  }
+
+  // Discount management methods
+  onMultiDateDiscountChange(): void {
+    if (this.enableMultiDateDiscounts) {
+      // Initialize with a default discount
+      if (this.discountsByDates.length === 0) {
+        this.discountsByDates = [
+          { dates: 2, type: 'percentage', value: 10 }
+        ];
+      }
+    }
+    this.updateDiscountsInForm();
+  }
+
+  addNewDiscount(): void {
+    const lastDiscount = this.discountsByDates[this.discountsByDates.length - 1];
+    const newDates = lastDiscount ? lastDiscount.dates + 1 : 2;
+
+    this.discountsByDates.push({
+      dates: newDates,
+      type: 'percentage',
+      value: 10
+    });
+
+    this.validateDiscountDates();
+    this.updateDiscountsInForm();
+  }
+
+  removeDiscount(index: number): void {
+    if (this.discountsByDates.length > 1) {
+      this.discountsByDates.splice(index, 1);
+      this.updateDiscountsInForm();
+    }
+  }
+
+  validateDiscountDates(): void {
+    // Sort discounts by dates quantity to avoid conflicts
+    this.discountsByDates.sort((a, b) => a.dates - b.dates);
+
+    // Ensure no duplicate dates quantities
+    const datesSet = new Set();
+    this.discountsByDates = this.discountsByDates.filter(discount => {
+      if (datesSet.has(discount.dates)) {
+        return false;
+      }
+      datesSet.add(discount.dates);
+      return true;
+    });
+
+    this.updateDiscountsInForm();
+  }
+
+  private updateDiscountsInForm(): void {
+    if (this.enableMultiDateDiscounts && this.discountsByDates.length > 0) {
+      const discountsForDB = this.discountsByDates.map(discount => ({
+        date: discount.dates,
+        discount: discount.value,
+        type: discount.type === 'percentage' ? 1 : 2
+      }));
+
+      this.courses.courseFormGroup.patchValue({
+        discounts: JSON.stringify(discountsForDB)
+      });
+    } else {
+      this.courses.courseFormGroup.patchValue({
+        discounts: null
+      });
+    }
+  }
+
+  private loadDiscountsFromCourse(): void {
+    if (this.detailData && this.detailData.discounts) {
+      try {
+        let discounts;
+        if (typeof this.detailData.discounts === 'string') {
+          discounts = JSON.parse(this.detailData.discounts);
+        } else {
+          discounts = this.detailData.discounts;
+        }
+
+        if (discounts && discounts.length > 0) {
+          this.enableMultiDateDiscounts = true;
+          this.discountsByDates = discounts.map((discount: any) => ({
+            dates: discount.date,
+            type: discount.type === 1 ? 'percentage' : 'fixed',
+            value: discount.discount
+          }));
+        }
+      } catch (error) {
+        console.error('Error parsing discounts:', error);
+        this.enableMultiDateDiscounts = false;
+        this.discountsByDates = [{ dates: 2, type: 'percentage', value: 10 }];
+      }
+    }
+  }
+
+  // Date generation methods
+  toggleWeekday(day: string): void {
+    this.weeklyPattern[day] = !this.weeklyPattern[day];
+  }
+
+  hasSelectedWeekdays(): boolean {
+    return Object.values(this.weeklyPattern).some(selected => selected);
+  }
+
+  generateConsecutiveDates(): void {
+    if (!this.courses.courseFormGroup.get('date_start_res')?.value) {
+      return;
+    }
+
+    const startDate = new Date(this.courses.courseFormGroup.get('date_start_res')?.value);
+    const courseDates = [];
+
+    for (let i = 0; i < this.consecutiveDaysCount; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+
+      courseDates.push({
+        date: currentDate.toISOString().split('T')[0],
+        hour_start: '09:00',
+        hour_end: '10:00',
+        duration: 60
+      });
+    }
+
+    this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+    this.snackBar.open(
+      this.translateService.instant('consecutive_dates_generated').replace('{count}', this.consecutiveDaysCount.toString()),
+      'OK',
+      { duration: 3000 }
+    );
+  }
+
+  generateWeeklyDates(): void {
+    if (!this.courses.courseFormGroup.get('date_start_res')?.value ||
+        !this.courses.courseFormGroup.get('date_end_res')?.value) {
+      return;
+    }
+
+    const startDate = new Date(this.courses.courseFormGroup.get('date_start_res')?.value);
+    const endDate = new Date(this.courses.courseFormGroup.get('date_end_res')?.value);
+    const courseDates = [];
+
+    // Mapeo de días de la semana
+    const dayMapping = {
+      monday: 1,
+      tuesday: 2,
+      wednesday: 3,
+      thursday: 4,
+      friday: 5,
+      saturday: 6,
+      sunday: 0
+    };
+
+    const selectedDays = Object.keys(this.weeklyPattern)
+      .filter(day => this.weeklyPattern[day])
+      .map(day => dayMapping[day]);
+
+    const currentDate = new Date(startDate);
+    let generatedCount = 0;
+
+    while (currentDate <= endDate && generatedCount < this.maxSelectableDates) {
+      if (selectedDays.includes(currentDate.getDay())) {
+        courseDates.push({
+          date: currentDate.toISOString().split('T')[0],
+          hour_start: '09:00',
+          hour_end: '10:00',
+          duration: 60
+        });
+        generatedCount++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+    this.snackBar.open(
+      this.translateService.instant('weekly_dates_generated').replace('{count}', courseDates.length.toString()),
+      'OK',
+      { duration: 3000 }
+    );
+  }
+
+  /**
+   * Abre el modal tradicional de gestión de tiempos
+   */
+  private openTimingModalDialog(subGroup: any, groupLevel: any, courseDates: any[], studentsInSubgroup: any[]): void {
+    const students = studentsInSubgroup.map((u: any) => ({
+      id: u.client_id,
+      first_name: u.client?.first_name,
+      last_name: u.client?.last_name,
+      birth_date: u.client?.birth_date,
+      country: u.client?.country,
+      image: u.client?.image
+    }));
+    
+
+    try {
+      const ref = this.dialog.open(CourseTimingModalComponent, {
+        width: '80%',
+        maxWidth: '1200px',
+        data: {
+          subGroup,
+          groupLevel,
+          courseId: this.id,
+          courseDates,
+          students
+        }
+      });
+      
+      ref.afterOpened().subscribe(() => {
+      });
+      
+      ref.afterClosed().subscribe(result => {
+        // Modal cerrado
+      });
+    } catch (error) {
+      console.error('Error al abrir modal desde courses-v2 create-update:', error);
+    }
   }
 }

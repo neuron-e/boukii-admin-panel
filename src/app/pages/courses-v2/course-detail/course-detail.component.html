@@ -41,8 +41,9 @@
 												class="editbutton icon24">
 										</p>
 									</div>
-									<vex-course-detail-nivel [courseFormGroup]="courses.courseFormGroup"
-										style="width: 100%;"></vex-course-detail-nivel>
+            <vex-course-detail-nivel [courseFormGroup]="courses.courseFormGroup"
+                                     (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel)"
+                                     style="width: 100%;"></vex-course-detail-nivel>
 								</div>
 							</div>
 							<!--<div *ngIf="!count(courses.courseFormGroup.controls['levelGrop'].value,'active')"
@@ -58,6 +59,10 @@
 			</mat-tab>
 			<mat-tab label="{{'bookings' | translate}}" style="overflow: auto;">
 				<vex-bookings-v2 [filterCourseId]="id"></vex-bookings-v2>
+			</mat-tab>
+			<mat-tab label="{{'timeline.timeline' | translate}}">
+				<!-- Embedded timeline view -->
+				<vex-timeline></vex-timeline>
 			</mat-tab>
 			<mat-tab label="{{'menu.stats' | translate}}">
         <div class="card" style="margin: 2% 0 2% 0;">

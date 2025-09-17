@@ -25,6 +25,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { AngularEditorModule } from '@kolkov/angular-editor';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CourseDetailCardNivelComponent } from './app.component';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -58,6 +59,7 @@ import { TranslateModule } from '@ngx-translate/core';
     MatCheckboxModule,
     AngularEditorModule,
     MatTabsModule,
+    MatTooltipModule,
     MatProgressSpinnerModule, TranslateModule
   ],
   declarations: [CourseDetailCardNivelComponent],

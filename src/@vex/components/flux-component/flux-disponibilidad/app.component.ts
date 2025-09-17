@@ -20,6 +20,7 @@ export class FluxDisponibilidadComponent implements OnInit {
   @Input() subgroup_index!: number
 
   @Output() monitorSelect = new EventEmitter<any>()
+  @Output() viewTimes = new EventEmitter<any>()
 
   modified: any[] = []
   modified2: any[] = []
@@ -136,5 +137,80 @@ export class FluxDisponibilidadComponent implements OnInit {
         }
       }
     }
+  }
+
+  /**
+   * Emit timing event for the subgroup
+   * Solo si hay alumnos en el subgrupo
+   */
+  onTimingClick(): void {
+    console.log('onTimingClick ejecutado en FluxDisponibilidadComponent');
+    
+    const subGroup = this.group.course_subgroups[this.subgroup_index];
+    console.log('subGroup:', subGroup);
+    
+    // Verificar si hay alumnos en este subgrupo
+    const bookingUsers = this.courseFormGroup.controls['booking_users']?.value || [];
+    console.log('bookingUsers:', bookingUsers);
+    
+    const studentsInSubgroup = bookingUsers.filter((user: any) => user.course_subgroup_id === subGroup.id);
+    console.log('studentsInSubgroup:', studentsInSubgroup);
+    
+    if (studentsInSubgroup.length === 0) {
+      alert('No hay estudiantes en el subgrupo: ' + subGroup.id);
+      return; // No emit if no students
+    }
+    
+    alert('Emitiendo evento viewTimes para subgrupo: ' + subGroup.id);
+    console.log('FluxDisponibilidadComponent: emitting viewTimes for subgroup:', subGroup);
+    this.viewTimes.emit({
+      subGroup: subGroup,
+      groupLevel: this.level
+    });
+  }
+
+  /**
+   * Check if subgroup has students to show timing button
+   */
+  hasStudents(): boolean {
+    const subGroup = this.group.course_subgroups[this.subgroup_index];
+    const bookingUsers = this.courseFormGroup.controls['booking_users']?.value || [];
+    const studentsInSubgroup = bookingUsers.filter((user: any) => user.course_subgroup_id === subGroup.id);
+    return studentsInSubgroup.length > 0;
+  }
+
+  /**
+   * Toggle acceptance status for a booking user
+   */
+  toggleAcceptance(bookingUser: any, accepted: boolean): void {
+    if (!bookingUser || !bookingUser.id) {
+      console.error('No booking user found');
+      return;
+    }
+
+    console.log('Toggling acceptance for booking user:', bookingUser.id, 'to:', accepted);
+
+    const payload = { accepted: accepted };
+
+    this.crudService.update(`admin/booking-users/${bookingUser.id}/acceptance`, payload, '')
+      .subscribe({
+        next: (response: any) => {
+          console.log('Acceptance updated successfully:', response);
+          
+          // Actualizar el objeto local
+          bookingUser.accepted = accepted;
+          
+          // Mostrar mensaje de confirmación
+          const message = accepted ? 
+            this.translateService.instant('attendance.confirmed') : 
+            this.translateService.instant('attendance.pending');
+          
+          this.snackbar.open(message, 'OK', { duration: 3000 });
+        },
+        error: (error) => {
+          console.error('Error updating acceptance:', error);
+          this.snackbar.open('Error al actualizar confirmación', 'OK', { duration: 3000 });
+        }
+      });
   }
 }

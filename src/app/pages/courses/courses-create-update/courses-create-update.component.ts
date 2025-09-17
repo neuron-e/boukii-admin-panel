@@ -18,6 +18,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { DateTimeDialogEditComponent } from 'src/@vex/components/date-time-dialog-edit/date-time-dialog-edit.component';
 import { ConfirmModalComponent } from '../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
+import { CourseTimingModalComponent } from '../course-timing-modal/course-timing-modal.component';
 import { DateAdapter } from '@angular/material/core';
 
 @Component({
@@ -2794,5 +2795,55 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
       }
     }
 
+  }
+
+  /**
+   * Open timing modal for subgroup students (cronometraje)
+   */
+  openTimingModal(subGroup: any, groupLevel: any): void {
+    console.log('openTimingModal called in courses-create-update with:', { subGroup, groupLevel });
+    
+    if (!subGroup || !groupLevel) {
+      console.error('No hay datos de subgrupo o nivel para mostrar tiempos.');
+      alert('No hay datos de subgrupo o nivel para mostrar tiempos.');
+      return;
+    }
+    
+    // Como estamos en el componente de creación/edición, vamos a obtener los datos de otra manera
+    const courseDates = this.defaults?.course_dates || [];
+    const students = []; // En este contexto puede que no tengamos estudiantes aún
+    
+    console.log('About to open timing modal with data:', {
+      subGroup,
+      groupLevel,
+      courseId: this.id,
+      courseDates,
+      students
+    });
+
+    try {
+      const ref = this.dialog.open(CourseTimingModalComponent, {
+        width: '80%',
+        maxWidth: '1200px',
+        data: {
+          subGroup,
+          groupLevel,
+          courseId: this.id,
+          courseDates,
+          students
+        }
+      });
+      
+      ref.afterOpened().subscribe(() => {
+        console.log('Timing modal abierto exitosamente desde courses-create-update');
+      });
+      
+      ref.afterClosed().subscribe(result => {
+        console.log('Modal cerrado con resultado:', result);
+      });
+    } catch (error) {
+      console.error('Error al abrir modal desde courses-create-update:', error);
+      alert('Error al abrir modal: ' + error);
+    }
   }
 }

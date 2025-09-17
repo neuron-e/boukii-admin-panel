@@ -1291,21 +1291,33 @@ export class BookingsCreateUpdateComponent implements OnInit {
         const discounts = typeof b.courseDates[0].course.discounts === 'string' ? JSON.parse(b.courseDates[0].course.discounts)
           : b.courseDates[0].course.discounts;
         if (discounts && discounts.length) {
-          let i = 0;
-          let price = 0;
-          b.courseDates.forEach(element => {
-            const selectedDiscount = discounts.find(item => item.date == i + 1);
-            if (selectedDiscount) {
-              price = price + ((1 * b.courseDates[0].course.price) * (selectedDiscount.percentage / 100));
+          const totalDates = b.courseDates.length;
+
+          // Buscar el descuento que corresponde al número de fechas seleccionadas
+          const applicableDiscount = discounts.find(discount => discount.date === totalDates);
+
+          if (applicableDiscount) {
+            const basePrice = b.courseDates[0].course.price;
+            let discountAmount = 0;
+
+            // Soporte para formato nuevo (type + discount) y viejo (percentage)
+            if (applicableDiscount.type !== undefined) {
+              // Formato nuevo
+              if (applicableDiscount.type === 1) { // Porcentaje
+                discountAmount = (basePrice * totalDates * applicableDiscount.discount) / 100;
+              } else { // Cantidad fija
+                discountAmount = applicableDiscount.discount;
+              }
+            } else if (applicableDiscount.percentage !== undefined) {
+              // Formato viejo - mantener compatibilidad
+              discountAmount = (basePrice * totalDates * applicableDiscount.percentage) / 100;
             }
-            i++;
-          });
-          this.discounts.push(price);
+
+            this.discounts.push(discountAmount);
+          }
         }
       }
-
     });
-
   }
 
   create() {

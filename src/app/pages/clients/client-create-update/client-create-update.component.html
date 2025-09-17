@@ -300,6 +300,25 @@
               </mat-form-field>
             </div>
 
+            <!-- Newsletter Checkbox -->
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 20px;">
+              <mat-checkbox
+                [(ngModel)]="defaults.accepts_newsletter"
+                color="primary">
+                {{ 'communications.accepts_newsletter' | translate }}
+              </mat-checkbox>
+            </div>
+
+            <!-- VIP Checkbox -->
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 15px;">
+              <mat-checkbox
+                [(ngModel)]="defaults.is_vip"
+                color="primary">
+                <mat-icon class="mr-2 text-primary">star</mat-icon>
+                {{ 'clients.is_vip' | translate }}
+              </mat-checkbox>
+            </div>
+
             <div class="actions flex items-center justify-end gap-2">
               <button mat-button type="button" (click)="goTo('/clients')">{{'cancel' | translate }}</button>
 
