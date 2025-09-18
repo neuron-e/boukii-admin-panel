@@ -26,6 +26,7 @@ import { AngularEditorModule } from '@kolkov/angular-editor';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { CourseDetailCardNivelComponent } from './app.component';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -60,7 +61,9 @@ import { TranslateModule } from '@ngx-translate/core';
     AngularEditorModule,
     MatTabsModule,
     MatTooltipModule,
-    MatProgressSpinnerModule, TranslateModule
+    MatProgressSpinnerModule,
+    MatSnackBarModule,
+    TranslateModule
   ],
   declarations: [CourseDetailCardNivelComponent],
   exports: [CourseDetailCardNivelComponent]

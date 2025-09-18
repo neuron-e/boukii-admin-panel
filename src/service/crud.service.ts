@@ -69,7 +69,7 @@ export class ApiCrudService extends ApiService {
 
     let relationsParams = '';
     if (relations.length > 0) {
-      relationsParams = relations.map(relation => `&with[]=${relation}`).join('');
+      relationsParams = relations.map((relation: any) => `&with[]=${relation}`).join('');
     }
 
     // Construir la URL completa

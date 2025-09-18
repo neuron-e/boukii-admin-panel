@@ -85,8 +85,16 @@ flex-direction: column;">
           <ng-container *ngFor="let user of courseFormGroup.controls['booking_users'].value">
             <div *ngIf="ix.id === user.course_subgroup_id"
                  style="padding: 5px;gap: 5px;width: 100%;border: 1px solid var(--color-grey2);display: flex;align-items: center;height: 60%;background-color: var(--color-grey5);">
-              <mat-icon style="font-size: 10px;width: 10px;height: 10px;"
-                        [style.color]="user.attended?'#31C044':Date(user.date)<today?'#E70F0F':'#C7D0D3'">circle</mat-icon>
+              <!-- Show checkbox for past dates, icon for future dates -->
+              <mat-checkbox *ngIf="isDatePast(user.date)"
+                            [checked]="isAttended(user)"
+                            (change)="onAttendanceToggle(user, $event.checked)"
+                            style="margin-right: 8px;"
+                            [color]="'primary'">
+              </mat-checkbox>
+              <mat-icon *ngIf="!isDatePast(user.date)"
+                        style="font-size: 10px;width: 10px;height: 10px;"
+                        [style.color]="isAttended(user)?'#31C044':'#C7D0D3'">circle</mat-icon>
               {{user.client?.first_name}} {{user.client?.last_name}}
             </div>
           </ng-container>
