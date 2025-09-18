@@ -63,6 +63,14 @@
   "communications.view": "Anzeigen",
   "communications.duplicate": "Duplizieren",
   "communications.delete": "Löschen",
+  "communications.subscribers_imported": "Abonnenten erfolgreich importiert",
+  "communications.import_error": "Fehler beim Importieren der Abonnenten",
+  "communications.subscribers_exported": "Abonnenten erfolgreich exportiert",
+  "communications.export_error": "Fehler beim Exportieren der Abonnenten",
+  "communications.select_template_below": "Wählen Sie eine Vorlage aus den unten stehenden Optionen",
+  "communications.fill_required_fields": "Bitte füllen Sie alle Pflichtfelder aus",
+  "communications.newsletter_scheduled": "Newsletter erfolgreich geplant",
+  "communications.schedule_error": "Fehler beim Planen des Newsletters",
   "communications.template_welcome": "Willkommen",
   "communications.template_promotion": "Aktion",
   "communications.template_newsletter": "Newsletter",
@@ -1261,5 +1269,11 @@
   "consecutive_explanation": "Generiert aufeinanderfolgende Daten ab morgen",
   "weekly_explanation": "Generiert Daten basierend auf ausgewählten Wochentagen",
   "manual_explanation": "Fügt Daten manuell einzeln hinzu",
-  "interval_date_range": "Intervall-Datumsbereich"
+  "interval_date_range": "Intervall-Datumsbereich",
+  "show_all_dates": "Alle Termine anzeigen",
+  "hide_details": "Details ausblenden",
+  "apply_schedule_all_dates": "Zeitplan auf alle Termine anwenden",
+  "courses.schedule_required_error": "Bitte setzen Sie zuerst Start- und Endzeiten",
+  "courses.no_dates_error": "Keine Kurstermine zur Aktualisierung verfügbar",
+  "courses.schedule_applied_success": "Zeitplan erfolgreich auf alle Termine angewendet"
 }

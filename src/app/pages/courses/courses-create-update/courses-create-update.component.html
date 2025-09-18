@@ -227,7 +227,8 @@
               </div>
 
             </div>
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto" style="width: 60%;">
 
@@ -256,7 +257,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto" style="width: 40%">
                 <label for="ageFrom">{{'courses.min_age' | translate}} <span style="color:red">(*)</span></label>
@@ -420,7 +422,8 @@
           <mat-spinner *ngIf="loadingTable" style="margin: 0 auto;"></mat-spinner>
           <div class="px-6 py-4 flex flex-col" [formGroup]="courseInfoPriveFormGroup" *ngIf="!loadingTable">
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
               <div class="flex-auto" style="width: 50%;">
 
                 <mat-form-field appearance="outline" style="width: 100%">
@@ -471,7 +474,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
               <div class="flex-auto" style="width: 50%;">
                 <mat-form-field appearance="outline" class="flex-auto" style="width: 100%">
                   <mat-label>{{'courses.dur_min' | translate}}</mat-label>
@@ -532,6 +536,14 @@
                   </mat-error>
                 </mat-form-field>
               </div>
+            </div>
+
+            <!-- Bulk schedule change button -->
+            <div class="flex justify-center mt-4" *ngIf="!defaults.is_flexible && defaults.course_dates && defaults.course_dates.length > 1">
+              <button mat-raised-button color="primary" type="button" (click)="applyScheduleToAllDates()">
+                <mat-icon>schedule</mat-icon>
+                {{ 'apply_schedule_all_dates' | translate }}
+              </button>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" *ngIf="defaults.is_flexible">
@@ -650,7 +662,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto">
 
@@ -665,7 +678,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto" style="padding-left: 5%">
 
@@ -1095,7 +1109,8 @@
               </div>
 
             </div>
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto" style="width: 60%;">
 
@@ -1270,7 +1285,8 @@
 
           <div class="px-6 py-4 flex flex-col" [formGroup]="courseConfigForm">
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
               <div class="flex-auto">
                 <mat-form-field appearance="outline" style="width: 100%">
                   <mat-label *ngIf="defaults.is_flexible">{{'courses.date_reservable'
@@ -1309,7 +1325,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto">
                 <mat-form-field appearance="outline" class="flex-auto" style="width: 100%">
@@ -1937,7 +1954,8 @@
               </div>
 
             </div>
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto" style="width: 60%;">
 
@@ -1966,7 +1984,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto" style="width: 40%">
                 <label for="ageFrom">{{'courses.min_age' | translate}} <span style="color:red">(*)</span></label>
@@ -2119,7 +2138,8 @@
           <mat-spinner *ngIf="loadingTable" style="margin: 0 auto;"></mat-spinner>
           <div class="px-6 py-4 flex flex-col" [formGroup]="courseInfoPriveFormGroup" *ngIf="!loadingTable">
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
               <div class="flex-auto" style="width: 50%;">
 
                 <mat-form-field appearance="outline" style="width: 100%">
@@ -2170,7 +2190,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
               <div class="flex-auto" style="width: 50%;">
                 <mat-form-field appearance="outline" class="flex-auto" style="width: 100%">
                   <mat-label>{{'courses.dur_min' | translate}}</mat-label>
@@ -2231,6 +2252,14 @@
                   </mat-error>
                 </mat-form-field>
               </div>
+            </div>
+
+            <!-- Bulk schedule change button -->
+            <div class="flex justify-center mt-4" *ngIf="!defaults.is_flexible && defaults.course_dates && defaults.course_dates.length > 1">
+              <button mat-raised-button color="primary" type="button" (click)="applyScheduleToAllDates()">
+                <mat-icon>schedule</mat-icon>
+                {{ 'apply_schedule_all_dates' | translate }}
+              </button>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" *ngIf="defaults.is_flexible">
@@ -2348,7 +2377,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto">
 
@@ -2363,7 +2393,8 @@
 
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6"
+                 *ngIf="defaults.course_type === 2 && periodeMultiple && defaults.is_flexible">
 
               <div class="flex-auto" style="padding-left: 5%">
 
@@ -2401,6 +2432,14 @@
                 </div>
               </div>
 
+            </div>
+
+            <!-- Bulk schedule change button -->
+            <div class="flex justify-center mt-4" *ngIf="!defaults.is_flexible && defaults.course_dates && defaults.course_dates.length > 1">
+              <button mat-raised-button color="primary" type="button" (click)="applyScheduleToAllDates()">
+                <mat-icon>schedule</mat-icon>
+                {{ 'apply_schedule_all_dates' | translate }}
+              </button>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" *ngIf="defaults.is_flexible">

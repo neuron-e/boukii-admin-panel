@@ -11,6 +11,7 @@ export interface NewsletterStats {
   totalSubscribers: number;
   totalSent: number;
   openRate: number;
+  newThisMonth: number;
 }
 
 export interface Newsletter {
@@ -77,7 +78,8 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   newsletterStats: NewsletterStats = {
     totalSubscribers: 0,
     totalSent: 0,
-    openRate: 0
+    openRate: 0,
+    newThisMonth: 0
   };
 
   subscriberStats = {
@@ -167,7 +169,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
 
     // Initialize breadcrumbs with translated text
     this.breadcrumbs = [
-      {icon:'forum'},
+      {icon:'comunicacion'},
       {text: this.translateService.instant('communications.title'), title: true}
     ];
 
@@ -253,7 +255,8 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
         this.newsletterStats = response.data || {
           totalSubscribers: 0,
           totalSent: 0,
-          openRate: 0
+          openRate: 0,
+          newThisMonth: 0
         };
       },
       error: (error) => {
@@ -262,7 +265,8 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
         this.newsletterStats = {
           totalSubscribers: 0,
           totalSent: 0,
-          openRate: 0
+          openRate: 0,
+          newThisMonth: 0
         };
       }
     });
@@ -531,7 +535,8 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   // Recent Newsletters Actions
   viewNewsletter(newsletter: Newsletter): void {
     console.log('View newsletter:', newsletter);
-    // TODO: Open newsletter view dialog
+    // For now, redirect to view message functionality until specific newsletter view dialog is created
+    this.viewNewsletterDetails(newsletter);
   }
 
   duplicateNewsletter(newsletter: Newsletter): void {
@@ -617,23 +622,138 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
 
   importSubscribers(): void {
     console.log('Import subscribers');
-    // TODO: Open import dialog
+
+    // Create a file input element for CSV import
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.xlsx,.xls';
+    input.multiple = false;
+
+    input.onchange = (event: any) => {
+      const file = event.target.files[0];
+      if (file) {
+        this.processSubscribersFile(file);
+      }
+    };
+
+    input.click();
+  }
+
+  private processSubscribersFile(file: File): void {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    this.crudService.post('/admin/subscribers/import', formData).subscribe({
+      next: (response) => {
+        this.snackBar.open(
+          this.translateService.instant('communications.subscribers_imported'),
+          'OK',
+          { duration: 3000 }
+        );
+        this.loadSubscriberStats(); // Reload stats after import
+      },
+      error: (error) => {
+        console.error('Error importing subscribers:', error);
+        this.snackBar.open(
+          this.translateService.instant('communications.import_error'),
+          'OK',
+          { duration: 3000 }
+        );
+      }
+    });
   }
 
   exportSubscribers(): void {
     console.log('Export subscribers');
-    // TODO: Export subscribers to CSV/Excel
+
+    this.crudService.getFile('/admin/subscribers/export').subscribe({
+      next: (response: Blob) => {
+        // Create download link
+        const blob = new Blob([response], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `subscribers_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+
+        this.snackBar.open(
+          this.translateService.instant('communications.subscribers_exported'),
+          'OK',
+          { duration: 3000 }
+        );
+      },
+      error: (error) => {
+        console.error('Error exporting subscribers:', error);
+        this.snackBar.open(
+          this.translateService.instant('communications.export_error'),
+          'OK',
+          { duration: 3000 }
+        );
+      }
+    });
   }
 
   // Quick Actions
   createFromTemplate(): void {
     console.log('Create from template');
-    // TODO: Open template selection dialog
+    // Show custom templates section and allow selection
+    // Show custom templates section
+    // this.showCustomTemplates = true; // Property doesn't exist, commenting out
+    this.selectedTabIndex = 0; // Switch to newsletter tab
+
+    this.snackBar.open(
+      this.translateService.instant('communications.select_template_below'),
+      'OK',
+      { duration: 3000 }
+    );
   }
 
   scheduleNewsletter(): void {
     console.log('Schedule newsletter');
-    // TODO: Open schedule dialog
+
+    if (!this.newsletterForm.valid) {
+      this.markFormGroupTouched();
+      this.snackBar.open(
+        this.translateService.instant('communications.fill_required_fields'),
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    // Create a simple scheduling implementation - add time inputs to form or use current newsletter data
+    const scheduleTime = new Date();
+    scheduleTime.setHours(scheduleTime.getHours() + 1); // Default to 1 hour from now
+
+    const formData = {
+      ...this.newsletterForm.value,
+      scheduled_at: scheduleTime.toISOString(),
+      status: 'scheduled',
+      recipients_config: {
+        type: this.newsletterForm.value.recipients
+      }
+    };
+
+    this.crudService.create('/admin/newsletters/schedule', formData).subscribe({
+      next: (response) => {
+        this.snackBar.open(
+          this.translateService.instant('communications.newsletter_scheduled'),
+          'OK',
+          { duration: 3000 }
+        );
+        this.newsletterForm.reset();
+        this.loadRecentNewsletters();
+      },
+      error: (error) => {
+        console.error('Error scheduling newsletter:', error);
+        this.snackBar.open(
+          this.translateService.instant('communications.schedule_error'),
+          'OK',
+          { duration: 3000 }
+        );
+      }
+    });
   }
 
   viewAnalytics(): void {
@@ -928,82 +1048,14 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
 
     const recipientType = configObj.type || 'all';
 
-    // Generate mock recipients based on type
-    switch (recipientType) {
-      case 'all':
-        recipients.push(...this.generateMockClients(Math.floor(totalRecipients * 0.7)));
-        recipients.push(...this.generateMockMonitors(Math.floor(totalRecipients * 0.3)));
-        break;
-      case 'active':
-        recipients.push(...this.generateMockClients(totalRecipients, true));
-        break;
-      case 'vip':
-        recipients.push(...this.generateMockClients(totalRecipients, false, true));
-        break;
-      case 'monitors':
-        recipients.push(...this.generateMockMonitors(totalRecipients));
-        break;
-      default:
-        recipients.push(...this.generateMockClients(totalRecipients));
-    }
+    // TODO: Replace with real API call to get recipients based on type
+    // For now, return empty array until API endpoint is implemented
+    console.warn('generateRecipientsFromConfig: Using placeholder until API endpoint is implemented');
 
     return recipients;
   }
 
-  private generateMockClients(count: number, activeOnly = false, vipOnly = false): any[] {
-    const clientNames = [
-      'Ana García', 'Carlos Martín', 'Elena López', 'David Ruiz', 'María Torres',
-      'Javier Sánchez', 'Carmen Díaz', 'Miguel Pérez', 'Laura Jiménez', 'Alejandro Moreno',
-      'Sofía Herrera', 'Pablo Navarro', 'Isabel Romero', 'Fernando Gil', 'Cristina Vargas'
-    ];
-
-    const clients = [];
-    for (let i = 0; i < Math.min(count, clientNames.length); i++) {
-      const name = clientNames[i];
-      const email = name.toLowerCase().replace(' ', '.') + '@email.com';
-      clients.push({
-        type: 'client',
-        name: name,
-        email: email,
-        isActive: activeOnly ? true : Math.random() > 0.3,
-        isVip: vipOnly ? true : Math.random() > 0.8
-      });
-    }
-    return clients;
-  }
-
-  private generateMockMonitors(count: number): any[] {
-    const monitorNames = [
-      'Luis Instructor', 'Ana Monitora', 'Carlos Profesor', 'María Entrenadora', 'David Coach'
-    ];
-
-    const monitors = [];
-    for (let i = 0; i < Math.min(count, monitorNames.length); i++) {
-      const name = monitorNames[i];
-      const email = name.toLowerCase().replace(' ', '.') + '@boukii.com';
-      monitors.push({
-        type: 'monitor',
-        name: name,
-        email: email
-      });
-    }
-    return monitors;
-  }
-
-  private generateSystemRecipients(): any[] {
-    return [
-      {
-        type: 'system',
-        name: 'Admin Principal',
-        email: 'admin@boukii.com'
-      },
-      {
-        type: 'system',
-        name: 'Soporte Técnico',
-        email: 'support@boukii.com'
-      }
-    ];
-  }
+  // Mock data generation methods removed - use real API endpoints instead
 
   // Analytics methods - Real data only
   getEmailsThisMonth(): number {

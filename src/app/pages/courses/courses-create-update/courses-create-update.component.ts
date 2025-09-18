@@ -420,6 +420,27 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
             this.defaults.course_dates = this.sortEventsByDate();
             this.defaults.settings = typeof course.data.settings === 'string' ? JSON.parse(course.data.settings) : course.data.settings;
 
+            // Ensure weekDays structure is preserved and complete
+            const defaultWeekDays = {
+              monday: false,
+              tuesday: false,
+              wednesday: false,
+              thursday: false,
+              friday: false,
+              saturday: false,
+              sunday: false
+            };
+
+            this.defaults.settings.weekDays = {
+              ...defaultWeekDays,
+              ...(this.defaults.settings.weekDays || {})
+            };
+
+            // Ensure periods array exists
+            if (!this.defaults.settings.periods) {
+              this.defaults.settings.periods = [];
+            }
+
             if (this.defaults.price_range === null) {
               this.dataSourceFlexiblePrices =
                 this.intervalos.map(intervalo => {
@@ -1698,21 +1719,27 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
     });
 
 
-    group.course_subgroups.forEach(element => {
-      date.course_groups.forEach(group => {
-        if (group.degree_id === element.degree_id) {
-          group.active = true;
-          group.teachers_min = group.teacher_min_degree;
-          group.ge_min = group.age_min;
-          group.age_max = group.age_max;
-          group.course_subgroups.push({
-            degree_id: element.degree_id,
-            max_participants: element.max_participants
-          })
-        }
-
+    // Safety check: ensure course_subgroups exists before iterating
+    if (group.course_subgroups && Array.isArray(group.course_subgroups)) {
+      group.course_subgroups.forEach(element => {
+        date.course_groups.forEach(group => {
+          if (group.degree_id === element.degree_id) {
+            group.active = true;
+            group.teachers_min = group.teacher_min_degree;
+            group.ge_min = group.age_min;
+            group.age_max = group.age_max;
+            // Ensure course_subgroups array exists before pushing
+            if (!group.course_subgroups) {
+              group.course_subgroups = [];
+            }
+            group.course_subgroups.push({
+              degree_id: element.degree_id,
+              max_participants: element.max_participants
+            });
+          }
+        });
       });
-    });
+    }
   }
 
   updateMaxDurationOptions(selectedMinDuration) {
@@ -1954,7 +1981,10 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
     this.defaults.course_dates.forEach(courseDate => {
       courseDate.course_groups.forEach(group => {
         if (level.id === group.degree_id) {
-          ret = group.course_subgroups[0].max_participants;
+          // Safety check: ensure course_subgroups exists and has elements
+          if (group.course_subgroups && Array.isArray(group.course_subgroups) && group.course_subgroups.length > 0) {
+            ret = group.course_subgroups[0].max_participants || 0;
+          }
         }
       });
     });
@@ -2795,6 +2825,44 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
       }
     }
 
+  }
+
+  /**
+   * Apply current schedule (hour_min, hour_max) to all course dates
+   */
+  applyScheduleToAllDates(): void {
+    if (!this.defaults.hour_min || !this.defaults.hour_max) {
+      this.snackbar.open(
+        this.translateService.instant('courses.schedule_required_error'),
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    if (!this.defaults.course_dates || this.defaults.course_dates.length === 0) {
+      this.snackbar.open(
+        this.translateService.instant('courses.no_dates_error'),
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    // Apply schedule to all dates
+    this.defaults.course_dates.forEach(date => {
+      date.hour_start = this.defaults.hour_min + ':00';
+      date.hour_end = this.defaults.hour_max + ':00';
+    });
+
+    this.snackbar.open(
+      this.translateService.instant('courses.schedule_applied_success'),
+      'OK',
+      { duration: 3000 }
+    );
+
+    // Update any UI that displays the dates
+    this.dataSourceDatePrivate.data = [...this.defaults.course_dates];
   }
 
   /**

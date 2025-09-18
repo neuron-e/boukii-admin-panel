@@ -154,6 +154,14 @@
   "communications.template_delete_error": "Error deleting template",
   "communications.duplicate": "Duplicate",
   "communications.delete": "Delete",
+  "communications.subscribers_imported": "Subscribers imported successfully",
+  "communications.import_error": "Error importing subscribers",
+  "communications.subscribers_exported": "Subscribers exported successfully",
+  "communications.export_error": "Error exporting subscribers",
+  "communications.select_template_below": "Select a template from the options below",
+  "communications.fill_required_fields": "Please fill all required fields",
+  "communications.newsletter_scheduled": "Newsletter scheduled successfully",
+  "communications.schedule_error": "Error scheduling newsletter",
   "expand_all": "Expand all",
   "collapse_all": "Collapse all",
   "mandatory": "This field is required",
@@ -1303,5 +1311,11 @@
   "consecutive_explanation": "Generate consecutive dates starting from tomorrow",
   "weekly_explanation": "Generate dates based on selected weekdays",
   "manual_explanation": "Add dates manually one by one",
-  "interval_date_range": "Interval Date Range"
+  "interval_date_range": "Interval Date Range",
+  "show_all_dates": "Show all dates",
+  "hide_details": "Hide details",
+  "apply_schedule_all_dates": "Apply schedule to all dates",
+  "courses.schedule_required_error": "Please set both start and end times first",
+  "courses.no_dates_error": "No course dates available to update",
+  "courses.schedule_applied_success": "Schedule applied to all dates successfully"
 }

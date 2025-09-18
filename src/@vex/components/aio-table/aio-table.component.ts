@@ -616,17 +616,36 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   getBookingCourse(data: any) {
+    // Safety check: ensure data exists and is an array
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return 'N/A';
+    }
+
+    // Safety check: ensure first item has required structure
+    if (!data[0] || !data[0].course) {
+      return 'No Course Data';
+    }
+
     if (data.length === 1 || this.checkIfCourseIdIsSame(data)) {
-      return this.getTrad(data[0].course.translations, data[0].course.name);
+      const course = data[0].course;
+      if (course.translations || course.name) {
+        return this.getTrad(course.translations, course.name);
+      } else {
+        return 'Course #' + (course.id || 'Unknown');
+      }
     } else {
       return 'MULTIPLE';
     }
   }
 
   checkIfCourseIdIsSame(data: any[]): boolean {
-    if (data.length === 0) return false;
+    if (!data || !Array.isArray(data) || data.length === 0) return false;
+
+    // Safety check: ensure first item has course structure
+    if (!data[0] || !data[0].course) return false;
+
     const firstCourseId = data[0].course.id;
-    return data.every(item => item.course.id === firstCourseId);
+    return data.every(item => item && item.course && item.course.id === firstCourseId);
   }
 
   getBookingCourseMonitorClient(data: any) {
@@ -636,8 +655,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   getMinMaxDates(data: any[]): { minDate: string, maxDate: string, days: number } {
     let days = 0;
 
-    // Verificar si data está vacío
-    if (data.length === 0) return { minDate: '', maxDate: '', days: days };
+    // Safety check: ensure data exists and is an array
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return { minDate: 'N/A', maxDate: 'N/A', days: days };
+    }
 
     // Validar y convertir las fechas
     const parseDate = (dateString: string): Date | null => {

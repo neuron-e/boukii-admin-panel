@@ -64,6 +64,14 @@
   "communications.view": "Visualizza",
   "communications.duplicate": "Duplica",
   "communications.delete": "Elimina",
+  "communications.subscribers_imported": "Iscritti importati con successo",
+  "communications.import_error": "Errore nell'importazione degli iscritti",
+  "communications.subscribers_exported": "Iscritti esportati con successo",
+  "communications.export_error": "Errore nell'esportazione degli iscritti",
+  "communications.select_template_below": "Seleziona un modello dalle opzioni sottostanti",
+  "communications.fill_required_fields": "Si prega di compilare tutti i campi obbligatori",
+  "communications.newsletter_scheduled": "Newsletter programmata con successo",
+  "communications.schedule_error": "Errore nella programmazione della newsletter",
   "communications.template_welcome": "Benvenuto",
   "communications.template_promotion": "Promozione",
   "communications.template_newsletter": "Newsletter",
@@ -1260,5 +1268,11 @@
   "consecutive_explanation": "Genera date consecutive a partire da domani",
   "weekly_explanation": "Genera date basate sui giorni della settimana selezionati",
   "manual_explanation": "Aggiunge date manualmente una per una",
-  "interval_date_range": "Intervallo di Date dell'Intervallo"
+  "interval_date_range": "Intervallo di Date dell'Intervallo",
+  "show_all_dates": "Mostra tutte le date",
+  "hide_details": "Nascondi dettagli",
+  "apply_schedule_all_dates": "Applica orario a tutte le date",
+  "courses.schedule_required_error": "Per favore, imposta prima gli orari di inizio e fine",
+  "courses.no_dates_error": "Nessuna data del corso disponibile per l'aggiornamento",
+  "courses.schedule_applied_success": "Orario applicato con successo a tutte le date"
 }

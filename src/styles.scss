@@ -883,3 +883,10 @@ vex-flux-modal[ng-reflect-title="bookings_page.detail.full_cancel"],
 vex-flux-modal[ng-reflect-title="end_booking"] {
   z-index: 1600 !important; /* Aún más alto */
 }
+
+/* Fix course header z-index to be below modals */
+.course-header,
+mat-card-header,
+.cardgroup .course-info-header {
+  z-index: 100 !important; /* Asegurar que esté por debajo de los modales */
+}
