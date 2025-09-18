@@ -252,11 +252,12 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   private loadNewsletterStats(): void {
     this.crudService.get('/admin/newsletters/stats').subscribe({
       next: (response) => {
-        this.newsletterStats = response.data || {
-          totalSubscribers: 0,
-          totalSent: 0,
-          openRate: 0,
-          newThisMonth: 0
+        const data = response.data || {};
+        this.newsletterStats = {
+          totalSubscribers: data.totalSubscribers || 0,
+          totalSent: data.totalSent || 0,
+          openRate: data.openRate || 0,
+          newThisMonth: data.newThisMonth || 0
         };
       },
       error: (error) => {
@@ -320,10 +321,11 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     // Load active clients (those with active bookings)
     this.crudService.get('/admin/clients/stats').subscribe({
       next: (response) => {
-        this.subscriberStats = response.data || {
-          active: 0,
-          inactive: 0,
-          vip: 0
+        const data = response.data || {};
+        this.subscriberStats = {
+          active: data.active || 0,
+          inactive: data.inactive || 0,
+          vip: data.vip || 0
         };
       },
       error: (error) => {
