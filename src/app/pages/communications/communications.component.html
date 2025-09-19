@@ -135,43 +135,10 @@
                         <label class="text-sm font-medium text-gray-700 mb-3 block">
                           {{ 'communications.message' | translate }}
                         </label>
-                        <div class="border border-gray-300 rounded-lg overflow-hidden">
-                          <!-- Rich Text Editor Toolbar -->
-                          <div class="border-b border-gray-200 p-3 flex items-center space-x-2 bg-gray-50">
-                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_bold' | translate }}" (click)="formatText('bold')">
-                              <mat-icon>format_bold</mat-icon>
-                            </button>
-                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_italic' | translate }}" (click)="formatText('italic')">
-                              <mat-icon>format_italic</mat-icon>
-                            </button>
-                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_underline' | translate }}" (click)="formatText('underline')">
-                              <mat-icon>format_underlined</mat-icon>
-                            </button>
-                            <mat-divider vertical class="mx-2"></mat-divider>
-                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_list' | translate }}" (click)="formatText('insertUnorderedList')">
-                              <mat-icon>format_list_bulleted</mat-icon>
-                            </button>
-                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_ordered_list' | translate }}" (click)="formatText('insertOrderedList')">
-                              <mat-icon>format_list_numbered</mat-icon>
-                            </button>
-                            <mat-divider vertical class="mx-2"></mat-divider>
-                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_link' | translate }}" (click)="insertLink()">
-                              <mat-icon>link</mat-icon>
-                            </button>
-                            <button type="button" mat-icon-button matTooltip="{{ 'communications.tooltip_image' | translate }}" (click)="insertImage()">
-                              <mat-icon>image</mat-icon>
-                            </button>
-                          </div>
-                          
-                          <!-- Rich Text Editor Content -->
-                          <div
-                            contenteditable="true"
-                            class="min-h-[300px] p-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            (input)="onContentChange($event)"
-                            [attr.data-placeholder]="'communications.editor_placeholder' | translate"
-                            #editor>
-                          </div>
-                        </div>
+                        <angular-editor
+                          formControlName="content"
+                          [placeholder]="'communications.editor_placeholder' | translate">
+                        </angular-editor>
                       </div>
 
                       <!-- Action Buttons -->
@@ -186,9 +153,9 @@
                             {{ 'communications.preview' | translate }}
                           </button>
                         </div>
-                        <button mat-raised-button color="primary" type="button" 
-                                (click)="sendNewsletter()" 
-                                [disabled]="!newsletterForm.valid || sending"
+                        <button mat-raised-button color="primary" type="button"
+                                (click)="sendNewsletter()"
+                                [disabled]="!newsletterForm.valid"
                                 class="px-6 py-2">
                           <mat-icon *ngIf="sending" class="mr-2 animate-spin">sync</mat-icon>
                           <mat-icon *ngIf="!sending" class="mr-2">send</mat-icon>
@@ -580,10 +547,9 @@
 </vex-page-layout>
 
 <!-- Message Detail Modal - Fixed Z-index and Positioning -->
-<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4"
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4 message-detail-modal"
      *ngIf="selectedMessage"
-     (click)="closeMessageDetail()"
-     style="z-index: 9999;">
+     (click)="closeMessageDetail()">
   <div class="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
     <!-- Header -->
     <div class="flex justify-between items-start p-4 border-b bg-white flex-shrink-0">
@@ -1030,43 +996,11 @@
             {{ 'communications.content' | translate }} *
           </label>
 
-          <!-- Editor Toolbar -->
-          <div class="border border-gray-300 rounded-t-md bg-gray-50 p-2 flex flex-wrap gap-1">
-            <button type="button" mat-icon-button (click)="formatText('bold')" title="{{ 'communications.bold' | translate }}">
-              <mat-icon>format_bold</mat-icon>
-            </button>
-            <button type="button" mat-icon-button (click)="formatText('italic')" title="{{ 'communications.italic' | translate }}">
-              <mat-icon>format_italic</mat-icon>
-            </button>
-            <button type="button" mat-icon-button (click)="formatText('underline')" title="{{ 'communications.underline' | translate }}">
-              <mat-icon>format_underlined</mat-icon>
-            </button>
-            <mat-divider [vertical]="true" class="mx-2"></mat-divider>
-            <button type="button" mat-icon-button (click)="formatText('justifyLeft')" title="{{ 'communications.align_left' | translate }}">
-              <mat-icon>format_align_left</mat-icon>
-            </button>
-            <button type="button" mat-icon-button (click)="formatText('justifyCenter')" title="{{ 'communications.align_center' | translate }}">
-              <mat-icon>format_align_center</mat-icon>
-            </button>
-            <button type="button" mat-icon-button (click)="formatText('justifyRight')" title="{{ 'communications.align_right' | translate }}">
-              <mat-icon>format_align_right</mat-icon>
-            </button>
-            <mat-divider [vertical]="true" class="mx-2"></mat-divider>
-            <button type="button" mat-icon-button (click)="insertLink()" title="{{ 'communications.insert_link' | translate }}">
-              <mat-icon>link</mat-icon>
-            </button>
-            <button type="button" mat-icon-button (click)="insertImage()" title="{{ 'communications.insert_image' | translate }}">
-              <mat-icon>image</mat-icon>
-            </button>
-          </div>
-
-          <!-- Content Editor -->
-          <div class="border border-gray-300 border-t-0 rounded-b-md min-h-[300px] p-4 bg-white"
-               contenteditable="true"
-               #templateEditor
-               (input)="updateTemplateContent($event)"
-               [innerHTML]="templateForm.get('content')?.value || ''">
-          </div>
+          <!-- Template Content Editor -->
+          <angular-editor
+            formControlName="content"
+            [placeholder]="'communications.editor_placeholder' | translate">
+          </angular-editor>
 
           <div *ngIf="templateForm.get('content')?.hasError('required')" class="text-red-600 text-sm mt-1">
             {{ 'communications.content_required' | translate }}

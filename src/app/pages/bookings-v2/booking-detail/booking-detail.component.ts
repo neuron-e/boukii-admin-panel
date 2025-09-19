@@ -158,7 +158,20 @@ export class BookingDetailV2Component implements OnInit {
 
   groupBookingUsersByGroupId(booking: any) {
     this.mainClient = booking.client_main;
+
+    // Safety check for booking_users
+    if (!booking.booking_users || !Array.isArray(booking.booking_users) || booking.booking_users.length === 0) {
+      console.warn('No booking_users data available for booking:', booking.id);
+      return [];
+    }
+
     const groupedActivities = Object.values(booking.booking_users.reduce((acc: any, user: any) => {
+      // Safety checks for user data
+      if (!user || !user.course) {
+        console.warn('Invalid user data in booking_users:', user);
+        return acc;
+      }
+
       const groupId = user.group_id;
       const courseType = user.course.course_type;
 

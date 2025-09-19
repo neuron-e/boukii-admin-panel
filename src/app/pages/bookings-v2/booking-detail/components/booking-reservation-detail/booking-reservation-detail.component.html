@@ -99,7 +99,7 @@
         <app-level-user class="avatarImg"
                         mat-card-avatar *ngIf="client.client_sports && client.client_sports.length"
                         [allLevels]="utilsService.getSportLevels(client.client_sports[0].sport_id, allLevels)"
-                        [selectLevel]="client.client_sports[0].sport_id?.degree_id" [size]="50"
+                        [selectLevel]="client.client_sports[0]?.degree_id || 0" [size]="50"
                         [userImage]="client?.image !== null && client?.image
                         !== '' ? client?.image :  'assets/img/avatar.png'">
         </app-level-user>

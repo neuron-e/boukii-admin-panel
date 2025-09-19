@@ -206,6 +206,12 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   filterData(all: boolean = false, pageIndex: number = this.pageIndex, pageSize: number = this.pageSize) {
     let filter = '';
     this.pageIndex = pageIndex;
+
+    // When loading all records, use a large page size
+    if (all) {
+      pageSize = 10000; // Large number to load all records
+    }
+
     this.pageSize = pageSize;
     if (!all) {
       if (this.entity.includes('booking')) {
@@ -652,12 +658,12 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     return data.name;
   }
 
-  getMinMaxDates(data: any[]): { minDate: string, maxDate: string, days: number } {
+  getMinMaxDates(data: any[]): { minDate: string | null, maxDate: string | null, days: number } {
     let days = 0;
 
     // Safety check: ensure data exists and is an array
     if (!data || !Array.isArray(data) || data.length === 0) {
-      return { minDate: 'N/A', maxDate: 'N/A', days: days };
+      return { minDate: null, maxDate: null, days: days };
     }
 
     // Validar y convertir las fechas
@@ -675,7 +681,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
     if (!minDate || !maxDate) {
       console.error('Invalid initial date:', data[0].date);
-      return { minDate: '', maxDate: '', days: days };
+      return { minDate: null, maxDate: null, days: days };
     }
 
     // Iterar sobre los elementos de data

@@ -14,7 +14,7 @@ export class WidgetAssistantComponent implements OnInit {
   today = new Date();
   @Input() date: any;
   @Output() dateEvent = new EventEmitter<any>();
-  weather: any;
+  weather: any[] = [];
   constructor(public translateService: TranslateService, private crudService: ApiCrudService) { }
 
   ngOnInit() {
@@ -29,9 +29,14 @@ export class WidgetAssistantComponent implements OnInit {
 
   getWeather() {
     this.crudService.get('/admin/weather')
-      .subscribe((data) => {
-        this.weather = data.data;
-      })
+      .subscribe({
+        next: (data) => {
+          this.weather = Array.isArray(data.data) ? data.data : [];
+        },
+        error: () => {
+          this.weather = [];
+        }
+      });
   }
 
   emitDate(event: any) {

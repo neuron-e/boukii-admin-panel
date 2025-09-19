@@ -33,6 +33,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
+import { AngularEditorModule } from '@kolkov/angular-editor';
 
 @NgModule({
   declarations: [CommunicationsComponent],
@@ -76,7 +77,8 @@ import { TranslateModule } from '@ngx-translate/core';
     MatCardModule,
     MatSnackBarModule,
     MatTooltipModule,
-    TranslateModule
+    TranslateModule,
+    AngularEditorModule
   ]
 })
 export class CommunicationsModule {

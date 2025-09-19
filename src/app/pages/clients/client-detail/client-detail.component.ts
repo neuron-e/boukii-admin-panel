@@ -121,7 +121,8 @@ export class ClientDetailComponent {
     language6_id: null,
     user_id: null,
     station_id: null,
-    active_station: null
+    active_station: null,
+    is_vip: false
   }
 
   defaultsObservations = {
@@ -160,6 +161,7 @@ export class ClientDetailComponent {
   bookingUsersUnique = [];
   bonus = [];
   mainId: any;
+  schoolNewsletterSubscription: boolean = false;
   showDetail: boolean = false;
   detailData: any;
   entity = '/booking-users';
@@ -458,6 +460,9 @@ export class ClientDetailComponent {
       .pipe(
         map((data) => {
           this.clientSchool = data.data;
+          // Load newsletter subscription for current school
+          const currentSchoolRelation = this.clientSchool.find(relation => relation.school_id === this.user.schools[0].id);
+          this.schoolNewsletterSubscription = currentSchoolRelation?.accepts_newsletter || false;
         })
       );
   }
@@ -816,9 +821,18 @@ export class ClientDetailComponent {
               // Buscar si existe una relación cliente-escuela
               const existingSchool = this.clientSchool.find(element => element.school_id === this.user.schools[0].id);
               if (existingSchool) {
-                // Si ya existe, actualizar el 'accepted_at'
+                // Si ya existe, actualizar el 'accepted_at' y newsletter subscription
                 if (existingSchool.accepted_at === null) {
-                  this.crudService.update('/clients-schools', { accepted_at: moment().toDate() }, existingSchool.id)
+                  this.crudService.update('/clients-schools', {
+                    accepted_at: moment().toDate(),
+                    accepts_newsletter: this.schoolNewsletterSubscription
+                  }, existingSchool.id)
+                    .subscribe(() => { });
+                } else {
+                  // Update newsletter subscription even if already accepted
+                  this.crudService.update('/clients-schools', {
+                    accepts_newsletter: this.schoolNewsletterSubscription
+                  }, existingSchool.id)
                     .subscribe(() => { });
                 }
               } else {
@@ -826,15 +840,19 @@ export class ClientDetailComponent {
                 this.crudService.create('/clients-schools', {
                   client_id: client.data.id,
                   school_id: this.user.schools[0].id,
-                  accepted_at: moment().toDate()
+                  accepted_at: moment().toDate(),
+                  accepts_newsletter: this.schoolNewsletterSubscription
                 })
                   .subscribe(() => { });
               }
             } else {  // Si 'active' es false
-              // Buscar si existe la relación y actualizar 'accepted_at' a null
+              // Buscar si existe la relación y actualizar 'accepted_at' a null pero mantener newsletter subscription
               const existingSchool = this.clientSchool.find(element => element.school_id === this.user.schools[0].id);
               if (existingSchool) {
-                this.crudService.update('/clients-schools', { accepted_at: null }, existingSchool.id)
+                this.crudService.update('/clients-schools', {
+                  accepted_at: null,
+                  accepts_newsletter: this.schoolNewsletterSubscription
+                }, existingSchool.id)
                   .subscribe(() => { });
               }
             }

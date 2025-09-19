@@ -354,6 +354,7 @@ export class ClientCreateUpdateModalComponent implements OnInit {
     this.defaultsUser.email = this.defaults.email;
     this.defaultsUser.image = this.imagePreviewUrl;
     this.defaults.image = this.imagePreviewUrl;
+    this.defaults.accepts_newsletter = this.formSportInfo.get('acceptsNewsletter')?.value || false;
     this.setLanguages();
 
     this.crudService.create('/users', this.defaultsUser)
@@ -368,7 +369,12 @@ export class ClientCreateUpdateModalComponent implements OnInit {
             this.defaultsObservations.client_id = client.data.id;
             this.defaultsObservations.school_id = this.user.schools[0].id;
             this.crudService.create('/client-observations', this.defaultsObservations).subscribe((obs) => { })
-            this.crudService.create('/clients-schools', { client_id: client.data.id, school_id: this.user.schools[0].id, accepted_at: moment().toDate() })
+            this.crudService.create('/clients-schools', {
+              client_id: client.data.id,
+              school_id: this.user.schools[0].id,
+              accepted_at: moment().toDate(),
+              accepts_newsletter: this.formSportInfo.get('acceptsNewsletter')?.value || false
+            })
               .subscribe((clientSchool) => {
                 this.sportsData.data.forEach(element => {
                   this.crudService.create('/client-sports', { client_id: client.data.id, sport_id: element.sport_id, degree_id: element.level.id, school_id: this.user.schools[0].id }).subscribe(() => { })

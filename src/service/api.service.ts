@@ -7,7 +7,7 @@ import { environment } from '../environments/environment';
 })
 export class ApiService {
 
-  public baseUrl: string = environment.baseUrl;
+  public baseUrl: string = environment.baseUrl + '/api';
 
   constructor(public http: HttpClient) { }
 

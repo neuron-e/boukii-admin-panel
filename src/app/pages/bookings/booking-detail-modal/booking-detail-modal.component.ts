@@ -652,9 +652,18 @@ export class BookingDetailModalComponent implements OnInit {
                 client_id: this.courseDates[0].client_id,
                 course_id: this.selectedItem.id,
                 course_date_id: item.course_groups[0].course_date_id,
-                degree_id: item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].degree_id,
-                monitor_id: item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].monitor_id,
-                subgroup_id: item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].id,
+                degree_id: item.course_groups[0].course_subgroups &&
+                          item.course_groups[0].course_subgroups.length > this.selectedSubGroupItemIndex &&
+                          item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex] ?
+                          item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].degree_id : null,
+                monitor_id: item.course_groups[0].course_subgroups &&
+                           item.course_groups[0].course_subgroups.length > this.selectedSubGroupItemIndex &&
+                           item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex] ?
+                           item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].monitor_id : null,
+                subgroup_id: item.course_groups[0].course_subgroups &&
+                            item.course_groups[0].course_subgroups.length > this.selectedSubGroupItemIndex &&
+                            item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex] ?
+                            item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].id : null,
                 hour_start: item.hour_start,
                 hour_end: item.hour_end,
                 price: +this.selectedItem.price,
@@ -673,8 +682,14 @@ export class BookingDetailModalComponent implements OnInit {
                 client_id: this.courseDates[0].client_id,
                 course_id: this.selectedItem.id,
                 course_date_id: item.course_date_id,
-                degree_id: item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].degree_id,
-                monitor_id: item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].monitor_id,
+                degree_id: item.course_groups[0].course_subgroups &&
+                          item.course_groups[0].course_subgroups.length > this.selectedSubGroupItemIndex &&
+                          item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex] ?
+                          item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].degree_id : null,
+                monitor_id: item.course_groups[0].course_subgroups &&
+                           item.course_groups[0].course_subgroups.length > this.selectedSubGroupItemIndex &&
+                           item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex] ?
+                           item.course_groups[0].course_subgroups[this.selectedSubGroupItemIndex].monitor_id : null,
                 hour_start: item.hour_start,
                 hour_end: item.hour_end,
                 price: +this.selectedItem.price,

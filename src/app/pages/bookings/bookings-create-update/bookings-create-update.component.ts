@@ -897,7 +897,11 @@ export class BookingsCreateUpdateComponent implements OnInit {
                 item.course_groups.forEach(groups => {
                   if (groups.degree_id === this.levelForm.value.id) {
                     if (!monitorFind) {
-                      if (groups.course_subgroups[this.selectedSubGroupItemIndex].degree_id === this.levelForm.value.id) {
+                      // Add null/undefined guards for course_subgroups access
+                      if (groups.course_subgroups &&
+                          groups.course_subgroups.length > this.selectedSubGroupItemIndex &&
+                          groups.course_subgroups[this.selectedSubGroupItemIndex] &&
+                          groups.course_subgroups[this.selectedSubGroupItemIndex].degree_id === this.levelForm.value.id) {
                         monitorId = groups.course_subgroups[this.selectedSubGroupItemIndex].monitor_id;
                         degreeId = groups.course_subgroups[this.selectedSubGroupItemIndex].degree_id;
                         subgroupId = groups.course_subgroups[this.selectedSubGroupItemIndex].id;
@@ -941,7 +945,11 @@ export class BookingsCreateUpdateComponent implements OnInit {
                 item.course_groups.forEach(groups => {
                   if (groups.degree_id === this.levelForm.value.id) {
                     if (!monitorFind) {
-                      if (groups.course_subgroups[this.selectedSubGroupItemIndex].degree_id === this.levelForm.value.id) {
+                      // Add null/undefined guards for course_subgroups access
+                      if (groups.course_subgroups &&
+                          groups.course_subgroups.length > this.selectedSubGroupItemIndex &&
+                          groups.course_subgroups[this.selectedSubGroupItemIndex] &&
+                          groups.course_subgroups[this.selectedSubGroupItemIndex].degree_id === this.levelForm.value.id) {
                         monitorId = groups.course_subgroups[this.selectedSubGroupItemIndex].monitor_id;
                         degreeId = groups.course_subgroups[this.selectedSubGroupItemIndex].degree_id;
                         subgroupId = groups.course_subgroups[this.selectedSubGroupItemIndex].id;

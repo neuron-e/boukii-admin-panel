@@ -562,18 +562,32 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row;let i = index" [ngClass]="column.cssClasses" mat-cell>
-              <!-- Jours {{ getMinMaxDates(data[i].booking_users).days}}<br> -->
-              <strong>
-                {{ getMinMaxDates(data[i].booking_users).minDate | date:
-                'dd-MM-yyyy'}}
+              <!-- Safe rendering for booking dates with null protection -->
+              <ng-container *ngIf="data[i].booking_users && data[i].booking_users.length > 0; else noBookingData">
+                <strong>
+                  <span *ngIf="getMinMaxDates(data[i].booking_users).minDate; else noDates">
+                    {{ getMinMaxDates(data[i].booking_users).minDate | date: 'dd-MM-yyyy'}}
+                  </span>
+                  <br>
+                  <span *ngIf="getMinMaxDates(data[i].booking_users).maxDate; else noDates">
+                    {{ getMinMaxDates(data[i].booking_users).maxDate | date: 'dd-MM-yyyy' }}
+                  </span>
+                </strong>
                 <br>
-                {{
-                  getMinMaxDates(data[i].booking_users).maxDate| date:
-                    'dd-MM-yyyy' }}
-              </strong>
-              <br>
-              {{getMinMaxHours(data[i].booking_users).minHour}}h -
-              {{getMinMaxHours(data[i].booking_users).maxHour}}h
+                <span *ngIf="getMinMaxHours(data[i].booking_users).minHour && getMinMaxHours(data[i].booking_users).maxHour; else noHours">
+                  {{getMinMaxHours(data[i].booking_users).minHour}}h -
+                  {{getMinMaxHours(data[i].booking_users).maxHour}}h
+                </span>
+              </ng-container>
+              <ng-template #noBookingData>
+                <span class="text-gray-500">{{ 'no_data_available' | translate }}</span>
+              </ng-template>
+              <ng-template #noDates>
+                <span class="text-gray-500">--</span>
+              </ng-template>
+              <ng-template #noHours>
+                <span class="text-gray-500">--</span>
+              </ng-template>
             </td>
           </ng-container>
         </ng-container>
@@ -762,11 +776,14 @@
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
               <div style="display: flex; gap: 4px; align-items: center;">
-                <mat-icon *ngFor="let bookingUser of row.booking_users"
-                          [style.color]="getAcceptanceColor(bookingUser.accepted)"
-                          style="font-size: 16px; width: 16px; height: 16px;">
-                  {{ getAcceptanceIcon(bookingUser.accepted) }}
-                </mat-icon>
+                <ng-container *ngIf="row.booking_users && row.booking_users.length > 0">
+                  <mat-icon *ngFor="let bookingUser of row.booking_users"
+                            [style.color]="getAcceptanceColor(bookingUser.accepted)"
+                            style="font-size: 16px; width: 16px; height: 16px;">
+                    {{ getAcceptanceIcon(bookingUser.accepted) }}
+                  </mat-icon>
+                </ng-container>
+                <span *ngIf="!row.booking_users || row.booking_users.length === 0" class="text-gray-500">--</span>
               </div>
             </td>
           </ng-container>

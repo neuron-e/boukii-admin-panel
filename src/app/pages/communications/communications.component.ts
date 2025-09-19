@@ -29,6 +29,7 @@ export interface NewsletterTemplate {
   id: string;
   name: string;
   icon: string;
+  subject: string;
   content: string;
 }
 
@@ -68,12 +69,14 @@ export interface ChatMessage {
   styleUrls: ['./communications.component.scss']
 })
 export class CommunicationsComponent implements OnInit, AfterViewInit {
-  @ViewChild('editor') editor!: ElementRef<HTMLDivElement>;
+  // Angular Editor is used instead of custom contentEditable
 
   newsletterForm: FormGroup;
   sending = false;
   selectedTemplate: string | null = null;
   selectedTabIndex = 0; // Controls which tab is active
+
+  // Rich text editor now uses @kolkov/angular-editor
 
   newsletterStats: NewsletterStats = {
     totalSubscribers: 0,
@@ -120,24 +123,28 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       id: 'welcome',
       name: 'communications.template_welcome',
       icon: 'waving_hand',
+      subject: 'Welcome!',
       content: this.translateService.instant('communications.template_welcome_content')
     },
     {
       id: 'promotion',
       name: 'communications.template_promotion',
       icon: 'local_offer',
+      subject: 'Special Offer!',
       content: this.translateService.instant('communications.template_promotion_content')
     },
     {
       id: 'newsletter',
       name: 'communications.template_newsletter',
       icon: 'newspaper',
+      subject: 'Newsletter',
       content: this.translateService.instant('communications.template_newsletter_content')
     },
     {
       id: 'event',
       name: 'communications.template_event',
       icon: 'event',
+      subject: 'Upcoming Event',
       content: this.translateService.instant('communications.template_event_content')
     }
   ];
@@ -200,44 +207,15 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    // Configure the rich text editor after view initialization
-    if (this.editor && this.editor.nativeElement) {
-      const editorElement = this.editor.nativeElement;
-
-      // Set initial properties to prevent text alignment issues
-      editorElement.style.textAlign = 'left';
-      editorElement.style.direction = 'ltr';
-
-      // Add event listeners to maintain cursor position
-      editorElement.addEventListener('keydown', (event) => {
-        // Handle special key combinations that might affect alignment
-        if (event.ctrlKey || event.metaKey) {
-          // Store selection before potential formatting
-          setTimeout(() => {
-            if (document.activeElement === editorElement) {
-              editorElement.focus();
-            }
-          }, 0);
-        }
-      });
-
-      // Prevent paste from messing up alignment
-      editorElement.addEventListener('paste', (event) => {
-        event.preventDefault();
-        const text = event.clipboardData?.getData('text/plain') || '';
-        if (text) {
-          document.execCommand('insertText', false, text);
-          this.updateFormContent();
-        }
-      });
-    }
+    // Angular Editor handles all text editing functionality
+    // No additional configuration needed
   }
 
   private createForm(): void {
     this.newsletterForm = this.fb.group({
       subject: ['', Validators.required],
       recipients: [['all'], Validators.required],
-      content: [''],
+      content: ['', Validators.required],
       template: ['']
     });
 
@@ -254,10 +232,10 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       next: (response) => {
         const data = response.data || {};
         this.newsletterStats = {
-          totalSubscribers: data.totalSubscribers || 0,
-          totalSent: data.totalSent || 0,
-          openRate: data.openRate || 0,
-          newThisMonth: data.newThisMonth || 0
+          totalSubscribers: data.total_subscribers || data.totalSubscribers || 0,
+          totalSent: data.total_sent || data.totalSent || 0,
+          openRate: data.open_rate || data.openRate || 0,
+          newThisMonth: data.new_this_month || data.newThisMonth || 0
         };
       },
       error: (error) => {
@@ -276,8 +254,17 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   private loadRecentNewsletters(): void {
     this.crudService.get('/admin/newsletters?status=sent').subscribe({
       next: (response) => {
-        // Handle both paginated and non-paginated responses
-        this.recentNewsletters = response.data?.data || response.data || [];
+        const raw = response.data?.data || response.data || [];
+        this.recentNewsletters = raw.map((n: any) => ({
+          id: n.id,
+          subject: n.subject,
+          content: n.content,
+          recipients: n.recipients || n.total_recipients || 0,
+          sentDate: n.sentDate || n.sent_date || n.sent_at || null,
+          status: n.status,
+          recipients_config: n.recipients_config,
+          created_at: n.created_at
+        }));
         console.log('Loaded recent newsletters (sent):', this.recentNewsletters.length);
       },
       error: (error) => {
@@ -285,7 +272,17 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
         // Try alternative endpoint if first fails
         this.crudService.get('/admin/newsletters/recent?status=sent').subscribe({
           next: (response) => {
-            this.recentNewsletters = response.data || [];
+            const raw = response.data || [];
+            this.recentNewsletters = raw.map((n: any) => ({
+              id: n.id,
+              subject: n.subject,
+              content: n.content,
+              recipients: n.recipients || n.total_recipients || 0,
+              sentDate: n.sentDate || n.sent_date || n.sent_at || null,
+              status: n.status,
+              recipients_config: n.recipients_config,
+              created_at: n.created_at
+            }));
           },
           error: (fallbackError) => {
             console.error('Fallback error:', fallbackError);
@@ -299,8 +296,17 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   private loadDraftNewsletters(): void {
     this.crudService.get('/admin/newsletters?status=draft').subscribe({
       next: (response) => {
-        // Handle both paginated and non-paginated responses
-        this.draftNewsletters = response.data?.data || response.data || [];
+        const raw = response.data?.data || response.data || [];
+        this.draftNewsletters = raw.map((n: any) => ({
+          id: n.id,
+          subject: n.subject,
+          content: n.content,
+          recipients: n.recipients || n.total_recipients || 0,
+          sentDate: n.sentDate || n.sent_date || n.sent_at || null,
+          status: n.status,
+          recipients_config: n.recipients_config,
+          created_at: n.created_at
+        }));
         console.log('Loaded draft newsletters:', this.draftNewsletters.length);
       },
       error: (error) => {
@@ -339,83 +345,19 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // Rich Text Editor Methods
-  formatText(command: string): void {
-    if (this.editor && this.editor.nativeElement) {
-      this.editor.nativeElement.focus();
-
-      // Store current selection
-      const selection = window.getSelection();
-      const range = selection?.getRangeAt(0);
-
-      document.execCommand(command, false);
-
-      // Restore focus and update content
-      this.editor.nativeElement.focus();
-      if (range && selection) {
-        try {
-          selection.removeAllRanges();
-          selection.addRange(range);
-        } catch (e) {
-          // Range might be invalid after command, ignore
-        }
-      }
-
-      this.updateFormContent();
-    }
-  }
-
-  insertLink(): void {
-    const url = prompt(this.translateService.instant('communications.insert_url_prompt'));
-    if (url) {
-      document.execCommand('createLink', false, url);
-      this.updateFormContent();
-    }
-  }
-
-  onContentChange(event: Event): void {
-    // Store cursor position before updating
-    const selection = window.getSelection();
-    const range = selection?.getRangeAt(0);
-
-    this.updateFormContent();
-
-    // Restore cursor position after a small delay
-    setTimeout(() => {
-      if (this.editor && range && selection) {
-        try {
-          this.editor.nativeElement.focus();
-          selection.removeAllRanges();
-          selection.addRange(range);
-        } catch (e) {
-          // If range is invalid, just focus the editor
-          this.editor.nativeElement.focus();
-        }
-      }
-    }, 0);
-  }
-
-  private updateFormContent(): void {
-    if (this.editor) {
-      const content = this.editor.nativeElement.innerHTML;
-      this.newsletterForm.patchValue({ content });
-    }
-  }
+  // Rich Text Editor Methods - Now handled by Angular Editor
 
   // Template Methods
   selectTemplate(template: NewsletterTemplate): void {
     this.selectedTemplate = template.id;
-    if (this.editor) {
-      this.editor.nativeElement.innerHTML = template.content;
-      this.updateFormContent();
-    }
+    this.newsletterForm.patchValue({
+      subject: template.subject,
+      content: template.content
+    });
   }
 
   // Newsletter Actions
   saveDraft(): void {
-    // Update content from editor before validation
-    this.updateFormContent();
-
     if (!this.newsletterForm.valid) {
       this.markFormGroupTouched();
       this.snackBar.open(
@@ -427,37 +369,70 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     }
 
     const formData = {
-      ...this.newsletterForm.value,
-      status: 'draft',
-      recipients_config: {
-        type: this.newsletterForm.value.recipients
-      }
+      subject: this.newsletterForm.value.subject?.trim() || '',
+      content: this.newsletterForm.value.content?.trim() || '',
+      recipients: this.newsletterForm.value.recipients || ['all'],
+      scheduled_at: null,
+      status: 'draft'
     };
 
-    this.crudService.create('/admin/newsletters', formData).subscribe({
-      next: (response) => {
-        this.snackBar.open(
-          this.translateService.instant('communications.draft_saved'),
-          'OK',
-          { duration: 3000 }
-        );
-        this.reloadAllNewsletterData();
-      },
-      error: (error) => {
-        console.error('Error saving draft:', error);
-        this.snackBar.open(
-          this.translateService.instant('snackbar.error'),
-          'OK',
-          { duration: 3000 }
-        );
-      }
-    });
+    // Validate content is not empty
+    if (!formData.content) {
+      this.snackBar.open(
+        this.translateService.instant('communications.content_required'),
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    if (this.currentDraftId) {
+      // Update existing draft
+      this.crudService.update('/admin/newsletters', formData, this.currentDraftId).subscribe({
+        next: (response) => {
+          this.snackBar.open(
+            this.translateService.instant('communications.draft_updated'),
+            'OK',
+            { duration: 3000 }
+          );
+          this.reloadAllNewsletterData();
+        },
+        error: (error) => {
+          console.error('Error updating draft:', error);
+          this.snackBar.open(
+            this.translateService.instant('communications.save_error'),
+            'OK',
+            { duration: 3000 }
+          );
+        }
+      });
+    } else {
+      // Create new draft
+      this.crudService.create('/admin/newsletters', formData).subscribe({
+        next: (response) => {
+          const created = response.data || response;
+          this.currentDraftId = created.id;
+
+          this.snackBar.open(
+            this.translateService.instant('communications.draft_saved'),
+            'OK',
+            { duration: 3000 }
+          );
+          this.reloadAllNewsletterData();
+        },
+        error: (error) => {
+          console.error('Error saving draft:', error);
+          this.snackBar.open(
+            this.translateService.instant('communications.save_error'),
+            'OK',
+            { duration: 3000 }
+          );
+        }
+      });
+    }
   }
 
   previewNewsletter(): void {
-    // Update content from editor before preview
-    this.updateFormContent();
-
     if (!this.newsletterForm.valid) {
       this.markFormGroupTouched();
       this.snackBar.open(
@@ -468,11 +443,21 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    const content = this.newsletterForm.get('content')?.value?.trim() || '';
+    if (!content) {
+      this.snackBar.open(
+        this.translateService.instant('communications.content_required'),
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
     this.showNewsletterPreview = true;
     this.previewContent = {
-      subject: this.newsletterForm.get('subject')?.value || '',
-      content: this.newsletterForm.get('content')?.value || '',
-      recipients: this.newsletterForm.get('recipients')?.value || []
+      subject: this.newsletterForm.get('subject')?.value?.trim() || '',
+      content: content,
+      recipients: this.newsletterForm.get('recipients')?.value || ['all']
     };
   }
 
@@ -484,54 +469,119 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   sendNewsletter(): void {
     if (!this.newsletterForm.valid) {
       this.markFormGroupTouched();
+      this.snackBar.open(
+        this.translateService.instant('communications.form_incomplete'),
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    const content = this.newsletterForm.value.content?.trim() || '';
+    if (!content) {
+      this.snackBar.open(
+        this.translateService.instant('communications.content_required'),
+        'OK',
+        { duration: 3000 }
+      );
       return;
     }
 
     this.sending = true;
-    const formData = {
-      ...this.newsletterForm.value,
-      status: 'sending',
-      recipients_config: {
-        type: this.newsletterForm.value.recipients
-      }
+    const payload = {
+      subject: this.newsletterForm.value.subject?.trim() || '',
+      content: content,
+      recipients: this.newsletterForm.value.recipients || ['all'],
+      scheduled_at: null
     };
 
-    this.crudService.post('/admin/newsletters/send', formData).subscribe({
-      next: (response) => {
-        this.sending = false;
+    const proceedToSend = (id: number) => {
+      this.crudService.post(`/admin/newsletters/${id}/send`, {}).subscribe({
+        next: (response) => {
+          this.sending = false;
 
-        // Auto-delete draft if we were using one
-        if (this.currentDraftId) {
-          this.autoDeleteDraft(this.currentDraftId);
+          // Clean up old draft if different
+          if (this.currentDraftId && this.currentDraftId !== id) {
+            this.autoDeleteDraft(this.currentDraftId);
+          }
+
+          this.snackBar.open(
+            this.translateService.instant('communications.newsletter_sent'),
+            'OK',
+            { duration: 3000 }
+          );
+
+          // Reset form and state
+          this.resetNewsletterForm();
+          this.reloadAllNewsletterData();
+        },
+        error: (err) => {
+          this.sending = false;
+          console.error('Error sending newsletter:', err);
+          this.snackBar.open(
+            this.translateService.instant('communications.send_error'),
+            'OK',
+            { duration: 3000 }
+          );
         }
+      });
+    };
 
-        this.snackBar.open(
-          this.translateService.instant('communications.newsletter_sent'),
-          'OK',
-          { duration: 3000 }
-        );
-
-        // Reset form after successful send
-        this.newsletterForm.reset();
-        this.selectedTemplate = null;
-        this.currentDraftId = null;
-        if (this.editor) {
-          this.editor.nativeElement.innerHTML = '';
+    if (this.currentDraftId) {
+      // Update existing draft then send it
+      this.crudService.update('/admin/newsletters', payload, this.currentDraftId).subscribe({
+        next: (response) => {
+          proceedToSend(this.currentDraftId!);
+        },
+        error: (error) => {
+          this.sending = false;
+          console.error('Error updating draft before send:', error);
+          this.snackBar.open(
+            this.translateService.instant('communications.save_error'),
+            'OK',
+            { duration: 3000 }
+          );
         }
+      });
+    } else {
+      // Create a new newsletter then send it
+      this.crudService.create('/admin/newsletters', payload).subscribe({
+        next: (response) => {
+          const created = response.data || response;
+          const id = created.id;
+          if (!id) {
+            this.sending = false;
+            this.snackBar.open(
+              this.translateService.instant('communications.creation_error'),
+              'OK',
+              { duration: 3000 }
+            );
+            return;
+          }
+          proceedToSend(id);
+        },
+        error: (error) => {
+          this.sending = false;
+          console.error('Error creating newsletter before send:', error);
+          this.snackBar.open(
+            this.translateService.instant('communications.creation_error'),
+            'OK',
+            { duration: 3000 }
+          );
+        }
+      });
+    }
+  }
 
-        // Reload data
-        this.reloadAllNewsletterData();
-      },
-      error: (error) => {
-        this.sending = false;
-        console.error('Error sending newsletter:', error);
-        this.snackBar.open(
-          this.translateService.instant('snackbar.error'),
-          'OK',
-          { duration: 3000 }
-        );
-      }
+  private resetNewsletterForm(): void {
+    this.newsletterForm.reset({
+      subject: '',
+      content: '',
+      recipients: ['all'],
+      template: ''
     });
+    this.selectedTemplate = null;
+    this.currentDraftId = null;
   }
 
   // Recent Newsletters Actions
@@ -547,10 +597,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       content: newsletter.content
     });
 
-    if (this.editor) {
-      this.editor.nativeElement.innerHTML = newsletter.content;
-    }
-
     this.snackBar.open(
       this.translateService.instant('communications.newsletter_duplicated'),
       'OK',
@@ -564,12 +610,8 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     this.newsletterForm.patchValue({
       subject: draft.subject,
       content: draft.content,
-      recipients: draft.recipients_config || []
+      recipients: draft.recipients_config || ['all']
     });
-
-    if (this.editor) {
-      this.editor.nativeElement.innerHTML = draft.content;
-    }
 
     this.snackBar.open(
       this.translateService.instant('communications.draft_loaded'),
@@ -729,15 +771,13 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     scheduleTime.setHours(scheduleTime.getHours() + 1); // Default to 1 hour from now
 
     const formData = {
-      ...this.newsletterForm.value,
-      scheduled_at: scheduleTime.toISOString(),
-      status: 'scheduled',
-      recipients_config: {
-        type: this.newsletterForm.value.recipients
-      }
+      subject: this.newsletterForm.value.subject,
+      content: this.newsletterForm.value.content,
+      recipients: this.newsletterForm.value.recipients,
+      scheduled_at: scheduleTime.toISOString()
     };
 
-    this.crudService.create('/admin/newsletters/schedule', formData).subscribe({
+    this.crudService.create('/admin/newsletters', formData).subscribe({
       next: (response) => {
         this.snackBar.open(
           this.translateService.instant('communications.newsletter_scheduled'),
@@ -768,7 +808,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     const url = prompt(this.translateService.instant('communications.insert_image_prompt'));
     if (url) {
       document.execCommand('insertImage', false, url);
-      this.updateFormContent();
+      // Content automatically synced through FormControl
     }
   }
 
@@ -1124,6 +1164,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
         id: `custom_${Date.now()}`,
         name: templateName,
         icon: 'description',
+        subject: 'Custom Template',
         content: content
       };
 
@@ -1210,7 +1251,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       content: newsletter.content,
       body: newsletter.content,
       date: newsletter.sentDate,
-      recipients_config: { type: 'all' },
+      recipients_config: newsletter.recipients_config || { type: 'all' },
       recipients: newsletter.recipients,
       id: newsletter.id
     };
@@ -1273,14 +1314,10 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   useTemplate(template: NewsletterTemplate): void {
     this.selectedTemplate = template.id;
     this.newsletterForm.patchValue({
-      subject: '',
+      subject: template.subject || '',
       content: template.content,
       template: template.id
     });
-
-    if (this.editor) {
-      this.editor.nativeElement.innerHTML = template.content;
-    }
 
     this.snackBar.open(
       this.translateService.instant('communications.template_applied'),
@@ -1447,10 +1484,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       subject: subject,
       content: content
     });
-
-    if (this.editor) {
-      this.editor.nativeElement.innerHTML = content;
-    }
 
     this.showTemplateLibrary = false;
 

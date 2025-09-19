@@ -858,35 +858,89 @@ button[color="accent"] {
   letter-spacing: 0px;
   color: var(--Grey-01, #8b9099);
 }
-/* Configuración de z-index para modales anidados */
+/* ===== Z-INDEX HIERARCHY SYSTEM ===== */
+/*
+ * Base layout: 1-99
+ * Dropdowns/tooltips: 100-199
+ * Overlays/modals: 1000-1999
+ * Critical system: 9000+
+ */
+
+/* Base layout elements */
+.course-header,
+mat-card-header,
+.cardgroup .course-info-header,
+.header-fixed,
+.sidebar-fixed {
+  z-index: 10 !important;
+}
+
+/* Dropdowns, menus, tooltips */
+.mat-mdc-menu-panel,
+.mat-mdc-select-panel,
+.mat-mdc-autocomplete-panel,
+.mat-tooltip {
+  z-index: 150 !important;
+}
+
+/* Base overlay container */
 .cdk-overlay-container {
   z-index: 1000;
 }
 
-/* Clase para el modal primario (detalle de reserva) */
-.customBookingDialog .cdk-overlay-pane {
-  z-index: 1001;
+/* Standard Material Dialogs */
+.mat-mdc-dialog-container {
+  z-index: 1100 !important;
 }
 
-/* Clase para modales secundarios (pago, eliminación, etc.) */
-.secondary-dialog .cdk-overlay-pane {
-  z-index: 1002 !important; /* Aseguramos que esté por encima del modal primario */
+/* Primary booking dialog */
+.customBookingDialog .cdk-overlay-pane {
+  z-index: 1200 !important;
 }
+
+/* Secondary dialogs (confirmation, payment, etc.) */
+.secondary-dialog .cdk-overlay-pane {
+  z-index: 1300 !important;
+}
+
+/* Flux modals - standard */
 vex-flux-modal {
   position: relative;
-  z-index: 1500 !important; /* Un valor alto */
+  z-index: 1400 !important;
 }
 
-/* Y específicamente para los modales con títulos específicos */
-vex-flux-modal[ng-reflect-title="delete_activity"],
-vex-flux-modal[ng-reflect-title="bookings_page.detail.full_cancel"],
-vex-flux-modal[ng-reflect-title="end_booking"] {
-  z-index: 1600 !important; /* Aún más alto */
+/* Critical action modals (delete, cancel, payment) */
+vex-flux-modal[ng-reflect-title*="delete"],
+vex-flux-modal[ng-reflect-title*="cancel"],
+vex-flux-modal[ng-reflect-title*="end"],
+vex-flux-modal[ng-reflect-title*="payment"] {
+  z-index: 1500 !important;
 }
 
-/* Fix course header z-index to be below modals */
-.course-header,
-mat-card-header,
-.cardgroup .course-info-header {
-  z-index: 100 !important; /* Asegurar que esté por debajo de los modales */
+/* Snackbars and notifications */
+.mat-mdc-snack-bar-container {
+  z-index: 1600 !important;
+}
+
+/* Loading overlays and spinners */
+.loading-overlay,
+.spinner-overlay {
+  z-index: 9000 !important;
+}
+
+/* Critical system overlays (maintenance, errors) */
+.system-overlay,
+.error-overlay {
+  z-index: 9999 !important;
+}
+
+/* Custom modals like message detail */
+.message-detail-modal {
+  z-index: 1450 !important;
+}
+
+/* Full screen dialogs and mobile dialogs */
+.full-screen-dialog .cdk-overlay-pane,
+.mobile-dialog .cdk-overlay-pane {
+  z-index: 1350 !important;
 }

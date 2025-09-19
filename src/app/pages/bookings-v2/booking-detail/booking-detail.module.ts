@@ -12,6 +12,8 @@ import {MatFormFieldModule} from '@angular/material/form-field';
 import {MatOptionModule} from '@angular/material/core';
 import {MatRadioModule} from '@angular/material/radio';
 import {MatSelectModule} from '@angular/material/select';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
 import {FormsModule} from '@angular/forms';
 
 @NgModule({
@@ -31,6 +33,8 @@ import {FormsModule} from '@angular/forms';
     MatOptionModule,
     MatRadioModule,
     MatSelectModule,
+    MatCardModule,
+    MatIconModule,
     FormsModule
   ],
   exports: [

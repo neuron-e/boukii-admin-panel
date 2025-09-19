@@ -193,7 +193,7 @@
                                 mat-card-avatar
                                 [allLevels]="utilsService.getSportLevels(course.sport_id, allLevels)"
                                 [selectLevel]="utilsService.getHighestAuthorizedDegree(date.monitor,
-                                course.sport_id, course.school_id)" [size]="40"
+                                course.sport_id, course.school_id)?.degree_id || 0" [size]="40"
                                 [userImage]="date.monitor?.image !== null && date.monitor?.image
                   !== '' ? date.monitor?.image : 'assets/img/avatar.png'">
                 </app-level-user>

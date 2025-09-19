@@ -54,7 +54,7 @@ export interface ChronoState {
   providedIn: 'root'
 })
 export class ChronoService {
-  private apiUrl = environment.baseUrl;
+  private apiUrl = environment.baseUrl + '/api';
   
   // Estados
   private stateSubject = new BehaviorSubject<ChronoState>({

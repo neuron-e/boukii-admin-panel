@@ -8,25 +8,38 @@ import { Component, Input, OnInit } from '@angular/core';
 export class LevelUserComponent implements OnInit {
 
   @Input() allLevels: any[] = [];
-  @Input() selectLevel: number = 0;
+  @Input() selectLevel: any = 0;
   @Input() size: number;
   @Input() userImage: string;
 
   constructor() { }
 
   ngOnInit() {
-    if (this.selectLevel) {
-      let index = this.allLevels.findIndex(obj => obj.id === this.selectLevel);
-      if (index === -1) {
-        this.selectLevel = 0;
-      }
-      else {
-        this.selectLevel = index;
-      }
+    // Ensure levels are sorted by degree_order asc (fallback to id)
+    this.allLevels = this.sortLevels(this.allLevels);
+    // Normalize: accept id number or object with degree_id/id (defensive)
+    let selectedId: number = 0;
+    if (this.selectLevel && typeof this.selectLevel === 'object') {
+      selectedId = this.selectLevel?.degree_id ?? this.selectLevel?.id ?? 0;
+    } else {
+      selectedId = Number(this.selectLevel) || 0;
     }
-    else {
+
+    if (selectedId) {
+      const index = this.allLevels.findIndex(obj => obj.id === selectedId);
+      this.selectLevel = index === -1 ? 0 : index;
+    } else {
       this.selectLevel = 0;
     }
+  }
+
+  private sortLevels(levels: any[]): any[] {
+    if (!Array.isArray(levels)) return [];
+    return [...levels].sort((a: any, b: any) => {
+      const ao = (a?.degree_order ?? a?.order ?? a?.id ?? 0);
+      const bo = (b?.degree_order ?? b?.order ?? b?.id ?? 0);
+      return ao - bo;
+    });
   }
 
   get viewBox(): string {
