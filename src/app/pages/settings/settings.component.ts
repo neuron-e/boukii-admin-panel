@@ -1182,9 +1182,16 @@ export class SettingsComponent implements OnInit {
     if (!currentConditions[field]) {
       currentConditions[field] = {};
     }
-    currentConditions[field][lang] = value.target.innerHTML;
+    const content = typeof value === 'string'
+      ? value
+      : (value?.target?.innerHTML ?? '');
+    currentConditions[field][lang] = content;
 
-    this.PageForm.Conditions.get(field)?.setValue(currentConditions[field], { emitEvent: false });
+    // Actualiza el FormControl sin emitir eventos para evitar loops y marca como dirty
+    const ctrl = this.PageForm.Conditions.get(field);
+    ctrl?.setValue(currentConditions[field], { emitEvent: false });
+    ctrl?.markAsDirty();
+    this.bookingForm?.markAsDirty();
     this.cdr.markForCheck();
   }
 

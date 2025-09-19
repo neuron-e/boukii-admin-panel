@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+﻿import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormControl, UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatStepper } from '@angular/material/stepper';
@@ -58,7 +58,7 @@ export class ClientCreateUpdateComponent implements OnInit {
   today: Date;
   minDate: Date;
 
-  mockCivilStatus: string[] = ['Single', 'Mariée', 'Veuf', 'Divorcé'];
+  mockCivilStatus: string[] = ['Single', 'MariÃ©e', 'Veuf', 'DivorcÃ©'];
   mockCountriesData = MOCK_COUNTRIES;
   mockProvincesData = MOCK_PROVINCES;
   mockLevelData = LEVELS;
@@ -109,6 +109,7 @@ export class ClientCreateUpdateComponent implements OnInit {
   user: any;
   mode: 'create' | 'update' = 'create';
   schoolNewsletterSubscription: boolean = false;
+  schoolVip: boolean = false;
 
   constructor(private fb: UntypedFormBuilder, private cdr: ChangeDetectorRef, private translateService: TranslateService,
     private crudService: ApiCrudService, private router: Router, private snackbar: MatSnackBar,
@@ -158,7 +159,7 @@ export class ClientCreateUpdateComponent implements OnInit {
     );
 
     this.myControlCountries.valueChanges.subscribe(country => {
-      this.myControlProvinces.setValue('');  // Limpia la selección anterior de la provincia
+      this.myControlProvinces.setValue('');  // Limpia la selecciÃ³n anterior de la provincia
       this.filteredProvinces = this._filterProvinces(country.id);
     });
 
@@ -396,6 +397,11 @@ export class ClientCreateUpdateComponent implements OnInit {
     this.defaultsUser.email = this.defaults.email;
     this.defaultsUser.image = this.imagePreviewUrl;
     this.defaults.image = this.imagePreviewUrl;
+    this.defaults.accepts_newsletter = this.schoolNewsletterSubscription;
+    // VIP is now school-scoped; do not persist at client level
+    if ((this.defaults as any).hasOwnProperty('is_vip')) {
+      delete (this.defaults as any).is_vip;
+    }
     this.setLanguages();
 
     this.crudService.create('/users', this.defaultsUser)
@@ -414,7 +420,8 @@ export class ClientCreateUpdateComponent implements OnInit {
               client_id: client.data.id,
               school_id: this.user.schools[0].id,
               accepted_at: moment().toDate(),
-              accepts_newsletter: this.schoolNewsletterSubscription
+              accepts_newsletter: this.schoolNewsletterSubscription,
+              is_vip: this.schoolVip
             })
               .subscribe((clientSchool) => {
                 this.sportsData.data.forEach(element => {
@@ -467,3 +474,4 @@ export class ClientCreateUpdateComponent implements OnInit {
     stepper.next();
   }
 }
+

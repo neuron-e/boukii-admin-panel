@@ -162,6 +162,7 @@ export class ClientDetailComponent {
   bonus = [];
   mainId: any;
   schoolNewsletterSubscription: boolean = false;
+  schoolVip: boolean = false;
   showDetail: boolean = false;
   detailData: any;
   entity = '/booking-users';
@@ -463,6 +464,7 @@ export class ClientDetailComponent {
           // Load newsletter subscription for current school
           const currentSchoolRelation = this.clientSchool.find(relation => relation.school_id === this.user.schools[0].id);
           this.schoolNewsletterSubscription = currentSchoolRelation?.accepts_newsletter || false;
+          this.schoolVip = currentSchoolRelation?.is_vip || false;
         })
       );
   }
@@ -790,6 +792,10 @@ export class ClientDetailComponent {
       .subscribe((user) => {
         this.defaults.user_id = user.data.id;
         this.defaults.birth_date = this.formatDate(this.defaults.birth_date)
+        // Do not update global is_vip at client level anymore (school-scoped now)
+        if (this.defaults.hasOwnProperty('is_vip')) {
+          delete (this.defaults as any).is_vip;
+        }
         this.crudService.update('/clients', this.defaults, this.id)
           .subscribe((client) => {
             this.snackbar.open(this.translateService.instant('snackbar.client.update'), 'OK', { duration: 3000 });
@@ -825,13 +831,15 @@ export class ClientDetailComponent {
                 if (existingSchool.accepted_at === null) {
                   this.crudService.update('/clients-schools', {
                     accepted_at: moment().toDate(),
-                    accepts_newsletter: this.schoolNewsletterSubscription
+                    accepts_newsletter: this.schoolNewsletterSubscription,
+                    is_vip: this.schoolVip
                   }, existingSchool.id)
                     .subscribe(() => { });
                 } else {
                   // Update newsletter subscription even if already accepted
                   this.crudService.update('/clients-schools', {
-                    accepts_newsletter: this.schoolNewsletterSubscription
+                    accepts_newsletter: this.schoolNewsletterSubscription,
+                    is_vip: this.schoolVip
                   }, existingSchool.id)
                     .subscribe(() => { });
                 }
@@ -841,7 +849,8 @@ export class ClientDetailComponent {
                   client_id: client.data.id,
                   school_id: this.user.schools[0].id,
                   accepted_at: moment().toDate(),
-                  accepts_newsletter: this.schoolNewsletterSubscription
+                  accepts_newsletter: this.schoolNewsletterSubscription,
+                  is_vip: this.schoolVip
                 })
                   .subscribe(() => { });
               }
@@ -851,7 +860,8 @@ export class ClientDetailComponent {
               if (existingSchool) {
                 this.crudService.update('/clients-schools', {
                   accepted_at: null,
-                  accepts_newsletter: this.schoolNewsletterSubscription
+                  accepts_newsletter: this.schoolNewsletterSubscription,
+                  is_vip: this.schoolVip
                 }, existingSchool.id)
                   .subscribe(() => { });
               }

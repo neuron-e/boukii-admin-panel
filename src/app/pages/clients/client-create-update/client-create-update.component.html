@@ -1,4 +1,4 @@
-<vex-secondary-toolbar current>
+﻿<vex-secondary-toolbar current>
   <vex-breadcrumbs [crumbs]="[
     {icon:'clientes2'},
     {text:'clients', title: true, link: '/clients'},
@@ -153,7 +153,7 @@
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
               <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
                 <mat-label>{{'country' | translate }}</mat-label>
-                <input type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput
+                <input type="text" placeholder="{{'Selecciona una opciÃ³n' | translate}}" matInput
                   [formControl]="myControlCountries" [matAutocomplete]="autoCountry" formControlName="country">
                 <mat-autocomplete #autoCountry="matAutocomplete" [displayWith]="displayFnCountry">
                   <mat-option *ngFor="let country of filteredCountries | async" [value]="country"
@@ -166,7 +166,7 @@
 
               <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
                 <mat-label>{{'province' | translate }}</mat-label>
-                <input type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput
+                <input type="text" placeholder="{{'Selecciona una opciÃ³n' | translate}}" matInput
                   [formControl]="myControlProvinces" [matAutocomplete]="autoProvince" formControlName="province">
                 <mat-autocomplete #autoProvince="matAutocomplete" [displayWith]="displayFnProvince">
                   <mat-option *ngFor="let province of filteredProvinces | async" [value]="province"
@@ -235,7 +235,7 @@
 
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
 
-              <!-- Añadir niños con modal -->
+              <!-- AÃ±adir niÃ±os con modal -->
               <mat-table #sportsTable [dataSource]="sportsData" *ngIf="this.selectedSports.length > 0">
 
                 <ng-container matColumnDef="name">
@@ -266,7 +266,7 @@
                   </mat-cell>
                 </ng-container>
 
-                <!-- Ícono para eliminar
+                <!-- Ãcono para eliminar
                  <ng-container matColumnDef="delete">
                    <mat-header-cell *matHeaderCellDef> Eliminar </mat-header-cell>
                    <mat-cell *matCellDef="let element">
@@ -302,21 +302,21 @@
 
             <!-- Newsletter Checkbox -->
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 20px;">
-              <mat-checkbox
+              <mat-slide-toggle
                 [(ngModel)]="schoolNewsletterSubscription"
                 color="primary">
                 {{ 'communications.accepts_newsletter_school' | translate }}
-              </mat-checkbox>
+              </mat-slide-toggle>
             </div>
 
             <!-- VIP Checkbox -->
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 15px;">
-              <mat-checkbox
-                [(ngModel)]="defaults.is_vip"
+              <mat-slide-toggle
+                [(ngModel)]="schoolVip"
                 color="primary">
                 <mat-icon class="mr-2 text-primary">star</mat-icon>
                 {{ 'clients.is_vip' | translate }}
-              </mat-checkbox>
+              </mat-slide-toggle>
             </div>
 
             <div class="actions flex items-center justify-end gap-2">
@@ -336,3 +336,4 @@
     </div>
   </div>
 </div>
+

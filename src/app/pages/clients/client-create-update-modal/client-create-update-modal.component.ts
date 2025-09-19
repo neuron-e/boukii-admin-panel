@@ -107,6 +107,7 @@ export class ClientCreateUpdateModalComponent implements OnInit {
   loading: boolean = true;
   user: any;
   mode: 'create' | 'update';
+  schoolVip: boolean = false;
 
   constructor(private fb: UntypedFormBuilder, private cdr: ChangeDetectorRef, private crudService: ApiCrudService, private router: Router,
     private snackbar: MatSnackBar, private dialogRef: MatDialogRef<any>, private translateService: TranslateService,
@@ -362,6 +363,10 @@ export class ClientCreateUpdateModalComponent implements OnInit {
         this.defaults.user_id = user.data.id;
         this.defaults.birth_date = this.formatDate(this.defaults.birth_date)
 
+        // VIP is school-scoped now; avoid setting it on client
+        if ((this.defaults as any).hasOwnProperty('is_vip')) {
+          delete (this.defaults as any).is_vip;
+        }
         this.crudService.create('/clients', this.defaults)
           .subscribe((client) => {
             this.snackbar.open(this.translateService.instant('snackbar.client.create'), 'OK', { duration: 3000 });
@@ -373,7 +378,8 @@ export class ClientCreateUpdateModalComponent implements OnInit {
               client_id: client.data.id,
               school_id: this.user.schools[0].id,
               accepted_at: moment().toDate(),
-              accepts_newsletter: this.formSportInfo.get('acceptsNewsletter')?.value || false
+              accepts_newsletter: this.formSportInfo.get('acceptsNewsletter')?.value || false,
+              is_vip: this.schoolVip
             })
               .subscribe((clientSchool) => {
                 this.sportsData.data.forEach(element => {

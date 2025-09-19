@@ -1,4 +1,4 @@
-<vex-secondary-toolbar current>
+﻿<vex-secondary-toolbar current>
   <vex-breadcrumbs [crumbs]="[
     {icon:'clientes'},
     {text:'clients', title: true, link: '/clients'},
@@ -27,8 +27,8 @@
       <div class="max-w-full flex-auto sm:ltr:ml-6 sm:rtl:mr-6">
         <div class="h-16 items-end" style="display: flex;flex-direction: column;align-items: flex-start;">
           <p @fadeInRight class="headline text-white" style="font-size: 12px;">
-            {{getLanguage(defaults.language1_id)}} ·
-            {{getCountry(defaults.country)}} ·
+            {{getLanguage(defaults.language1_id)}} Â·
+            {{getCountry(defaults.country)}} Â·
             {{calculateAge(defaults.birth_date)}} {{'years' | translate }}
           </p>
 
@@ -937,18 +937,18 @@
                           </div>
                           <span>
 														<ng-container *ngIf="client?.language1_id">
-															{{getLanguageById(client?.language1_id)}} ·
+															{{getLanguageById(client?.language1_id)}} Â·
 														</ng-container>
 														<ng-container *ngIf="client?.language2_id">
-															{{getLanguageById(client?.language2_id)}} ·
+															{{getLanguageById(client?.language2_id)}} Â·
 														</ng-container>
 														<ng-container *ngIf="client?.language3_id">
-															{{getLanguageById(client?.language3_id)}} ·
+															{{getLanguageById(client?.language3_id)}} Â·
 														</ng-container>
-                            {{getCountryById(client?.country)}} ·
+                            {{getCountryById(client?.country)}} Â·
                             {{getBirthYears(client?.birth_date)}} {{'years' |
                             translate }}
-                            · {{client?.phone}} · {{client?.email}}
+                            Â· {{client?.phone}} Â· {{client?.email}}
 													</span>
                           <div *ngIf="detailData?.degree"
                                [ngStyle]="{'background': detailData?.degree.color}"
@@ -986,12 +986,12 @@
                       </div>
                       <span>
 												<ng-container *ngIf="defaults.language1_id">
-													{{getLanguageById(defaults.language1_id)}} ·
+													{{getLanguageById(defaults.language1_id)}} Â·
 												</ng-container>
-                        {{getCountryById(defaults.country)}} ·
+                        {{getCountryById(defaults.country)}} Â·
                         {{getBirthYears(defaults.birth_date)}} {{'years' |
                         translate }}
-                        · {{defaults.phone}} · {{defaults.email}}
+                        Â· {{defaults.phone}} Â· {{defaults.email}}
 											</span>
                     </div>
                   </div>
@@ -1023,18 +1023,18 @@
                           </div>
                           <span>
 														<ng-container *ngIf="client?.language1_id">
-															{{getLanguageById(client?.language1_id)}} ·
+															{{getLanguageById(client?.language1_id)}} Â·
 														</ng-container>
 														<ng-container *ngIf="client?.language2_id">
-															{{getLanguageById(client?.language2_id)}} ·
+															{{getLanguageById(client?.language2_id)}} Â·
 														</ng-container>
 														<ng-container *ngIf="client?.language3_id">
-															{{getLanguageById(client?.language3_id)}} ·
+															{{getLanguageById(client?.language3_id)}} Â·
 														</ng-container>
-                            {{getCountryById(client?.country)}} ·
+                            {{getCountryById(client?.country)}} Â·
                             {{getBirthYears(client?.birth_date)}} {{'years' |
                             translate }}
-                            · {{client?.phone}} · {{client?.email}}
+                            Â· {{client?.phone}} Â· {{client?.email}}
 													</span>
                         </div>
                       </div>
@@ -1159,9 +1159,9 @@
                         </div>
                         <div class="client-dates">
                           {{getLanguage(detailData?.client_main?.language1_id)}}
-                          ·
+                          Â·
                           {{getCountry(detailData?.client_main?.country) }}
-                          ·
+                          Â·
                           {{calculateAge(detailData?.client_main?.birth_date)}}
                           &ensp;{{'years' | translate}}
                         </div>
@@ -1321,9 +1321,9 @@
                                   </div>
                                   <div class="course-label">
                                     {{getLanguage(bUsers?.client?.language1_id)}}
-                                    ·
+                                    Â·
                                     {{ getCountry(bUsers?.client?.country) }}
-                                    ·
+                                    Â·
                                     {{calculateAge(bUsers?.client?.birth_date)}}
                                     {{'years' | translate }}
                                   </div>
@@ -1379,9 +1379,9 @@
                                     <span class="dot"></span>
                                     <div class="course-label">
                                       {{getLanguage(bUsers?.monitor?.language1_id)}}
-                                      ·
+                                      Â·
                                       {{ getCountry(bUsers?.monitor?.country) }}
-                                      ·
+                                      Â·
                                       {{calculateAge(bUsers?.monitor?.birth_date)}}
                                       {{'years' | translate}}
                                     </div>
@@ -1878,7 +1878,7 @@
                     {{'country' | translate }}
                   </mat-label>
                   <input [formControl]="myControlCountries" [matAutocomplete]="autoCountry"
-                         type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput>
+                         type="text" placeholder="{{'Selecciona una opciÃ³n' | translate}}" matInput>
                   <mat-autocomplete #autoCountry="matAutocomplete" [displayWith]="displayFnCountry">
                     <mat-option *ngFor="let country of filteredCountries | async" [value]="country"
                                 (onSelectionChange)="defaults.country = country.id">
@@ -1894,7 +1894,7 @@
                     {{'province' | translate }}
                   </mat-label>
                   <input [formControl]="myControlProvinces" [matAutocomplete]="autoProvince"
-                         type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput>
+                         type="text" placeholder="{{'Selecciona una opciÃ³n' | translate}}" matInput>
                   <mat-autocomplete #autoProvince="matAutocomplete" [displayWith]="displayFnProvince">
                     <mat-option *ngFor="let province of filteredProvinces | async"
                                 [value]="province" (onSelectionChange)="defaults.province = province.id">
@@ -2046,7 +2046,7 @@
                       <mat-icon (click)="removeSport(i, element)" svgIcon="mat:delete"></mat-icon>
                     </mat-cell>
                   </ng-container>
-                  <!-- Ícono para eliminar
+                  <!-- Ãcono para eliminar
                   <ng-container matColumnDef="delete">
                     <mat-header-cell *matHeaderCellDef> Eliminar </mat-header-cell>
                     <mat-cell *matCellDef="let element">
@@ -2114,7 +2114,7 @@
                   </ng-container>
 
 
-                  <!-- Ícono para eliminar
+                  <!-- Ãcono para eliminar
                   <ng-container matColumnDef="delete">
                     <mat-header-cell *matHeaderCellDef> Eliminar </mat-header-cell>
                     <mat-cell *matCellDef="let element">
@@ -2189,23 +2189,23 @@
 
               <!-- Newsletter Checkbox -->
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 20px;">
-                <mat-checkbox
+                <mat-slide-toggle
                   [(ngModel)]="schoolNewsletterSubscription"
                   [ngModelOptions]="{standalone: true}"
                   color="primary">
                   {{ 'communications.accepts_newsletter_school' | translate }}
-                </mat-checkbox>
+                </mat-slide-toggle>
               </div>
 
               <!-- VIP Checkbox -->
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 15px;">
-                <mat-checkbox
-                  [(ngModel)]="defaults.is_vip"
+                <mat-slide-toggle
+                  [(ngModel)]="schoolVip"
                   [ngModelOptions]="{standalone: true}"
                   color="primary">
                   <mat-icon class="mr-2 text-primary">star</mat-icon>
                   {{ 'clients.is_vip' | translate }}
-                </mat-checkbox>
+                </mat-slide-toggle>
               </div>
 
               <div class="actions flex items-center justify-end gap-2">
@@ -2646,18 +2646,18 @@
                           </div>
                           <span>
 														<ng-container *ngIf="client?.language1_id">
-															{{getLanguageById(client?.language1_id)}} ·
+															{{getLanguageById(client?.language1_id)}} Â·
 														</ng-container>
 														<ng-container *ngIf="client?.language2_id">
-															{{getLanguageById(client?.language2_id)}} ·
+															{{getLanguageById(client?.language2_id)}} Â·
 														</ng-container>
 														<ng-container *ngIf="client?.language3_id">
-															{{getLanguageById(client?.language3_id)}} ·
+															{{getLanguageById(client?.language3_id)}} Â·
 														</ng-container>
-                            {{getCountryById(client?.country)}} ·
+                            {{getCountryById(client?.country)}} Â·
                             {{getBirthYears(client?.birth_date)}} {{'years' |
                             translate }}
-                            · {{client?.phone}} · {{client?.email}}
+                            Â· {{client?.phone}} Â· {{client?.email}}
 													</span>
                           <div *ngIf="detailData?.degree"
                                [ngStyle]="{'background': detailData?.degree.color}"
@@ -2695,12 +2695,12 @@
                       </div>
                       <span>
 												<ng-container *ngIf="defaults.language1_id">
-													{{getLanguageById(defaults.language1_id)}} ·
+													{{getLanguageById(defaults.language1_id)}} Â·
 												</ng-container>
-                        {{getCountryById(defaults.country)}} ·
+                        {{getCountryById(defaults.country)}} Â·
                         {{getBirthYears(defaults.birth_date)}} {{'years' |
                         translate }}
-                        · {{defaults.phone}} · {{defaults.email}}
+                        Â· {{defaults.phone}} Â· {{defaults.email}}
 											</span>
                     </div>
                   </div>
@@ -2732,18 +2732,18 @@
                           </div>
                           <span>
 														<ng-container *ngIf="client?.language1_id">
-															{{getLanguageById(client?.language1_id)}} ·
+															{{getLanguageById(client?.language1_id)}} Â·
 														</ng-container>
 														<ng-container *ngIf="client?.language2_id">
-															{{getLanguageById(client?.language2_id)}} ·
+															{{getLanguageById(client?.language2_id)}} Â·
 														</ng-container>
 														<ng-container *ngIf="client?.language3_id">
-															{{getLanguageById(client?.language3_id)}} ·
+															{{getLanguageById(client?.language3_id)}} Â·
 														</ng-container>
-                            {{getCountryById(client?.country)}} ·
+                            {{getCountryById(client?.country)}} Â·
                             {{getBirthYears(client?.birth_date)}} {{'years' |
                             translate }}
-                            · {{client?.phone}} · {{client?.email}}
+                            Â· {{client?.phone}} Â· {{client?.email}}
 													</span>
                         </div>
                       </div>
@@ -2766,3 +2766,4 @@
 
 
 </div>
+

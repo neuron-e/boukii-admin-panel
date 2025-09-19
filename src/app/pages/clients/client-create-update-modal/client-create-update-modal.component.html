@@ -1,4 +1,4 @@
-<form *ngIf="!loading">
+﻿<form *ngIf="!loading">
   <div class="flex items-center" mat-dialog-title>
     <h2 class="headline m-0 flex-auto">{{'new_client' | translate }}</h2>
 
@@ -114,7 +114,7 @@
           <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
             <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
               <mat-label>{{'country' | translate }}</mat-label>
-              <input type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput
+              <input type="text" placeholder="{{'Selecciona una opciÃ³n' | translate}}" matInput
                 [formControl]="myControlCountries" [matAutocomplete]="autoCountry" formControlName="country">
               <mat-autocomplete #autoCountry="matAutocomplete" [displayWith]="displayFnCountry">
                 <mat-option *ngFor="let country of filteredCountries | async" [value]="country"
@@ -127,7 +127,7 @@
 
             <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
               <mat-label>{{'province' | translate }}</mat-label>
-              <input type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput
+              <input type="text" placeholder="{{'Selecciona una opciÃ³n' | translate}}" matInput
                 [formControl]="myControlProvinces" [matAutocomplete]="autoProvince" formControlName="province">
               <mat-autocomplete #autoProvince="matAutocomplete" [displayWith]="displayFnProvince">
                 <mat-option *ngFor="let province of filteredProvinces | async" [value]="province"
@@ -225,7 +225,7 @@
                 </mat-cell>
               </ng-container>
 
-              <!-- Ícono para eliminar
+              <!-- Ãcono para eliminar
                  <ng-container matColumnDef="delete">
                    <mat-header-cell *matHeaderCellDef> Eliminar </mat-header-cell>
                    <mat-cell *matCellDef="let element">
@@ -261,22 +261,22 @@
 
           <!-- Newsletter Checkbox -->
           <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 20px;">
-            <mat-checkbox
+            <mat-slide-toggle
               formControlName="acceptsNewsletter"
               color="primary">
               {{ 'communications.accepts_newsletter_school' | translate }}
-            </mat-checkbox>
+            </mat-slide-toggle>
           </div>
 
           <!-- VIP Checkbox -->
           <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 15px;">
-            <mat-checkbox
-              [(ngModel)]="defaults.is_vip"
+            <mat-slide-toggle
+              [(ngModel)]="schoolVip"
               [ngModelOptions]="{standalone: true}"
               color="primary">
               <mat-icon class="mr-2 text-primary">star</mat-icon>
               {{ 'clients.is_vip' | translate }}
-            </mat-checkbox>
+            </mat-slide-toggle>
           </div>
 
           <div class="actions flex items-center justify-end gap-2">
@@ -295,3 +295,4 @@
     </mat-vertical-stepper>
   </div>
 </form>
+
