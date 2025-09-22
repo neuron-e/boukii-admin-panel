@@ -109,8 +109,8 @@
     </div>
 
     <div class="px-1">
-      <button [matMenuTriggerFor]="languageMenu" mat-icon-button type="button">
-        <mat-icon [svgIcon]="flag"></mat-icon>
+      <button [matMenuTriggerFor]="languageMenu" mat-button type="button">
+        <span>{{ currentLangCode }}</span>
       </button>
     </div>
 
@@ -120,29 +120,24 @@
 
     <mat-menu #languageMenu="matMenu" overlapTrigger="false" xPosition="before"
       yPosition="below">
-      <button mat-menu-item (click)="changeLang('flag:france', 'fr')">
-        <mat-icon svgIcon="flag:france"></mat-icon>
-        <span>{{'France' | translate}}</span>
+      <button mat-menu-item (click)="changeLang('fr')">
+        <span>FR</span>
       </button>
 
-      <button mat-menu-item (click)="changeLang('flag:uk', 'en')">
-        <mat-icon svgIcon="flag:uk"></mat-icon>
-        <span>{{'English' | translate}}</span>
+      <button mat-menu-item (click)="changeLang('en')">
+        <span>EN</span>
       </button>
 
-      <button mat-menu-item (click)="changeLang('flag:germany', 'de')">
-        <mat-icon svgIcon="flag:germany"></mat-icon>
-        <span>{{'Germany' | translate}}</span>
+      <button mat-menu-item (click)="changeLang('de')">
+        <span>DE</span>
       </button>
 
-      <button mat-menu-item (click)="changeLang('flag:spain', 'es')">
-        <mat-icon svgIcon="flag:spain"></mat-icon>
-        <span>{{'Spanish' | translate}}</span>
+      <button mat-menu-item (click)="changeLang('es')">
+        <span>ES</span>
       </button>
 
-      <button mat-menu-item (click)="changeLang('flag:italy', 'it')">
-        <mat-icon svgIcon="flag:italy"></mat-icon>
-        <span>{{'Italian' | translate}}</span>
+      <button mat-menu-item (click)="changeLang('it')">
+        <span>IT</span>
       </button>
     </mat-menu>
   </div>

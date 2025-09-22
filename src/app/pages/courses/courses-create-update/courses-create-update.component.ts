@@ -2865,6 +2865,64 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
     // Update any UI that displays the dates
     this.dataSourceDatePrivate.data = [...this.defaults.course_dates];
   }
+n  // Variables para los selectores de horario masivo
+  intervalScheduleStartTime: string = '';
+  intervalScheduleDuration: string = '';
+
+  // Métodos para aplicar horario masivo a fechas específicas
+  applyBulkScheduleToInterval(intervalIndex: number, startTime: string, duration: string): void {
+    if (!startTime || !duration) {
+      this.snackbar.open('Por favor, establece primero las horas de inicio y duración', 'OK', { duration: 3000 });
+      return;
+    }
+
+    if (!this.defaults.course_dates || this.defaults.course_dates.length === 0) {
+      this.snackbar.open('No hay fechas disponibles para actualizar', 'OK', { duration: 3000 });
+      return;
+    }
+
+    // Apply schedule to all dates
+    this.defaults.course_dates.forEach((date: any) => {
+      date.hour_start = startTime;
+      date.duration = duration;
+      date.hour_end = this.calculateHourEnd(startTime, duration);
+    });
+
+    // Update the data source
+    this.dataSource.data = [...this.defaults.course_dates];
+    this.dataSourceDatePrivate.data = [...this.defaults.course_dates];
+
+    this.snackbar.open(`Horario aplicado exitosamente a todas las fechas`, 'OK', { duration: 3000 });
+  }
+
+  // Métodos para manejar los selectores inline de horario
+  getIntervalScheduleStartTime(intervalIndex: number): string {
+    return this.intervalScheduleStartTime || this.hours[0] || '';
+  }
+
+  setIntervalScheduleStartTime(intervalIndex: number, startTime: string): void {
+    this.intervalScheduleStartTime = startTime;
+  }
+
+  getIntervalScheduleDuration(intervalIndex: number): string {
+    return this.intervalScheduleDuration || this.durations[0] || '';
+  }
+
+  setIntervalScheduleDuration(intervalIndex: number, duration: string): void {
+    this.intervalScheduleDuration = duration;
+  }
+
+  applyBulkScheduleToIntervalInline(intervalIndex: number): void {
+    const startTime = this.getIntervalScheduleStartTime(intervalIndex);
+    const duration = this.getIntervalScheduleDuration(intervalIndex);
+
+    if (!startTime || !duration) {
+      this.snackbar.open('Por favor, selecciona la hora de inicio y duración', 'OK', { duration: 3000 });
+      return;
+    }
+
+    this.applyBulkScheduleToInterval(intervalIndex, startTime, duration);
+  }
 
   /**
    * Open timing modal for subgroup students (cronometraje)

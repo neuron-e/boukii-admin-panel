@@ -148,7 +148,7 @@ export class EditDateComponent {
             monitor_id: this.defaults.monitor_id,
             id: element.id,
             client_id: element.client_id,
-            hour_start: this.hourStart.replace(': 00', ''),
+            hour_start: this.hourStart.replace(': 00', '').replace(':00', ''),
             hour_end: this.calculateHourEnd(this.hourStart, this.duration),
             date: moment(date.date).format('YYYY-MM-DD'),
           })

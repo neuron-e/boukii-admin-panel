@@ -983,7 +983,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private messageRecipientsCache = new Map<string, any[]>();
-  private recipientsRequestInFlight = new Set<string>();
 
   getMessageRecipients(message: any): any[] {
     if (!message) return [];
@@ -995,8 +994,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       return this.messageRecipientsCache.get(messageId) || [];
     }
 
-    // For messages with ID, fetch real recipients from API.
-    // Backend endpoint supports both email logs and newsletters by ID.
+    // For messages with ID, try to fetch real recipients from API
     if (messageId) {
       this.fetchRecipientsFromAPI(messageId, message);
     }
@@ -1006,10 +1004,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private fetchRecipientsFromAPI(messageId: string, message: any): void {
-    if (this.recipientsRequestInFlight.has(messageId)) {
-      return;
-    }
-    this.recipientsRequestInFlight.add(messageId);
     this.crudService.get(`/admin/mails/${messageId}/recipients`).subscribe({
       next: (response) => {
         if (response.success && response.data) {
@@ -1024,9 +1018,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
         console.log('Error fetching recipients for message', messageId, ':', error);
         // Cache empty array to avoid repeated API calls
         this.messageRecipientsCache.set(messageId, []);
-      },
-      complete: () => {
-        this.recipientsRequestInFlight.delete(messageId);
       }
     });
   }
@@ -1158,16 +1149,25 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private generateRecipientsFromConfig(config: any, totalRecipients: number): any[] {
-    // Prefer fetching real recipients via API in getMessageRecipients.
-    // Keep this as a silent fallback that returns none to avoid misleading placeholders.
-    try {
-      if (typeof config === 'string') {
-        JSON.parse(config);
+    const recipients: any[] = [];
+
+    // Parse config if it's a string
+    let configObj = config;
+    if (typeof config === 'string') {
+      try {
+        configObj = JSON.parse(config);
+      } catch (e) {
+        configObj = { type: 'all' };
       }
-    } catch (e) {
-      // ignore parse errors; fallback remains empty
     }
-    return [];
+
+    const recipientType = configObj.type || 'all';
+
+    // TODO: Replace with real API call to get recipients based on type
+    // For now, return empty array until API endpoint is implemented
+    console.warn('generateRecipientsFromConfig: Using placeholder until API endpoint is implemented');
+
+    return recipients;
   }
 
   // Mock data generation methods removed - use real API endpoints instead

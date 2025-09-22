@@ -27,7 +27,7 @@ export class ToolbarComponent {
   hasShadow: boolean;
 
   navigationItems = this.navigationService.items;
-  flag: any = 'flag:spain';
+  currentLangCode: string = 'ES';
   isHorizontalLayout$: Observable<boolean> = this.configService.config$.pipe(map(config => config.layout === 'horizontal'));
   isVerticalLayout$: Observable<boolean> = this.configService.config$.pipe(map(config => config.layout === 'vertical'));
   isNavbarInToolbar$: Observable<boolean> = this.configService.config$.pipe(map(config => config.navbar.position === 'in-toolbar'));
@@ -46,23 +46,8 @@ export class ToolbarComponent {
     private snackbar: MatSnackBar,
     private translateService: TranslateService) {
     this.slug = JSON.parse(localStorage.getItem('boukiiUser')).schools[0].slug;
-    switch (translateService.getDefaultLang()) {
-      case 'es':
-        this.flag = 'flag:spain';
-        break;
-      case 'de':
-        this.flag = 'flag:germany';
-        break;
-      case 'it':
-        this.flag = 'flag:italy';
-        break;
-      case 'fr':
-        this.flag = 'flag:france';
-        break;
-      case 'en':
-        this.flag = 'flag:uk';
-        break;
-    }
+    const initialLang = sessionStorage.getItem('lang') || this.translateService.currentLang || this.translateService.getDefaultLang() || 'es';
+    this.currentLangCode = initialLang ? initialLang.toUpperCase() : 'ES';
   }
 
   openQuickpanel(): void {
@@ -73,10 +58,7 @@ export class ToolbarComponent {
     this.layoutService.openSidenav();
   }
 
-  changeLang(flag: string, lang: string) {
-
-    this.flag = flag;
-
+  changeLang(lang: string) {
     if (this.translateService.getLangs().indexOf(lang) !== -1) {
 
       this.translateService.use(lang);
@@ -89,6 +71,7 @@ export class ToolbarComponent {
       sessionStorage.setItem('lang', lang);
       moment.locale(this.setLocale(lang));
     }
+    this.currentLangCode = lang.toUpperCase();
   }
 
   setLocale(lang: string) {

@@ -18,7 +18,7 @@ import {TranslateService} from '@ngx-translate/core';
 export class LoginComponent implements OnInit {
 
   form: UntypedFormGroup;
-  flag: any = 'flag:spain';
+  currentLangCode: string = 'ES';
 
   inputType = 'password';
   visible = false;
@@ -36,6 +36,8 @@ export class LoginComponent implements OnInit {
       email: ['', Validators.required],
       password: ['', Validators.required]
     });
+    const initialLang = sessionStorage.getItem('lang') || this.translateService.currentLang || this.translateService.getDefaultLang() || 'es';
+    this.currentLangCode = initialLang.toUpperCase();
   }
 
   send() {
@@ -43,19 +45,19 @@ export class LoginComponent implements OnInit {
 
   }
 
-  changeLang(flag: string, lang: string) {
-
-    this.flag = flag;
-
+  changeLang(lang: string) {
     if (this.translateService.getLangs().indexOf(lang) !== -1) {
 
       this.translateService.use(lang);
       this.translateService.currentLang = lang;
+      sessionStorage.setItem('lang', lang);
     } else {
 
       this.translateService.setDefaultLang(lang);
       this.translateService.currentLang = lang;
+      sessionStorage.setItem('lang', lang);
     }
+    this.currentLangCode = lang.toUpperCase();
   }
 
   toggleVisibility() {

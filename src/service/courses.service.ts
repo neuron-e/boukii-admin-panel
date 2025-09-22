@@ -9,7 +9,7 @@ import {FormArray, UntypedFormBuilder, UntypedFormGroup, Validators} from '@angu
 export class CoursesService {
   constructor(private translateService: TranslateService, private fb: UntypedFormBuilder) { }
   courseFormGroup: UntypedFormGroup;
-  nowDate = new Date(new Date().setHours(-new Date().getTimezoneOffset() / 60, 0, 0, 0));
+  nowDate = new Date(new Date().setHours(0, 0, 0, 0));
   minDate = this.nowDate;
   maxDate = new Date(2099, 12, 31);
 
@@ -266,24 +266,23 @@ export class CoursesService {
       return [];
     }
 
-    // Convertir duración a minutos
-    let totalMinutes = 0;
-    const regex = /(\d+)h\s*(\d*)min?/;
-    const match = duration.match(regex);
+    // Calcular la hora de fin usando el parser robusto ya existente
+    const endTime = this.addMinutesToTime(hourStart, duration);
+    const endIndex = this.hours.indexOf(endTime);
 
-    if (match) {
-      const hours = parseInt(match[1], 10) || 0;
-      const minutes = parseInt(match[2], 10) || 0;
-      totalMinutes = hours * 60 + minutes;
-    } else if (duration.includes("min")) {
-      totalMinutes = parseInt(duration.replace("min", ""), 10);
+    // Si no encontramos exactamente la hora de fin en el array de horas (por variaciones),
+    // buscamos la primera hora disponible posterior o igual
+    const safeEndIndex = endIndex !== -1
+      ? endIndex
+      : this.hours.findIndex(h => h >= endTime);
+
+    if (safeEndIndex === -1) {
+      // Si aún no se encuentra, devolver solo desde startIndex
+      return [this.hours[startIndex]];
     }
 
-    // Calcular el número de intervalos de 15 minutos
-    const intervals = totalMinutes / 15;
-    const endIndex = startIndex + intervals;
-
-    return this.hours.slice(startIndex, endIndex + 1);
+    // Devolver el rango inclusivo desde start hasta end
+    return this.hours.slice(startIndex, safeEndIndex + 1);
   }
 
   filterAvailableHours(hourStart: string, duration: string): string[] {
@@ -293,24 +292,17 @@ export class CoursesService {
       return this.hours;
     }
 
-    // Convertimos la duración a minutos
-    let totalMinutes = 0;
-    const regex = /(\d+)h\s*(\d*)min?/;
-    const match = duration.match(regex);
-
-    if (match) {
-      const hours = parseInt(match[1], 10) || 0;
-      const minutes = parseInt(match[2], 10) || 0;
-      totalMinutes = hours * 60 + minutes;
-    } else if (duration.includes("min")) {
-      totalMinutes = parseInt(duration.replace("min", ""), 10);
+    // Calcular la hora de fin real en formato HH:mm
+    const endTime = this.addMinutesToTime(hourStart, duration);
+    let endIndex = this.hours.indexOf(endTime);
+    if (endIndex === -1) {
+      // Si no existe exactamente, tomar la primera hora posterior o igual a endTime
+      endIndex = this.hours.findIndex(h => h >= endTime);
     }
 
-    // Calculamos el índice de la hora de finalización
-    const intervalsToRemove = totalMinutes / 15; // Cada bloque es de 15 min
-    const endIndex = startIndex + intervalsToRemove;
+    if (endIndex === -1) return [];
 
-    // Retornamos solo las horas **después** del tiempo ocupado
+    // Retornar las horas a partir de la hora de fin (para seleccionar fin manual si se desea)
     return this.hours.slice(endIndex);
   }
 
@@ -402,11 +394,36 @@ export class CoursesService {
     return `${translatedDays.join(", ")} y ${lastDay}`;
   };
 
-  addMinutesToTime(timeString: string, minutesToAdd: string) {
-    const [hours, minutes] = timeString.split(":").map(Number);
+  addMinutesToTime(timeString: string, minutesToAdd: string | number) {
+    // Parse HH:mm or HH:mm:ss
+    const timeParts = timeString.split(":");
+    const hours = parseInt(timeParts[0] || "0", 10);
+    const minutes = parseInt(timeParts[1] || "0", 10);
+
+    // Robustly parse duration to minutes
+    let totalMinutesToAdd = 0;
+    if (typeof minutesToAdd === 'number') {
+      totalMinutesToAdd = minutesToAdd;
+    } else if (/^\d+$/.test(minutesToAdd?.toString() || '')) {
+      // Numeric string like "60"
+      totalMinutesToAdd = parseInt(minutesToAdd as string, 10);
+    } else if (typeof minutesToAdd === 'string') {
+      // Supported formats: "1h 15min", "1h", "90min", "15min"
+      const regex = /(?:(\d+)h)?\s*(\d+)?\s*min?/i;
+      const match = minutesToAdd.match(regex);
+      if (match) {
+        const h = parseInt(match[1] || '0', 10);
+        const m = parseInt(match[2] || '0', 10);
+        totalMinutesToAdd = h * 60 + m;
+      } else {
+        // Fallback to 0 if cannot parse
+        totalMinutesToAdd = 0;
+      }
+    }
+
     const date = new Date();
     date.setHours(hours);
-    date.setMinutes(minutes + ((this.getFilteredDuration().findIndex((value) => value == minutesToAdd) + 1) * 15));
+    date.setMinutes(minutes + totalMinutesToAdd);
     const newHours = String(date.getHours()).padStart(2, "0");
     const newMinutes = String(date.getMinutes()).padStart(2, "0");
     return `${newHours}:${newMinutes}`;

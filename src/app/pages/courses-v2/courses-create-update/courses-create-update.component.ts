@@ -716,6 +716,43 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   endCourse() {
+    // Sync inline changes (dates/hours/durations) before building payload
+    try {
+      this.syncIntervalsToCourseFormGroup();
+      const currentDates = this.courses.courseFormGroup?.get('course_dates')?.value || [];
+      if (Array.isArray(currentDates) && currentDates.length > 0) {
+        const toMinutes = (dur: any): number => {
+          if (typeof dur === 'number') return dur;
+          if (typeof dur === 'string') {
+            // Parse formats like "1h 30min", "1h", "90min", "15min"
+            const regex = /(?:(\d+)h)?\s*(\d+)?\s*min?/i;
+            const match = dur.match(regex);
+            if (match) {
+              const h = parseInt(match[1] || '0', 10);
+              const m = parseInt(match[2] || '0', 10);
+              return h * 60 + m;
+            }
+            // Fallback if unparsable
+            const asNumber = parseInt(dur, 10);
+            return isNaN(asNumber) ? 0 : asNumber;
+          }
+          return 0;
+        };
+
+        const normalized = currentDates.map((cd: any) => {
+          const minutes = toMinutes(cd.duration);
+          return {
+            ...cd,
+            duration: minutes,
+            hour_end: this.courses.addMinutesToTime(cd.hour_start, minutes)
+          };
+        });
+        this.courses.courseFormGroup.patchValue({ course_dates: normalized });
+      }
+    } catch (e) {
+      console.warn('Unable to sync/recalculate dates before save:', e);
+    }
+
     const courseFormGroup = this.courses.courseFormGroup.getRawValue()
     if (courseFormGroup.course_type === 1 && this.useMultipleIntervals) {
       // Configurar los intervalos en settings
@@ -1899,6 +1936,51 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     this.applyBulkScheduleToInterval(intervalIndex, startTime, duration);
+  }
+n  // Variables para los selectores de horario masivo para fechas individuales
+  individualScheduleStartTime: string = '';
+  individualScheduleDuration: string = '';
+
+  // Métodos para aplicar horario masivo a fechas individuales
+  applyBulkScheduleToIndividualDates(): void {
+    const startTime = this.getIndividualScheduleStartTime();
+    const duration = this.getIndividualScheduleDuration();
+
+    if (!startTime || !duration) {
+      this.showErrorMessage('Por favor, selecciona la hora de inicio y duración');
+      return;
+    }
+
+    if (!this.courses.courseFormGroup.controls['course_dates'].value || this.courses.courseFormGroup.controls['course_dates'].value.length === 0) {
+      this.showErrorMessage('No hay fechas disponibles para actualizar');
+      return;
+    }
+
+    // Apply schedule to all individual dates
+    this.courses.courseFormGroup.controls['course_dates'].value.forEach((date: any) => {
+      date.hour_start = startTime;
+      date.duration = duration;
+      date.hour_end = this.courses.addMinutesToTime(startTime, duration);
+    });
+
+    this.snackBar.open(`Horario aplicado exitosamente a todas las fechas`, 'OK', { duration: 3000 });
+  }
+
+  // Métodos para manejar los selectores inline de horario para fechas individuales
+  getIndividualScheduleStartTime(): string {
+    return this.individualScheduleStartTime || this.courses.hours?.[0] || '';
+  }
+
+  setIndividualScheduleStartTime(startTime: string): void {
+    this.individualScheduleStartTime = startTime;
+  }
+
+  getIndividualScheduleDuration(): string {
+    return this.individualScheduleDuration || this.courses.duration?.[0] || '';
+  }
+
+  setIndividualScheduleDuration(duration: string): void {
+    this.individualScheduleDuration = duration;
   }
 
   createDefaultInterval(): any {

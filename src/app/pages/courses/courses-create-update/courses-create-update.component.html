@@ -1409,6 +1409,56 @@
                 </div>
               </div>
             </div>
+n              <!-- Aplicar horario masivo a todas las fechas (solo si hay al menos 2 fechas) -->
+              <div *ngIf="dataSource.data.length >= 2"
+                   style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+
+                <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                  <mat-icon style="color: #007bff; margin-right: 8px; font-size: 20px;">schedule</mat-icon>
+                  <h4 style="margin: 0; color: #495057; font-size: 16px; font-weight: 600;">
+                    {{'apply_schedule_all_dates' | translate}}
+                  </h4>
+                </div>
+
+                <div style="display: flex; gap: 12px; align-items: end; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 120px;">
+                    <mat-form-field appearance="outline" style="width: 100%;">
+                      <mat-label>{{'start_hour' | translate}}</mat-label>
+                      <mat-select [(value)]="intervalScheduleStartTime">
+                        <mat-option *ngFor="let hour of hours" [value]="hour">
+                          {{hour}}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+
+                  <div style="flex: 1; min-width: 120px;">
+                    <mat-form-field appearance="outline" style="width: 100%;">
+                      <mat-label>{{'duration' | translate}}</mat-label>
+                      <mat-select [(value)]="intervalScheduleDuration">
+                        <mat-option *ngFor="let duration of durations" [value]="duration">
+                          {{duration}}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+
+                  <div style="flex: 0 0 auto;">
+                    <button (click)="applyBulkScheduleToIntervalInline(0)"
+                            style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; border: none; border-radius: 6px; height: 40px; padding: 0 20px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,123,255,0.3); transition: all 0.2s ease;"
+                            type="button"
+                            [disabled]="!intervalScheduleStartTime || !intervalScheduleDuration">
+                      <mat-icon style="vertical-align: middle; margin-right: 6px; font-size: 16px;">schedule</mat-icon>
+                      {{'apply' | translate}}
+                    </button>
+                  </div>
+                </div>
+
+                <div style="margin-top: 12px; font-size: 13px; color: #6c757d; display: flex; align-items: center;">
+                  <mat-icon style="font-size: 14px; margin-right: 4px; color: #6c757d;">info</mat-icon>
+                  {{'schedule_will_apply_to_dates' | translate}}: {{dataSource.data.length}} {{'dates' | translate}}
+                </div>
+              </div>
 
             <div class="sm:flex-row gap-2 sm:gap-6" style="margin: 8% 0 0 0"
               *ngIf="defaults.course_type === 1 && this.defaults.is_flexible">
