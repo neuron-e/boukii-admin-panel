@@ -33,16 +33,181 @@ export class CourseDetailCardNivelComponent {
     return Array.from({ length: value }, (_, i) => i);
   }
 
+  // Prefer course_dates; fallback to course_dates_prev or camelCase equivalents
+  getCourseDates(): any[] {
+    try {
+      const cg = this.courseFormGroup?.controls;
+      if (!cg) return [];
+      const cd = cg['course_dates']?.value;
+      if (Array.isArray(cd) && cd.length) return cd;
+      const cdp = cg['course_dates_prev']?.value;
+      if (Array.isArray(cdp) && cdp.length) return cdp;
+      // Robust fallback if some callers inject camelCase
+      const anyValue = (this.courseFormGroup as any)?.value || {};
+      const cdCamel = Array.isArray((anyValue as any).courseDates) ? (anyValue as any).courseDates : [];
+      const cdpCamel = Array.isArray((anyValue as any).courseDatesPrev) ? (anyValue as any).courseDatesPrev : [];
+      if (cdCamel.length) return cdCamel;
+      if (cdpCamel.length) return cdpCamel;
+    } catch {}
+    return [];
+  }
+
+  // Helpers to robustly navigate snake/camel case API responses
+  private groupsOf(cd: any): any[] {
+    return (cd?.course_groups || cd?.courseGroups || []) as any[];
+  }
+
+  private subgroupsOf(g: any): any[] {
+    return (g?.course_subgroups || g?.courseSubgroups || []) as any[];
+  }
+
+  private bookingsOf(sg: any): any[] {
+    return (sg?.booking_users || sg?.bookingUsers || []) as any[];
+  }
+
+  private degreeIdOf(g: any): number | null {
+    return (g?.degree_id ?? g?.degreeId ?? null) as number | null;
+  }
+
+  private subgroupIdOf(u: any): number | null {
+    return (u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? u?.courseSubGroupId ?? u?.courseSubGroup?.id ?? null) as number | null;
+  }
+
+  private groupIdOf(u: any): number | null {
+    return (u?.course_group_id ?? u?.group_id ?? u?.courseGroupId ?? null) as number | null;
+  }
+
+  private perDayActive(cd: any): any[] {
+    return (Array.isArray(cd?.booking_users_active) ? cd.booking_users_active : (Array.isArray(cd?.bookingUsersActive) ? cd.bookingUsersActive : [])) as any[];
+  }
+
   // Devuelve los subgrupos para un degree buscando el primer course_date que los contenga
   getSubgroupsForDegree(courseDates: any[], degreeId: number): any[] {
     if (!Array.isArray(courseDates)) return [];
     for (const cd of courseDates) {
-      const group = (cd?.course_groups || []).find((g: any) => g?.degree_id === degreeId);
-      if (group && Array.isArray(group.course_subgroups) && group.course_subgroups.length) {
-        return group.course_subgroups;
-      }
+      const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
+      const subs = this.subgroupsOf(group || {});
+      if (subs.length) return subs;
     }
     return [];
+  }
+
+  // Obtiene los IDs de subgrupo para un índice concreto (posición) a lo largo de todas las fechas
+  getSubgroupIdsForIndex(courseDates: any[], degreeId: number, index: number): number[] {
+    if (!Array.isArray(courseDates)) return [];
+    const ids = new Set<number>();
+    for (const cd of courseDates) {
+      const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
+      const sg = this.subgroupsOf(group || {})?.[index];
+      if (sg?.id != null) ids.add(sg.id);
+    }
+    return Array.from(ids);
+  }
+
+  // Obtiene los IDs de grupos (course_group) de un degree a lo largo de todas las fechas
+  getGroupIdsForDegree(courseDates: any[], degreeId: number): number[] {
+    if (!Array.isArray(courseDates)) return [];
+    const ids = new Set<number>();
+    for (const cd of courseDates) {
+      this.groupsOf(cd).forEach((g: any) => {
+        if (this.degreeIdOf(g) === degreeId && g?.id != null) ids.add(g.id);
+      });
+    }
+    return Array.from(ids);
+  }
+
+  // Devuelve usuarios únicos por subgrupo (por índice) deduplicados por client_id
+  getUsersForSubgroupIndexUnique(bookingUsers: any, courseDates: any[], degreeId: number, index: number): any[] {
+    try {
+      const all = this.getUsersForSubgroupIndexAll(bookingUsers, courseDates, degreeId, index);
+      const byClient = new Map<number | string, any>();
+      for (const u of all) {
+        const key = u?.client_id ?? u?.client?.id ?? u?.id;
+        if (key != null && !byClient.has(key)) byClient.set(key, u);
+      }
+      return Array.from(byClient.values());
+    } catch {
+      return [];
+    }
+  }
+
+  // Devuelve todos los registros de usuarios para un subgrupo (por índice), sin deduplicar
+  // CONTADOR: Clientes únicos por subgrupo (para el contador del header)
+  getUniqueClientsCountForSubgroup(bookingUsers: any, degreeId: number): number {
+    try {
+      const users = this.asArray(bookingUsers);
+      const uniqueClients = new Set<string | number>();
+
+      for (const user of users) {
+        const userDegreeId = user?.degree_id ?? user?.degreeId;
+        if (userDegreeId === degreeId) {
+          const clientId = user?.client_id ?? user?.client?.id ?? user?.id;
+          if (clientId != null) {
+            uniqueClients.add(clientId);
+          }
+        }
+      }
+
+      console.log(`Unique clients for degree ${degreeId}:`, uniqueClients.size);
+      return uniqueClients.size;
+    } catch (e) {
+      console.warn("getUniqueClientsCountForSubgroup failed:", e);
+      return 0;
+    }
+  }
+
+  // NUEVO: Usuarios para una fecha específica
+  getUsersForSpecificDate(bookingUsers: any, degreeId: number, courseDateId: number): any[] {
+    try {
+      const users = this.asArray(bookingUsers);
+
+      const matchingUsers = users.filter((user: any) => {
+        const userDegreeId = user?.degree_id ?? user?.degreeId;
+        const userCourseDateId = user?.course_date_id ?? user?.courseDateId;
+        const match = userDegreeId === degreeId && userCourseDateId === courseDateId;
+
+        if (match) {
+          console.log(`Found user for date ${courseDateId}:`, user?.client?.first_name, user?.client?.last_name);
+        }
+
+        return match;
+      });
+
+      return matchingUsers;
+    } catch (e) {
+      console.warn("getUsersForSpecificDate failed:", e);
+      return [];
+    }
+  }
+
+  // LISTADO: Mantener método original pero simplificado
+  getUsersForSubgroupIndexAll(bookingUsers: any, courseDates: any[], degreeId: number, index: number): any[] {
+    try {
+      const users = this.asArray(bookingUsers);
+
+      // Filtrar por degree_id
+      const matchingUsers = users.filter((user: any) => {
+        const userDegreeId = user?.degree_id ?? user?.degreeId;
+        return userDegreeId === degreeId;
+      });
+
+      console.log(`Found ${matchingUsers.length} bookings for degree_id ${degreeId}`);
+      return matchingUsers;
+    } catch (e) {
+      console.warn("getUsersForSubgroupIndexAll failed:", e);
+      return [];
+    }
+  }
+
+  // Capacidad de un subgrupo (por índice). Usa valor del primer día si es consistente, o el del propio subgrupo visible
+  getSubgroupCapacity(courseDates: any[], degreeId: number, index: number, fallback: number): number {
+    if (!Array.isArray(courseDates) || !courseDates.length) return fallback ?? 0;
+    for (const cd of courseDates) {
+      const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
+      const sg = this.subgroupsOf(group || {})?.[index];
+      if (sg?.max_participants != null) return sg.max_participants;
+    }
+    return fallback ?? 0;
   }
 
   // Ensure we always iterate arrays in templates
@@ -55,36 +220,84 @@ export class CourseDetailCardNivelComponent {
     }
     return [] as T[];
   }
+  // Total de paxes únicos asignados a un degree (deduplicado por client_id)
   findBookingUsers(bookingUsers: any, courseDates: any[], degreeId: number): number {
-    const users = this.asArray(bookingUsers);
-    if (!users || !courseDates) return 0;
-    if(!this.courseFormGroup.value.is_flexible) {
-      return users.filter((user: any) => {
-       return courseDates[0].course_groups.some((group: any) =>
-          group.degree_id === degreeId && group.id === user.course_group_id)}).length;
-    } else {
-      return users.filter((user: any) => {
-        return courseDates.some((date: any) =>
-          date.course_groups.some((group: any) => group.degree_id === degreeId && group.id === user.course_group_id)
-        );
-      }).length;
+      console.log('findBookingUsers called with:', { bookingUsers, courseDatesLength: courseDates?.length, degreeId });
+    try {
+      const users = this.asArray(bookingUsers);
+      if (!Array.isArray(courseDates) || !courseDates.length) return users.length || 0;
+
+      const uniques = new Set<number | string>();
+
+      // 1) Per-day activos
+      for (const cd of (courseDates || [])) {
+        const act = this.perDayActive(cd);
+        for (const u of act) {
+          const g = this.groupsOf(cd).find((x: any) => this.degreeIdOf(x) === degreeId);
+          const subgroupList = new Set(this.subgroupsOf(g || {}).map((sg: any) => sg?.id).filter((id: any) => id != null));
+          const sg = this.subgroupIdOf(u);
+          if (subgroupList.has(sg)) {
+            const key = u?.client_id ?? u?.client?.id ?? u?.id;
+            if (key != null) uniques.add(key);
+          }
+        }
+      }
+
+      // 2) Embebidos por subgrupo en cada fecha
+      console.log(`Checking course dates for degree ${degreeId}:`, courseDates.length);
+      for (const cd of (courseDates || [])) {
+        const group = this.groupsOf(cd).find((x: any) => this.degreeIdOf(x) === degreeId);
+        console.log(`Date ${cd?.date || cd?.id}: Found group:`, group);
+        for (const sg of (this.subgroupsOf(group || {}))) {
+          for (const u of (this.bookingsOf(sg))) {
+            const key = u?.client_id ?? u?.client?.id ?? u?.id;
+            if (key != null) uniques.add(key);
+          }
+        }
+      }
+
+      // 3) Fallback: booking_users globales del formulario
+      if (users.length) {
+        const groupIds = new Set(this.getGroupIdsForDegree(courseDates, degreeId));
+        const subgroupIds = new Set<number>();
+        for (const cd of (courseDates || [])) {
+          const g = this.groupsOf(cd).find((x: any) => this.degreeIdOf(x) === degreeId);
+          (this.subgroupsOf(g || {})).forEach((sg: any) => { if (sg?.id != null) subgroupIds.add(sg.id); });
+        }
+        for (const u of users) {
+          const cg = this.groupIdOf(u);
+          const sg = this.subgroupIdOf(u);
+          const match = (cg != null && groupIds.has(cg)) || (sg != null && subgroupIds.has(sg));
+          if (match) {
+            const key = u?.client_id ?? u?.client?.id ?? u?.id;
+            if (key != null) uniques.add(key);
+          }
+        }
+      }
+
+      return uniques.size;
+    } catch (e) {
+      console.warn('findBookingUsers failed:', e);
+      return 0;
     }
   }
 
   countGroups(courseDates: any[], degreeId: number): number {
-    return Math.round(courseDates
-      .flatMap((date: any) => date.course_groups || []) // Obtener todos los grupos
-      .filter((group: any) => group.degree_id === degreeId).length / courseDates.length); // Filtrar por degree_id
+    if (!Array.isArray(courseDates) || !courseDates.length) return 0;
+    const sum = courseDates
+      .flatMap((date: any) => this.groupsOf(date))
+      .filter((group: any) => this.degreeIdOf(group) === degreeId).length;
+    return Math.round(sum / courseDates.length);
   }
 
   countSubgroups(courseDates: any[], degreeId: number): number {
-    return Math.round(
-      courseDates
-        .flatMap((date: any) => date.course_groups || []) // Obtener todos los grupos
-        .filter((group: any) => group.degree_id === degreeId) // Filtrar los grupos por degree_id
-        .flatMap((group: any) => group.course_subgroups || []) // Extraer todos los subgrupos dentro de los grupos filtrados
-        .filter((subgroup: any) => subgroup.degree_id === degreeId).length / courseDates.length // Filtrar por degree_id y dividir por la cantidad de courseDates
-    );
+    if (!Array.isArray(courseDates) || !courseDates.length) return 0;
+    const sum = courseDates
+      .flatMap((date: any) => this.groupsOf(date))
+      .filter((group: any) => this.degreeIdOf(group) === degreeId)
+      .flatMap((group: any) => this.subgroupsOf(group))
+      .filter((subgroup: any) => (subgroup?.degree_id ?? subgroup?.degreeId) === degreeId).length;
+    return Math.round(sum / courseDates.length);
   }
 
   onTimingClick(subGroup: any, groupLevel: any, selectedDate?: any): void {
@@ -142,6 +355,163 @@ export class CourseDetailCardNivelComponent {
           );
         }
       });
+  }
+
+  // Enhanced method to get users for a specific subgroup index
+  getUsersForSubgroupIndexEnhanced(bookingUsers: any, courseDates: any[], degreeId: number, index: number): any[] {
+    console.log(`=== getUsersForSubgroupIndexEnhanced ===`, { degreeId, index, courseDatesLength: courseDates?.length });
+    
+    const collected: any[] = [];
+    const uniqueClientIds = new Set<string | number>();
+    
+    // Get from embedded structure in course dates
+    if (Array.isArray(courseDates)) {
+      for (const cd of courseDates) {
+        const groups = cd?.course_groups || cd?.courseGroups || [];
+        
+        for (const group of groups) {
+          const groupDegreeId = group?.degree_id ?? group?.degreeId;
+          if (groupDegreeId === degreeId) {
+            const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+            const targetSubgroup = subgroups[index];
+            
+            if (targetSubgroup) {
+              const bookings = targetSubgroup?.booking_users || targetSubgroup?.bookingUsers || [];
+              console.log(`    Date ${cd?.date}: Subgroup ${index} has ${bookings.length} bookings`);
+              
+              for (const booking of bookings) {
+                const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
+                if (clientId != null && !uniqueClientIds.has(clientId)) {
+                  uniqueClientIds.add(clientId);
+                  // Add date information
+                  const userWithDate = {
+                    ...booking,
+                    date: cd?.date || booking?.date,
+                    course_date_id: cd?.id || booking?.course_date_id
+                  };
+                  collected.push(userWithDate);
+                  console.log(`      Added user:`, userWithDate?.client?.first_name || userWithDate?.first_name || clientId);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Check booking_users_active from course_dates if no users found in embedded structure
+    if (collected.length === 0) {
+      console.log("No users found in embedded structure, checking booking_users_active from course_dates");
+
+      // Get the subgroup IDs for this index across all course dates to match against
+      const subgroupIds = this.getSubgroupIdsForIndex(courseDates, degreeId, index);
+      console.log(`Subgroup IDs for index ${index}:`, subgroupIds);
+
+      for (const cd of courseDates) {
+        const bookingUsersActive = cd?.booking_users_active || cd?.bookingUsersActive || [];
+        console.log(`Date ${cd?.date}: booking_users_active length: ${bookingUsersActive.length}`);
+
+        for (const booking of bookingUsersActive) {
+          const bookingDegreeId = booking?.degree_id ?? booking?.degreeId;
+          const bookingSubgroupId = booking?.course_subgroup_id ?? booking?.course_sub_group_id ?? booking?.course_sub_group?.id ?? booking?.courseSubGroupId ?? booking?.courseSubGroup?.id;
+
+          if (bookingDegreeId === degreeId && subgroupIds.includes(bookingSubgroupId)) {
+            const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
+            if (clientId != null && !uniqueClientIds.has(clientId)) {
+              uniqueClientIds.add(clientId);
+              // Add date information
+              const userWithDate = {
+                ...booking,
+                date: cd?.date || booking?.date,
+                course_date_id: cd?.id || booking?.course_date_id
+              };
+              collected.push(userWithDate);
+              console.log(`      Added user from booking_users_active:`, userWithDate?.client?.first_name || userWithDate?.first_name || clientId);
+            }
+          }
+        }
+      }
+    }
+
+    // Final fallback: Check root level booking_users if still no users found
+    if (collected.length === 0) {
+      console.log("No users found in booking_users_active, checking root level booking_users");
+
+      // Get the subgroup IDs for this index across all course dates to match against
+      const subgroupIds = this.getSubgroupIdsForIndex(courseDates, degreeId, index);
+      console.log(`Subgroup IDs for index ${index}:`, subgroupIds);
+
+      for (const booking of bookingUsers) {
+        const bookingDegreeId = booking?.degree_id ?? booking?.degreeId;
+        const bookingSubgroupId = booking?.course_subgroup_id ?? booking?.course_sub_group_id ?? booking?.course_sub_group?.id ?? booking?.courseSubGroupId ?? booking?.courseSubGroup?.id;
+
+        if (bookingDegreeId === degreeId && subgroupIds.includes(bookingSubgroupId)) {
+          const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
+          if (clientId != null && !uniqueClientIds.has(clientId)) {
+            uniqueClientIds.add(clientId);
+            collected.push(booking);
+            console.log(`      Added user from root level:`, booking?.client?.first_name || booking?.first_name || clientId);
+          }
+        }
+      }
+    }
+
+    console.log(`Found ${collected.length} unique users for subgroup index ${index}`);
+    return collected;
+  }
+
+  // Enhanced method to count booking users for a degree
+  countBookingUsersForDegree(bookingUsers: any, courseDates: any[], degreeId: number): number {
+    console.log('=== countBookingUsersForDegree ===', { degreeId, courseDatesLength: courseDates?.length });
+    
+    const uniques = new Set<string | number>();
+    
+    // First, try to get from embedded structure in course dates
+    if (Array.isArray(courseDates)) {
+      for (const cd of courseDates) {
+        const groups = cd?.course_groups || cd?.courseGroups || [];
+        console.log(`Date ${cd?.date}: Found ${groups.length} groups`);
+        
+        for (const group of groups) {
+          const groupDegreeId = group?.degree_id ?? group?.degreeId;
+          if (groupDegreeId === degreeId) {
+            const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+            console.log(`  Found ${subgroups.length} subgroups for degree ${degreeId}`);
+            
+            for (const subgroup of subgroups) {
+              const bookings = subgroup?.booking_users || subgroup?.bookingUsers || [];
+              console.log(`    Subgroup ${subgroup?.id} has ${bookings.length} bookings`);
+              
+              for (const booking of bookings) {
+                const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
+                if (clientId != null) {
+                  uniques.add(clientId);
+                  console.log(`      Added client ${clientId}`);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: Check root level booking_users if no users found in embedded structure
+    if (uniques.size === 0 && Array.isArray(bookingUsers)) {
+      console.log('No users found in embedded structure, checking root level booking_users');
+      for (const booking of bookingUsers) {
+        const bookingDegreeId = booking?.degree_id ?? booking?.degreeId;
+        if (bookingDegreeId === degreeId) {
+          const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
+          if (clientId != null) {
+            uniques.add(clientId);
+            console.log(`      Added client ${clientId} from root level`);
+          }
+        }
+      }
+    }
+
+    console.log(`Found ${uniques.size} unique users total`);
+    return uniques.size;
   }
 
   // Helper para verificar si la fecha es pasada (para mostrar el checkbox de attendance)

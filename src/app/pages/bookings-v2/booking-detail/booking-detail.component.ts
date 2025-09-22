@@ -225,9 +225,12 @@ export class BookingDetailV2Component implements OnInit {
         date.endHour === user.hour_end
       );
       if (dateIndex === -1) {
+        const courseDateFromCourse = (user.course?.course_dates || []).find((d: any) => d.id === user.course_date_id);
+        const resolvedDate = courseDateFromCourse?.date || user.course_date?.date || user.date || null;
+
         acc[groupId].dates.push({
           id: user.course_date_id,
-          date: user.course_date?.date,
+          date: resolvedDate,
           startHour: user.hour_start,
           endHour: user.hour_end,
           duration: user.formattedDuration,

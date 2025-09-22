@@ -42,19 +42,27 @@ export class CoursesService {
     });
     (data as any).booking_users = normalizedBookingUsers;
     console.log('booking_users set to:', (data as any).booking_users);
+    // Normalize course dates for detail/preview
     if (!isPreview) {
       if (data.course_type == 1) {
+        // Keep existing course_dates as is
         data.course_dates = data.course_dates;
       } else {
+        // For non-collectives, synthesize a single period range
         data.course_dates = data.settings?.periods?.length ? data.settings.periods : [this.getCoursePeriod(data)];
       }
       data.course_dates_prev = [];
     } else {
-      data.course_dates = [];
+      // In preview, we show previous dates in the card but keep course_dates usable as fallback
+      const originalDates = Array.isArray(data.course_dates) ? data.course_dates : [];
       if (data.course_type == 1) {
-        data.course_dates_prev = data.course_dates;
+        data.course_dates_prev = originalDates;
+        // Leave course_dates also populated so components that rely on it still work
+        data.course_dates = originalDates;
       } else {
-        data.course_dates_prev = data.settings?.periods?.length ? data.settings.periods : [this.getCoursePeriod(data)];
+        const periods = data.settings?.periods?.length ? data.settings.periods : [this.getCoursePeriod(data)];
+        data.course_dates_prev = periods;
+        data.course_dates = periods;
       }
     }
     // Normalize translations and settings
@@ -78,6 +86,128 @@ export class CoursesService {
       course_extras,
       booking_users: (data as any).booking_users,
     })
+
+    // If booking_users is still empty, try to harvest from embedded subgroups across all dates
+    try {
+      const ensureArray = (v: any) => Array.isArray(v) ? v : ([] as any[]);
+      const current = this.courseFormGroup.controls['booking_users']?.value || [];
+      const dates = ensureArray(this.courseFormGroup.controls['course_dates']?.value);
+      if ((!current || current.length === 0) && dates.length) {
+        const harvested: any[] = [];
+        for (const cd of dates) {
+          const groups = ensureArray(cd?.course_groups);
+          for (const g of groups) {
+            const sgs = ensureArray(g?.course_subgroups);
+            for (const sg of sgs) {
+              const bus = ensureArray(sg?.booking_users);
+              for (const u of bus) {
+                if (!u.course_subgroup_id) u.course_subgroup_id = sg?.id;
+                harvested.push(u);
+              }
+            }
+          }
+        }
+        if (harvested.length) {
+          // Deduplicate by booking_user id if available, else by client_id + course_date_id
+          const keyFor = (u: any) => (u?.id ?? `${u?.client_id || u?.client?.id || 'x'}-${u?.course_date_id || u?.course_date?.id || 'x'}`);
+          const map = new Map<any, any>();
+          for (const u of harvested) {
+            const k = keyFor(u);
+            if (!map.has(k)) map.set(k, u);
+          }
+          this.courseFormGroup.patchValue({ booking_users: Array.from(map.values()) });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to harvest embedded booking_users:', e);
+    }
+
+    // Propagar booking_users a cada course_date para que los componentes de nivel
+    // puedan contar/listar alumnos por día y subgrupo sin depender solo del root
+    try {
+      const ensureArray = (v: any) => Array.isArray(v) ? v : ([] as any[]);
+      const dates = ensureArray(this.courseFormGroup.controls['course_dates']?.value);
+      const globalUsers: any[] = ensureArray((this.courseFormGroup.controls as any)['booking_users']?.value);
+
+      if (dates.length && globalUsers.length) {
+        // Construir índice de fechas por id y por fecha ISO (yyyy-mm-dd)
+        const byId = new Map<number, any>();
+        const byISO = new Map<string, any>();
+        for (const cd of dates) {
+          if (cd?.id != null) byId.set(cd.id, cd);
+          const iso = cd?.date ? new Date(cd.date).toISOString().slice(0, 10) : null;
+          if (iso) byISO.set(iso, cd);
+          // Asegurar contenedor en cada date
+          if (!Array.isArray(cd.booking_users_active)) cd.booking_users_active = [];
+        }
+
+        // Función para meter usuario en su date correspondiente y normalizar campos clave
+        const pushToDate = (u: any) => {
+          // Normalizar client_id si viene como objeto
+          if (u?.client && u.client.id && !u.client_id) u.client_id = u.client.id;
+          // Normalizar subgroup id
+          const nestedId = u?.course_sub_group?.id ?? u?.course_sub_group_id ?? u?.course_subgroup_id ?? null;
+          if (nestedId && (!u.course_subgroup_id || u.course_subgroup_id !== nestedId)) u.course_subgroup_id = nestedId;
+
+          let cd: any = null;
+          const cdId = u?.course_date_id ?? u?.course_date?.id ?? null;
+          if (cdId != null && byId.has(cdId)) {
+            cd = byId.get(cdId);
+          } else if (u?.date) {
+            const iso = new Date(u.date).toISOString().slice(0, 10);
+            cd = byISO.get(iso) || null;
+          }
+
+          // Si no encontramos el date concreto, lo dejamos en el primero (mejor que perderlo)
+          if (!cd) cd = dates[0];
+          if (!Array.isArray(cd.booking_users_active)) cd.booking_users_active = [];
+
+          // Asegurar que el usuario conoce la fecha para mostrar estado futuro/pasado
+          if (!u.date && cd?.date) u.date = cd.date;
+
+          // Evitar duplicados por id o por (client_id + course_date_id)
+          const exists = cd.booking_users_active.some((x: any) => {
+            if (u?.id && x?.id) return x.id === u.id;
+            const a = x?.client_id ?? x?.client?.id ?? null;
+            const b = u?.client_id ?? u?.client?.id ?? null;
+            const da = x?.course_date_id ?? x?.course_date?.id ?? null;
+            const db = u?.course_date_id ?? u?.course_date?.id ?? null;
+            return a != null && b != null && a === b && da === db;
+          });
+          if (!exists) cd.booking_users_active.push(u);
+
+          // Además, inyectar en el subgrupo embebido de ese día si existe
+          try {
+            const groups = ensureArray(cd?.course_groups);
+            const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
+            if (sgId != null) {
+              for (const g of groups) {
+                const sgs = ensureArray(g?.course_subgroups);
+                const target = sgs.find((x: any) => x?.id === sgId);
+                if (target) {
+                  if (!Array.isArray(target.booking_users)) target.booking_users = [];
+                  const exists2 = target.booking_users.some((x: any) => {
+                    if (u?.id && x?.id) return x.id === u.id;
+                    const a = x?.client_id ?? x?.client?.id ?? null;
+                    const b = u?.client_id ?? u?.client?.id ?? null;
+                    return a != null && b != null && a === b;
+                  });
+                  if (!exists2) target.booking_users.push(u);
+                  break;
+                }
+              }
+            }
+          } catch {}
+        };
+
+        for (const u of globalUsers) pushToDate(u);
+
+        // Escribir de vuelta las fechas modificadas
+        this.courseFormGroup.patchValue({ course_dates: dates });
+      }
+    } catch (e) {
+      console.warn('Failed to propagate booking_users to course_dates:', e);
+    }
     if (data.settings && typeof data.settings === 'string') {
       try {
         const settings = JSON.parse(data.settings);
@@ -434,4 +564,3 @@ export class CoursesService {
 
 
 }
-

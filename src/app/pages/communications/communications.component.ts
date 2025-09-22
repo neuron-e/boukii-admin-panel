@@ -24,6 +24,14 @@ export interface Newsletter {
   status: 'draft' | 'sent' | 'scheduled';
   recipients_config?: any;
   created_at?: string;
+  from?: {
+    name?: string;
+    email?: string;
+  };
+  sent_by?: {
+    name?: string;
+    email?: string;
+  };
 }
 
 export interface NewsletterTemplate {
@@ -42,6 +50,14 @@ export interface CustomTemplate {
   content: string;
   school_id?: number;
   created_at?: string;
+  from?: {
+    name?: string;
+    email?: string;
+  };
+  sent_by?: {
+    name?: string;
+    email?: string;
+  };
   updated_at?: string;
 }
 
@@ -1326,7 +1342,11 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       date: newsletter.sentDate,
       recipients_config: newsletter.recipients_config || { type: 'all' },
       recipients: newsletter.recipients,
-      id: newsletter.id
+      id: newsletter.id,
+      from: newsletter.from || newsletter.sent_by || {
+        name: 'Sistema Boukii',
+        email: 'noreply@boukii.com'
+      }
     };
     this.closeSentNewsletters();
   }
