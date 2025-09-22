@@ -102,10 +102,14 @@
   "communications.insert_url_prompt": "Ingrese la URL:",
   "communications.insert_image_prompt": "Ingresa la URL de la imagen:",
   "communications.copy": "Copia",
-  "communications.template_welcome_content": "<h2>¡Bienvenido/a!</h2><p>Nos alegra tenerte con nosotros...</p>",
-  "communications.template_promotion_content": "<h2>¡Oferta especial!</h2><p>No te pierdas esta increíble oportunidad...</p>",
-  "communications.template_newsletter_content": "<h2>Noticias destacadas</h2><p>Te compartimos las últimas novedades...</p>",
-  "communications.template_event_content": "<h2>Próximo evento</h2><p>Te invitamos a nuestro próximo evento...</p>",
+  "communications.template_welcome_subject": "¡Bienvenido/a a {{school_name}}!",
+  "communications.template_promotion_subject": "Oferta especial para ti",
+  "communications.template_newsletter_subject": "Boletín de novedades",
+  "communications.template_event_subject": "Invitación a nuestro evento",
+  "communications.template_welcome_content": "<div style=\"background:#f7fafc;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#1f2937;\"><div style=\"max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;\"><div style=\"background:#0ea5e9;color:#ffffff;padding:24px;text-align:center;\"><h1 style=\"margin:0;font-size:22px;\">¡Bienvenido/a, {{name}}!</h1><p style=\"margin:8px 0 0;opacity:.9;\">Gracias por unirte a {{school_name}}</p></div><div style=\"padding:24px;\"><p style=\"margin:0 0 16px;\">Estamos encantados de tenerte con nosotros. A partir de ahora recibirás noticias, eventos y ofertas exclusivas.</p><ul style=\"padding-left:18px;margin:0 0 16px;\"><li>Gestiona tus reservas fácilmente</li><li>Recibe recordatorios y novedades</li><li>Accede a ventajas para suscriptores</li></ul><div style=\"text-align:center;margin:24px 0;\"><a href=\"{{cta_url}}\" style=\"background:#0ea5e9;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;\">Empezar ahora</a></div><p style=\"margin:0;color:#6b7280;font-size:13px;\">Si tienes dudas, escríbenos a soporte o responde a este email.</p></div><div style=\"background:#f9fafb;color:#6b7280;padding:16px;text-align:center;font-size:12px;\">© {{school_name}}</div></div></div>",
+  "communications.template_promotion_content": "<div style=\"background:#f7fafc;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#1f2937;\"><div style=\"max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;\"><div style=\"background:#16a34a;color:#ffffff;padding:24px;text-align:center;\"><h1 style=\"margin:0;font-size:22px;\">¡Oferta especial!</h1><p style=\"margin:8px 0 0;opacity:.9;\">Solo por tiempo limitado</p></div><div style=\"padding:24px;\"><h2 style=\"margin:0 0 12px;font-size:18px;\">Descuento exclusivo para ti</h2><p style=\"margin:0 0 16px;\">Aprovecha un <strong>descuento</strong> en nuestros cursos y actividades. Plazas limitadas.</p><div style=\"text-align:center;margin:24px 0;\"><a href=\"{{cta_url}}\" style=\"background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;\">Ver promoción</a></div><p style=\"margin:0;color:#6b7280;font-size:13px;\">Recuerda: la oferta termina pronto.</p></div><div style=\"background:#f9fafb;color:#6b7280;padding:16px;text-align:center;font-size:12px;\">{{school_name}}</div></div></div>",
+  "communications.template_newsletter_content": "<div style=\"background:#f7fafc;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#1f2937;\"><div style=\"max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;\"><div style=\"background:#111827;color:#ffffff;padding:24px;text-align:center;\"><h1 style=\"margin:0;font-size:22px;\">Boletín de {{school_name}}</h1><p style=\"margin:8px 0 0;opacity:.9;\">Últimas novedades y noticias</p></div><div style=\"padding:24px;\"><h2 style=\"margin:0 0 12px;font-size:18px;\">Destacados</h2><p style=\"margin:0 0 12px;\">• Nuevo calendario de cursos<br/>• Plaza para eventos especiales<br/>• Consejos y recursos útiles</p><div style=\"text-align:center;margin:24px 0;\"><a href=\"{{cta_url}}\" style=\"background:#111827;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;\">Ver más</a></div><p style=\"margin:0;color:#6b7280;font-size:13px;\">Gracias por seguir con nosotros, {{name}}.</p></div><div style=\"background:#f9fafb;color:#6b7280;padding:16px;text-align:center;font-size:12px;\">© {{school_name}}</div></div></div>",
+  "communications.template_event_content": "<div style=\"background:#f7fafc;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#1f2937;\"><div style=\"max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;\"><div style=\"background:#7c3aed;color:#ffffff;padding:24px;text-align:center;\"><h1 style=\"margin:0;font-size:22px;\">¡Estás invitado/a!</h1><p style=\"margin:8px 0 0;opacity:.9;\">Evento especial de {{school_name}}</p></div><div style=\"padding:24px;\"><p style=\"margin:0 0 8px;\"><strong>Fecha:</strong> {{date}}</p><p style=\"margin:0 0 16px;\"><strong>Lugar:</strong> Por confirmar</p><p style=\"margin:0 0 16px;\">Nos encantaría contar contigo. Confirma tu asistencia para reservar tu plaza.</p><div style=\"text-align:center;margin:24px 0;\"><a href=\"{{cta_url}}\" style=\"background:#7c3aed;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;\">Confirmar asistencia</a></div><p style=\"margin:0;color:#6b7280;font-size:13px;\">Si no puedes asistir, háznoslo saber respondiendo a este correo.</p></div><div style=\"background:#f9fafb;color:#6b7280;padding:16px;text-align:center;font-size:12px;\">{{school_name}}</div></div></div>",
   "communications.sample_message_1_title": "Anulación de cursos Flexidates – 15 y 16 marzo 2025",
   "communications.sample_message_1_time": "hace 6 meses",
   "communications.sample_message_1_content": "Estimado cliente, lamentamos informarle que los cursos siguientes...",
@@ -129,6 +133,8 @@
   "communications.view_all": "Ver todos",
   "communications.template_library": "Biblioteca de Plantillas",
   "communications.create_template": "Crear plantilla",
+  "communications.predefined_templates": "Plantillas predefinidas",
+  "communications.custom_templates": "Tus plantillas",
   "communications.template_applied": "Plantilla aplicada",
   "communications.template_desc_welcome": "Plantilla de bienvenida para nuevos clientes",
   "communications.template_desc_promotion": "Plantilla para ofertas especiales y promociones",
@@ -137,6 +143,7 @@
   "communications.sent_newsletters": "Newsletters Enviados",
   "communications.view_sent_newsletters": "Ver Newsletters Enviados",
   "communications.view_all_templates": "Ver Todas las Plantillas",
+  "communications.preview_newsletter": "Vista previa del newsletter",
   "communications.create_content_first": "Primero crea contenido antes de guardar como plantilla",
   "communications.template_name_prompt": "Nombre de la plantilla:",
   "communications.template_created": "Plantilla creada exitosamente",
@@ -1324,7 +1331,10 @@
   "attendance": {
     "confirmed": "Asistencia confirmada",
     "pending": "Asistencia pendiente",
-    "not_confirmed": "Asistencia no confirmada"
+    "not_confirmed": "Asistencia no confirmada",
+    "attended": "Asistió",
+    "not_attended": "No asistió",
+    "unmarked": "Sin marcar"
   },
   
   "unique_participants": "Participantes Únicos",
@@ -1441,7 +1451,21 @@
   "show_all_dates": "Mostrar todas las fechas",
   "hide_details": "Ocultar detalles",
   "apply_schedule_all_dates": "Aplicar horario a todas las fechas",
+  "apply_schedule_interval": "Aplicar horario al intervalo",
+  "apply": "Aplicar",
+  "schedule_will_apply_to_dates": "Se aplicará a",
+  "dates": "fechas",
   "courses.schedule_required_error": "Por favor, establece primero las horas de inicio y fin",
   "courses.no_dates_error": "No hay fechas de curso disponibles para actualizar",
-  "courses.schedule_applied_success": "Horario aplicado a todas las fechas exitosamente"
+  "courses.schedule_applied_success": "Horario aplicado a todas las fechas exitosamente",
+
+  "timing": {
+    "student_times": "Tiempos de Estudiantes",
+    "lap": "Vuelta",
+    "best_time": "Mejor Tiempo",
+    "add_time": "Añadir Tiempo",
+    "export_csv": "Exportar CSV"
+  },
+
+  "multiple_intervals_help": "Activa esta opción para crear múltiples intervalos de fechas. Desactivada, tendrás acceso a herramientas de generación para un solo intervalo."
 }

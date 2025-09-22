@@ -74,42 +74,60 @@ export class BookingsComponent {
   }
 
   async showDetailEvent(event: any) {
-
     if (event.showDetail || (!event.showDetail && this.detailData !== null && this.detailData.id !== event.item.id)) {
       this.bonus = [];
-      this.detailData = event.item;
-
-      // Ordenar los usuarios de la reserva
-      this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users);
-
-      // Obtener usuarios únicos de la reserva
-      this.getUniqueBookingUsers(this.detailData.bookingusers);
-
-      await this.getSchoolSportDegrees();
-
-      // Obtener los logs de los vouchers directamente desde detailData
-      if (this.detailData.vouchers_logs.length > 0) {
-        this.detailData.vouchers_logs.forEach(voucherLog => {
-          let voucher = voucherLog.voucher;
-          voucher.currentPay = parseFloat(voucherLog.amount);
-          this.bonus.push(voucher);
-        });
-      }
-
-      // Procesar los extras de los usuarios de la reserva
-      this.detailData.bookingusers.forEach(book => {
-        book.courseExtras = [];
-        book.booking_user_extras.forEach(extra => {
-          // Se asume que los extras están directamente en el objeto book
-          book.courseExtras.push(extra);
-        });
-      });
-
       this.showDetail = true;
+
+      try {
+        const relations = [
+          'user',
+          'bookingUsers.course.sport',
+          'bookingUsers.monitor.monitorSportsDegrees.monitorSportAuthorizedDegrees.degree',
+          'bookingUsers.client.clientSports.degree',
+          'bookingUsers.courseSubGroup.degree',
+          'clientMain.clientSports.degree',
+          'vouchersLogs.voucher',
+          'bookingUsers.bookingUserExtras.courseExtra'
+        ];
+
+        const res: any = await this.crudService.get(`${this.entity}/${event.item.id}`, relations).toPromise();
+        this.detailData = res?.data || event.item;
+
+        // Ordenar los usuarios de la reserva
+        this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
+
+        // Obtener usuarios únicos de la reserva
+        this.getUniqueBookingUsers(this.detailData.bookingusers);
+
+        // Cargar niveles por deporte de la escuela (asíncrono)
+        await this.getSchoolSportDegrees();
+
+        // Vouchers / bonus
+        if (this.detailData?.vouchers_logs?.length > 0) {
+          this.detailData.vouchers_logs.forEach((voucherLog: any) => {
+            const voucher = voucherLog.voucher;
+            voucher.currentPay = parseFloat(voucherLog.amount);
+            this.bonus.push(voucher);
+          });
+        }
+
+        // Extras
+        (this.detailData.bookingusers || []).forEach((book: any) => {
+          book.courseExtras = [];
+          (book.booking_user_extras || []).forEach((extra: any) => {
+            book.courseExtras.push(extra);
+          });
+        });
+
+      } catch (e) {
+        // Fallback mínimo si la carga de detalle falla
+        this.detailData = event.item;
+        this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
+        this.getUniqueBookingUsers(this.detailData.bookingusers);
+      }
     } else {
       this.showDetail = event.showDetail;
     }
-
   }
 
   calculateFormattedDuration(hourStart: string, hourEnd: string): string {

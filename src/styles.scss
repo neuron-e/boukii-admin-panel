@@ -665,7 +665,11 @@ angular-editor {
     margin: 0 !important;
     border-top: 0 !important;
     border-radius: 0px 0 10px 10px !important;
-    height: 6em !important;
+    /* Make editor larger by default and resizable */
+    min-height: 20rem; /* larger default height */
+    height: auto !important; /* don't force a fixed height */
+    overflow: auto; /* required for CSS resize to work */
+    resize: vertical; /* allow user to resize vertically */
   }
   .angular-editor-toolbar {
     border-radius: 10px 10px 0 0 !important;

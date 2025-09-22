@@ -135,10 +135,14 @@
                         <label class="text-sm font-medium text-gray-700 mb-3 block">
                           {{ 'communications.message' | translate }}
                         </label>
-                        <angular-editor
-                          formControlName="content"
-                          [placeholder]="'communications.editor_placeholder' | translate">
-                        </angular-editor>
+                        <div class="editor-resize-wrapper" [style.height.px]="editorHeight">
+                          <angular-editor
+                            formControlName="content"
+                            [config]="editorConfig"
+                            [placeholder]="'communications.editor_placeholder' | translate">
+                          </angular-editor>
+                          <div class="resize-handle" (mousedown)="startResize($event)"></div>
+                        </div>
                       </div>
 
                       <!-- Action Buttons -->
@@ -713,11 +717,13 @@
 
     <!-- Content -->
     <div class="p-6 overflow-y-auto flex-1">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div *ngFor="let template of allTemplates" class="template-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+      <!-- Predefined Templates -->
+      <h3 class="text-md font-semibold text-gray-900 mb-3">{{ 'communications.predefined_templates' | translate }}</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div *ngFor="let template of templates" class="template-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
           <!-- Template Preview -->
           <div class="h-32 bg-gray-100 flex items-center justify-center border-b">
-            <mat-icon class="text-4xl text-gray-400">{{ getTemplateIcon(template) }}</mat-icon>
+            <mat-icon class="text-4xl text-gray-400">{{ template.icon }}</mat-icon>
           </div>
 
           <!-- Template Info -->
@@ -736,13 +742,48 @@
                 {{ 'communications.use' | translate }}
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Templates -->
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-md font-semibold text-gray-900">{{ 'communications.custom_templates' | translate }}</h3>
+        <button mat-stroked-button (click)="openCreateTemplateModal()">
+          <mat-icon class="mr-2">add</mat-icon>
+          {{ 'communications.create_template' | translate }}
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div *ngFor="let template of customTemplates" class="template-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+          <!-- Template Preview -->
+          <div class="h-32 bg-gray-100 flex items-center justify-center border-b">
+            <mat-icon class="text-4xl text-gray-400">edit</mat-icon>
+          </div>
+
+          <!-- Template Info -->
+          <div class="p-4">
+            <h3 class="font-medium text-gray-900 mb-2">{{ template.name }}</h3>
+            <p class="text-sm text-gray-600 mb-4">{{ template.description }}</p>
+
+            <!-- Actions -->
+            <div class="flex justify-between">
+              <button mat-stroked-button (click)="previewTemplate(template)" class="flex-1 mr-2">
+                <mat-icon class="mr-1">visibility</mat-icon>
+                {{ 'communications.preview' | translate }}
+              </button>
+              <button mat-raised-button color="primary" (click)="useTemplateFromLibrary(template)" class="flex-1">
+                <mat-icon class="mr-1">check</mat-icon>
+                {{ 'communications.use' | translate }}
+              </button>
+            </div>
 
             <!-- Edit/Delete for custom templates -->
-            <div *ngIf="template.id?.toString().startsWith('custom_')" class="flex justify-center mt-2 space-x-2">
-              <button mat-icon-button (click)="editCustomTemplate(template)" matTooltip="{{ 'communications.edit' | translate }}">
+            <div class="flex justify-center mt-2 space-x-2">
+              <button mat-icon-button (click)="editTemplateModal(template)" matTooltip="{{ 'communications.edit' | translate }}">
                 <mat-icon class="text-sm">edit</mat-icon>
               </button>
-              <button mat-icon-button (click)="deleteCustomTemplate(template)" matTooltip="{{ 'communications.delete' | translate }}" class="text-red-600">
+              <button mat-icon-button (click)="deleteTemplate(template)" matTooltip="{{ 'communications.delete' | translate }}" class="text-red-600">
                 <mat-icon class="text-sm">delete</mat-icon>
               </button>
             </div>
@@ -751,7 +792,7 @@
       </div>
 
       <!-- Empty state -->
-      <div *ngIf="allTemplates.length === 0" class="text-center py-12">
+      <div *ngIf="templates.length === 0 && customTemplates.length === 0" class="text-center py-12">
         <mat-icon class="text-6xl text-gray-300 mb-4">template_add</mat-icon>
         <h3 class="text-lg font-medium text-gray-900 mb-2">{{ 'communications.no_templates' | translate }}</h3>
         <p class="text-gray-600 mb-4">{{ 'communications.no_templates_desc' | translate }}</p>
@@ -1093,6 +1134,50 @@
       <button mat-raised-button color="primary" (click)="sendNewsletter(); closePreview()">
         <mat-icon class="mr-2">send</mat-icon>
         {{ 'communications.send_now' | translate }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Template Preview Modal -->
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4"
+     *ngIf="showTemplatePreview"
+     (click)="closeTemplatePreview()"
+     style="z-index: 9999;">
+  <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-6 border-b bg-white flex-shrink-0">
+      <h2 class="text-xl font-semibold text-gray-900">{{ 'communications.preview' | translate }}</h2>
+      <button mat-icon-button (click)="closeTemplatePreview()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <!-- Subject -->
+      <div class="mb-4">
+        <div class="text-sm font-medium text-gray-700 mb-2">{{ 'communications.subject' | translate }}</div>
+        <div class="text-lg font-semibold">{{ templatePreviewContent.subject }}</div>
+      </div>
+
+      <!-- Content Preview -->
+      <div class="mb-4">
+        <div class="text-sm font-medium text-gray-700 mb-2">{{ 'communications.content' | translate }}</div>
+        <div class="border rounded-lg p-4 bg-gray-50 min-h-[300px]"
+             [innerHTML]="templatePreviewContent.content">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex justify-end items-center space-x-3 p-6 border-t bg-gray-50 flex-shrink-0">
+      <button mat-button (click)="closeTemplatePreview()">
+        {{ 'communications.close' | translate }}
+      </button>
+      <button mat-raised-button color="primary" (click)="useTemplateFromLibrary({ subject: templatePreviewContent.subject, content: templatePreviewContent.content }); closeTemplatePreview()">
+        <mat-icon class="mr-2">check</mat-icon>
+        {{ 'communications.use' | translate }}
       </button>
     </div>
   </div>

@@ -98,6 +98,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   selection = new SelectionModel<any>(true, []);
   searchCtrl = new UntypedFormControl('');
   imageAvatar = '../../../assets/img/avatar.png';
+  fallbackCourseIcon = '../../../assets/img/icons/cursos.svg';
   loading = true;
   user: any;
   schoolId: any;
@@ -748,6 +749,14 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     /*} else {
       return 'MULTIPLE';
     }*/
+  }
+
+  onCourseImageError(event: Event) {
+    const img = event.target as HTMLImageElement;
+    if (!img) return;
+    // Prevent potential infinite loop if fallback fails
+    (img as any).onerror = null;
+    img.src = this.fallbackCourseIcon;
   }
 
   getBookingType(data: any) {

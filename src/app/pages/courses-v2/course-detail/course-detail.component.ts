@@ -189,7 +189,7 @@ export class CourseDetailComponent implements OnInit {
   /**
    * Open timing modal for subgroup students (cronometraje)
    */
-  openTimingModal(subGroup: any, groupLevel: any): void {
+  openTimingModal(subGroup: any, groupLevel: any, selectedDate?: any): void {
     // Debug visual para confirmar clic
     console.log('openTimingModal called with:', { subGroup, groupLevel });
     console.log('detailData:', this.detailData);
@@ -201,6 +201,10 @@ export class CourseDetailComponent implements OnInit {
     }
 
     const courseDates = this.detailData?.course_dates || [];
+
+    // Crear booking users con course_date_id para filtrado correcto por día
+    const bookingUsersWithDates = this.collectBookingUsersFromDetailData(courseDates);
+
     const students = (this.detailData?.users || []).map((u: any) => ({
       id: u.client_id,
       first_name: u.client?.first_name,
@@ -227,7 +231,11 @@ export class CourseDetailComponent implements OnInit {
           groupLevel,
           courseId: this.id,
           courseDates,
-          students
+          students,
+          // Pasamos bookings enriquecidos con course_date_id para filtrar por día
+          bookingUsers: bookingUsersWithDates,
+          // Preseleccionar el día si viene del reloj con día seleccionado
+          selectedCourseDateId: selectedDate?.id ?? null
         }
       });
 
@@ -242,6 +250,94 @@ export class CourseDetailComponent implements OnInit {
     } catch (error) {
       console.error('Error al abrir modal:', error);
       alert('Error al abrir modal: ' + error);
+    }
+  }
+
+  /**
+   * Extrae booking users de la estructura de detailData y les asigna course_date_id
+   * para el filtrado correcto por fecha en el modal de timing
+   */
+  private collectBookingUsersFromDetailData(courseDates: any[]): any[] {
+    const result: any[] = [];
+    try {
+      console.log('collectBookingUsersFromDetailData - Processing dates:', courseDates.length);
+
+      for (const cd of courseDates) {
+        const cdId = cd?.id ?? null;
+        console.log(`Processing course_date ${cdId}:`, cd);
+
+        const groups = Array.isArray(cd?.course_groups) ? cd.course_groups : [];
+        for (const g of groups) {
+          console.log(`  Processing group ${g?.id}:`, g);
+          const subgroups = Array.isArray(g?.course_subgroups) ? g.course_subgroups : [];
+          for (const sg of subgroups) {
+            console.log(`    Processing subgroup ${sg?.id}:`, sg);
+            const bookings = Array.isArray(sg?.booking_users) ? sg.booking_users : [];
+            console.log(`      Found ${bookings.length} booking users in subgroup`);
+
+            for (const bu of bookings) {
+              const client = bu?.client || {};
+              const clientId = bu?.client_id ?? client?.id ?? bu?.id;
+              const mappedUser = {
+                id: bu?.id,
+                client_id: clientId,
+                client,
+                course_date_id: cdId,
+                course_group_id: g?.id ?? bu?.course_group_id,
+                course_subgroup_id: sg?.id ?? bu?.course_subgroup_id ?? bu?.course_sub_group_id,
+                accepted: bu?.accepted ?? null,
+                attended: bu?.attended ?? bu?.attendance ?? null,
+                date: cd?.date ?? null
+              };
+              console.log(`        Mapped user:`, mappedUser);
+              result.push(mappedUser);
+            }
+          }
+        }
+      }
+
+      console.log('collectBookingUsersFromDetailData - Total result:', result.length);
+
+      // Si no hemos encontrado nada en la estructura embebida, usar los usuarios globales
+      if (result.length === 0 && this.detailData?.users) {
+        console.log('No booking users found in course_dates structure, using global users');
+        const globalUsers = this.detailData.users;
+
+        // Enriquecer con course_date_id y course_subgroup_id basándonos en las fechas
+        const enrichedUsers = globalUsers.map((user: any) => {
+          // Intentar encontrar la fecha y subgrupo correspondiente
+          let foundCourseDate = null;
+          let foundSubgroup = null;
+
+          for (const cd of courseDates) {
+            for (const g of (cd?.course_groups || [])) {
+              for (const sg of (g?.course_subgroups || [])) {
+                if (user?.course_subgroup_id === sg?.id || user?.course_sub_group_id === sg?.id) {
+                  foundCourseDate = cd;
+                  foundSubgroup = sg;
+                  break;
+                }
+              }
+              if (foundSubgroup) break;
+            }
+            if (foundSubgroup) break;
+          }
+
+          return {
+            ...user,
+            course_date_id: foundCourseDate?.id ?? user?.course_date_id ?? null,
+            course_subgroup_id: foundSubgroup?.id ?? user?.course_subgroup_id ?? user?.course_sub_group_id ?? null
+          };
+        });
+
+        console.log('Enriched global users:', enrichedUsers);
+        return enrichedUsers;
+      }
+
+      return result;
+    } catch (e) {
+      console.warn('collectBookingUsersFromDetailData error:', e);
+      return this.detailData?.users || [];
     }
   }
 }

@@ -21,11 +21,7 @@
 	<vex-page-layout-content [ngClass]="{'table-show-detail': this.showDetail}" class="-mt-6 fullwidth">
 		<vex-aio-table [columns]="columns" [entity]="entity" [deleteEntity]="deleteEntity" [title]="'bookings'"
 			[filterField]="filterCourseId===0?null:filterCourseId" [route]="'bookings'"
-			[createComponent]="createComponent" [canDelete]="false" [canDeactivate]="false" [with]="['bookingUsers.course.sport', 'bookingUsers.monitor',
-      'bookingUsers.client.clientSports.degree',
-            'bookingUsers.courseSubGroup.degree',
-       'clientMain.clientSports.degree', 'user',
-       'vouchersLogs.voucher', 'bookingUsers.bookingUserExtras.courseExtra']"
+			[createComponent]="createComponent" [canDelete]="false" [canDeactivate]="false" [with]="['bookingUsers.course.sport','clientMain']"
 			[filterColumn]="filterCourseId===0?null:'course_id'" [sectionIcon]="icon" [showDetail]="showDetail"
 			(showDetailEvent)="showDetailEvent($event)">
 		</vex-aio-table>

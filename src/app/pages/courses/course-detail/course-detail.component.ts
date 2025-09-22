@@ -223,9 +223,18 @@ export class CourseDetailComponent implements OnInit {
         this.getSeparatedDates(this.defaults.course_dates, true);
 
         this.crudService.list('/booking-users', 1, 10000, 'desc', 'id',
-          '&course_id=' + this.defaults.id, null, null, null, ['client'])
+          '&course_id=' + this.defaults.id, null, null, null, ['client', 'course_sub_group', 'course_sub_group.degree', 'monitor', 'course', 'booking'])
           .subscribe((result) => {
             this.courseUsers = result.data;
+
+            // Initialize bookingUsersUnique with courseUsers data
+            if (this.courseUsers && this.courseUsers.length > 0) {
+              console.log('CourseUsers loaded:', this.courseUsers);
+              // Order booking users and initialize unique users for display
+              const orderedUsers = this.orderBookingUsers(this.courseUsers);
+              this.getUniqueBookingUsers(orderedUsers);
+            }
+
             this.loading = false;
 
           })
@@ -1050,15 +1059,19 @@ export class CourseDetailComponent implements OnInit {
       });
     });
 
+    console.log('calculateStudentsGroup - level:', level, 'found group:', group);
+
     if (group !== null) {
       this.courseUsers.forEach(courseUser => {
+        console.log('Checking courseUser for group count:', courseUser, 'group.id:', group.id);
         if (courseUser.course_group_id === group.id) {
           ret = ret + 1;
+          console.log('Found matching student, count now:', ret);
         }
       });
     }
 
-
+    console.log('calculateStudentsGroup returning:', ret);
     return ret;
   }
 
@@ -1230,14 +1243,38 @@ export class CourseDetailComponent implements OnInit {
   getCourseUsers(subGroup: any) {
     let ret = [];
 
+    console.log('getCourseUsers called for subGroup:', subGroup);
+    console.log('Available courseUsers:', this.courseUsers);
+
     this.courseUsers.forEach(courseUser => {
-      if (courseUser.course_group_id === subGroup.course_group_id
-        && courseUser.course_subgroup_id === subGroup.id
-        && courseUser.status === 1) {
+      console.log('Checking courseUser:', courseUser, 'against subGroup:', subGroup);
+
+      // More flexible matching - try different possible field names
+      const matchesSubgroup = courseUser.course_subgroup_id === subGroup.id ||
+                             courseUser.subgroup_id === subGroup.id ||
+                             courseUser.course_sub_group_id === subGroup.id;
+
+      const matchesGroup = courseUser.course_group_id === subGroup.course_group_id ||
+                          courseUser.group_id === subGroup.course_group_id;
+
+      const isActive = courseUser.status === 1 || courseUser.status === '1' || courseUser.active === 1;
+
+      console.log('Match checks:', {
+        matchesSubgroup,
+        matchesGroup,
+        isActive,
+        courseUserSubgroupId: courseUser.course_subgroup_id,
+        subGroupId: subGroup.id,
+        courseUserGroupId: courseUser.course_group_id,
+        subGroupGroupId: subGroup.course_group_id
+      });
+
+      if (matchesSubgroup && matchesGroup && isActive) {
         ret.push(courseUser);
       }
     });
 
+    console.log('getCourseUsers returning:', ret);
     return ret;
   }
 
@@ -1668,6 +1705,43 @@ export class CourseDetailComponent implements OnInit {
   openTimingModal(subGroup: any, groupLevel: any): void {
     // Import the component at the top of the file when needed
     import('../course-timing-modal/course-timing-modal.component').then(m => {
+      const courseDates = this.defaults?.course_dates || [];
+
+      // Aplanar booking_users por fecha -> grupo -> subgrupo y adjuntar course_date_id
+      const bookingUsersWithDates: any[] = [];
+      try {
+        for (const cd of (courseDates || [])) {
+          const cdId = cd?.id ?? cd?.course_date_id ?? null;
+          const groups = Array.isArray(cd?.course_groups) ? cd.course_groups : [];
+          for (const g of groups) {
+            const subgroups = Array.isArray(g?.course_subgroups) ? g.course_subgroups : [];
+            for (const sg of subgroups) {
+              const bookings = Array.isArray(sg?.booking_users) ? sg.booking_users : [];
+              for (const bu of bookings) {
+                const client = bu?.client || {};
+                const clientId = bu?.client_id ?? client?.id ?? bu?.id;
+                bookingUsersWithDates.push({
+                  id: bu?.id,
+                  client_id: clientId,
+                  client,
+                  course_date_id: cdId,
+                  course_group_id: g?.id ?? bu?.course_group_id,
+                  course_subgroup_id: sg?.id ?? bu?.course_subgroup_id ?? bu?.course_sub_group_id ?? bu?.course_sub_group?.id,
+                  accepted: bu?.accepted ?? null,
+                  attended: bu?.attended ?? bu?.attendance ?? null,
+                  date: cd?.date ?? null
+                });
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('collect booking users (detail) failed, continuing with fallback', e);
+      }
+
+      // Día seleccionado actual en el detalle
+      const selectedCourseDateId = (courseDates?.[this.daySelectedIndex]?.id) ?? null;
+
       const dialogRef = this.dialog.open(m.CourseTimingModalComponent, {
         width: '80%',
         maxWidth: '1200px',
@@ -1675,13 +1749,14 @@ export class CourseDetailComponent implements OnInit {
           subGroup: subGroup,
           groupLevel: groupLevel,
           courseId: this.id,
-          courseDates: this.defaults.course_dates,
-          students: this.getCourseUsers(subGroup)
+          courseDates: courseDates,
+          // El modal filtrará por día a partir de bookingUsers
+          bookingUsers: bookingUsersWithDates,
+          selectedCourseDateId
         }
       });
 
       dialogRef.afterClosed().subscribe(result => {
-        // Handle any result from the modal if needed
         if (result) {
           console.log('Timing modal closed with result:', result);
         }

@@ -1,6 +1,9 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialog } from '@angular/material/dialog';
+import { ConfirmModalComponent } from '../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
 import { FormControl, Validators } from '@angular/forms';
+import { ApiCrudService } from '../../../../service/crud.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'vex-course-timing-modal',
@@ -13,6 +16,7 @@ export class CourseTimingModalComponent implements OnInit {
   subGroup: any;
   courseId?: number;
   courseDates: any[] = [];
+  bookingUsers: any[] = [];
 
   // UI state
   selectedDate: any = null;
@@ -22,11 +26,14 @@ export class CourseTimingModalComponent implements OnInit {
   students: any[] = [];
   private studentTimes: Record<string | number, Array<{ id?: any; time_ms: number; lap_no?: number; status?: string }>> = {};
   private unsavedChanges = new Set<string>();
+  private currentSubgroupId: number | null = null; // Store the dynamic subgroup ID for the selected date
 
   constructor(
     private dialogRef: MatDialogRef<CourseTimingModalComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private crudService: ApiCrudService,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -36,17 +43,193 @@ export class CourseTimingModalComponent implements OnInit {
       this.subGroup = this.data.subGroup ?? null;
       this.courseId = this.data.courseId ?? undefined;
       this.courseDates = Array.isArray(this.data.courseDates) ? this.data.courseDates : [];
-      if (this.courseDates.length > 0) {
+      // Booking users global (para filtrar por día)
+      this.bookingUsers = Array.isArray(this.data.bookingUsers) ? this.data.bookingUsers : [];
+
+      console.log('TIMING MODAL - INITIAL DATA DEBUG:');
+      console.log('courseDates:', this.courseDates);
+      console.log('bookingUsers:', this.bookingUsers);
+      console.log('data.students:', this.data.students);
+
+      // Inspeccionar estructura de cada fecha
+      this.courseDates.forEach((date, index) => {
+        console.log(`Date ${index} (${date.date}):`, {
+          id: date.id,
+          date: date.date,
+          booking_users_active: date.booking_users_active,
+          course_groups: date.course_groups
+        });
+      });
+
+      // Preselección de día si viene indicado
+      const selectedId = this.data?.selectedCourseDateId ?? null;
+      if (selectedId) {
+        this.selectedDate = this.courseDates.find((d: any) => (d?.id ?? d?.course_date_id) === selectedId) || null;
+      }
+      if (!this.selectedDate && this.courseDates.length > 0) {
         this.selectedDate = this.courseDates[0];
       }
-      // Optional: students list provided by parent
-      this.students = Array.isArray(this.data.students) ? this.data.students : [];
+
+      console.log('Selected date after init:', this.selectedDate);
+
+      // Inicializar lista de alumnos para el día seleccionado
+      this.refreshStudentsForSelectedDate();
+
+      // Cargar tiempos existentes si los hay
+      this.loadExistingTimes();
     }
   }
 
   onDateChange(): void {
-    // Placeholder for reloading data per date
-    // Keep implementation minimal to avoid compile errors
+    this.refreshStudentsForSelectedDate();
+    this.loadExistingTimes();
+  }
+
+  private refreshStudentsForSelectedDate(): void {
+    try {
+      if (!this.selectedDate) {
+        this.students = [];
+        return;
+      }
+
+      // PROBLEMA: el subGroup pasado al modal puede tener un ID diferente para cada fecha
+      // SOLUCIÓN: encontrar dinámicamente el subgrupo correcto para la fecha seleccionada
+
+      let subgroupId = this.subGroup?.id ?? this.subGroup?.course_subgroup_id ?? null;
+
+      // Intentar encontrar el subgrupo correcto para esta fecha específica
+      if (this.selectedDate && this.groupLevel) {
+        const courseGroups = Array.isArray((this.selectedDate as any).course_groups)
+          ? (this.selectedDate as any).course_groups
+          : [];
+
+        const targetGroup = courseGroups.find((g: any) => g.degree_id === this.groupLevel.id);
+        if (targetGroup && Array.isArray(targetGroup.course_subgroups)) {
+          // Si hay subgrupos para esta fecha/grupo, usar el primero (o encontrar el correcto)
+          const subgroupForThisDate = targetGroup.course_subgroups[0]; // Puede necesitar más lógica aquí
+          if (subgroupForThisDate?.id) {
+            console.log(`Overriding subgroupId from ${subgroupId} to ${subgroupForThisDate.id} for this specific date`);
+            subgroupId = subgroupForThisDate.id;
+          }
+        }
+      }
+
+      // Store the detected subgroup ID for use in save operations
+      this.currentSubgroupId = subgroupId;
+
+      console.log('refreshStudentsForSelectedDate - SUBGROUP DEBUG:');
+      console.log('this.subGroup FULL OBJECT:', JSON.stringify(this.subGroup, null, 2));
+      console.log('subgroupId extracted:', subgroupId);
+      console.log('Stored currentSubgroupId:', this.currentSubgroupId);
+      console.log('this.groupLevel:', JSON.stringify(this.groupLevel, null, 2));
+      console.log('selectedDate ID:', this.selectedDate?.id);
+      console.log('bookingUsers total:', this.bookingUsers.length);
+
+      // Específicamente verificar booking_users_active
+      console.log('selectedDate.booking_users_active:', (this.selectedDate as any).booking_users_active);
+      console.log('Is array?', Array.isArray((this.selectedDate as any).booking_users_active));
+      console.log('Length:', (this.selectedDate as any).booking_users_active?.length);
+
+      // El problema: los booking_users globales tienen subgroup_ids incorrectos para cada fecha
+      // La solución: usar booking_users_active específicos de la fecha seleccionada
+
+      let students: any[] = [];
+
+      // 1. Primero intentar usar booking_users_active de la fecha seleccionada
+      const selectedDateActive = Array.isArray((this.selectedDate as any).booking_users_active)
+        ? (this.selectedDate as any).booking_users_active
+        : [];
+
+      console.log('booking_users_active in selected date:', selectedDateActive.length, selectedDateActive);
+
+      if (selectedDateActive.length > 0 && subgroupId) {
+        console.log('Using booking_users_active from selected date');
+
+        const filteredBySubgroup = selectedDateActive.filter((user: any) => {
+          const userSubgroupId = user.course_subgroup_id ?? user.course_sub_group_id ?? user.course_sub_group?.id;
+          const matches = userSubgroupId === subgroupId;
+
+          console.log(`Active user ${user.client?.first_name}: subgroupId=${userSubgroupId}, target=${subgroupId}, matches=${matches}`);
+
+          return matches;
+        });
+
+        console.log('Active users filtered by subgroup:', filteredBySubgroup.length);
+
+        students = filteredBySubgroup.map((user: any) => ({
+          id: user.client_id ?? user.client?.id ?? user.id,
+          first_name: user.client?.first_name ?? user.first_name,
+          last_name: user.client?.last_name ?? user.last_name,
+          birth_date: user.client?.birth_date ?? user.birth_date,
+          country: user.client?.country ?? user.country,
+          image: user.client?.image ?? user.image
+        }));
+      }
+
+      // 2. Fallback: si no hay booking_users_active, intentar con embebidos en course_groups
+      if (students.length === 0) {
+        console.log('No booking_users_active found, trying embedded booking_users in course_groups');
+
+        const courseGroups = Array.isArray((this.selectedDate as any).course_groups)
+          ? (this.selectedDate as any).course_groups
+          : [];
+
+        for (const group of courseGroups) {
+          if (group.degree_id === this.groupLevel?.id) {
+            const subgroups = Array.isArray(group.course_subgroups) ? group.course_subgroups : [];
+            for (const subgroup of subgroups) {
+              if (subgroup.id === subgroupId) {
+                const embeddedUsers = Array.isArray(subgroup.booking_users) ? subgroup.booking_users : [];
+                console.log(`Found ${embeddedUsers.length} embedded users in subgroup ${subgroupId}`);
+
+                students = embeddedUsers.map((user: any) => ({
+                  id: user.client_id ?? user.client?.id ?? user.id,
+                  first_name: user.client?.first_name ?? user.first_name,
+                  last_name: user.client?.last_name ?? user.last_name,
+                  birth_date: user.client?.birth_date ?? user.birth_date,
+                  country: user.client?.country ?? user.country,
+                  image: user.client?.image ?? user.image
+                }));
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Último fallback: usar bookingUsers globales (pero estos tienen IDs incorrectos)
+      if (students.length === 0 && Array.isArray(this.bookingUsers) && subgroupId) {
+        console.log('Final fallback: using global bookingUsers (may have incorrect subgroup IDs)');
+
+        const uniqueBookingUsers = this.bookingUsers.filter((user: any, index: any, self: any) =>
+          index === self.findIndex((u: any) => u.client_id === user.client_id)
+        );
+
+        const filteredBySubgroup = uniqueBookingUsers.filter((user: any) => {
+          const userSubgroupId = user.course_subgroup_id ?? user.course_sub_group_id ?? user.course_sub_group?.id;
+          const matches = userSubgroupId === subgroupId;
+
+          console.log(`Global user ${user.client?.first_name}: subgroupId=${userSubgroupId}, matches=${matches}`);
+
+          return matches;
+        });
+
+        students = filteredBySubgroup.map((user: any) => ({
+          id: user.client_id ?? user.client?.id,
+          first_name: user.client?.first_name,
+          last_name: user.client?.last_name,
+          birth_date: user.client?.birth_date,
+          country: user.client?.country,
+          image: user.client?.image
+        }));
+      }
+
+      this.students = students;
+      console.log('Final students assigned (same logic as flux-disponibilidad):', this.students.length, this.students.map(s => s.first_name + ' ' + s.last_name));
+    } catch (e) {
+      console.error('Error al refrescar alumnos por día en timing modal:', e);
+      this.students = [];
+    }
   }
 
   close(): void {
@@ -54,24 +237,168 @@ export class CourseTimingModalComponent implements OnInit {
   }
 
   exportTimes(): void {
-    // Minimal CSV export for current selected date (stub)
-    const rows = [['student_id', 'time_ms', 'lap_no', 'status']];
-    this.students.forEach(s => {
-      const times = this.getStudentTimes(s.id);
-      times.forEach(t => rows.push([s.id, t.time_ms, t.lap_no ?? 1, t.status ?? 'valid'] as any));
+    if (!this.hasTimesToExport()) {
+      this.snackBar.open('No hay tiempos para exportar', 'OK', { duration: 3000 });
+      return;
+    }
+
+    // Enhanced CSV export with student names and formatted times
+    const rows = [['Student ID', 'Student Name', 'Lap', 'Time (ms)', 'Formatted Time', 'Status']];
+
+    this.students.forEach(student => {
+      const times = this.getStudentTimes(student.id);
+      if (times.length > 0) {
+        times.forEach(time => {
+          rows.push([
+            student.id.toString(),
+            `${student.first_name} ${student.last_name}`,
+            (time.lap_no ?? 1).toString(),
+            time.time_ms.toString(),
+            this.formatTime(time.time_ms),
+            time.status ?? 'valid'
+          ]);
+        });
+      }
     });
-    const csv = rows.map(r => r.join(',')).join('\n');
+
+    // Generate CSV content
+    const csv = rows.map(row =>
+      row.map(field => `"${field}"`).join(',')
+    ).join('\n');
+
+    // Create filename with date and course info
+    const dateStr = this.selectedDate ? new Date(this.selectedDate.date).toISOString().split('T')[0] : 'unknown';
+    const filename = `tiempos_curso_${this.courseId}_fecha_${dateStr}.csv`;
+
+    // Download CSV
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'times.csv';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+
+    this.snackBar.open('CSV exportado exitosamente', 'OK', { duration: 2000 });
   }
 
   getStudentTimes(studentId: string | number): Array<{ id?: any; time_ms: number; lap_no?: number; status?: string }> {
     return this.studentTimes[studentId] ?? [];
+  }
+
+  getSubgroupOrder(): number {
+    // Return 1-based index instead of subgroup ID
+    if (!this.subGroup || !this.groupLevel?.subgroups) return 1;
+    const index = this.groupLevel.subgroups.findIndex((sg: any) => sg.id === this.subGroup.id);
+    return index >= 0 ? index + 1 : 1;
+  }
+
+  getStudentTimeByLap(studentId: string | number, lapNo: number): any {
+    const times = this.getStudentTimes(studentId);
+    return times.find(t => t.lap_no === lapNo) || null;
+  }
+
+  formatTime(timeMs: number): string {
+    if (!timeMs || timeMs <= 0) return '00:00.000';
+    const minutes = Math.floor(timeMs / 60000);
+    const seconds = Math.floor((timeMs % 60000) / 1000);
+    const millis = timeMs % 1000;
+    return `${this.pad2(minutes)}:${this.pad2(seconds)}.${this.pad3(millis)}`;
+  }
+
+  getStatusClass(status?: string): string {
+    switch ((status || 'valid').toLowerCase()) {
+      case 'invalid': return 'status-invalid';
+      case 'dns': return 'status-dns';
+      case 'dnf': return 'status-dnf';
+      default: return 'status-valid';
+    }
+  }
+
+  getBestTime(studentId: string | number): string {
+    const times = this.getStudentTimes(studentId).filter(t => t.status === 'valid');
+    if (times.length === 0) return '--';
+    const bestMs = Math.min(...times.map(t => t.time_ms));
+    return this.formatTime(bestMs);
+  }
+
+  getAge(birthDate?: string): number {
+    if (!birthDate) return 0;
+    const dob = new Date(birthDate);
+    const diff = Date.now() - dob.getTime();
+    const ageDt = new Date(diff);
+    return Math.abs(ageDt.getUTCFullYear() - 1970);
+  }
+
+  getCountryName(countryCode?: string): string {
+    // Simple country code to name mapping
+    const countries: { [key: string]: string } = {
+      'ES': 'España',
+      'FR': 'Francia',
+      'CH': 'Suiza',
+      'IT': 'Italia',
+      'DE': 'Alemania'
+    };
+    return countries[countryCode || ''] || countryCode || '';
+  }
+
+  deleteTime(timeId: any): void {
+    // Show confirmation dialog before deleting
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      width: '400px',
+      data: {
+        title: 'Confirmar eliminación',
+        message: '¿Estás seguro de que quieres eliminar este tiempo?',
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.performTimeDelete(timeId);
+      }
+    });
+  }
+
+  private performTimeDelete(timeId: any): void {
+    // Find the time to delete
+    let timeToDelete: any = null;
+    let studentId: string = '';
+
+    for (const sId in this.studentTimes) {
+      const times = this.studentTimes[sId];
+      const index = times.findIndex(t => t.id === timeId);
+      if (index !== -1) {
+        timeToDelete = times[index];
+        studentId = sId;
+        times.splice(index, 1);
+        break;
+      }
+    }
+
+    if (!timeToDelete) {
+      console.error('Time not found for deletion');
+      return;
+    }
+
+    // Si es un tiempo guardado (tiene ID numérico), eliminarlo de la API
+    if (timeToDelete.id && !timeToDelete.id.toString().startsWith('temp_')) {
+      this.crudService.delete('/admin/course-timing', timeToDelete.id)
+        .subscribe({
+          next: () => {
+            console.log('Time deleted successfully from API');
+            this.snackBar.open('Tiempo eliminado', 'OK', { duration: 2000 });
+          },
+          error: (error) => {
+            console.error('Error deleting time from API:', error);
+            this.snackBar.open('Error al eliminar tiempo', 'OK', { duration: 3000 });
+          }
+        });
+    } else {
+      // Es un tiempo temporal, solo marcarlo como cambio no guardado
+      this.unsavedChanges.add(studentId);
+    }
   }
 
   addTime(studentId: string | number, lapNo?: number): void {
@@ -108,41 +435,11 @@ export class CourseTimingModalComponent implements OnInit {
     });
   }
 
-  deleteTime(timeId: any): void {
-    // Find and remove the time from studentTimes
-    for (const studentId in this.studentTimes) {
-      const times = this.studentTimes[studentId];
-      const index = times.findIndex(t => t.id === timeId);
-      if (index !== -1) {
-        times.splice(index, 1);
-        this.unsavedChanges.add(studentId);
-        break;
-      }
-    }
-  }
-
-  formatTime(ms: number): string {
-    if (!ms || ms <= 0) return '00:00.000';
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    const millis = ms % 1000;
-    return `${this.pad2(minutes)}:${this.pad2(seconds)}.${this.pad3(millis)}`;
-  }
-
   private pad2(n: number): string { return n < 10 ? `0${n}` : `${n}`; }
   private pad3(n: number): string {
     if (n < 10) return `00${n}`;
     if (n < 100) return `0${n}`;
     return `${n}`;
-  }
-
-  getStatusClass(status?: string): string {
-    switch ((status || 'valid').toLowerCase()) {
-      case 'invalid': return 'status-invalid';
-      case 'dns': return 'status-dns';
-      case 'dnf': return 'status-dnf';
-      default: return 'status-valid';
-    }
   }
 
   getStatusText(status?: string): string {
@@ -154,43 +451,130 @@ export class CourseTimingModalComponent implements OnInit {
     }
   }
 
-  getAge(birthDate?: string): number {
-    if (!birthDate) return 0;
-    const dob = new Date(birthDate);
-    const diff = Date.now() - dob.getTime();
-    const ageDt = new Date(diff);
-    return Math.abs(ageDt.getUTCFullYear() - 1970);
-  }
-
-  getCountryName(code?: string): string {
-    return code || '';
-  }
-
-  getStudentTimeByLap(studentId: string | number, lapNo: number): any {
-    const times = this.getStudentTimes(studentId);
-    return times.find(t => t.lap_no === lapNo) || null;
-  }
-
-  getBestTime(studentId: string | number): string {
-    const times = this.getStudentTimes(studentId).filter(t => t.status === 'valid');
-    if (times.length === 0) return '--';
-    const bestMs = Math.min(...times.map(t => t.time_ms));
-    return this.formatTime(bestMs);
-  }
-
   hasUnsavedChanges(): boolean {
     return this.unsavedChanges.size > 0;
   }
 
-  saveAllTimes(): void {
-    // TODO: Implement API call to save all times
-    console.log('Saving all times:', this.studentTimes);
-    // For now, just clear unsaved changes
-    this.unsavedChanges.clear();
-    // TODO: Add actual API integration
+  hasTimesToExport(): boolean {
+    return this.students.some(student => {
+      const times = this.getStudentTimes(student.id);
+      return times.length > 0;
+    });
   }
 
-  private getStudentName(time: any): string {
+  saveAllTimes(): void {
+    if (!this.selectedDate || !this.currentSubgroupId) {
+      this.snackBar.open('Error: No hay fecha o subgrupo seleccionado', 'OK', { duration: 3000 });
+      return;
+    }
+
+    this.loading = true;
+    const timesToSave: any[] = [];
+
+    // Preparar datos para guardar
+    for (const studentId in this.studentTimes) {
+      const times = this.studentTimes[studentId];
+      for (const time of times) {
+        timesToSave.push({
+          student_id: studentId,
+          course_id: this.courseId,
+          course_date_id: this.selectedDate.id,
+          course_subgroup_id: this.currentSubgroupId,
+          time_ms: time.time_ms,
+          lap_no: time.lap_no || 1,
+          status: time.status || 'valid'
+        });
+      }
+    }
+
+    console.log('Saving times:', timesToSave);
+
+    // Llamada API para guardar tiempos
+    this.crudService.post('/admin/course-timing', { times: timesToSave })
+      .subscribe({
+        next: (response: any) => {
+          console.log('Times saved successfully:', response);
+          this.snackBar.open('Tiempos guardados exitosamente', 'OK', { duration: 3000 });
+          this.unsavedChanges.clear();
+          this.loading = false;
+
+          // Recargar tiempos para obtener IDs actualizados
+          this.loadExistingTimes();
+        },
+        error: (error) => {
+          console.error('Error saving times:', error);
+          this.snackBar.open('Error al guardar tiempos', 'OK', { duration: 3000 });
+          this.loading = false;
+        }
+      });
+  }
+
+  /**
+   * Cargar tiempos existentes para la fecha y subgrupo seleccionados
+   */
+  loadExistingTimes(): void {
+    if (!this.selectedDate || !this.currentSubgroupId || !this.courseId) {
+      console.log('No se pueden cargar tiempos: falta fecha, subgrupo dinámico o curso');
+      return;
+    }
+
+    console.log('Loading existing times for:', {
+      courseId: this.courseId,
+      courseDateId: this.selectedDate.id,
+      dynamicSubgroupId: this.currentSubgroupId,
+      originalSubgroupId: this.subGroup.id
+    });
+
+    const params = `course_id=${this.courseId}&course_date_id=${this.selectedDate.id}&course_subgroup_id=${this.currentSubgroupId}`;
+
+    this.crudService.list('/admin/course-timing', 1, 1000, 'asc', 'student_id', `&${params}`)
+      .subscribe({
+        next: (response: any) => {
+          console.log('Existing times loaded:', response.data);
+          this.loadTimesIntoUI(response.data);
+        },
+        error: (error) => {
+          console.error('Error loading existing times:', error);
+          // No mostrar error al usuario si simplemente no hay tiempos guardados
+          if (error.status !== 404) {
+            console.warn('Error loading times, but continuing...');
+          }
+        }
+      });
+  }
+
+  /**
+   * Cargar tiempos en la interfaz desde los datos de la API
+   */
+  private loadTimesIntoUI(timesData: any[]): void {
+    // Limpiar tiempos existentes
+    this.studentTimes = {};
+    this.unsavedChanges.clear();
+
+    // Agrupar por student_id
+    const timesByStudent: Record<string, any[]> = {};
+
+    for (const timeRecord of timesData) {
+      const studentId = timeRecord.student_id;
+      if (!timesByStudent[studentId]) {
+        timesByStudent[studentId] = [];
+      }
+
+      timesByStudent[studentId].push({
+        id: timeRecord.id,
+        time_ms: timeRecord.time_ms,
+        lap_no: timeRecord.lap_no || 1,
+        status: timeRecord.status || 'valid'
+      });
+    }
+
+    // Cargar en studentTimes
+    this.studentTimes = timesByStudent;
+
+    console.log('Times loaded into UI:', this.studentTimes);
+  }
+
+  getStudentName(time: any): string {
     // Find student name for the time entry
     for (const student of this.students) {
       const times = this.getStudentTimes(student.id);

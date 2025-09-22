@@ -1,6 +1,6 @@
 <div mat-dialog-title class="dialog-header">
   <h2>{{'timing.student_times' | translate}}</h2>
-  <p class="subtitle">{{groupLevel?.annotation}} - {{groupLevel?.name}} - {{'subgroup' | translate}} {{subGroup?.id}}</p>
+  <p class="subtitle">{{groupLevel?.annotation}} - {{groupLevel?.name}} - {{'subgroup' | translate}} {{getSubgroupOrder()}}</p>
 </div>
 
 <mat-dialog-content class="dialog-content">
@@ -26,9 +26,9 @@
           <thead>
             <tr>
               <th class="student-col">{{'students' | translate}}</th>
-              <th class="lap1-col">Vuelta 1</th>
-              <th class="lap2-col">Vuelta 2</th>
-              <th class="lap3-col">Vuelta 3</th>
+              <th class="lap1-col">{{'timing.lap' | translate}} 1</th>
+              <th class="lap2-col">{{'timing.lap' | translate}} 2</th>
+              <th class="lap3-col">{{'timing.lap' | translate}} 3</th>
               <th class="best-col">{{'timing.best_time' | translate}}</th>
               <th class="actions-col">{{'actions' | translate}}</th>
             </tr>
@@ -59,7 +59,7 @@
                     </div>
                   </div>
                   <button *ngIf="!lap1" mat-button class="add-time-btn" (click)="addTime(student.id, 1)">
-                    <mat-icon>add</mat-icon> Añadir
+                    <mat-icon>add</mat-icon> {{'timing.add_time' | translate}}
                   </button>
                 </ng-container>
               </td>
@@ -77,7 +77,7 @@
                     </div>
                   </div>
                   <button *ngIf="!lap2" mat-button class="add-time-btn" (click)="addTime(student.id, 2)">
-                    <mat-icon>add</mat-icon> Añadir
+                    <mat-icon>add</mat-icon> {{'timing.add_time' | translate}}
                   </button>
                 </ng-container>
               </td>
@@ -95,7 +95,7 @@
                     </div>
                   </div>
                   <button *ngIf="!lap3" mat-button class="add-time-btn" (click)="addTime(student.id, 3)">
-                    <mat-icon>add</mat-icon> Añadir
+                    <mat-icon>add</mat-icon> {{'timing.add_time' | translate}}
                   </button>
                 </ng-container>
               </td>
@@ -117,10 +117,10 @@
 
 <mat-dialog-actions align="end">
   <button mat-button (click)="close()">{{'cancel' | translate}}</button>
-  <button mat-button color="accent" (click)="exportTimes()" [disabled]="!selectedDate">
-    <mat-icon>download</mat-icon> {{'export' | translate}} CSV
+  <button mat-button color="accent" (click)="exportTimes()" [disabled]="!selectedDate || !hasTimesToExport()">
+    <mat-icon>download</mat-icon> {{'timing.export_csv' | translate}}
   </button>
   <button mat-raised-button color="primary" (click)="saveAllTimes()" [disabled]="!hasUnsavedChanges()">
-    <mat-icon>save</mat-icon> {{'timing.save_all' | translate}}
+    <mat-icon>save</mat-icon> {{'save' | translate}}
   </button>
 </mat-dialog-actions>

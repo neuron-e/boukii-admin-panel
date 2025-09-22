@@ -1,7 +1,7 @@
 <div style="width: 100%;  gap: 8px;
 display: flex;
 flex-direction: column;">
-  <ng-container *ngFor="let item of courseFormGroup.controls['levelGrop'].value;index as i">
+  <ng-container *ngFor="let item of asArray(courseFormGroup.controls['levelGrop'].value); index as i">
     <div *ngIf="item.active" style="height: 100%;width: 100%;">
       <div [style.backgroundColor]="item.color+'33'" [style.border]="'1px solid '+item.color"
            (click)="item.modal=!item.modal"
@@ -46,7 +46,7 @@ flex-direction: column;">
         </div>
       </div>
       <ng-container *ngIf="item.modal">
-        <div *ngFor="let ix of find(courseFormGroup.controls['course_dates'].value[0].course_groups,'degree_id',item.id).course_subgroups;index as i"
+        <div *ngFor="let ix of asArray(getSubgroupsForDegree(courseFormGroup.controls['course_dates'].value, item.id)); index as i"
              style="padding: 10px;width: 100%;border: 1px solid var(--color-grey2);display: flex;align-items: flex-start;height: 60%;background-color: var(--color-grey5);flex-direction: column;flex-wrap: nowrap;">
           <div style="width: 100%;">
             <div style="display: flex;justify-content: space-between;width: 100%;margin-bottom: 10px;align-items: center;">
@@ -72,18 +72,18 @@ flex-direction: column;">
 							<span *ngIf="!ix.monitor">
 								{{"text_nomonitorset" | translate}}
 							</span>
-              <ng-container *ngFor="let course_date of courseFormGroup.controls['course_dates'].value">
+            <ng-container *ngFor="let course_date of courseFormGroup.controls['course_dates'].value">
 								<span *ngIf="ix.monitor">
 									{{course_date.date | date:'dd-MM-yyyy'}} {{"monitor" | translate}}:
-                  {{find(course_date.course_groups,'degree_id',item.id).course_subgroups[i].monitor?.first_name}}
-                  {{find(course_date.course_groups,'degree_id',item.id).course_subgroups[i].monitor?.last_name}}
+                  {{ (find(course_date.course_groups || [],'degree_id',item.id)?.course_subgroups?.[i]?.monitor?.first_name) }}
+                  {{ (find(course_date.course_groups || [],'degree_id',item.id)?.course_subgroups?.[i]?.monitor?.last_name) }}
 								</span>
                 <br *ngIf="ix.monitor">
               </ng-container>
             </ng-container>
           </div>
-          <ng-container *ngFor="let user of courseFormGroup.controls['booking_users'].value">
-            <div *ngIf="ix.id === user.course_subgroup_id"
+          <ng-container *ngFor="let user of asArray(courseFormGroup.controls['booking_users'].value)">
+            <div *ngIf="ix.id === (user.course_subgroup_id || user.course_sub_group_id || user.course_sub_group?.id)"
                  style="padding: 5px;gap: 5px;width: 100%;border: 1px solid var(--color-grey2);display: flex;align-items: center;height: 60%;background-color: var(--color-grey5);">
               <!-- Show checkbox for past dates, icon for future dates -->
               <mat-checkbox *ngIf="isDatePast(user.date)"
@@ -99,7 +99,7 @@ flex-direction: column;">
             </div>
           </ng-container>
           <ng-container *ngFor="let i of numUsersArray(courseFormGroup.controls['max_participants'].value);">
-            <div *ngIf="checkbox && (i>=courseFormGroup.controls['booking_users'].value.length || ix.id !== courseFormGroup.controls['booking_users'].value[i].course_subgroup_id)"
+            <div *ngIf="checkbox && (i>=courseFormGroup.controls['booking_users'].value.length || ix.id !== (courseFormGroup.controls['booking_users'].value[i].course_subgroup_id || courseFormGroup.controls['booking_users'].value[i].course_sub_group_id))"
                  style="padding: 5px;gap: 5px;width: 100%;border: 1px solid var(--color-grey2);display: flex;align-items: center;height: 60%;background-color: var(--color-grey4);color: var(--color-grey1);">
               <mat-icon style="font-size: 10px;width: 10px;height: 10px;color:#C7D0D3">circle</mat-icon>
               {{"not_assigned" | translate}}

@@ -75,6 +75,10 @@
   "communications.template_promotion": "Aktion",
   "communications.template_newsletter": "Newsletter",
   "communications.template_event": "Veranstaltung",
+  "communications.template_welcome_subject": "Willkommen bei {{school_name}}!",
+  "communications.template_promotion_subject": "Sonderangebot für dich",
+  "communications.template_newsletter_subject": "Neuigkeiten",
+  "communications.template_event_subject": "Einladung zu unserer Veranstaltung",
   "communications.draft_saved": "Entwurf gespeichert",
   "communications.newsletter_sent": "Newsletter gesendet",
   "communications.newsletter_duplicated": "Newsletter dupliziert",
@@ -152,6 +156,9 @@
   "communications.show_less": "weniger anzeigen",
   "communications.template_library": "Vorlagen-Bibliothek",
   "communications.create_template": "Vorlage erstellen",
+  "communications.predefined_templates": "Vordefinierte Vorlagen",
+  "communications.custom_templates": "Deine Vorlagen",
+  "communications.preview_newsletter": "Newsletter-Vorschau",
   "communications.use_template": "Vorlage verwenden",
   "communications.messages_refreshed": "Nachrichten aktualisiert",
   "expand_all": "Alle erweitern",
@@ -1279,5 +1286,13 @@
   "apply_schedule_all_dates": "Zeitplan auf alle Termine anwenden",
   "courses.schedule_required_error": "Bitte setzen Sie zuerst Start- und Endzeiten",
   "courses.no_dates_error": "Keine Kurstermine zur Aktualisierung verfügbar",
-  "courses.schedule_applied_success": "Zeitplan erfolgreich auf alle Termine angewendet"
+  "courses.schedule_applied_success": "Zeitplan erfolgreich auf alle Termine angewendet",
+  "attendance": {
+    "confirmed": "Anwesenheit bestätigt",
+    "pending": "Anwesenheit ausstehend",
+    "not_confirmed": "Anwesenheit nicht bestätigt",
+    "attended": "Hat teilgenommen",
+    "not_attended": "Hat nicht teilgenommen",
+    "unmarked": "Nicht markiert"
+  }
 }

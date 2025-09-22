@@ -6,6 +6,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ApiCrudService } from '../../../service/crud.service';
 import { MailService } from '../mail/services/mail.service';
 import { Observable } from 'rxjs';
+import { AngularEditorConfig } from '@kolkov/angular-editor';
 
 export interface NewsletterStats {
   totalSubscribers: number;
@@ -76,7 +77,51 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   selectedTemplate: string | null = null;
   selectedTabIndex = 0; // Controls which tab is active
 
+  // Editor resize functionality
+  editorHeight = 400; // Default height
+  isResizing = false;
+
   // Rich text editor now uses @kolkov/angular-editor
+  editorConfig: AngularEditorConfig = {
+    editable: true,
+    spellcheck: true,
+    height: 'auto',
+    minHeight: '400px',
+    maxHeight: '800px',
+    width: 'auto',
+    minWidth: '0',
+    translate: 'yes',
+    enableToolbar: true,
+    showToolbar: true,
+    placeholder: 'Escribe aquí el contenido de tu newsletter...',
+    defaultParagraphSeparator: 'p',
+    defaultFontName: 'Arial',
+    defaultFontSize: '3',
+    uploadUrl: '',
+    uploadWithCredentials: false,
+    sanitize: true,
+    toolbarPosition: 'top',
+    toolbarHiddenButtons: [
+      ['subscript', 'superscript'],
+      ['insertUnorderedList', 'insertOrderedList'],
+      ['fontName']
+    ],
+    customClasses: [
+      {
+        name: 'Quote',
+        class: 'quote',
+      },
+      {
+        name: 'Texto Destacado',
+        class: 'redText'
+      },
+      {
+        name: 'Título Principal',
+        class: 'titleText',
+        tag: 'h1',
+      }
+    ]
+  };
 
   newsletterStats: NewsletterStats = {
     totalSubscribers: 0,
@@ -123,28 +168,28 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       id: 'welcome',
       name: 'communications.template_welcome',
       icon: 'waving_hand',
-      subject: 'Welcome!',
+      subject: this.translateService.instant('communications.template_welcome_subject') || 'Welcome!',
       content: this.translateService.instant('communications.template_welcome_content')
     },
     {
       id: 'promotion',
       name: 'communications.template_promotion',
       icon: 'local_offer',
-      subject: 'Special Offer!',
+      subject: this.translateService.instant('communications.template_promotion_subject') || 'Special Offer!',
       content: this.translateService.instant('communications.template_promotion_content')
     },
     {
       id: 'newsletter',
       name: 'communications.template_newsletter',
       icon: 'newspaper',
-      subject: 'Newsletter',
+      subject: this.translateService.instant('communications.template_newsletter_subject') || 'Newsletter',
       content: this.translateService.instant('communications.template_newsletter_content')
     },
     {
       id: 'event',
       name: 'communications.template_event',
       icon: 'event',
-      subject: 'Upcoming Event',
+      subject: this.translateService.instant('communications.template_event_subject') || 'Upcoming Event',
       content: this.translateService.instant('communications.template_event_content')
     }
   ];
@@ -833,6 +878,32 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     });
   }
 
+  // Editor resize functionality
+  startResize(event: MouseEvent): void {
+    event.preventDefault();
+    this.isResizing = true;
+
+    const startY = event.clientY;
+    const startHeight = this.editorHeight;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!this.isResizing) return;
+
+      const deltaY = e.clientY - startY;
+      const newHeight = Math.max(300, Math.min(800, startHeight + deltaY));
+      this.editorHeight = newHeight;
+    };
+
+    const onMouseUp = () => {
+      this.isResizing = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+
   refreshMessages(): void {
     this.mailService.getData();
     this.snackBar.open(
@@ -851,7 +922,9 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   showSubscriberManagement = false;
   showCreateTemplate = false;
   showNewsletterPreview = false;
+  showTemplatePreview = false;
   previewContent: any = {};
+  templatePreviewContent: any = {};
 
   // Handle message click to mark as read and show details
   onMessageClick(mail: any): void {
@@ -1467,12 +1540,30 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   previewTemplate(template: any): void {
-    // Implementation for template preview
-    this.snackBar.open(
-      this.translateService.instant('communications.template_previewing'),
-      'OK',
-      { duration: 2000 }
-    );
+    const subject = template.subject || '';
+    const content = template.content || '';
+
+    this.templatePreviewContent = {
+      subject: subject,
+      content: this.renderPreviewContent(content)
+    };
+    this.showTemplatePreview = true;
+  }
+
+  closeTemplatePreview(): void {
+    this.showTemplatePreview = false;
+    this.templatePreviewContent = {};
+  }
+
+  private renderPreviewContent(content: string): string {
+    if (!content) return '';
+    // Replace known variables with sample data for preview only
+    return content
+      .replace(/\{\{\s*name\s*\}\}/g, 'María García')
+      .replace(/\{\{\s*email\s*\}\}/g, 'maria@example.com')
+      .replace(/\{\{\s*school_name\s*\}\}/g, 'Boukii Escuela')
+      .replace(/\{\{\s*date\s*\}\}/g, new Date().toLocaleDateString())
+      .replace(/\{\{\s*cta_url\s*\}\}/g, '#');
   }
 
   useTemplateFromLibrary(template: any): void {

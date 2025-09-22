@@ -106,14 +106,36 @@ export class DashboardAnalyticsComponent implements OnInit {
   }
 
   getCourses() {
-    this.crudService.list('/admin/courses', 1, 10000, 'desc', 'id', '&school_id=' + this.user.schools[0].id + '&date_start=' + this.date.format('YYYY-MM-DD') + '&course_type=1')
+    this.crudService.list(
+      '/admin/courses',
+      1,
+      10000,
+      'desc',
+      'id',
+      '&school_id=' + this.user.schools[0].id + '&date_start=' + this.date.format('YYYY-MM-DD') + '&course_type=1',
+      '',
+      null,
+      '',
+      ['sport', 'courseDates.courseSubgroups']
+    )
       .subscribe((data) => {
         this.dispoCol = data.data.reduce((accumulator, currentObject) => {
           return accumulator + currentObject.total_available_places;
         }, 0);
 
       })
-    this.crudService.list('/admin/courses', 1, 10000, 'desc', 'id', '&school_id=' + this.user.schools[0].id + '&date_start=' + this.date.format('YYYY-MM-DD') + '&course_type=2')
+    this.crudService.list(
+      '/admin/courses',
+      1,
+      10000,
+      'desc',
+      'id',
+      '&school_id=' + this.user.schools[0].id + '&date_start=' + this.date.format('YYYY-MM-DD') + '&course_type=2',
+      '',
+      null,
+      '',
+      ['sport', 'courseDates.courseSubgroups']
+    )
       .subscribe((data) => {
         this.dispoPrivate = data.data.reduce((accumulator, currentObject) => {
           return accumulator + currentObject.total_available_places;

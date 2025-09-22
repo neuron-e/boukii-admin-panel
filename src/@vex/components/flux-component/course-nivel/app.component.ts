@@ -15,7 +15,7 @@ export class CourseDetailCardNivelComponent {
   @Input() checkbox: boolean = false
   @Input() selectedSubgroup: any;
   @Output() changeMonitor = new EventEmitter<any>()
-  @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any }>()
+  @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any, selectedDate?: any }>()
 
   today: Date = new Date()
 
@@ -32,14 +32,38 @@ export class CourseDetailCardNivelComponent {
   numUsersArray(value: number): number[] {
     return Array.from({ length: value }, (_, i) => i);
   }
-  findBookingUsers(bookingUsers: any[], courseDates: any[], degreeId: number): number {
-    if (!bookingUsers || !courseDates) return 0;
+
+  // Devuelve los subgrupos para un degree buscando el primer course_date que los contenga
+  getSubgroupsForDegree(courseDates: any[], degreeId: number): any[] {
+    if (!Array.isArray(courseDates)) return [];
+    for (const cd of courseDates) {
+      const group = (cd?.course_groups || []).find((g: any) => g?.degree_id === degreeId);
+      if (group && Array.isArray(group.course_subgroups) && group.course_subgroups.length) {
+        return group.course_subgroups;
+      }
+    }
+    return [];
+  }
+
+  // Ensure we always iterate arrays in templates
+  asArray<T = any>(val: any): T[] {
+    try {
+      if (Array.isArray(val)) return val as T[];
+      if (typeof val === 'string') return JSON.parse(val || '[]') as T[];
+    } catch (e) {
+      console.warn('asArray parse failed, defaulting to []', e);
+    }
+    return [] as T[];
+  }
+  findBookingUsers(bookingUsers: any, courseDates: any[], degreeId: number): number {
+    const users = this.asArray(bookingUsers);
+    if (!users || !courseDates) return 0;
     if(!this.courseFormGroup.value.is_flexible) {
-      return bookingUsers.filter((user: any) => {
+      return users.filter((user: any) => {
        return courseDates[0].course_groups.some((group: any) =>
           group.degree_id === degreeId && group.id === user.course_group_id)}).length;
     } else {
-      return bookingUsers.filter((user: any) => {
+      return users.filter((user: any) => {
         return courseDates.some((date: any) =>
           date.course_groups.some((group: any) => group.degree_id === degreeId && group.id === user.course_group_id)
         );
@@ -63,9 +87,9 @@ export class CourseDetailCardNivelComponent {
     );
   }
 
-  onTimingClick(subGroup: any, groupLevel: any): void {
-    console.log('onTimingClick called with:', { subGroup, groupLevel });
-    this.viewTimes.emit({ subGroup, groupLevel });
+  onTimingClick(subGroup: any, groupLevel: any, selectedDate?: any): void {
+    console.log('onTimingClick called with:', { subGroup, groupLevel, selectedDate });
+    this.viewTimes.emit({ subGroup, groupLevel, selectedDate });
   }
 
   // Attendance functionality

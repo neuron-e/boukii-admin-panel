@@ -587,17 +587,17 @@
     </div>
   </ng-container>
   <ng-container *ngIf="!noneExtras">
-    <div *ngIf="courseFormGroup.controls['course_type'].value===3 && courseFormGroup.controls['settings'].value.groups.length>0"
+    <div *ngIf="courseFormGroup.controls['course_type'].value===3 && asArray(courseFormGroup.controls['settings'].value?.groups).length>0"
          class="cardgroup extras">
-      <div *ngFor="let group of courseFormGroup.controls['settings'].value.groups; index as i">
-        <div *ngIf="group.extras" style="justify-content: space-between;">
+      <div *ngFor="let group of asArray(courseFormGroup.controls['settings'].value?.groups); index as i">
+        <div *ngIf="asArray(group.extras).length" style="justify-content: space-between;">
           <p class="label">
             {{("extras" | translate)+' '+(i+1)+": "+group.groupName}}
           </p>
           <img *ngIf="detail" (click)="edit.emit(4)" src="assets/icons/icon/edit2.png" alt
                class="editbutton icon24">
         </div>
-        <div *ngFor="let extra of group.extras">
+        <div *ngFor="let extra of asArray(group.extras)">
 					<span
             style="color: var(--color-dark1);font-size: 12px;font-weight: 600;line-height: 18px;word-wrap: break-word">
 						{{extra.name.slice(0,20)}}
@@ -608,7 +608,7 @@
             translate}}
 					</span>
         </div>
-        <div *ngIf="!group.extras || group.extras.length<1">
+        <div *ngIf="!asArray(group.extras).length">
 					<span
             style="color: var(--color-dark1);font-size: 12px;font-weight: 600;line-height: 18px;word-wrap: break-word">
 						{{"no_extra_assigned" | translate}}
@@ -625,7 +625,7 @@
           <img *ngIf="detail" (click)="edit.emit(4)" src="assets/icons/icon/edit2.png" alt
                class="editbutton icon24">
         </div>
-        <div *ngFor="let extra of courseFormGroup.controls['course_extras'].value">
+        <div *ngFor="let extra of asArray(courseFormGroup.controls['course_extras'].value)">
 					<span
             style="color: var(--color-dark1);font-size: 12px;font-weight: 600;line-height: 18px;word-wrap: break-word">
 						{{extra.name.slice(0,20)}}
@@ -637,7 +637,7 @@
 					</span>
         </div>
         <div
-          *ngIf="!courseFormGroup.controls['course_extras'].value || courseFormGroup.controls['course_extras'].value.length<1">
+          *ngIf="!asArray(courseFormGroup.controls['course_extras'].value).length">
 					<span
             style="color: var(--color-dark1);font-size: 12px;font-weight: 600;line-height: 18px;word-wrap: break-word">
 						{{"no_extra_assigned" | translate}}

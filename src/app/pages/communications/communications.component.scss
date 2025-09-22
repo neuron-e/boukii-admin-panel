@@ -12,7 +12,7 @@
         }
       }
     }
-    
+
     .mat-tab-body-wrapper {
       .mat-tab-body {
         .mat-tab-body-content {
@@ -28,12 +28,12 @@
   border: none;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
-  
+
   &:hover {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     transform: translateY(-2px);
   }
-  
+
   mat-card-content {
     padding: 24px !important;
   }
@@ -43,14 +43,14 @@
 .newsletter-form-card {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border: none;
-  
+
   mat-card-header {
     padding: 16px 24px;
     margin: 0;
     border-bottom: 1px solid #f3f4f6;
     background: #f9fafb;
   }
-  
+
   mat-card-content {
     padding: 24px !important;
   }
@@ -58,45 +58,144 @@
 
 // Newsletter Editor
 .newsletter-editor {
-  .border {
-    border-radius: 8px;
+  margin: 24px 0;
+
+  .editor-resize-wrapper {
+    position: relative;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
     overflow: hidden;
-  }
+    transition: border-color 0.3s ease;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 
-  [contenteditable="true"] {
-    outline: none;
-    line-height: 1.6;
-    text-align: left;
-    direction: ltr;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-
-    &:focus {
-      background-color: #fefefe;
+    &:focus-within {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
-    &:empty:before {
-      content: attr(data-placeholder);
-      color: #9ca3af;
-      font-style: italic;
-      text-align: left;
-    }
-
-    // Preserve text alignment during editing
-    p, div, span {
-      text-align: inherit !important;
-    }
-
-    // Ensure cursor stays visible and in correct position
-    br {
+    angular-editor {
+      height: 100%;
       display: block;
-      margin: 0;
-      content: "";
+
+      ::ng-deep .angular-editor-wrapper {
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        height: 100%;
+
+        .angular-editor-toolbar {
+          background: #f8fafc;
+          border-bottom: 1px solid #e5e7eb;
+          padding: 12px 16px;
+
+          .angular-editor-toolbar-set {
+            margin-right: 16px;
+
+            .angular-editor-button {
+              background: transparent;
+              border: 1px solid transparent;
+              border-radius: 6px;
+              margin: 0 2px;
+              width: 32px;
+              height: 32px;
+              transition: all 0.2s ease;
+
+              &:hover {
+                background: #e2e8f0;
+                border-color: #cbd5e1;
+              }
+
+              &.angular-editor-button-active {
+                background: #3b82f6;
+                color: white;
+                border-color: #2563eb;
+              }
+            }
+          }
+        }
+
+        .angular-editor-textarea {
+          height: calc(100% - 48px) !important;
+          min-height: unset !important;
+          max-height: unset !important;
+          resize: none !important;
+          padding: 20px;
+          font-size: 14px;
+          line-height: 1.6;
+          border: none;
+          outline: none;
+          background: white;
+          overflow-y: auto !important;
+
+          &:focus {
+            outline: none;
+            box-shadow: none;
+          }
+
+          p {
+            margin: 8px 0;
+            &:first-child { margin-top: 0; }
+            &:last-child { margin-bottom: 0; }
+          }
+
+          h1, h2, h3, h4, h5, h6 {
+            margin: 16px 0 8px 0;
+            font-weight: 600;
+            &:first-child { margin-top: 0; }
+          }
+
+          ul, ol {
+            margin: 8px 0;
+            padding-left: 24px;
+          }
+
+          blockquote {
+            border-left: 4px solid #3b82f6;
+            margin: 16px 0;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+          }
+
+          .quote {
+            border-left: 4px solid #10b981;
+            padding: 12px 16px;
+            background: #f0fdf4;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            margin: 16px 0;
+          }
+
+          .redText {
+            color: #dc2626;
+            font-weight: 500;
+          }
+
+          .titleText {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 24px 0 16px 0;
+          }
+        }
+      }
     }
 
-    // Prevent text from jumping to left when typing
-    * {
-      max-width: 100%;
+    .resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 16px;
+      height: 16px;
+      background: linear-gradient(-45deg, transparent 0%, transparent 25%, #cbd5e1 25%, #cbd5e1 50%, transparent 50%, transparent 75%, #cbd5e1 75%);
+      cursor: nw-resize;
+      z-index: 10;
+      border-radius: 0 0 8px 0;
+
+      &:hover {
+        background: linear-gradient(-45deg, transparent 0%, transparent 25%, #94a3b8 25%, #94a3b8 50%, transparent 50%, transparent 75%, #94a3b8 75%);
+      }
     }
   }
 }
@@ -105,7 +204,7 @@
 .newsletter-item {
   border: 1px solid #e5e7eb;
   transition: all 0.2s ease;
-  
+
   &:hover {
     border-color: #d1d5db;
     background-color: #f9fafb;
@@ -117,13 +216,13 @@
 .template-card {
   transition: all 0.2s ease;
   cursor: pointer;
-  
+
   &:hover {
     border-color: #3b82f6;
     background-color: #eff6ff;
     transform: scale(1.02);
   }
-  
+
   &.bg-blue-50 {
     background-color: #eff6ff;
     border-color: #3b82f6;
@@ -135,11 +234,11 @@
   .message-item {
     border-bottom: 1px solid #f3f4f6;
     transition: all 0.2s ease;
-    
+
     &:hover {
       background-color: #f9fafb;
     }
-    
+
     &:last-child {
       border-bottom: none;
     }
@@ -163,79 +262,76 @@
       margin: 0;
       padding-bottom: 0;
     }
-    
+
     .mat-form-field-flex {
       align-items: center;
     }
-    
+
     &.mat-form-field-appearance-outline {
       .mat-form-field-outline {
         color: #d1d5db;
       }
-      
+
       &.mat-focused .mat-form-field-outline-thick {
         color: #3b82f6;
       }
     }
   }
-  
+
   .mat-select-panel {
     .mat-option {
       height: auto;
       line-height: normal;
       padding: 12px 16px;
-      
+
       &:hover:not(.mat-option-disabled) {
         background-color: #eff6ff;
       }
-      
+
       &.mat-selected:not(.mat-option-multiple) {
         background-color: #dbeafe;
         color: #1e40af;
       }
     }
   }
-  
-  // Tab Enhancements
+
   .mat-tab-label {
     .mat-icon {
       margin-right: 8px;
     }
   }
-  
-  // Button Enhancements
+
   .mat-raised-button.mat-primary {
     background-color: #2563eb;
     box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
-    
+
     &:hover {
       background-color: #1d4ed8;
       box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.4);
     }
-    
+
     &:disabled {
       background-color: #94a3b8;
       color: white;
     }
   }
-  
+
   .mat-button {
     border-radius: 6px;
-    
+
     &:hover {
       background-color: #f3f4f6;
     }
   }
-  
-  // Card Enhancements
+
   .mat-card {
     border-radius: 12px;
     border: none;
-    
+
     &:not(.stats-card):not(.newsletter-form-card) {
       box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     }
-    
+
     .mat-card-header {
       .mat-card-title {
         font-size: 18px;
@@ -244,23 +340,22 @@
       }
     }
   }
-  
-  // Menu Enhancements
+
   .mat-menu-panel {
     border-radius: 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     border: 1px solid #f3f4f6;
-    
+
     .mat-menu-content {
       .mat-menu-item {
         border-radius: 4px;
         margin: 4px 8px;
-        
+
         &:hover {
           background-color: #eff6ff;
           color: #1e40af;
         }
-        
+
         &.text-red-600 {
           &:hover {
             background-color: #fef2f2;
@@ -277,19 +372,47 @@
   .stats-card {
     margin-bottom: 16px;
   }
-  
+
   .newsletter-form-card {
     .grid {
       grid-template-columns: 1fr;
     }
   }
-  
+
   .flex.justify-between {
     flex-direction: column;
     gap: 16px;
-    
+
     .flex.space-x-3 {
       justify-content: center;
+    }
+  }
+
+  .editor-resize-wrapper {
+    angular-editor {
+      ::ng-deep .angular-editor-wrapper {
+        .angular-editor-textarea {
+          min-height: 300px !important;
+          padding: 16px;
+          font-size: 16px;
+        }
+
+        .angular-editor-toolbar {
+          padding: 8px 12px;
+          flex-wrap: wrap;
+
+          .angular-editor-toolbar-set {
+            margin-right: 8px;
+            margin-bottom: 4px;
+
+            .angular-editor-button {
+              width: 28px;
+              height: 28px;
+              margin: 0 1px;
+            }
+          }
+        }
+      }
     }
   }
 }

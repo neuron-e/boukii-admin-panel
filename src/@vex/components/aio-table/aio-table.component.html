@@ -508,7 +508,10 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
-              <img [src]="getCourseType(data[i]) === 'prive' ? data[i].sport.icon_prive : data[i].sport.icon_collective"
+              <img [src]="getCourseType(data[i]) === 'prive'
+                           ? (data[i]?.sport?.icon_prive || fallbackCourseIcon)
+                           : (data[i]?.sport?.icon_collective || fallbackCourseIcon)"
+                   (error)="onCourseImageError($event)"
                    class="avatar h-8 w-8 align-middle"
                    style="border-radius: 5px;min-width: 48px;min-height: 48px;">
               <!-- <ng-container *ngIf="data[i].booking_users > 1" >
@@ -1247,7 +1250,7 @@
 				{{'deactivate' | translate }}
 			</span>
     </button>
-    <button *ngIf="canDeactivate && entity.includes('courses') && item.booking_users_active?.length == 0"
+    <button *ngIf="canDeactivate && entity.includes('courses') && item.total_reservations == 0"
             (click)="delete(item)" mat-menu-item>
       <mat-icon svgIcon="mat:delete"></mat-icon>
       <span>

@@ -141,12 +141,15 @@
         <mat-checkbox [(ngModel)]="useMultipleIntervals" (change)="onMultipleIntervalsChange()">
           {{'multiple_intervals' | translate }}
         </mat-checkbox>
+        <div style="margin-left: 24px; margin-top: 8px; font-size: 12px; color: #6c757d;">
+          {{'multiple_intervals_help' | translate}}
+        </div>
       </div>
 
       <ng-container *ngIf="courses.courseFormGroup.controls['course_type'].value===1">
         <!-- INTERVALOS DE FECHAS -->
-        <!-- Configuración global de intervalos (solo visible cuando useMultipleIntervals está activo) -->
-        <div *ngIf="useMultipleIntervals" class="global-interval-settings mb-4 p-3 border rounded bg-light" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
+        <!-- Configuración global de intervalos (siempre visible) -->
+        <div class="global-interval-settings mb-4 p-3 border rounded bg-light" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
           <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
             <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">settings</mat-icon>
             {{'global_interval_settings' | translate}}
@@ -185,17 +188,17 @@
             {{'interval_global_settings_info' | translate}}
           </div>
         </div>
-        <!-- Contenedor de intervalos múltiples -->
-        <div *ngIf="useMultipleIntervals">
+        <!-- Contenedor de intervalos (siempre visible) -->
+        <div>
           <!-- Lista de intervalos -->
-          <div *ngFor="let interval of intervals; let i = index">
+          <div *ngFor="let interval of getDisplayIntervals(); let i = index">
             <div
               style="width: 100%; background-color: var(--color-grey4); height: 60px; border-top: 1px solid #C7D0D3; padding: 0 24px; align-content: space-evenly; display: flex; justify-content: space-between; align-items: center;">
               <span>
                 {{('interval' | translate) + ' ' + (i + 1) }}
               </span>
               <div style="display: flex; align-items: center; gap: 10px;">
-                <mat-icon *ngIf="intervals.length > 1"
+                <mat-icon *ngIf="useMultipleIntervals && intervals.length > 1"
                           (click)="removeIntervalUI(i)"
                           style="cursor: pointer; color: var(--color-dark1);">
                   delete
@@ -282,7 +285,7 @@
                 <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
                   <button type="button"
                           *ngFor="let day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']"
-                          [class.active]="interval.weeklyPattern[day]"
+                          [class.active]="interval.weeklyPattern?.[day]"
                           (click)="toggleIntervalWeekday(i, day)"
                           style="padding: 6px 10px; border: 1px solid #ced4da; border-radius: 15px; cursor: pointer; font-size: 11px; background: white; color: #495057;">
                     {{ day.substring(0, 3) | translate | titlecase }}
@@ -333,22 +336,79 @@
               </div>
 
             </div>
-            <!-- Botón para añadir fecha al intervalo -->
-            <button (click)="addCourseDateToInterval(i)"
-                    style="margin: 20px; border: 1px solid var(--is-light-theme, #222222) var(--is-dark-theme, #ffffff); border-radius: 3px; float: inline-end; height: 38px; width: 125px;"
-                    type="button">
-              {{'add_date' | translate}}
-            </button>
+            <!-- Botón para añadir fecha -->
+            <div style="margin: 20px; display: flex; justify-content: flex-end;">
+              <button (click)="addCourseDateToInterval(i)"
+                      style="border: 1px solid var(--is-light-theme, #222222) var(--is-dark-theme, #ffffff); border-radius: 3px; height: 38px; padding: 0 16px;"
+                      type="button">
+                {{'add_date' | translate}}
+              </button>
+            </div>
+
+            <!-- Aplicar horario al intervalo (solo si hay al menos 2 fechas) -->
+            <div *ngIf="interval?.dates && interval?.dates?.length >= 2"
+                 style="margin: 20px; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+
+              <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                <mat-icon style="color: #007bff; margin-right: 8px; font-size: 20px;">schedule</mat-icon>
+                <h4 style="margin: 0; color: #495057; font-size: 16px; font-weight: 600;">
+                  {{'apply_schedule_interval' | translate}}
+                </h4>
+              </div>
+
+              <div style="display: flex; gap: 12px; align-items: end; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 120px;">
+                  <app-form-select
+                    [value]="getIntervalScheduleStartTime(i)"
+                    [table]="courses.hours"
+                    (do)="setIntervalScheduleStartTime(i, $event.option.value)"
+                    style="width: 100%;"
+                    label="{{'start_hour' | translate}}"
+                    [required]="false">
+                  </app-form-select>
+                </div>
+
+                <div style="flex: 1; min-width: 120px;">
+                  <app-form-select
+                    [value]="getIntervalScheduleDuration(i)"
+                    [table]="courses.duration"
+                    (do)="setIntervalScheduleDuration(i, $event.option.value)"
+                    style="width: 100%;"
+                    label="{{'duration' | translate}}"
+                    [required]="false">
+                  </app-form-select>
+                </div>
+
+                <div style="flex: 0 0 auto;">
+                  <button (click)="applyBulkScheduleToIntervalInline(i)"
+                          style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; border: none; border-radius: 6px; height: 40px; padding: 0 20px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,123,255,0.3); transition: all 0.2s ease;"
+                          type="button"
+                          [disabled]="!getIntervalScheduleStartTime(i) || !getIntervalScheduleDuration(i)"
+                          onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(0,123,255,0.4)'"
+                          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.3)'">
+                    <mat-icon style="vertical-align: middle; margin-right: 6px; font-size: 16px;">schedule</mat-icon>
+                    {{'apply' | translate}}
+                  </button>
+                </div>
+              </div>
+
+              <div style="margin-top: 12px; font-size: 13px; color: #6c757d; display: flex; align-items: center;">
+                <mat-icon style="font-size: 14px; margin-right: 4px; color: #6c757d;">info</mat-icon>
+                {{'schedule_will_apply_to_dates' | translate}}: {{interval?.dates?.length}} {{'dates' | translate}}
+              </div>
+            </div>
           </div>
 
-          <!-- Botón para añadir nuevo intervalo -->
+          <!-- Botón para añadir nuevo intervalo (solo en modo múltiple) -->
           <div style="padding: 20px; border-top: 1px solid #DEE6EA;">
-            <button (click)="addIntervalUI(intervals.length)"
-                    style="border: 1px solid #E91E63; color: #E91E63; background: transparent; border-radius: 3px; height: 38px; padding: 0 20px;"
+            <button *ngIf="useMultipleIntervals"
+                    (click)="addIntervalUI(intervals.length)"
+                    style="border: 1px solid #E91E63; color: #E91E63; background: transparent; border-radius: 3px; height: 38px; padding: 0 20px; margin-right: 10px;"
                     type="button">
               <mat-icon style="vertical-align: middle; margin-right: 5px;">add</mat-icon>
               {{'add_new_interval' | translate}}
             </button>
+
           </div>
         </div>
 
@@ -385,13 +445,6 @@
                                style="min-width: 0;width: 100%;" label="duration">
               </app-form-select>
             </div>
-          </div>
-          <div style="padding: 20px;border-top: 1px solid #DEE6EA;">
-            <button (click)="mode==='create'?addCourseDate():editModal=true;setEditFunction('addCourseDate')"
-                    style="border: 1px solid var(--is-light-theme, #222222) var(--is-dark-theme, #ffffff); border-radius: 3px;float: inline-end;height: 38px;width: 125px;"
-                    type="button">
-              {{'add_date' | translate }}
-            </button>
           </div>
 
           <!-- Código existente para descuentos y configuración flexible -->
@@ -476,7 +529,7 @@
       </ng-container>
 
       <ng-container *ngIf="courses.courseFormGroup.controls['course_type'].value>1">
-        <mat-tab-group [selectedIndex]="courses.courseFormGroup.controls['settings'].value.periods.length>1?1:0"
+        <mat-tab-group [selectedIndex]="PeriodoFecha || (courses.courseFormGroup.controls['settings'].value.periods.length>1?1:0)"
                        (selectedIndexChange)="PeriodoFecha=$event;$event===0?courses.courseFormGroup.patchValue({course_dates:[courses.courseFormGroup.controls['course_dates'].value[0]]}):''"
                        style="margin: 20px 20px 0;">
           <mat-tab>
@@ -586,7 +639,7 @@
         </div>
         <div class="level"
              style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
-          <ng-container *ngFor="let level of courses.courseFormGroup.controls['levelGrop'].value;index as i">
+          <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i">
             <div style="display: flex;gap: 16px;align-items: center;">
               <mat-checkbox [disabled]="mode==='update'&&level.active"
                             [style.backgroundColor]="level.active?level.color:level.color+'33'"
@@ -645,7 +698,7 @@
                   <vex-flux-disponibilidad [courseFormGroup]="courses.courseFormGroup" [level]="level"
                                            [group]="find(courses.courseFormGroup.controls['course_dates'].value[0].course_groups,'degree_id',level.id)"
                                            [subgroup_index]="j" (monitorSelect)="monitorSelect($event,level,j)"
-                                           (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel)">
+                                           (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
                   </vex-flux-disponibilidad>
                 </div>
               </ng-container>
@@ -689,7 +742,7 @@
         </div>
       </ng-container>
       <ng-container *ngIf="courses.courseFormGroup.controls['course_type'].value===3">
-        <div *ngFor="let item of courses.courseFormGroup.controls['settings'].value.groups, index as i">
+        <div *ngFor="let item of (courses.courseFormGroup.controls['settings'].value?.groups || []), index as i">
           <div
             style="width: 100%;background-color: var(--color-grey4);height: 60px;border-top: 1px solid #C7D0D3;padding: 0 24px;align-content: space-evenly;">
 						<span>
@@ -750,7 +803,7 @@
           {{"select_extra" | translate}}:
         </div>
         <ng-container
-          *ngFor="let group of courses.courseFormGroup.controls['course_type'].value===3?courses.courseFormGroup.controls['settings'].value.groups:[1];index as i">
+          *ngFor="let group of courses.courseFormGroup.controls['course_type'].value===3?(courses.courseFormGroup.controls['settings'].value?.groups || []):[1];index as i">
           <div *ngIf="courses.courseFormGroup.controls['course_type'].value===3"
                style="width: 100%;background-color: var(--color-grey4);height: 60px;border-top: 1px solid #C7D0D3;padding: 0 24px;align-content: space-evenly;">
 						<span>

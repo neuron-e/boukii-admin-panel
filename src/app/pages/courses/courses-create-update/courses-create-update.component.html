@@ -1653,9 +1653,15 @@
                               <div>
                                 <ul style="display: flex">
                                   <li style="float: left; width: 20%;font-size: 18px">
-                                    <span [style.color]="colorKey"><strong>{{groupLevel.annotation}}</strong>
-                                      - {{groupLevel.name}} - {{ subGroupIndex +
-                                      1 }}</span>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                      <span [style.color]="colorKey"><strong>{{groupLevel.annotation}}</strong>
+                                        - {{groupLevel.name}} - {{ subGroupIndex + 1 }}</span>
+                                      <button mat-icon-button color="primary"
+                                              (click)="openTimingModal(subGroup, groupLevel); $event.stopPropagation()"
+                                              [attr.aria-label]="'timing.view_times' | translate">
+                                        <mat-icon>schedule</mat-icon>
+                                      </button>
+                                    </div>
                                   </li>
                                   <li *ngFor="let dayLevel of daysDatesLevels; let dayIndex = index;"
                                     (click)="selectItem(dayLevel, dayIndex, subGroupIndex, groupLevel)"

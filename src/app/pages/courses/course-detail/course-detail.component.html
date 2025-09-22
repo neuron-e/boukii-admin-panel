@@ -774,7 +774,7 @@
 															<ng-container *ngIf="bUsers?.course?.course_type !== 1">
 																<!-- Para course_type distinto de 1 -->
 																<ng-container
-																	*ngFor="let item of detailData.bookingusers">
+																	*ngFor="let item of detailData?.bookingusers || courseUsers">
 																	<div
 																		*ngIf="item.client_id == bUsers.client_id && item.date == bUsers.date">
 																		<span class="date-course">
@@ -822,7 +822,7 @@
 																				svgIcon="mat:help_outline">
 																			</mat-icon>
 																			<span style="margin-left: 4px; font-size: 10px; color: #666;">
-																				{{ item.attended === true ? 'Asistió' : item.attended === false ? 'No asistió' : 'Sin marcar' }}
+																				{{ item.attended === true ? ('attendance.attended' | translate) : item.attended === false ? ('attendance.not_attended' | translate) : ('attendance.unmarked' | translate) }}
 																			</span>
 																		</div>
 																	</div>

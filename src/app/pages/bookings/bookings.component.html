@@ -29,11 +29,7 @@
 			[createComponent]="createComponent"
 			[canDelete]="false"
 			[canDeactivate]="false"
-			[with]="['bookingUsers.course.sport', 'bookingUsers.monitor',
-      'bookingUsers.client.clientSports.degree',
-            'bookingUsers.courseSubGroup.degree',
-       'clientMain.clientSports.degree', 'user',
-       'vouchersLogs.voucher', 'bookingUsers.bookingUserExtras.courseExtra']"
+			[with]="['bookingUsers.course.sport','clientMain']"
 			[filterColumn]="'school_id'"
 			[filterField]="user.schools[0].id"
 			[sectionIcon]="icon"

@@ -33,6 +33,7 @@ import { dropdownAnimation } from '../../../@vex/animations/dropdown.animation';
 import { PreviewModalComponent } from '../../components/preview-modal/preview-modal.component';
 import { LayoutService } from 'src/@vex/services/layout.service';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { AngularEditorConfig } from '@kolkov/angular-editor';
 
 @Component({
   selector: 'vex-settings',
@@ -85,6 +86,35 @@ export class SettingsComponent implements OnInit {
     { value: 'voucher_create', label: 'mails.type7' },
     { value: 'course_reminder', label: 'mails.type8' }
   ];
+
+  // Optimized Angular Editor Configuration for better performance
+  editorConfig: AngularEditorConfig = {
+    editable: true,
+    spellcheck: true,
+    height: '200px',
+    minHeight: '150px',
+    maxHeight: '300px',
+    width: 'auto',
+    minWidth: '0',
+    translate: 'yes',
+    enableToolbar: true,
+    showToolbar: true,
+    placeholder: '',
+    defaultParagraphSeparator: 'p',
+    defaultFontName: 'Arial',
+    defaultFontSize: '3',
+    uploadUrl: '',
+    uploadWithCredentials: false,
+    sanitize: true,
+    toolbarPosition: 'top',
+    toolbarHiddenButtons: [
+      ['subscript', 'superscript'],
+      ['fontSize', 'fontName'],
+      ['insertVideo', 'insertHorizontalRule'],
+      ['removeFormat'],
+      ['toggleEditorMode']
+    ]
+  };
   filteredHours: string[];
 
   seasonForm: UntypedFormGroup;

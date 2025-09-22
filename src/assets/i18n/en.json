@@ -74,6 +74,10 @@
   "communications.template_promotion": "Promotion",
   "communications.template_newsletter": "Newsletter",
   "communications.template_event": "Event",
+  "communications.template_welcome_subject": "Welcome to {{school_name}}!",
+  "communications.template_promotion_subject": "Special offer for you",
+  "communications.template_newsletter_subject": "News bulletin",
+  "communications.template_event_subject": "Invitation to our event",
   "communications.draft_saved": "Draft saved",
   "communications.newsletter_sent": "Newsletter sent",
   "communications.newsletter_duplicated": "Newsletter duplicated",
@@ -122,6 +126,9 @@
   "communications.show_less": "show less",
   "communications.template_library": "Template Library",
   "communications.create_template": "Create Template",
+  "communications.predefined_templates": "Predefined templates",
+  "communications.custom_templates": "Your templates",
+  "communications.preview_newsletter": "Newsletter preview",
   "communications.use_template": "Use Template",
   "communications.messages_refreshed": "Messages updated",
   "communications.edit_template": "Edit Template",
@@ -1322,7 +1329,28 @@
   "show_all_dates": "Show all dates",
   "hide_details": "Hide details",
   "apply_schedule_all_dates": "Apply schedule to all dates",
+  "apply_schedule_interval": "Apply schedule to interval",
+  "apply": "Apply",
+  "schedule_will_apply_to_dates": "Will apply to",
+  "dates": "dates",
   "courses.schedule_required_error": "Please set both start and end times first",
   "courses.no_dates_error": "No course dates available to update",
-  "courses.schedule_applied_success": "Schedule applied to all dates successfully"
+  "courses.schedule_applied_success": "Schedule applied to all dates successfully",
+
+  "attendance": {
+    "confirmed": "Attendance confirmed",
+    "pending": "Attendance pending",
+    "not_confirmed": "Attendance not confirmed",
+    "attended": "Attended",
+    "not_attended": "Did not attend",
+    "unmarked": "Unmarked"
+  },
+
+  "timing": {
+    "student_times": "Student Times",
+    "lap": "Lap",
+    "best_time": "Best Time",
+    "add_time": "Add Time",
+    "export_csv": "Export CSV"
+  }
 }

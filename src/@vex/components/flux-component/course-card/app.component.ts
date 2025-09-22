@@ -49,6 +49,17 @@ export class CourseDetailCardComponent implements OnChanges {
   count = (array: any[], key: string) => Boolean(array.map((a: any) => a[key]).find((a: any) => a))
   DateDiff = (value1: string, value2: string): number => Math.round((new Date(value2).getTime() - new Date(value1).getTime()) / 1000 / 60 / 60 / 24)
 
+  // Helper to ensure templates always iterate arrays
+  asArray<T = any>(val: any): T[] {
+    try {
+      if (Array.isArray(val)) return val as T[];
+      if (typeof val === 'string') return JSON.parse(val || '[]') as T[];
+    } catch (e) {
+      console.warn('asArray parse failed, defaulting to []', e);
+    }
+    return [] as T[];
+  }
+
   ngOnInit(): void {
     this.processCourseDates();
 
@@ -87,7 +98,7 @@ export class CourseDetailCardComponent implements OnChanges {
    * Agrupa las fechas del curso por sus intervalos
    */
   private groupCourseDataByIntervals(courseDates: any[]): Map<number, any[]> {
-    if (!courseDates || courseDates.length === 0) {
+    if (!courseDates || !Array.isArray(courseDates) || courseDates.length === 0) {
       return new Map();
     }
 

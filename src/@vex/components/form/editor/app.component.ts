@@ -23,8 +23,8 @@ export class ComponenteInputComponent implements OnInit {
     editable: true,
     spellcheck: true,
 
-    height: '80rem',
-    minHeight: '15rem',
+    // Use CSS to control height; provide a sensible minimum
+    minHeight: '20rem',
     placeholder: 'Enter text here...',
     translate: 'no',
     defaultParagraphSeparator: 'p',

@@ -330,10 +330,11 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
       stations: this.getStations(),
       monitors: this.getMonitors()
     }).subscribe(({ sportTypes, sports, stations, monitors }) => {
-      this.sportTypeData = sportTypes;
-      this.sportData = sports;
-      this.stations = stations;
-      this.monitors = monitors;
+      // Ensure data is arrays to prevent NgFor errors
+      this.sportTypeData = Array.isArray(sportTypes) ? sportTypes : [];
+      this.sportData = Array.isArray(sports) ? sports : [];
+      this.stations = Array.isArray(stations) ? stations : [];
+      this.monitors = Array.isArray(monitors) ? monitors : [];
 
       this.schoolService.getSchoolData()
         .subscribe((data) => {
@@ -2870,24 +2871,49 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
    */
   openTimingModal(subGroup: any, groupLevel: any): void {
     console.log('openTimingModal called in courses-create-update with:', { subGroup, groupLevel });
-    
+
     if (!subGroup || !groupLevel) {
       console.error('No hay datos de subgrupo o nivel para mostrar tiempos.');
       alert('No hay datos de subgrupo o nivel para mostrar tiempos.');
       return;
     }
-    
-    // Como estamos en el componente de creación/edición, vamos a obtener los datos de otra manera
+
     const courseDates = this.defaults?.course_dates || [];
-    const students = []; // En este contexto puede que no tengamos estudiantes aún
-    
-    console.log('About to open timing modal with data:', {
-      subGroup,
-      groupLevel,
-      courseId: this.id,
-      courseDates,
-      students
-    });
+
+    // Aplanar booking_users embebidos en course_dates -> course_groups -> course_subgroups
+    const bookingUsersWithDates: any[] = [];
+    try {
+      for (const cd of (courseDates || [])) {
+        const cdId = cd?.id ?? cd?.course_date_id ?? null;
+        const groups = Array.isArray(cd?.course_groups) ? cd.course_groups : [];
+        for (const g of groups) {
+          const subgroups = Array.isArray(g?.course_subgroups) ? g.course_subgroups : [];
+          for (const sg of subgroups) {
+            const bookings = Array.isArray(sg?.booking_users) ? sg.booking_users : [];
+            for (const bu of bookings) {
+              const client = bu?.client || {};
+              const clientId = bu?.client_id ?? client?.id ?? bu?.id;
+              bookingUsersWithDates.push({
+                id: bu?.id,
+                client_id: clientId,
+                client,
+                course_date_id: cdId,
+                course_group_id: g?.id ?? bu?.course_group_id,
+                course_subgroup_id: sg?.id ?? bu?.course_subgroup_id ?? bu?.course_sub_group_id ?? bu?.course_sub_group?.id,
+                accepted: bu?.accepted ?? null,
+                attended: bu?.attended ?? bu?.attendance ?? null,
+                date: cd?.date ?? null
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('collect booking users with dates failed, continuing with empty list', e);
+    }
+
+    // Preselección de día actual en la vista
+    const selectedCourseDateId = (courseDates?.[this.daySelectedIndex]?.id) ?? null;
 
     try {
       const ref = this.dialog.open(CourseTimingModalComponent, {
@@ -2898,14 +2924,17 @@ export class CoursesCreateUpdateComponent implements OnInit, AfterViewInit {
           groupLevel,
           courseId: this.id,
           courseDates,
-          students
+          // Pasar booking users enriquecidos para filtrado por día
+          bookingUsers: bookingUsersWithDates,
+          // Preselección del día actual
+          selectedCourseDateId
         }
       });
-      
+
       ref.afterOpened().subscribe(() => {
         console.log('Timing modal abierto exitosamente desde courses-create-update');
       });
-      
+
       ref.afterClosed().subscribe(result => {
         console.log('Modal cerrado con resultado:', result);
       });

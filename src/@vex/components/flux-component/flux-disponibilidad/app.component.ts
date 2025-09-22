@@ -141,42 +141,99 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   /**
    * Emit timing event for the subgroup
-   * Solo si hay alumnos en el subgrupo
+   * Abre el modal incluso si no hay alumnos (se mostrará vacío)
    */
   onTimingClick(): void {
-    console.log('onTimingClick ejecutado en FluxDisponibilidadComponent');
-    
     const subGroup = this.group.course_subgroups[this.subgroup_index];
-    console.log('subGroup:', subGroup);
-    
-    // Verificar si hay alumnos en este subgrupo
+    // Informar si no hay alumnos, pero no bloquear la acción
     const bookingUsers = this.courseFormGroup.controls['booking_users']?.value || [];
-    console.log('bookingUsers:', bookingUsers);
-    
-    const studentsInSubgroup = bookingUsers.filter((user: any) => user.course_subgroup_id === subGroup.id);
-    console.log('studentsInSubgroup:', studentsInSubgroup);
-    
+    const studentsInSubgroup = bookingUsers.filter((user: any) =>
+      (user.course_subgroup_id ?? user.course_sub_group_id ?? user.course_sub_group?.id) === subGroup.id
+    );
     if (studentsInSubgroup.length === 0) {
-      alert('No hay estudiantes en el subgrupo: ' + subGroup.id);
-      return; // No emit if no students
+      this.snackbar.open(this.translateService.instant('no_user_reserved'), 'OK', { duration: 2000 });
     }
-    
-    alert('Emitiendo evento viewTimes para subgrupo: ' + subGroup.id);
-    console.log('FluxDisponibilidadComponent: emitting viewTimes for subgroup:', subGroup);
+
+    // Determinar la fecha seleccionada actualmente
+    const courseDates = this.courseFormGroup.controls['course_dates']?.value || [];
+    const selectedDateObj = courseDates?.[this.selectDate] || courseDates?.[0] || null;
+
     this.viewTimes.emit({
       subGroup: subGroup,
-      groupLevel: this.level
+      groupLevel: this.level,
+      selectedDate: selectedDateObj
     });
   }
 
   /**
-   * Check if subgroup has students to show timing button
+   * Mantener utilitario por compatibilidad (ya no se usa para deshabilitar)
    */
   hasStudents(): boolean {
-    const subGroup = this.group.course_subgroups[this.subgroup_index];
-    const bookingUsers = this.courseFormGroup.controls['booking_users']?.value || [];
-    const studentsInSubgroup = bookingUsers.filter((user: any) => user.course_subgroup_id === subGroup.id);
-    return studentsInSubgroup.length > 0;
+    try {
+      const subGroup = this.group?.course_subgroups?.[this.subgroup_index];
+      if (!subGroup) return false;
+
+      const courseDates = this.courseFormGroup.controls['course_dates']?.value || [];
+      const currentDate = courseDates?.[this.selectDate] || courseDates?.[0];
+      if (!currentDate) return false;
+
+      // Prefer per-day active bookings when available (current day)
+      const active = Array.isArray((currentDate as any).booking_users_active)
+        ? (currentDate as any).booking_users_active
+        : [];
+
+      const hasInActiveForDay = active.some((u: any) => {
+        const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
+        return sgId === subGroup.id;
+      });
+      if (hasInActiveForDay) return true;
+
+      // Check embedded booking_users inside course_groups -> course_subgroups for the selected day
+      try {
+        const groupForDay = (currentDate?.course_groups || []).find((g: any) => g?.degree_id === this.level?.id);
+        const subgroupForDay = groupForDay?.course_subgroups?.[this.subgroup_index];
+        if (subgroupForDay && Array.isArray(subgroupForDay.booking_users) && subgroupForDay.booking_users.length > 0) {
+          return true;
+        }
+      } catch {}
+
+      // Fallback: check global bookings filtered by current date
+      const global = this.courseFormGroup.controls['booking_users']?.value || [];
+      const hasGlobalForDay = global.some((u: any) => {
+        const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
+        if (sgId !== subGroup.id) return false;
+        const cdId = u?.course_date_id ?? u?.course_date?.id ?? null;
+        return cdId ? cdId === currentDate.id : true;
+      });
+      if (hasGlobalForDay) return true;
+
+      // FINAL fallback: check across ALL days for this subgroup so the tooltip reflects availability in any day
+      for (const cd of (courseDates || [])) {
+        // per-day active
+        const act = Array.isArray((cd as any).booking_users_active) ? (cd as any).booking_users_active : [];
+        if (act.some((u: any) => {
+          const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
+          return sgId === subGroup.id;
+        })) return true;
+
+        // embedded booking_users by date
+        const g = (cd?.course_groups || []).find((x: any) => x?.degree_id === this.level?.id);
+        const sg = g?.course_subgroups?.[this.subgroup_index];
+        if (sg && Array.isArray(sg.booking_users) && sg.booking_users.length > 0) return true;
+
+        // global with date id
+        if (global.some((u: any) => {
+          const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
+          if (sgId !== subGroup.id) return false;
+          const cdId = u?.course_date_id ?? u?.course_date?.id ?? null;
+          return cdId ? (cdId === (cd?.id ?? cd?.course_date_id)) : false;
+        })) return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
   }
 
   /**

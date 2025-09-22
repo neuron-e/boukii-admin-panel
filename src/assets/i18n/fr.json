@@ -82,6 +82,10 @@
   "communications.template_promotion": "Promotion",
   "communications.template_newsletter": "Bulletin",
   "communications.template_event": "Événement",
+  "communications.template_welcome_subject": "Bienvenue à {{school_name}} !",
+  "communications.template_promotion_subject": "Offre spéciale pour vous",
+  "communications.template_newsletter_subject": "Bulletin d'actualités",
+  "communications.template_event_subject": "Invitation à notre événement",
   "communications.draft_saved": "Brouillon enregistré",
   "communications.newsletter_sent": "Newsletter envoyée",
   "communications.newsletter_duplicated": "Newsletter dupliquée",
@@ -159,6 +163,9 @@
   "communications.show_less": "afficher moins",
   "communications.template_library": "Bibliothèque de Modèles",
   "communications.create_template": "Créer un Modèle",
+  "communications.predefined_templates": "Modèles prédéfinis",
+  "communications.custom_templates": "Vos modèles",
+  "communications.preview_newsletter": "Aperçu de la newsletter",
   "communications.use_template": "Utiliser le Modèle",
   "communications.messages_refreshed": "Messages mis à jour",
   "expand_all": "Développer tout",
@@ -1320,5 +1327,13 @@
   "apply_schedule_all_dates": "Appliquer l'horaire à toutes les dates",
   "courses.schedule_required_error": "Veuillez définir d'abord les heures de début et de fin",
   "courses.no_dates_error": "Aucune date de cours disponible pour la mise à jour",
-  "courses.schedule_applied_success": "Horaire appliqué avec succès à toutes les dates"
+  "courses.schedule_applied_success": "Horaire appliqué avec succès à toutes les dates",
+  "attendance": {
+    "confirmed": "Présence confirmée",
+    "pending": "Présence en attente",
+    "not_confirmed": "Présence non confirmée",
+    "attended": "A assisté",
+    "not_attended": "N'a pas assisté",
+    "unmarked": "Non marqué"
+  }
 }

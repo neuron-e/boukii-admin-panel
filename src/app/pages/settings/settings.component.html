@@ -1729,6 +1729,7 @@
                         {{ 'title' | translate }}
                       </p>
                       <angular-editor [(ngModel)]="titleFr"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                     <div class="vex-mail-compose-editor flex flex-col">
@@ -1736,6 +1737,7 @@
                         {{ 'message' | translate }}
                       </p>
                       <angular-editor [(ngModel)]="bodyFr"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                   </mat-tab>
@@ -1752,10 +1754,12 @@
                         {{ 'title' | translate }}
                       </p>
                       <angular-editor [(ngModel)]="titleEn"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                     <div class="vex-mail-compose-editor flex flex-col">
                       <angular-editor [(ngModel)]="bodyEn"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                   </mat-tab>
@@ -1772,10 +1776,12 @@
                         {{ 'title' | translate }}
                       </p>
                       <angular-editor [(ngModel)]="titleEs"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                     <div class="vex-mail-compose-editor flex flex-col">
                       <angular-editor [(ngModel)]="bodyEs"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                   </mat-tab>
@@ -1792,10 +1798,12 @@
                         {{ 'title' | translate }}
                       </p>
                       <angular-editor [(ngModel)]="titleDe"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                     <div class="vex-mail-compose-editor flex flex-col">
                       <angular-editor [(ngModel)]="bodyDe"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                   </mat-tab>
@@ -1812,10 +1820,12 @@
                         {{ 'title' | translate }}
                       </p>
                       <angular-editor [(ngModel)]="titleIt"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                     <div class="vex-mail-compose-editor flex flex-col">
                       <angular-editor [(ngModel)]="bodyIt"
+                                      [config]="editorConfig"
                                       class="flex-auto flex flex-col"></angular-editor>
                     </div>
                   </mat-tab>

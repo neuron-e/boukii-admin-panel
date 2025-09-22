@@ -15,7 +15,33 @@ export class CoursesService {
 
   settcourseFormGroup(data: any, isPreview = false) {
     this.resetcourseFormGroup()
-    data.booking_users = data.booking_users_active;
+    console.log('settcourseFormGroup called with data:', data);
+    console.log('booking_users_active from data:', data.booking_users_active);
+    // Helper to normalize potential JSON-stringified arrays
+    const toArray = (val: any): any[] => {
+      try {
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') return JSON.parse(val || '[]');
+      } catch (e) {
+        console.warn('Array parse failed, returning [] for value:', val, e);
+      }
+      return [];
+    };
+
+    // Ensure booking users is always an array (handles stringified JSON)
+    const rawBookingUsers = (data as any).booking_users_active ?? (data as any).booking_users ?? (data as any).users ?? [];
+    const normalizedBookingUsers = toArray(rawBookingUsers).map((u: any) => {
+      if (u && typeof u === 'object') {
+        // Normalizar subgrupo: aceptar course_sub_group?.id o course_sub_group_id
+        const nestedId = u?.course_sub_group?.id ?? u?.course_sub_group_id ?? u?.course_subgroup_id ?? null;
+        if (nestedId && (!u.course_subgroup_id || u.course_subgroup_id !== nestedId)) {
+          u.course_subgroup_id = nestedId;
+        }
+      }
+      return u;
+    });
+    (data as any).booking_users = normalizedBookingUsers;
+    console.log('booking_users set to:', (data as any).booking_users);
     if (!isPreview) {
       if (data.course_type == 1) {
         data.course_dates = data.course_dates;
@@ -31,15 +57,26 @@ export class CoursesService {
         data.course_dates_prev = data.settings?.periods?.length ? data.settings.periods : [this.getCoursePeriod(data)];
       }
     }
+    // Normalize translations and settings
+    const translations = typeof data.translations === 'string'
+      ? (() => { try { return JSON.parse(data.translations); } catch { return {}; } })()
+      : (data.translations || {});
+    const settingsObj = typeof data.settings === 'string'
+      ? (() => { try { return JSON.parse(data.settings); } catch { return {}; } })()
+      : (data.settings || {});
+    const course_extras = toArray((data as any).course_extras);
+    const discounts = toArray((data as any).discounts);
+
     this.courseFormGroup.patchValue({
       ...data,
       user: data.user ? data.user.username + " (" + data.user.first_name + " " + data.user.last_name + ")" : "",
-      translations: JSON.parse(data.translations),
-      icon: data.sport.icon_unselected,
+      translations,
+      icon: data.sport?.icon_unselected,
       levelGrop: data.degrees,
-      settings: typeof data.settings == 'string' ? JSON.parse(data.settings) : data.settings,
-      discounts: data.discounts,
-      booking_users: data.booking_users,
+      settings: settingsObj,
+      discounts,
+      course_extras,
+      booking_users: (data as any).booking_users,
     })
     if (data.settings && typeof data.settings === 'string') {
       try {
@@ -98,7 +135,7 @@ export class CoursesService {
       created_at: [new Date()],
       user: [this.user.username + " (" + this.user.first_name + " " + this.user.last_name + ")"],
       user_id: [this.user.id],
-      booking_users: [[]],
+      booking_users: [],
       course_type: [null, Validators.required],
       name: ["", Validators.required],
       short_description: ["", Validators.required],
@@ -122,18 +159,16 @@ export class CoursesService {
       online: [true],
       options: [true],
       intervals_ui: this.fb.array([]), // no se envía al backend
-      translations: [
-        {
-          es: { name: '', short_description: '', description: '' },
-          en: { name: '', short_description: '', description: '' },
-          fr: { name: '', short_description: '', description: '' },
-          it: { name: '', short_description: '', description: '' },
-          de: { name: '', short_description: '', description: '' },
-        }
-      ],
+      translations: {
+        es: { name: '', short_description: '', description: '' },
+        en: { name: '', short_description: '', description: '' },
+        fr: { name: '', short_description: '', description: '' },
+        it: { name: '', short_description: '', description: '' },
+        de: { name: '', short_description: '', description: '' },
+      },
       school_id: [this.user.schools[0].id],
       station_id: [null],
-      course_dates: [[{ ...this.default_course_dates }], Validators.required],
+      course_dates: [{ ...this.default_course_dates }],
       course_dates_prev: [],
       discounts: [[], Validators.required],
       course_extras: [[], Validators.required],
@@ -144,17 +179,15 @@ export class CoursesService {
       price_range: [[]],
       extras: [[], Validators.required],
       levelGrop: [[], Validators.required],
-      settings: [
-        {
-          multipleIntervals: false,
-          mustBeConsecutive: false,
-          mustStartFromFirst: false,
-          intervals: [],
-          weekDays: { monday: false, tuesday: false, wednesday: false, thursday: false, friday: false, saturday: false, sunday: false },
-          periods: [],
-          groups: [{ ...this.default_activity_groups }]
-        }
-      ],
+      settings: {
+        multipleIntervals: false,
+        mustBeConsecutive: false,
+        mustStartFromFirst: false,
+        intervals: [],
+        weekDays: { monday: false, tuesday: false, wednesday: false, thursday: false, friday: false, saturday: false, sunday: false },
+        periods: [],
+        groups: [{ ...this.default_activity_groups }]
+      },
     });
   }
 

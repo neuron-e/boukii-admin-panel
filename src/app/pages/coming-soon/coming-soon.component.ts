@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { fadeInUp400ms } from '../../../../@vex/animations/fade-in-up.animation';
+import { fadeInUp400ms } from '../../../@vex/animations/fade-in-up.animation';
 
 @Component({
   selector: 'vex-coming-soon',
