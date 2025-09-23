@@ -192,7 +192,7 @@
         <div>
           <!-- Lista de intervalos -->
           <div *ngFor="let interval of getDisplayIntervals(); let i = index">
-            <div
+            <div *ngIf="useMultipleIntervals"
               style="width: 100%; background-color: var(--color-grey4); height: 60px; border-top: 1px solid #C7D0D3; padding: 0 24px; align-content: space-evenly; display: flex; justify-content: space-between; align-items: center;">
               <span>
                 {{('interval' | translate) + ' ' + (i + 1) }}
@@ -446,7 +446,7 @@
               </app-form-select>
             </div>
           </div>
-n          <!-- Aplicar horario masivo a todas las fechas individuales (solo si hay al menos 2 fechas) -->
+          <!-- Aplicar horario masivo a todas las fechas individuales (solo si hay al menos 2 fechas) -->
           <div *ngIf="courses.courseFormGroup.controls['course_dates'].value && courses.courseFormGroup.controls['course_dates'].value.length >= 2"
                style="margin: 20px; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
 
