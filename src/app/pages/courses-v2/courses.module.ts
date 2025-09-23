@@ -34,6 +34,7 @@ import { CourseOpcionComponent } from './components/opcion/opcion.component';
 import { CourseStatisticsComponent } from './course-statistics/course-statistics.component';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
+import { ConfirmDialogModule } from 'src/@vex/components/confirm-dialog/confirm-dialog.module';
 
 @NgModule({
   declarations: [CoursesComponent, CourseStatisticsComponent],
@@ -74,6 +75,7 @@ import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
     CourseOpcionComponent,
     MatTooltipModule,
     MatProgressSpinnerModule,
+    ConfirmDialogModule,
   ]
 })
 export class CoursesModule { }

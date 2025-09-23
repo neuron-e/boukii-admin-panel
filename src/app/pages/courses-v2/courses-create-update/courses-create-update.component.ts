@@ -11,6 +11,8 @@ import { CoursesService } from 'src/service/courses.service';
 import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import { CourseTimingModalComponent } from '../../courses/course-timing-modal/course-timing-modal.component';
+import { CourseDateValidationService } from 'src/service/course-date-validation.service';
+import { CourseDateOverlapValidationService } from 'src/service/course-date-overlap-validation.service';
 
 @Component({
   selector: 'vex-courses-create-update',
@@ -101,6 +103,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
               private crudService: ApiCrudService, private activatedRoute: ActivatedRoute,
               public router: Router, private schoolService: SchoolService,
               private snackBar: MatSnackBar,
+    private courseDateValidation: CourseDateValidationService,
+    private dateOverlapValidation: CourseDateOverlapValidationService,
     public translateService: TranslateService,
     public courses: CoursesService
   ) {
@@ -852,8 +856,34 @@ export class CoursesCreateUpdateComponent implements OnInit {
     delete data.id
     const newDate = new Date(course_date[course_date.length - 1].date);
     newDate.setDate(newDate.getDate() + 1);
-    course_date.push({ ...data, date: newDate })
+
+    const newCourseDate = {
+      ...data,
+      date: newDate.toISOString().split('T')[0] // Formato YYYY-MM-DD
+    };
+
+    // Validar conflictos antes de agregar
+    const validationError = this.dateOverlapValidation.validateNewCourseDate(
+      newCourseDate,
+      course_date.map((cd: any) => ({
+        date: typeof cd.date === 'string' ? cd.date : cd.date.toISOString().split('T')[0],
+        hour_start: cd.hour_start,
+        hour_end: cd.hour_end,
+        duration: cd.duration
+      }))
+    );
+
+    if (validationError) {
+      this.snackBar.open(validationError.message, 'Cerrar', {
+        duration: 5000,
+        panelClass: ['error-snackbar']
+      });
+      return;
+    }
+
+    course_date.push(newCourseDate)
     this.courses.courseFormGroup.patchValue({ course_dates: course_date })
+    this.snackBar.open('Fecha agregada correctamente', '', { duration: 3000 });
   }
   createIntervalUI(): FormGroup {
     return this.fb.group({
@@ -1018,14 +1048,38 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   // Eliminar una fecha de un intervalo
-  removeCourseDateFromInterval(intervalIndex: number, dateIndex: number) {
+  async removeCourseDateFromInterval(intervalIndex: number, dateIndex: number) {
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
-
     const interval = this.intervals[intervalIndex];
     if (dateIndex < 0 || dateIndex >= interval.dates.length) return;
+    const dateToRemove = interval.dates[dateIndex];
 
-    interval.dates.splice(dateIndex, 1);
-    this.syncIntervalsToCourseFormGroup();
+    // Only validate for existing course dates (update mode)
+    if (this.mode === 'update' && dateToRemove?.id && this.id) {
+      try {
+        const canProceed = await this.courseDateValidation.showCourseDateModificationDialog({
+          courseId: this.id,
+          dateId: dateToRemove.id,
+          action: 'delete'
+        }).toPromise();
+
+        if (canProceed) {
+          interval.dates.splice(dateIndex, 1);
+          this.syncIntervalsToCourseFormGroup();
+          this.snackBar.open('Fecha del intervalo eliminada correctamente', '', { duration: 3000 });
+        }
+      } catch (error) {
+        console.error('Error validating interval date deletion:', error);
+        // If validation fails, still allow deletion but warn user
+        interval.dates.splice(dateIndex, 1);
+        this.syncIntervalsToCourseFormGroup();
+        this.snackBar.open('Fecha del intervalo eliminada (validación falló)', '', { duration: 3000 });
+      }
+    } else {
+      // For new courses or dates without ID, delete directly
+      interval.dates.splice(dateIndex, 1);
+      this.syncIntervalsToCourseFormGroup();
+    }
   }
 
   // Sincronizar datos de intervalos con el FormGroup del curso
@@ -1409,10 +1463,34 @@ export class CoursesCreateUpdateComponent implements OnInit {
     course_dates[event.i].course_groups[course_dates[event.i].course_groups.findIndex((a: any) => a.degree_id === level.id)].course_subgroups[j].monitor_id = event.monitor.id
     this.courses.courseFormGroup.patchValue({ course_dates })
   }
-  deleteCourseDate(i: number) {
-    this.courses.courseFormGroup.controls['course_dates'].value.splice(i, 1)
-  }
+  async deleteCourseDate(i: number) {
+    const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
+    const courseDate = courseDates[i];
 
+    // Only validate for existing course dates (update mode)
+    if (this.mode === 'update' && courseDate?.id && this.id) {
+      try {
+        const canProceed = await this.courseDateValidation.showCourseDateModificationDialog({
+          courseId: this.id,
+          dateId: courseDate.id,
+          action: 'delete'
+        }).toPromise();
+
+        if (canProceed) {
+          courseDates.splice(i, 1);
+          this.snackBar.open('Fecha eliminada correctamente', '', { duration: 3000 });
+        }
+      } catch (error) {
+        console.error('Error validating course date deletion:', error);
+        // If validation fails, still allow deletion but warn user
+        courseDates.splice(i, 1);
+        this.snackBar.open('Fecha eliminada (validación falló)', '', { duration: 3000 });
+      }
+    } else {
+      // For new courses or dates without ID, delete directly
+      courseDates.splice(i, 1);
+    }
+  }
   /**
    * Open timing modal for subgroup students (cronometraje)
    * Abre el modal aunque no haya alumnos (se mostrará vacío)
