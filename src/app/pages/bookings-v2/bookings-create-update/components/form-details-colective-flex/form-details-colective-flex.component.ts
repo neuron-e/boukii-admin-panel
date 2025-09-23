@@ -260,10 +260,12 @@ const availableSubgroup = matchingGroup.course_subgroups.find(
           extrasControl.enable();
         } else {
           // Si no hay disponibilidad, deshabilitamos la fecha de nuevo
-          courseDateGroup.get('selected').setValue(false);
+          // Usamos setTimeout para evitar conflictos con el evento del checkbox
+          setTimeout(() => {
+            courseDateGroup.get('selected').setValue(false, { emitEvent: false });
+          }, 0);
           extrasControl.disable();
           extrasControl.setValue([]); // Limpia los extras seleccionados
-
         }
       });
     } else {

@@ -64,12 +64,14 @@ export class CourseDetailComponent implements OnInit {
             });
             this.detailData.degrees.forEach((level: any) => {
               level.active = false;
+              level.visible = false;
               this.detailData.course_dates.forEach((cs: any) => {
                 cs.course_groups.forEach((group: any) => {
                   if (group.degree_id === level.id) {
                     level.active = true;
                     level.old = true;
-                  } level.visible = false;
+                    level.visible = true;
+                  }
                 });
               });
             });

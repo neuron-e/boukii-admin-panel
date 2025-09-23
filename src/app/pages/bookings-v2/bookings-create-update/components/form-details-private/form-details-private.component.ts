@@ -69,9 +69,16 @@ export class FormDetailsPrivateComponent implements OnInit {
     const courseDate = this.course.course_dates.find((d: any) =>
       moment(d.date).format('YYYY-MM-DD') === formatDate
     );
-    this.possibleHours = this.utilService.generateCourseHours(courseDate.hour_start, courseDate.hour_end, this.course.minDuration, '5min');
-    this.possibleDurations = this.utilService.generateCourseDurations(courseDate.hour_start, courseDate.hour_end,
-      this.course, this.activitiesBooked, this.date, this.utilizers);
+
+    if (courseDate) {
+      this.possibleHours = this.utilService.generateCourseHours(courseDate.hour_start, courseDate.hour_end, this.course.minDuration, '5min');
+      this.possibleDurations = this.utilService.generateCourseDurations(courseDate.hour_start, courseDate.hour_end,
+        this.course, this.activitiesBooked, formatDate, this.utilizers);
+    } else {
+      console.warn('No courseDate found for date:', formatDate);
+      this.possibleHours = [];
+      this.possibleDurations = [];
+    }
     this.courseDates.controls.forEach((dateGroup, index) => {
       const monitorControl = dateGroup.get('monitor');
       const changeMonitorControl = dateGroup.get('changeMonitorOption');
@@ -160,15 +167,16 @@ export class FormDetailsPrivateComponent implements OnInit {
     const initialMonitor = initialData ? initialData.monitor :
       (isFirstDate && this.initialData?.monitor) ? this.initialData.monitor : null;
 
+    const defaultDuration = initialData ? initialData.duration :
+      (!this.course.is_flexible ? this.course.duration :
+        (this.possibleDurations && this.possibleDurations.length > 0 ? this.possibleDurations[0] : null));
+
     const courseDateGroup = this.fb.group({
       selected: [initialData ? initialData.selected : true],
       date: [initialData ? initialData.date : formattedDate, Validators.required],
       startHour: [initialStartHour, Validators.required],
       endHour: [initialData ? initialData.endHour : null, Validators.required],
-      duration: [
-        initialData ? initialData.duration : (!this.course.is_flexible ? this.course.duration : null),
-        Validators.required
-      ],
+      duration: [defaultDuration, Validators.required],
       price: [initialData ? initialData.price : price],
       currency: this.course.currency,
       monitor: [initialMonitor],
@@ -305,8 +313,15 @@ export class FormDetailsPrivateComponent implements OnInit {
 
       if (this.course.is_flexible) {
         // Generar duraciones posibles basadas en la nueva 'startHour'
-        this.possibleDurations = this.utilService.generateCourseDurations(courseDateGroup.get('startHour').value,
-          this.course.hour_max, this.course, this.activitiesBooked, courseDateGroup.get('date').value, this.utilizers);
+        let formatDate = moment(courseDateGroup.get('date').value).format('YYYY-MM-DD');
+        const courseDate = this.course.course_dates.find((d: any) =>
+          moment(d.date).format('YYYY-MM-DD') === formatDate
+        );
+
+        if (courseDate) {
+          this.possibleDurations = this.utilService.generateCourseDurations(courseDateGroup.get('startHour').value,
+            courseDate.hour_end, this.course, this.activitiesBooked, formatDate, this.utilizers);
+        }
 
         // Verificar si la duración actual está dentro de las posibles duraciones
         const currentDuration = courseDateGroup.get('duration').value;

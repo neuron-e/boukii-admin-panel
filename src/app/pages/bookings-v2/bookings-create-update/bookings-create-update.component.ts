@@ -83,7 +83,10 @@ export class BookingsCreateUpdateV2Component {
       step6: { clientObs, schoolObs },
     } = formData.value;
 
-    this.mainClient = mainClient;
+    // Preserve the original mainClient if it's already set, only update if it's not set yet
+    if (!this.mainClient) {
+      this.mainClient = mainClient;
+    }
     this.utilizers = utilizers;
     this.sport = sport;
     this.sportLevel = sportLevel;
@@ -120,7 +123,10 @@ export class BookingsCreateUpdateV2Component {
       step6: { clientObs, schoolObs },
     } = this.selectedForm.value;
 
-    this.mainClient = mainClient;
+    // Don't overwrite mainClient when editing activities - preserve the original mainClient
+    if (!this.mainClient) {
+      this.mainClient = mainClient;
+    }
     this.utilizers = utilizers;
     this.sport = sport;
     this.sportLevel = sportLevel;
