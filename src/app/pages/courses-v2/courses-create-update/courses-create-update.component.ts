@@ -14,6 +14,16 @@ import { CourseTimingModalComponent } from '../../courses/course-timing-modal/co
 import { CourseDateValidationService } from 'src/service/course-date-validation.service';
 import { CourseDateOverlapValidationService, CourseDateInfo, CourseDateValidationError } from 'src/service/course-date-overlap-validation.service';
 
+interface CourseDate {
+  date: string;
+  hour_start: string;
+  hour_end?: string;
+  duration?: number | string;
+  interval_id?: string;
+  order?: number;
+  [key: string]: any;
+}
+
 @Component({
   selector: 'vex-courses-create-update',
   templateUrl: './courses-create-update.component.html',
@@ -112,6 +122,94 @@ export class CoursesCreateUpdateComponent implements OnInit {
       isFlexibleValue === 'true';
 
     return courseType === 1 && !isFlexible;
+  }
+
+  private ensureSingleIntervalForNonFlexible(): any | null {
+    this.intervals = Array.isArray(this.intervals) ? this.intervals : [];
+
+    if (this.isSingleIntervalMode) {
+      if (this.intervals.length === 0) {
+        const defaultInterval = this.createDefaultInterval();
+        this.intervals = [defaultInterval];
+      } else if (this.intervals.length > 1) {
+        const [firstInterval] = this.intervals;
+        this.intervals = [firstInterval];
+      }
+    } else if (this.intervals.length === 0) {
+      const defaultInterval = this.createDefaultInterval();
+      this.intervals = [defaultInterval];
+    }
+
+    if (this.intervals.length === 0) {
+      return null;
+    }
+
+    if (!Array.isArray(this.intervals[0].dates)) {
+      this.intervals[0].dates = [];
+    }
+
+    return this.intervals[0];
+  }
+
+  private normalizeCourseDateKey(date: CourseDate): string {
+    const normalizedDate = date?.date ?? '';
+    const normalizedHour = date?.hour_start ?? '';
+    return `${normalizedDate}T${normalizedHour}`;
+  }
+
+  private upsertSingleIntervalDates(dates: CourseDate[]): CourseDate[] {
+    const targetInterval = this.ensureSingleIntervalForNonFlexible();
+
+    if (!targetInterval) {
+      return [];
+    }
+
+    const existingDates = Array.isArray(targetInterval.dates) ? [...targetInterval.dates] : [];
+    const incomingDates = Array.isArray(dates) ? [...dates] : [];
+
+    const combinedDates = [...existingDates, ...incomingDates].filter(date => !!date && !!date.date && !!date.hour_start);
+    const dedupedMap = new Map<string, CourseDate>();
+
+    combinedDates.forEach(date => {
+      const key = this.normalizeCourseDateKey(date);
+
+      if (!key.trim()) {
+        return;
+      }
+
+      const normalizedDate: CourseDate = {
+        ...date,
+        interval_id: date.interval_id || targetInterval.id
+      };
+
+      if (dedupedMap.has(key)) {
+        dedupedMap.set(key, {
+          ...dedupedMap.get(key),
+          ...normalizedDate
+        });
+      } else {
+        dedupedMap.set(key, { ...normalizedDate });
+      }
+    });
+
+    const dedupedDates = Array.from(dedupedMap.values());
+
+    dedupedDates.sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.hour_start || '00:00'}`);
+      const dateB = new Date(`${b.date}T${b.hour_start || '00:00'}`);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    dedupedDates.forEach((date, index) => {
+      date.order = index + 1;
+      if (!date.interval_id) {
+        date.interval_id = targetInterval.id;
+      }
+    });
+
+    this.intervals[0].dates = dedupedDates.map(date => ({ ...date }));
+
+    return this.intervals[0].dates;
   }
 
   constructor(private fb: UntypedFormBuilder, public dialog: MatDialog,
@@ -1039,9 +1137,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Añadir una fecha a un intervalo
   addCourseDateToInterval(intervalIndex: number) {
+    this.ensureSingleIntervalForNonFlexible();
+
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
 
     const interval = this.intervals[intervalIndex];
+    interval.dates = Array.isArray(interval.dates) ? interval.dates : [];
     let newDate = interval.startDate || new Date().toISOString().split('T')[0];
 
     // Si ya hay fechas, generar la siguiente fecha
@@ -1085,18 +1186,25 @@ export class CoursesCreateUpdateComponent implements OnInit {
       return;
     }
 
-    // Crear objeto de fecha
-    interval.dates.push({
+    const previousIntervals = this.cloneIntervals(this.intervals);
+    const newCourseDate: CourseDate = {
       date: newDate,
       hour_start: hourStart,
+      hour_end: computedHourEnd,
       duration: duration,
       interval_id: interval.id,
       order: interval.dates.length + 1
-    });
+    };
+
+    if (this.isSingleIntervalMode && intervalIndex === 0) {
+      this.upsertSingleIntervalDates([newCourseDate]);
+    } else {
+      interval.dates = [...interval.dates, { ...newCourseDate }];
+    }
 
     const synced = this.syncIntervalsToCourseFormGroup();
     if (!synced) {
-      interval.dates.pop();
+      this.intervals = previousIntervals;
     }
   }
 
@@ -1343,30 +1451,27 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Métodos de generación de fechas por intervalo
   generateIntervalConsecutiveDates(intervalIndex: number) {
+    this.ensureSingleIntervalForNonFlexible();
+
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
 
     const interval = this.intervals[intervalIndex];
     const count = interval.consecutiveDaysCount || 5;
 
-    // Validar que tenga fechas de inicio y fin
     if (!interval.startDate || !interval.endDate) {
       return;
     }
 
-    // Limpiar fechas existentes
-    interval.dates = [];
-
-    // Generar fechas consecutivas dentro del rango
     const startDate = new Date(interval.startDate);
     const endDate = new Date(interval.endDate);
+    const generatedDates: CourseDate[] = [];
 
     for (let i = 0; i < count; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
 
-      // Solo añadir si está dentro del rango
       if (currentDate <= endDate) {
-        interval.dates.push({
+        generatedDates.push({
           date: currentDate.toISOString().split('T')[0],
           hour_start: this.courses.hours[0],
           duration: this.courses.duration[0],
@@ -1374,19 +1479,35 @@ export class CoursesCreateUpdateComponent implements OnInit {
           order: i + 1
         });
       } else {
-        break; // Parar si nos salimos del rango
+        break;
       }
     }
 
-    this.syncIntervalsToCourseFormGroup();
+    const previousIntervals = this.cloneIntervals(this.intervals);
+
+    if (this.isSingleIntervalMode && intervalIndex === 0) {
+      this.upsertSingleIntervalDates(generatedDates);
+      const synced = this.syncIntervalsToCourseFormGroup();
+      if (!synced) {
+        this.intervals = previousIntervals;
+      }
+      return;
+    }
+
+    this.intervals[intervalIndex].dates = generatedDates.map(date => ({ ...date }));
+    const synced = this.syncIntervalsToCourseFormGroup();
+    if (!synced) {
+      this.intervals = previousIntervals;
+    }
   }
 
   generateIntervalWeeklyDates(intervalIndex: number) {
+    this.ensureSingleIntervalForNonFlexible();
+
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
 
     const interval = this.intervals[intervalIndex];
 
-    // Initialize weeklyPattern if it doesn't exist
     if (!interval.weeklyPattern) {
       interval.weeklyPattern = {
         monday: false,
@@ -1402,18 +1523,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
     const pattern = interval.weeklyPattern;
 
     if (!this.hasSelectedWeekdaysForInterval(intervalIndex)) {
-      return; // No generar si no hay días seleccionados
+      return;
     }
 
-    // Validar que tenga fechas de inicio y fin
     if (!interval.startDate || !interval.endDate) {
       return;
     }
 
-    // Limpiar fechas existentes
-    interval.dates = [];
-
-    const selectedDays = [];
+    const selectedDays: number[] = [];
     if (pattern.monday) selectedDays.push(1);
     if (pattern.tuesday) selectedDays.push(2);
     if (pattern.wednesday) selectedDays.push(3);
@@ -1422,19 +1539,17 @@ export class CoursesCreateUpdateComponent implements OnInit {
     if (pattern.saturday) selectedDays.push(6);
     if (pattern.sunday) selectedDays.push(0);
 
-    // Generar fechas dentro del rango especificado
     const startDate = new Date(interval.startDate);
     const endDate = new Date(interval.endDate);
+    const generatedDates: CourseDate[] = [];
     let generatedCount = 0;
 
-    // Iterar día por día dentro del rango
     const currentDate = new Date(startDate);
     while (currentDate <= endDate) {
       const dayOfWeek = currentDate.getDay();
 
-      // Si este día está seleccionado en el patrón
       if (selectedDays.includes(dayOfWeek)) {
-        interval.dates.push({
+        generatedDates.push({
           date: currentDate.toISOString().split('T')[0],
           hour_start: this.courses.hours[0],
           duration: this.courses.duration[0],
@@ -1444,11 +1559,25 @@ export class CoursesCreateUpdateComponent implements OnInit {
         generatedCount++;
       }
 
-      // Avanzar al siguiente día
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    this.syncIntervalsToCourseFormGroup();
+    const previousIntervals = this.cloneIntervals(this.intervals);
+
+    if (this.isSingleIntervalMode && intervalIndex === 0) {
+      this.upsertSingleIntervalDates(generatedDates);
+      const synced = this.syncIntervalsToCourseFormGroup();
+      if (!synced) {
+        this.intervals = previousIntervals;
+      }
+      return;
+    }
+
+    this.intervals[intervalIndex].dates = generatedDates.map(date => ({ ...date }));
+    const synced = this.syncIntervalsToCourseFormGroup();
+    if (!synced) {
+      this.intervals = previousIntervals;
+    }
   }
 
   hasSelectedWeekdaysForInterval(intervalIndex: number): boolean {
@@ -2128,6 +2257,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   applyBulkScheduleToInterval(intervalIndex: number, startTime: string, duration: string): boolean {
+    this.ensureSingleIntervalForNonFlexible();
+
     if (!startTime || !duration) {
       this.showErrorMessage('Por favor, establece primero las horas de inicio y fin');
       return false;
@@ -2139,21 +2270,46 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     const interval = this.intervals[intervalIndex];
+    interval.dates = Array.isArray(interval.dates) ? interval.dates : [];
     if (!interval.dates || interval.dates.length === 0) {
       this.showErrorMessage('Este intervalo no tiene fechas disponibles para actualizar');
       return false;
     }
 
-    const previousIntervalState = this.cloneIntervals([interval])[0];
-    const updatedIntervalDates = interval.dates.map((date: any) => ({
+    const previousIntervals = this.cloneIntervals(this.intervals);
+    const updatedIntervalDates: CourseDate[] = interval.dates.map((date: any) => ({
       ...date,
       hour_start: startTime,
       duration: duration,
       hour_end: this.courses.addMinutesToTime(startTime, duration)
     }));
 
+    if (this.isSingleIntervalMode && intervalIndex === 0) {
+      this.upsertSingleIntervalDates(updatedIntervalDates);
+
+      const generatedCourseDates = this.generateCourseDatesFromIntervals(this.intervals);
+      const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+        this.convertToCourseDateInfos(generatedCourseDates)
+      );
+
+      if (validationErrors.length > 0) {
+        this.showValidationSummary(validationErrors);
+        this.intervals = previousIntervals;
+        return false;
+      }
+
+      const synced = this.syncIntervalsToCourseFormGroup();
+      if (!synced) {
+        this.intervals = previousIntervals;
+        return false;
+      }
+
+      this.snackBar.open(`Horario aplicado al intervalo ${intervalIndex + 1} exitosamente`, 'OK', { duration: 3000 });
+      return true;
+    }
+
     const tentativeIntervals = this.cloneIntervals(this.intervals);
-    tentativeIntervals[intervalIndex].dates = updatedIntervalDates;
+    tentativeIntervals[intervalIndex].dates = updatedIntervalDates.map(date => ({ ...date }));
 
     const generatedCourseDates = this.generateCourseDatesFromIntervals(tentativeIntervals);
     const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
@@ -2162,15 +2318,15 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     if (validationErrors.length > 0) {
       this.showValidationSummary(validationErrors);
-      this.intervals[intervalIndex].dates = previousIntervalState?.dates || [];
+      this.intervals = previousIntervals;
       return false;
     }
 
-    this.intervals[intervalIndex].dates = updatedIntervalDates;
+    this.intervals[intervalIndex].dates = updatedIntervalDates.map(date => ({ ...date }));
 
     const synced = this.syncIntervalsToCourseFormGroup();
     if (!synced) {
-      this.intervals[intervalIndex].dates = previousIntervalState?.dates || [];
+      this.intervals = previousIntervals;
       return false;
     }
 
