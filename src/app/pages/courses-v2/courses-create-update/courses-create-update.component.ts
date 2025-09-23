@@ -508,13 +508,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
     data.data.forEach((element: any) => {
       if (element.active) this.detailData.degrees.push({ ...element, }); //Subgrupo: this.getSubGroups(element.id)
     });
-    const levelGrop = []
 
+    const levelGrop = this.detailData.degrees.map((level: any) => ({
+      ...level,
+      active: false,
+    }));
 
     if (this.detailData.course_dates && Array.isArray(this.detailData.course_dates)) {
-      this.detailData.degrees.forEach((level: any) => {
-        level.active = false;
-
+      levelGrop.forEach((level: any) => {
         this.detailData.course_dates.forEach((cs: any) => {
           if (cs.course_groups && Array.isArray(cs.course_groups)) {
             cs.course_groups.forEach((group: any) => {
@@ -534,8 +535,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
             });
           }
         });
-
-        levelGrop.push({ ...level });
       });
 
       levelGrop.sort((a: any) => (a.active ? -1 : 1));
