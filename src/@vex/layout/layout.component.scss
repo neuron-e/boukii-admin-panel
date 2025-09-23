@@ -87,11 +87,9 @@
 
 .toolbar-fixed {
   ::ng-deep .vex-toolbar {
-    z-index: 0;
-
     position: fixed;
     width: var(--toolbar-width);
-    z-index: 50;
+    z-index: 40;
     border-bottom: 1px solid var(--is-light-theme, #dee6ea)
       var(--is-dark-theme, #121212);
   }

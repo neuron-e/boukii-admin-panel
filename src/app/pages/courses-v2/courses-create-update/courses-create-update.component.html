@@ -136,8 +136,8 @@
         </app-form-select>
 
       </div>
-      <!-- Sección para activar múltiples intervalos -->
-      <div class="form-check form-switch mb-3" *ngIf="courses.courseFormGroup.controls['is_flexible'].value">
+      <!-- Sección para activar múltiples intervalos (solo para cursos colectivos flexibles) -->
+      <div class="form-check form-switch mb-3" *ngIf="courses.courseFormGroup.controls['is_flexible'].value && courses.courseFormGroup.controls['course_type'].value === 1">
         <mat-checkbox [(ngModel)]="useMultipleIntervals" (change)="onMultipleIntervalsChange()">
           {{'multiple_intervals' | translate }}
         </mat-checkbox>
@@ -319,12 +319,12 @@
                                      [min]="interval.startDate"
                                      [max]="interval.endDate"
                                      [value]="date.date"
-                                     (do)="date.date=$event.value"
+                                     (do)="validateAndUpdateIntervalDate(i, j, $event.value)"
                                      style="min-width: 0;width: 100%;" name="date">
                 </app-form-datepicker>
                 <app-form-select [value]="date.hour_start"
                                  [required]="true" [table]="courses.hours"
-                                 (do)="date.hour_start=$event.option.value;"
+                                 (do)="validateAndUpdateIntervalHour(i, j, $event.option.value)"
                                  style="min-width: 0;width: 100%;" label="start_hour">
                 </app-form-select>
                 <app-form-select [value]="date.duration"
@@ -430,18 +430,28 @@
               <app-form-datepicker [required]="true"
                                    [min]="courses.courseFormGroup.controls['date_start'].value"
                                    [value]="courses.courseFormGroup.controls['course_dates'].value[i].date"
-                                   (do)="courses.courseFormGroup.controls['course_dates'].value[i].date=$event.value"
+                                   (do)="validateAndUpdateMainDate(i, $event.value)"
                                    style="min-width: 0;width: 100%;" name="date">
               </app-form-datepicker>
-              <app-form-select [value]="courses.courseFormGroup.controls['course_dates'].value[i].hour_start"
+              <app-form-select [value]="courses.courseFormGroup.controls['course_dates'].value[i]?.hour_start"
                                [required]="true" [table]="courses.hours"
-                               (do)="courses.courseFormGroup.controls['course_dates'].value[i].hour_start=$event.option.value;"
+                               (do)="validateAndUpdateMainHour(i, $event.option.value, 'hour_start')"
                                style="min-width: 0;width: 100%;" label="start_hour">
               </app-form-select>
-              <app-form-select [value]="courses.courseFormGroup.controls['course_dates'].value[i].duration"
+              <!-- Para cursos privados (course_type > 1), mostrar hour_end en lugar de duration -->
+              <app-form-select *ngIf="courses.courseFormGroup.controls['course_type'].value > 1"
+                               [value]="courses.courseFormGroup.controls['course_dates'].value[i]?.hour_end"
+                               [required]="true"
+                               [table]="courses.filterAvailableHours(courses.courseFormGroup.controls['course_dates'].value[i]?.hour_start, courses.courseFormGroup.controls['duration']?.value)"
+                               (do)="validateAndUpdateMainHour(i, $event.option.value, 'hour_end')"
+                               style="min-width: 0;width: 100%;"
+                               label="end_hour">
+              </app-form-select>
+              <!-- Para cursos colectivos (course_type === 1), mostrar duration -->
+              <app-form-select *ngIf="courses.courseFormGroup.controls['course_type'].value === 1"
+                               [value]="courses.courseFormGroup.controls['course_dates'].value[i]?.duration"
                                [required]="true" [table]="courses.duration"
-                               (do)="courses.courseFormGroup.controls['course_dates'].value[i].duration=$event.option.value;
-                    courses.courseFormGroup.controls['course_dates'].value[i].hour_end=courses.addMinutesToTime(item.hour_start, $event.option.value)"
+                               (do)="validateAndUpdateMainDuration(i, $event.option.value)"
                                style="min-width: 0;width: 100%;" label="duration">
               </app-form-select>
             </div>
@@ -580,7 +590,7 @@
 
       <ng-container *ngIf="courses.courseFormGroup.controls['course_type'].value>1">
         <mat-tab-group [selectedIndex]="PeriodoFecha || (courses.courseFormGroup.controls['settings'].value.periods.length>1?1:0)"
-                       (selectedIndexChange)="PeriodoFecha=$event;$event===0?courses.courseFormGroup.patchValue({course_dates:[courses.courseFormGroup.controls['course_dates'].value[0]]}):''"
+                       (selectedIndexChange)="onPeriodChange($event)"
                        style="margin: 20px 20px 0;">
           <mat-tab>
             <ng-template mat-tab-label>
@@ -607,10 +617,10 @@
                 delete
               </mat-icon>
             </div>
-            <div *ngIf="PeriodoFecha>0 || i===0 || courses.courseFormGroup.controls['course_dates'].value.length>1" style="display: flex;column-gap: 20px;">
+            <div *ngIf="courses.courseFormGroup.controls['course_type'].value > 1 || PeriodoFecha>0 || i===0 || courses.courseFormGroup.controls['course_dates'].value.length>1" style="display: flex;column-gap: 20px;">
               <app-form-datepicker [required]="true" [min]="mode==='create'?nowDate:detailData.date_start"
                                    [value]="courses.courseFormGroup.controls['course_dates'].value[i].date"
-                                   (do)="courses.courseFormGroup.controls['course_dates'].value[i].date=$event.value;
+                                   (do)="validateAndUpdateMainDate(i, $event.value);
 								courses.courseFormGroup.controls['course_dates'].value[i].date_end<$event.value?courses.courseFormGroup.controls['course_dates'].value[i].date_end=$event.value:null"
                                    style="min-width: 0;width: 100%;" name="courses.date_start">
               </app-form-datepicker>
@@ -623,7 +633,7 @@
             </div>
             <div style="display: flex;column-gap: 20px;">
               <app-form-select
-                [value]="courses.courseFormGroup.controls['course_dates'].value[i].hour_start"
+                [value]="courses.courseFormGroup.controls['course_dates'].value[i]?.hour_start"
                 [required]="true" [table]="courses.hours"
                 (do)="courses.courseFormGroup.controls['course_dates'].value[i].hour_start=$event.option.value"
                 style="min-width: 0;width: 100%;" label="start_hour">

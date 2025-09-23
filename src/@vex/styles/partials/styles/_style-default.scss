@@ -150,6 +150,7 @@
   --toolbar-background: white;
   --toolbar-color: #{$dark-primary-text};
   --toolbar-icon-color: rgb(var(--color-primary));
+  --toolbar-z-index: 40;
 
   // Secondary Toolbar
   --secondary-toolbar-background: var(--background-foreground);

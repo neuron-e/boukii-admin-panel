@@ -278,6 +278,16 @@ export class CoursesCreateUpdateComponent implements OnInit {
       hour_max: this.courses.hours[4] || null,
     });
 
+    // Initialize course_dates with a default entry for new courses
+    this.courses.courseFormGroup.patchValue({
+      course_dates: [{
+        date: new Date(),
+        date_end: new Date(),
+        hour_start: this.courses.hours[0],
+        duration: this.courses.duration[0] // Will be replaced by hour_end for private courses
+      }]
+    });
+
     // Initialize intervals array for new courses
     if (!this.intervals || this.intervals.length === 0) {
       this.intervals = [this.createDefaultInterval()];
@@ -835,36 +845,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
     // Sync inline changes (dates/hours/durations) before building payload
     try {
       this.syncIntervalsToCourseFormGroup();
-      const currentDates = this.courses.courseFormGroup?.get('course_dates')?.value || [];
-      if (Array.isArray(currentDates) && currentDates.length > 0) {
-        const toMinutes = (dur: any): number => {
-          if (typeof dur === 'number') return dur;
-          if (typeof dur === 'string') {
-            // Parse formats like "1h 30min", "1h", "90min", "15min"
-            const regex = /(?:(\d+)h)?\s*(\d+)?\s*min?/i;
-            const match = dur.match(regex);
-            if (match) {
-              const h = parseInt(match[1] || '0', 10);
-              const m = parseInt(match[2] || '0', 10);
-              return h * 60 + m;
-            }
-            // Fallback if unparsable
-            const asNumber = parseInt(dur, 10);
-            return isNaN(asNumber) ? 0 : asNumber;
-          }
-          return 0;
-        };
-
-        const normalized = currentDates.map((cd: any) => {
-          const minutes = toMinutes(cd.duration);
-          return {
-            ...cd,
-            duration: minutes,
-            hour_end: this.courses.addMinutesToTime(cd.hour_start, minutes)
-          };
-        });
-        this.courses.courseFormGroup.patchValue({ course_dates: normalized });
-      }
+      // No necesitamos normalizar los datos, el backend espera el formato original
     } catch (e) {
       console.warn('Unable to sync/recalculate dates before save:', e);
     }
@@ -906,15 +887,27 @@ export class CoursesCreateUpdateComponent implements OnInit {
     if (courseFormGroup.course_type === 1 && courseFormGroup.course_dates && courseFormGroup.levelGrop) {
       courseFormGroup.course_dates.forEach((courseDate: any) => {
         if (courseDate.course_groups) {
-          courseDate.course_groups.forEach((group: any) => {
+          // Transform course_groups to groups and course_subgroups to subgroups for backend compatibility
+          courseDate.groups = courseDate.course_groups.map((group: any) => {
+            const transformedGroup = { ...group };
+
+            // Transform course_subgroups to subgroups
+            if (group.course_subgroups && Array.isArray(group.course_subgroups)) {
+              transformedGroup.subgroups = group.course_subgroups;
+              // Remove the old field name
+              delete transformedGroup.course_subgroups;
+            }
+
             // Buscar en levelGrop el que tenga el mismo degree_id que el id del grupo
             const matchingLevel = courseFormGroup.levelGrop.find((level: any) => level.id === group.degree_id);
 
             if (matchingLevel) {
               // Asignar los valores de age_min y age_max del levelGrop al grupo
-              group.age_min = parseInt(matchingLevel.age_min);
-              group.age_max = parseInt(matchingLevel.age_max);
+              transformedGroup.age_min = parseInt(matchingLevel.age_min);
+              transformedGroup.age_max = parseInt(matchingLevel.age_max);
             }
+
+            return transformedGroup;
           });
         }
       });
@@ -980,16 +973,22 @@ export class CoursesCreateUpdateComponent implements OnInit {
     const newDate = new Date(course_date[course_date.length - 1].date);
     newDate.setDate(newDate.getDate() + 1);
 
+    // Mantener el formato original de la fecha
     const newCourseDate = {
       ...data,
-      date: newDate.toISOString().split('T')[0] // Formato YYYY-MM-DD
+      date: newDate
     };
 
-    // Validar conflictos antes de agregar
+    // Validar conflictos antes de agregar - solo para validación, no modificamos los datos originales
     const validationError = this.dateOverlapValidation.validateNewCourseDate(
-      newCourseDate,
+      {
+        date: newDate.toISOString().split('T')[0],
+        hour_start: newCourseDate.hour_start,
+        hour_end: newCourseDate.hour_end,
+        duration: newCourseDate.duration
+      },
       course_date.map((cd: any) => ({
-        date: typeof cd.date === 'string' ? cd.date : cd.date.toISOString().split('T')[0],
+        date: typeof cd.date === 'string' ? cd.date : new Date(cd.date).toISOString().split('T')[0],
         hour_start: cd.hour_start,
         hour_end: cd.hour_end,
         duration: cd.duration
@@ -1430,6 +1429,185 @@ export class CoursesCreateUpdateComponent implements OnInit {
     return [];
   }
 
+  // Validar cambios en fechas de intervalos
+  validateAndUpdateIntervalDate(intervalIndex: number, dateIndex: number, newDate: string) {
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
+    const interval = this.intervals[intervalIndex];
+    if (dateIndex < 0 || dateIndex >= interval.dates.length) return;
+
+    const oldDate = interval.dates[dateIndex].date;
+    interval.dates[dateIndex].date = newDate;
+
+    // Obtener todas las fechas existentes para validación
+    const allDates = this.generateCourseDatesFromIntervals(this.intervals);
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(allDates)
+    );
+
+    if (validationErrors.length > 0) {
+      // Revertir el cambio si hay errores
+      interval.dates[dateIndex].date = oldDate;
+      const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+    } else {
+      // Sincronizar con el formulario si la validación pasa
+      this.syncIntervalsToCourseFormGroup();
+    }
+  }
+
+  // Validar cambios en horas de intervalos
+  validateAndUpdateIntervalHour(intervalIndex: number, dateIndex: number, newHour: string) {
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
+    const interval = this.intervals[intervalIndex];
+    if (dateIndex < 0 || dateIndex >= interval.dates.length) return;
+
+    const oldHour = interval.dates[dateIndex].hour_start;
+    interval.dates[dateIndex].hour_start = newHour;
+
+    // Obtener todas las fechas existentes para validación
+    const allDates = this.generateCourseDatesFromIntervals(this.intervals);
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(allDates)
+    );
+
+    if (validationErrors.length > 0) {
+      // Revertir el cambio si hay errores
+      interval.dates[dateIndex].hour_start = oldHour;
+      const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+    } else {
+      // Sincronizar con el formulario si la validación pasa
+      this.syncIntervalsToCourseFormGroup();
+    }
+  }
+
+  // Validar cambios en fechas principales
+  validateAndUpdateMainDate(dateIndex: number, newDate: string) {
+    const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
+    if (dateIndex < 0 || dateIndex >= courseDates.length) return;
+
+    const oldDate = courseDates[dateIndex].date;
+    courseDates[dateIndex].date = newDate;
+
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(courseDates)
+    );
+
+    if (validationErrors.length > 0) {
+      // Revertir el cambio si hay errores
+      courseDates[dateIndex].date = oldDate;
+      this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+      const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+    } else {
+      this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+    }
+  }
+
+  // Validar cambios en horas principales
+  validateAndUpdateMainHour(dateIndex: number, newHour: string, hourType: 'hour_start' | 'hour_end') {
+    const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
+    if (dateIndex < 0 || dateIndex >= courseDates.length) return;
+
+    const oldHour = courseDates[dateIndex][hourType];
+    courseDates[dateIndex][hourType] = newHour;
+
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(courseDates)
+    );
+
+    if (validationErrors.length > 0) {
+      // Revertir el cambio si hay errores
+      courseDates[dateIndex][hourType] = oldHour;
+      this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+      const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+    } else {
+      this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+    }
+  }
+
+  // Validar cambios en duración principal
+  validateAndUpdateMainDuration(dateIndex: number, newDuration: string) {
+    const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
+    if (dateIndex < 0 || dateIndex >= courseDates.length) return;
+
+    const oldDuration = courseDates[dateIndex].duration;
+    const oldHourEnd = courseDates[dateIndex].hour_end;
+
+    courseDates[dateIndex].duration = newDuration;
+    courseDates[dateIndex].hour_end = this.courses.addMinutesToTime(courseDates[dateIndex].hour_start, newDuration);
+
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(courseDates)
+    );
+
+    if (validationErrors.length > 0) {
+      // Revertir el cambio si hay errores
+      courseDates[dateIndex].duration = oldDuration;
+      courseDates[dateIndex].hour_end = oldHourEnd;
+      this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+      const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+    } else {
+      this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+    }
+  }
+
+  // Manejar cambio de período (uni/multi período)
+  onPeriodChange(selectedIndex: number) {
+    this.PeriodoFecha = selectedIndex;
+
+    if (selectedIndex === 0) {
+      // Cambio a período único - asegurar que course_dates tiene los campos necesarios
+      const currentDates = this.courses.courseFormGroup.controls['course_dates'].value;
+
+      if (currentDates && currentDates.length > 0) {
+        const firstDate = currentDates[0];
+        // Asegurar que el primer elemento tenga todas las propiedades necesarias
+        const courseType = this.courses.courseFormGroup.controls['course_type'].value;
+        const validFirstDate = {
+          ...firstDate,
+          hour_start: firstDate.hour_start || this.courses.hours[0],
+          date: firstDate.date || new Date(),
+          date_end: firstDate.date_end || firstDate.date || new Date()
+        };
+
+        // Para cursos privados (course_type > 1), agregar hour_end
+        if (courseType > 1) {
+          validFirstDate.hour_end = firstDate.hour_end || this.courses.hours[this.courses.hours.length - 1];
+        } else {
+          // Para cursos colectivos (course_type === 1), agregar duration
+          validFirstDate.duration = firstDate.duration || this.courses.duration[0];
+        }
+
+        this.courses.courseFormGroup.patchValue({
+          course_dates: [validFirstDate]
+        });
+      } else {
+        // Crear una fecha por defecto si no hay ninguna
+        const courseType = this.courses.courseFormGroup.controls['course_type'].value;
+        const defaultDate: any = {
+          date: new Date(),
+          date_end: new Date(),
+          hour_start: this.courses.hours[0]
+        };
+
+        // Para cursos privados (course_type > 1), agregar hour_end
+        if (courseType > 1) {
+          defaultDate.hour_end = this.courses.hours[this.courses.hours.length - 1];
+        } else {
+          // Para cursos colectivos (course_type === 1), agregar duration
+          defaultDate.duration = this.courses.duration[0];
+        }
+
+        this.courses.courseFormGroup.patchValue({
+          course_dates: [defaultDate]
+        });
+      }
+    }
+  }
+
   // Resetear a un solo intervalo
   resetToSingleInterval() {
     // Mantener solo el primer intervalo si existe, o crear uno por defecto
@@ -1480,6 +1658,20 @@ export class CoursesCreateUpdateComponent implements OnInit {
       } else {
         break;
       }
+    }
+
+    // Validar las fechas generadas antes de aplicarlas
+    const allDates = this.generateCourseDatesFromIntervals(this.intervals);
+    // Reemplazar las fechas del intervalo actual con las nuevas para validación
+    const testAllDates = allDates.filter(d => d.interval_id !== interval.id).concat(generatedDates);
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(testAllDates)
+    );
+
+    if (validationErrors.length > 0) {
+      const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+      return;
     }
 
     const previousIntervals = this.cloneIntervals(this.intervals);
@@ -1559,6 +1751,20 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
 
       currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Validar las fechas generadas antes de aplicarlas
+    const allDates = this.generateCourseDatesFromIntervals(this.intervals);
+    // Reemplazar las fechas del intervalo actual con las nuevas para validación
+    const testAllDates = allDates.filter(d => d.interval_id !== interval.id).concat(generatedDates);
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(testAllDates)
+    );
+
+    if (validationErrors.length > 0) {
+      const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+      return;
     }
 
     const previousIntervals = this.cloneIntervals(this.intervals);
