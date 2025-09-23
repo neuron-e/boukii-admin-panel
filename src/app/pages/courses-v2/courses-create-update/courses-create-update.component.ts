@@ -758,6 +758,17 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     const courseFormGroup = this.courses.courseFormGroup.getRawValue()
+    const conflicts = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(courseFormGroup.course_dates)
+    );
+
+    if (conflicts.length > 0) {
+      const summary = this.dateOverlapValidation.getValidationSummary(conflicts);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+      return;
+    }
+
+    // Si no hay conflictos continuamos con el flujo normal manteniendo la carga útil original
     if (courseFormGroup.course_type === 1 && this.useMultipleIntervals) {
       // Configurar los intervalos en settings
       const intervals = [];
