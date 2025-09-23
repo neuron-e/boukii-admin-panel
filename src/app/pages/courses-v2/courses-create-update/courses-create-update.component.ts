@@ -12,7 +12,7 @@ import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import { CourseTimingModalComponent } from '../../courses/course-timing-modal/course-timing-modal.component';
 import { CourseDateValidationService } from 'src/service/course-date-validation.service';
-import { CourseDateOverlapValidationService } from 'src/service/course-date-overlap-validation.service';
+import { CourseDateOverlapValidationService, CourseDateInfo, CourseDateValidationError } from 'src/service/course-date-overlap-validation.service';
 
 @Component({
   selector: 'vex-courses-create-update',
@@ -1035,16 +1035,43 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
     }
 
+    const hourStart = this.courses.hours[0];
+    const duration = this.courses.duration[0];
+    const computedHourEnd = this.courses.addMinutesToTime(hourStart, duration);
+    const newCourseDateInfo: CourseDateInfo = {
+      date: newDate,
+      hour_start: hourStart,
+      hour_end: computedHourEnd
+    };
+
+    const durationInMinutes = this.parseDurationToMinutes(duration);
+    if (typeof durationInMinutes === 'number') {
+      newCourseDateInfo.duration = durationInMinutes;
+    }
+
+    const existingCourseDatesInfo = this.convertToCourseDateInfos(
+      this.generateCourseDatesFromIntervals(this.intervals)
+    );
+    const validationError = this.dateOverlapValidation.validateNewCourseDate(newCourseDateInfo, existingCourseDatesInfo);
+
+    if (validationError) {
+      this.showErrorMessage(validationError.message);
+      return;
+    }
+
     // Crear objeto de fecha
     interval.dates.push({
       date: newDate,
-      hour_start: this.courses.hours[0],
-      duration: this.courses.duration[0],
+      hour_start: hourStart,
+      duration: duration,
       interval_id: interval.id,
       order: interval.dates.length + 1
     });
 
-    this.syncIntervalsToCourseFormGroup();
+    const synced = this.syncIntervalsToCourseFormGroup();
+    if (!synced) {
+      interval.dates.pop();
+    }
   }
 
   // Eliminar una fecha de un intervalo
@@ -1082,52 +1109,150 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
   }
 
-  // Sincronizar datos de intervalos con el FormGroup del curso
-  syncIntervalsToCourseFormGroup() {
-    if (!this.courses.courseFormGroup) return;
+  private cloneCourseDates(courseDates: any[] | null | undefined): any[] {
+    if (!Array.isArray(courseDates)) {
+      return [];
+    }
 
-    const courseDates = [];
+    return courseDates.map(date => ({ ...date }));
+  }
 
-    // Recorrer todos los intervalos y sus fechas
-    for (const interval of this.intervals) {
+  private cloneIntervals(intervals: any[] | null | undefined): any[] {
+    if (!Array.isArray(intervals)) {
+      return [];
+    }
+
+    return intervals.map(interval => ({
+      ...interval,
+      dates: Array.isArray(interval.dates) ? interval.dates.map((date: any) => ({ ...date })) : []
+    }));
+  }
+
+  private parseDurationToMinutes(duration: any): number | undefined {
+    if (typeof duration === 'number' && !isNaN(duration)) {
+      return duration;
+    }
+
+    if (typeof duration === 'string') {
+      if (/^\d+$/.test(duration)) {
+        return parseInt(duration, 10);
+      }
+
+      const regex = /(?:(\d+)h)?\s*(\d+)?\s*min?/i;
+      const match = duration.match(regex);
+      if (match) {
+        const hours = parseInt(match[1] || '0', 10);
+        const minutes = parseInt(match[2] || '0', 10);
+        const totalMinutes = hours * 60 + minutes;
+        return isNaN(totalMinutes) ? undefined : totalMinutes;
+      }
+    }
+
+    return undefined;
+  }
+
+  private convertToCourseDateInfos(courseDates: any[]): CourseDateInfo[] {
+    if (!Array.isArray(courseDates)) {
+      return [];
+    }
+
+    return courseDates
+      .filter(date => date?.date && date?.hour_start)
+      .map((date: any) => {
+        const formattedDate = typeof date.date === 'string'
+          ? date.date
+          : new Date(date.date).toISOString().split('T')[0];
+        const hourStart = date.hour_start;
+        const durationNumber = this.parseDurationToMinutes(date.duration);
+        const endTimeSource = date.hour_end ?? this.courses.addMinutesToTime(hourStart, date.duration ?? durationNumber ?? 0);
+
+        const info: CourseDateInfo = {
+          date: formattedDate,
+          hour_start: hourStart,
+          hour_end: endTimeSource
+        };
+
+        if (typeof durationNumber === 'number') {
+          info.duration = durationNumber;
+        }
+
+        return info;
+      });
+  }
+
+  private showValidationSummary(errors: CourseDateValidationError[]): void {
+    if (!errors || errors.length === 0) {
+      return;
+    }
+
+    const summary = this.dateOverlapValidation.getValidationSummary(errors);
+    this.showErrorMessage(summary || 'Se detectaron conflictos en las fechas seleccionadas');
+  }
+
+  private generateCourseDatesFromIntervals(intervals: any[]): any[] {
+    if (!Array.isArray(intervals)) {
+      return [];
+    }
+
+    const courseDates: any[] = [];
+
+    for (const interval of intervals) {
+      if (!interval?.dates || !Array.isArray(interval.dates)) {
+        continue;
+      }
+
       for (const dateObj of interval.dates) {
-        if (dateObj.date && dateObj.hour_start) {
+        if (dateObj?.date && dateObj?.hour_start) {
+          const duration = dateObj.duration;
+          const computedHourEnd = dateObj.hour_end || this.courses.addMinutesToTime(dateObj.hour_start, duration ?? 0);
+          const courseGroups = this.getCourseDateGroups();
+          const groups = this.getCourseDateGroups();
+
           courseDates.push({
-            date: dateObj.date,
-            hour_start: dateObj.hour_start,
-            hour_end: this.courses.addMinutesToTime(dateObj.hour_start, dateObj.duration),
-            duration: dateObj.duration,
+            ...dateObj,
+            hour_end: computedHourEnd,
+            duration: duration,
             interval_id: interval.id,
             order: dateObj.order,
-            course_groups: this.getCourseDateGroups(),
-            groups: this.getCourseDateGroups()
+            course_groups: courseGroups,
+            groups: groups
           });
         }
       }
     }
 
-    // Las validaciones de fechas consecutivas y empezar desde el primer día
-    // son reglas de negocio para las reservas de clientes, no para la creación del curso
-    // Solo las guardamos en la configuración del curso
+    return courseDates;
+  }
 
-    // Actualizar el curso con las fechas generadas y configuraciones
-    if (courseDates.length > 0) {
+  // Sincronizar datos de intervalos con el FormGroup del curso
+  syncIntervalsToCourseFormGroup(): boolean {
+    if (!this.courses.courseFormGroup) return false;
+
+    const previousCourseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value);
+    const generatedCourseDates = this.generateCourseDatesFromIntervals(this.intervals);
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(generatedCourseDates)
+    );
+
+    if (validationErrors.length > 0) {
+      this.showValidationSummary(validationErrors);
+      this.courses.courseFormGroup.patchValue({ course_dates: previousCourseDates });
+      return false;
+    }
+
+    if (generatedCourseDates.length > 0) {
       this.courses.courseFormGroup.patchValue({
-        course_dates: courseDates
+        course_dates: generatedCourseDates
       });
 
-      // Forzar actualización del resumen lateral
       setTimeout(() => {
-        // Trigger change detection for course_dates to update the sidebar
         this.courses.courseFormGroup.controls['course_dates'].updateValueAndValidity();
-
-        // Llamar getDegrees después de actualizar las fechas para asegurar que los niveles se cargan
         this.getDegrees();
       }, 100);
     }
 
-    // Save interval configuration settings
     this.saveIntervalSettings();
+    return true;
   }
 
   private saveIntervalSettings(): void {
@@ -1930,47 +2055,101 @@ export class CoursesCreateUpdateComponent implements OnInit {
       return;
     }
 
-    // Apply schedule to all course dates
-    courseDates.forEach((date: any) => {
-      date.hour_start = startTime;
-      date.duration = duration;
-      date.hour_end = this.courses.addMinutesToTime(startTime, duration);
-    });
+    const previousCourseDates = this.cloneCourseDates(courseDates);
+    const updatedCourseDates = courseDates.map((date: any) => ({
+      ...date,
+      hour_start: startTime,
+      duration: duration,
+      hour_end: this.courses.addMinutesToTime(startTime, duration)
+    }));
 
-    // Update form
-    this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(updatedCourseDates)
+    );
+
+    if (validationErrors.length > 0) {
+      this.showValidationSummary(validationErrors);
+      return;
+    }
+
+    if (this.useMultipleIntervals && Array.isArray(this.intervals) && this.intervals.length > 0) {
+      const previousIntervals = this.cloneIntervals(this.intervals);
+      const updatedIntervals = this.intervals.map(interval => ({
+        ...interval,
+        dates: Array.isArray(interval.dates)
+          ? interval.dates.map((date: any) => ({
+            ...date,
+            hour_start: startTime,
+            duration: duration,
+            hour_end: this.courses.addMinutesToTime(startTime, duration)
+          }))
+          : []
+      }));
+
+      this.intervals = updatedIntervals;
+      const synced = this.syncIntervalsToCourseFormGroup();
+
+      if (!synced) {
+        this.intervals = previousIntervals;
+        this.courses.courseFormGroup.patchValue({ course_dates: previousCourseDates });
+        return;
+      }
+    } else {
+      this.courses.courseFormGroup.patchValue({ course_dates: updatedCourseDates });
+    }
 
     this.snackBar.open('Horario aplicado a todas las fechas exitosamente', 'OK', { duration: 3000 });
   }
 
-  applyBulkScheduleToInterval(intervalIndex: number, startTime: string, duration: string): void {
+  applyBulkScheduleToInterval(intervalIndex: number, startTime: string, duration: string): boolean {
     if (!startTime || !duration) {
       this.showErrorMessage('Por favor, establece primero las horas de inicio y fin');
-      return;
+      return false;
     }
 
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) {
       this.showErrorMessage('Intervalo no válido');
-      return;
+      return false;
     }
 
     const interval = this.intervals[intervalIndex];
     if (!interval.dates || interval.dates.length === 0) {
       this.showErrorMessage('Este intervalo no tiene fechas disponibles para actualizar');
-      return;
+      return false;
     }
 
-    // Apply schedule to all dates in this interval
-    interval.dates.forEach((date: any) => {
-      date.hour_start = startTime;
-      date.duration = duration;
-      date.hour_end = this.courses.addMinutesToTime(startTime, duration);
-    });
+    const previousIntervalState = this.cloneIntervals([interval])[0];
+    const updatedIntervalDates = interval.dates.map((date: any) => ({
+      ...date,
+      hour_start: startTime,
+      duration: duration,
+      hour_end: this.courses.addMinutesToTime(startTime, duration)
+    }));
 
-    // Sync interval changes to the main course form
-    this.syncIntervalsToCourseFormGroup();
+    const tentativeIntervals = this.cloneIntervals(this.intervals);
+    tentativeIntervals[intervalIndex].dates = updatedIntervalDates;
+
+    const generatedCourseDates = this.generateCourseDatesFromIntervals(tentativeIntervals);
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(generatedCourseDates)
+    );
+
+    if (validationErrors.length > 0) {
+      this.showValidationSummary(validationErrors);
+      this.intervals[intervalIndex].dates = previousIntervalState?.dates || [];
+      return false;
+    }
+
+    this.intervals[intervalIndex].dates = updatedIntervalDates;
+
+    const synced = this.syncIntervalsToCourseFormGroup();
+    if (!synced) {
+      this.intervals[intervalIndex].dates = previousIntervalState?.dates || [];
+      return false;
+    }
 
     this.snackBar.open(`Horario aplicado al intervalo ${intervalIndex + 1} exitosamente`, 'OK', { duration: 3000 });
+    return true;
   }
 
   // Métodos para manejar los selectores inline de horario
@@ -2015,7 +2194,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     this.applyBulkScheduleToInterval(intervalIndex, startTime, duration);
   }
-n  // Variables para los selectores de horario masivo para fechas individuales
+
+  // Variables para los selectores de horario masivo para fechas individuales
   individualScheduleStartTime: string = '';
   individualScheduleDuration: string = '';
 
@@ -2034,12 +2214,24 @@ n  // Variables para los selectores de horario masivo para fechas individuales
       return;
     }
 
-    // Apply schedule to all individual dates
-    this.courses.courseFormGroup.controls['course_dates'].value.forEach((date: any) => {
-      date.hour_start = startTime;
-      date.duration = duration;
-      date.hour_end = this.courses.addMinutesToTime(startTime, duration);
-    });
+    const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
+    const updatedCourseDates = courseDates.map((date: any) => ({
+      ...date,
+      hour_start: startTime,
+      duration: duration,
+      hour_end: this.courses.addMinutesToTime(startTime, duration)
+    }));
+
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(updatedCourseDates)
+    );
+
+    if (validationErrors.length > 0) {
+      this.showValidationSummary(validationErrors);
+      return;
+    }
+
+    this.courses.courseFormGroup.patchValue({ course_dates: updatedCourseDates });
 
     this.snackBar.open(`Horario aplicado exitosamente a todas las fechas`, 'OK', { duration: 3000 });
   }
