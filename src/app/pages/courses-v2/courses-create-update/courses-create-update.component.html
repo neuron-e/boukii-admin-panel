@@ -412,7 +412,7 @@
           </div>
         </div>
 
-        <ng-container *ngIf="!useMultipleIntervals">
+        <ng-container *ngIf="!useMultipleIntervals && !isSingleIntervalMode">
           <!-- Mantener el código existente para fechas individuales -->
           <div *ngFor="let item of courses.courseFormGroup.controls['course_dates'].value; index as i">
             <div
