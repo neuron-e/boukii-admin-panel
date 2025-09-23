@@ -99,6 +99,21 @@ export class CoursesCreateUpdateComponent implements OnInit {
   consecutiveDaysCount: number = 5;
   maxSelectableDates: number = 15;
 
+  get isSingleIntervalMode(): boolean {
+    const courseTypeControl = this.courses?.courseFormGroup?.get('course_type');
+    const isFlexibleControl = this.courses?.courseFormGroup?.get('is_flexible');
+
+    const courseType = Number(courseTypeControl?.value);
+    const isFlexibleValue = isFlexibleControl?.value;
+    const isFlexible =
+      isFlexibleValue === true ||
+      isFlexibleValue === 1 ||
+      isFlexibleValue === '1' ||
+      isFlexibleValue === 'true';
+
+    return courseType === 1 && !isFlexible;
+  }
+
   constructor(private fb: UntypedFormBuilder, public dialog: MatDialog,
               private crudService: ApiCrudService, private activatedRoute: ActivatedRoute,
               public router: Router, private schoolService: SchoolService,
