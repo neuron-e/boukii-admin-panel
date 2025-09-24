@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import { BookingsCreateUpdateV2Component } from './bookings-create-update/bookings-create-update.component';
 import moment from 'moment';
@@ -16,11 +16,15 @@ import { LayoutService } from 'src/@vex/services/layout.service';
   templateUrl: './bookings.component.html',
   styleUrls: ['./bookings.component.scss']
 })
-export class BookingsV2Component {
+export class BookingsV2Component implements OnInit, OnChanges {
   @Input() filterCourseId: number = 0
   showDetail: boolean = false;
   detailData: any;
   imageAvatar = '../../../assets/img/avatar.png';
+
+  // New properties for flex course handling
+  courseInfo: any = null;
+  isFlexCourse: boolean = false;
 
   countries = MOCK_COUNTRIES;
   provinces = MOCK_PROVINCES;
@@ -240,7 +244,8 @@ export class BookingsV2Component {
   }
 
   get isActive(): boolean {
-    if (!this.detailData.booking_users || this.detailData.booking_users.length === 0) {
+    // Verificar que detailData existe antes de acceder a sus propiedades
+    if (!this.detailData || !this.detailData.booking_users || this.detailData.booking_users.length === 0) {
       return false;
     }
 
@@ -317,7 +322,8 @@ export class BookingsV2Component {
   }
 
   get isFinished(): boolean {
-    if (!this.detailData.booking_users || this.detailData.booking_users.length === 0) {
+    // Verificar que detailData existe antes de acceder a sus propiedades
+    if (!this.detailData || !this.detailData.booking_users || this.detailData.booking_users.length === 0) {
       return false;
     }
 
@@ -482,6 +488,11 @@ export class BookingsV2Component {
   existExtras() {
     let ret = false;
 
+    // Verificar que detailData y bookingusers existen
+    if (!this.detailData || !this.detailData.bookingusers) {
+      return false;
+    }
+
     this.detailData.bookingusers.forEach(element => {
       if (element.courseExtras && element.courseExtras.length > 0 && !ret) {
         ret = true;
@@ -493,8 +504,14 @@ export class BookingsV2Component {
 
   getExtrasPrice() {
     let ret = 0;
+
+    // Verificar que detailData y bookingusers existen
+    if (!this.detailData || !this.detailData.bookingusers) {
+      return 0;
+    }
+
     this.detailData.bookingusers.forEach(element => {
-      if (element.courseExtras && element.courseExtras.length > 0 && !ret) {
+      if (element.courseExtras && element.courseExtras.length > 0) {
         element.courseExtras.forEach(ce => {
           ret = ret + parseFloat(ce.course_extra.price);
         });
@@ -600,4 +617,58 @@ export class BookingsV2Component {
   }
 
   protected readonly parseFloat = parseFloat;
+
+  ngOnInit(): void {
+    this.checkIfFlexCourse();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['filterCourseId'] && changes['filterCourseId'].currentValue) {
+      this.checkIfFlexCourse();
+    }
+  }
+
+  private checkIfFlexCourse(): void {
+    if (this.filterCourseId && this.filterCourseId > 0) {
+      // Get course information to check if it's a collective flex course (including FIX courses)
+      this.crudService.get('/admin/courses/' + this.filterCourseId).subscribe((course: any) => {
+        this.courseInfo = course.data;
+        const isFIXCourse = course.data?.name?.toUpperCase().includes('FIX');
+        const isFlexibleCourse = course.data?.is_flexible || isFIXCourse;
+        this.isFlexCourse = course.data?.type === 1 && isFlexibleCourse;
+        console.log('Course info loaded:', this.courseInfo, 'Is FIX course:', isFIXCourse, 'Is flex:', this.isFlexCourse);
+      });
+    } else {
+      this.isFlexCourse = false;
+      this.courseInfo = null;
+    }
+  }
+
+  onDataLoaded(data: any[]): void {
+    if (this.isFlexCourse && data.length > 0) {
+      console.log('Raw booking data for flex course:', data);
+
+      // For flex courses, group bookings by booking_id to get unique reservations
+      const uniqueBookings = new Map();
+
+      data.forEach(booking => {
+        const bookingId = booking.id;
+        if (!uniqueBookings.has(bookingId)) {
+          uniqueBookings.set(bookingId, {
+            ...booking,
+            dateCount: 1 // Count of dates for this booking
+          });
+        } else {
+          // If we already have this booking, increment the date count
+          const existing = uniqueBookings.get(bookingId);
+          existing.dateCount += 1;
+          uniqueBookings.set(bookingId, existing);
+        }
+      });
+
+      const uniqueBookingsList = Array.from(uniqueBookings.values());
+      console.log('Grouped flex bookings (unique):', uniqueBookingsList);
+      console.log(`Flex course summary: ${uniqueBookingsList.length} unique bookings (was ${data.length} individual entries)`);
+    }
+  }
 }

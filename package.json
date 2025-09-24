@@ -8,7 +8,14 @@
     "build": "node --max-old-space-size=4096 node_modules/.bin/ng build",
     "test": "ng test",
     "lint": "ng lint",
-    "e2e": "ng e2e"
+    "e2e": "ng e2e",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "cypress:run:chrome": "cypress run --browser chrome",
+    "cypress:run:firefox": "cypress run --browser firefox",
+    "test:e2e": "cypress run",
+    "test:e2e:dev": "cypress open",
+    "test:full": "npm run test && npm run cypress:run"
   },
   "private": true,
   "dependencies": {
@@ -70,6 +77,8 @@
     "@types/showdown": "~1.9.4",
     "@types/swiper": "^6.0.0",
     "autoprefixer": "^10.4.0",
+    "cypress": "^13.6.0",
+    "@cypress/webpack-preprocessor": "^6.0.0",
     "jasmine-core": "~3.10.0",
     "jasmine-spec-reporter": "~5.0.0",
     "karma": "~6.3.4",

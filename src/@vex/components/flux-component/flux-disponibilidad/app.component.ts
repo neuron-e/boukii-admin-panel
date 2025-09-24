@@ -64,10 +64,54 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
   booking_users: any
   ngOnInit(): void {
+    console.log('=== FLUX-DISPONIBILIDAD COMPONENT DEBUG ===');
+    console.log('courseFormGroup booking_users:', this.courseFormGroup.controls['booking_users'].value);
+    console.log('course_dates:', this.courseFormGroup.controls['course_dates'].value);
+
+    // Check if each course_date has booking_users_active
+    this.courseFormGroup.controls['course_dates'].value.forEach((date: any, index: number) => {
+      console.log(`Date ${index} (${date.date}):`, {
+        id: date.id,
+        booking_users_active: date.booking_users_active,
+        booking_users_active_length: date.booking_users_active?.length || 0
+      });
+    });
+
     this.getAvail(this.courseFormGroup.controls['course_dates'].value[0])
     this.booking_users = this.courseFormGroup.controls['booking_users'].value.filter((user: any, index: any, self: any) =>
       index === self.findIndex((u: any) => u.client_id === user.client_id)
     );
+
+    console.log('Filtered booking_users:', this.booking_users);
+    console.log('Level ID:', this.level?.id);
+    console.log('Subgroup index:', this.subgroup_index);
+
+    // Debug the filtering logic used in the template
+    const selectedDate = this.selectDate || 0;
+    const courseDates = this.courseFormGroup.controls['course_dates'].value;
+    const selectedCourseDate = courseDates[selectedDate];
+    console.log('Selected date index:', selectedDate);
+    console.log('Selected course date:', selectedCourseDate);
+
+    const levelGroup = selectedCourseDate?.course_groups?.find((g: any) => g.degree_id === this.level?.id);
+    console.log('Level group found:', levelGroup);
+
+    const targetSubgroup = levelGroup?.course_subgroups?.[this.subgroup_index];
+    console.log('Target subgroup:', targetSubgroup);
+    console.log('Target subgroup ID:', targetSubgroup?.id);
+
+    // Check which users match the subgroup
+    const bookingUsers = this.courseFormGroup.controls['booking_users'].value || [];
+    bookingUsers.forEach((user: any, index: number) => {
+      console.log(`User ${index}:`, {
+        name: `${user.client?.first_name} ${user.client?.last_name}`,
+        course_subgroup_id: user.course_subgroup_id,
+        matches_subgroup: user.course_subgroup_id === targetSubgroup?.id,
+        degree_id: user.degree_id
+      });
+    });
+
+    console.log('====================================');
   }
 
   changeMonitor(event: any) {
@@ -145,11 +189,17 @@ export class FluxDisponibilidadComponent implements OnInit {
    */
   onTimingClick(): void {
     const subGroup = this.group.course_subgroups[this.subgroup_index];
-    // Informar si no hay alumnos, pero no bloquear la acción
-    const bookingUsers = this.courseFormGroup.controls['booking_users']?.value || [];
-    const studentsInSubgroup = bookingUsers.filter((user: any) =>
-      (user.course_subgroup_id ?? user.course_sub_group_id ?? user.course_sub_group?.id) === subGroup.id
-    );
+    // Usar la misma lógica que en el template: filtrar por degree_id
+    const bookingUsers = this.booking_users || [];
+    const studentsInSubgroup = bookingUsers.filter((user: any) => user.degree_id === this.level.id);
+
+    console.log('=== TIMING CLICK DEBUG ===');
+    console.log('Level ID:', this.level.id);
+    console.log('SubGroup:', subGroup);
+    console.log('Booking users available:', bookingUsers.length);
+    console.log('Students in subgroup (by degree_id):', studentsInSubgroup);
+    console.log('=========================');
+
     if (studentsInSubgroup.length === 0) {
       this.snackbar.open(this.translateService.instant('no_user_reserved'), 'OK', { duration: 2000 });
     }
@@ -158,80 +208,37 @@ export class FluxDisponibilidadComponent implements OnInit {
     const courseDates = this.courseFormGroup.controls['course_dates']?.value || [];
     const selectedDateObj = courseDates?.[this.selectDate] || courseDates?.[0] || null;
 
-    this.viewTimes.emit({
+    const timingData = {
       subGroup: subGroup,
       groupLevel: this.level,
-      selectedDate: selectedDateObj
-    });
+      selectedDate: selectedDateObj,
+      studentsInLevel: studentsInSubgroup  // Agregar los estudiantes encontrados
+    };
+
+    console.log('Emitting viewTimes with data:', timingData);
+
+    this.viewTimes.emit(timingData);
   }
 
   /**
-   * Mantener utilitario por compatibilidad (ya no se usa para deshabilitar)
+   * Check if there are students for this level using the same logic as the template
    */
   hasStudents(): boolean {
     try {
-      const subGroup = this.group?.course_subgroups?.[this.subgroup_index];
-      if (!subGroup) return false;
+      // Use the same filtering logic as the template: filter by degree_id
+      const bookingUsers = this.booking_users || [];
+      const studentsInLevel = bookingUsers.filter((user: any) => user.degree_id === this.level?.id);
 
-      const courseDates = this.courseFormGroup.controls['course_dates']?.value || [];
-      const currentDate = courseDates?.[this.selectDate] || courseDates?.[0];
-      if (!currentDate) return false;
-
-      // Prefer per-day active bookings when available (current day)
-      const active = Array.isArray((currentDate as any).booking_users_active)
-        ? (currentDate as any).booking_users_active
-        : [];
-
-      const hasInActiveForDay = active.some((u: any) => {
-        const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
-        return sgId === subGroup.id;
+      console.log('hasStudents() check:', {
+        level_id: this.level?.id,
+        booking_users_count: bookingUsers.length,
+        students_in_level_count: studentsInLevel.length,
+        has_students: studentsInLevel.length > 0
       });
-      if (hasInActiveForDay) return true;
 
-      // Check embedded booking_users inside course_groups -> course_subgroups for the selected day
-      try {
-        const groupForDay = (currentDate?.course_groups || []).find((g: any) => g?.degree_id === this.level?.id);
-        const subgroupForDay = groupForDay?.course_subgroups?.[this.subgroup_index];
-        if (subgroupForDay && Array.isArray(subgroupForDay.booking_users) && subgroupForDay.booking_users.length > 0) {
-          return true;
-        }
-      } catch {}
-
-      // Fallback: check global bookings filtered by current date
-      const global = this.courseFormGroup.controls['booking_users']?.value || [];
-      const hasGlobalForDay = global.some((u: any) => {
-        const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
-        if (sgId !== subGroup.id) return false;
-        const cdId = u?.course_date_id ?? u?.course_date?.id ?? null;
-        return cdId ? cdId === currentDate.id : true;
-      });
-      if (hasGlobalForDay) return true;
-
-      // FINAL fallback: check across ALL days for this subgroup so the tooltip reflects availability in any day
-      for (const cd of (courseDates || [])) {
-        // per-day active
-        const act = Array.isArray((cd as any).booking_users_active) ? (cd as any).booking_users_active : [];
-        if (act.some((u: any) => {
-          const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
-          return sgId === subGroup.id;
-        })) return true;
-
-        // embedded booking_users by date
-        const g = (cd?.course_groups || []).find((x: any) => x?.degree_id === this.level?.id);
-        const sg = g?.course_subgroups?.[this.subgroup_index];
-        if (sg && Array.isArray(sg.booking_users) && sg.booking_users.length > 0) return true;
-
-        // global with date id
-        if (global.some((u: any) => {
-          const sgId = u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? null;
-          if (sgId !== subGroup.id) return false;
-          const cdId = u?.course_date_id ?? u?.course_date?.id ?? null;
-          return cdId ? (cdId === (cd?.id ?? cd?.course_date_id)) : false;
-        })) return true;
-      }
-
-      return false;
-    } catch {
+      return studentsInLevel.length > 0;
+    } catch (error) {
+      console.error('hasStudents() error:', error);
       return false;
     }
   }

@@ -1,0 +1,36 @@
+{
+  "testClient": {
+    "first_name": "Juan",
+    "last_name": "Pérez",
+    "email": "juan.perez@test.com",
+    "phone": "+34123456789",
+    "birth_date": "1990-01-15",
+    "country": "ES",
+    "language": "es"
+  },
+  "testFamily": {
+    "main_client": {
+      "first_name": "María",
+      "last_name": "García",
+      "email": "maria.garcia@test.com",
+      "phone": "+34987654321",
+      "birth_date": "1985-05-20",
+      "country": "ES",
+      "language": "es"
+    },
+    "utilizers": [
+      {
+        "first_name": "Ana",
+        "last_name": "García",
+        "birth_date": "2010-03-10",
+        "relationship": "daughter"
+      },
+      {
+        "first_name": "Carlos",
+        "last_name": "García",
+        "birth_date": "2012-07-25",
+        "relationship": "son"
+      }
+    ]
+  }
+}

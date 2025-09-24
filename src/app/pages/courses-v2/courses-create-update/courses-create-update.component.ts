@@ -1987,9 +1987,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
       return;
     }
 
-    // Intentar detectar alumnos del subgrupo (global)
+    // Usar la misma lógica que flux-disponibilidad: filtrar por degree_id del nivel
     const bookingUsers = this.courses.courseFormGroup.controls['booking_users']?.value || [];
-    const studentsInSubgroup = bookingUsers.filter((user: any) => (user.course_subgroup_id ?? user.course_sub_group_id ?? user.course_sub_group?.id) === subGroup.id);
+
+    // Filtrar por degree_id en lugar de course_subgroup_id
+    const studentsInSubgroup = bookingUsers.filter((user: any) => user.degree_id === groupLevel.id);
+
+    console.log('=== OPEN TIMING MODAL DEBUG ===');
+    console.log('Group Level ID:', groupLevel.id);
+    console.log('SubGroup:', subGroup);
+    console.log('Booking users available:', bookingUsers.length);
+    console.log('Students found by degree_id:', studentsInSubgroup.length);
+    console.log('Students:', studentsInSubgroup);
+    console.log('==============================');
 
     const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
 
@@ -2215,9 +2225,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
    * Abre el modal tradicional de gestión de tiempos
    */
   private openTimingModalDialog(subGroup: any, groupLevel: any, courseDates: any[], studentsInSubgroup: any[], selectedDate?: any): void {
+    console.log('=== TIMING MODAL DIALOG DEBUG ===');
+    console.log('SubGroup:', subGroup);
+    console.log('GroupLevel:', groupLevel);
+    console.log('StudentsInSubgroup received:', studentsInSubgroup.length, studentsInSubgroup);
+
     // Construir bookingUsers con course_date_id para que el modal filtre por día igual que en detalle
     const bookingUsersWithDates = this.collectBookingUsersWithDates(courseDates);
-    console.log('openTimingModalDialog - bookingUsersWithDates:', bookingUsersWithDates.length, bookingUsersWithDates);
+    console.log('bookingUsersWithDates:', bookingUsersWithDates.length, bookingUsersWithDates);
 
     // Base de alumnos a partir de bookingUsers enriquecidos (por si no hay globales)
     const studentsBase = Array.from(new Map((bookingUsersWithDates || []).map((bu: any) => [
@@ -2232,6 +2247,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
     ])).values());
 
+    console.log('studentsBase from bookingUsersWithDates:', Array.from(studentsBase));
+
     // Lista de alumnos del subgrupo (si está disponible), si no, fallback a base
     const students = (studentsInSubgroup && studentsInSubgroup.length > 0)
       ? studentsInSubgroup.map((u: any) => ({
@@ -2243,6 +2260,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
           image: u.client?.image
         }))
       : studentsBase;
+
+    console.log('Final students for modal:', Array.from(students));
+    console.log('===============================');
 
 
     console.log('TIMING MODAL DATA PREPARATION:');

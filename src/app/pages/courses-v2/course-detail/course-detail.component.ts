@@ -53,9 +53,20 @@ export class CourseDetailComponent implements OnInit {
     else this.id = this.incData.id;
     this.crudService.get('/admin/courses/' + this.id,
       ['courseGroups.degree', 'courseGroups.courseDates.courseSubgroups.bookingUsers.client',
-        'sport' ,'courseExtras'])
+       'courseGroups.courseDates.courseSubgroups.bookingUsers.booking',
+       'bookingUsers.client', 'bookingUsers.booking', 'sport' ,'courseExtras'])
       .subscribe((data: any) => {
         this.detailData = data.data
+        console.log('CourseDetailComponent - Full course data:', this.detailData);
+        console.log('CourseDetailComponent - Course type:', this.detailData.type, 'Course_type:', this.detailData.course_type, 'Is flexible:', this.detailData.is_flexible);
+        console.log('CourseDetailComponent - Course name:', this.detailData.name);
+        console.log('CourseDetailComponent - Course groups:', this.detailData.courseGroups);
+        console.log('CourseDetailComponent - Course dates:', this.detailData.course_dates);
+
+        // Check if this is a FIX course (should be treated as flexible)
+        const isFIXCourse = this.detailData.name?.toUpperCase().includes('FIX');
+        const isCollectiveFIX = this.detailData.course_type === 1 && isFIXCourse;
+        console.log('CourseDetailComponent - Is FIX course:', isFIXCourse, 'Is Collective FIX:', isCollectiveFIX);
         this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id=' + this.detailData.sport_id)
           .subscribe((data) => {
             this.detailData.degrees = [];
@@ -80,14 +91,122 @@ export class CourseDetailComponent implements OnInit {
                 st.data.forEach((element: any) => {
                   if (element.id === this.detailData.station_id) this.detailData.station = element
                 });
-                this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id)
-                  .subscribe((bookingUser) => {
-                    this.detailData.users = [];
-                    this.detailData.users = bookingUser.data;
-                    this.courses.settcourseFormGroup(this.detailData)
-                    this.toggleClaimText = Boolean(this.courses.courseFormGroup.controls['claim_text'].value)
-                    setTimeout(() => this.loading = false, 0);
-                  })
+                // For ALL collective courses (regular and FIX), we need to ensure booking users are loaded
+                const isFIXCourse = this.detailData.name?.toUpperCase().includes('FIX');
+
+                if (this.detailData.course_type === 1) {
+                  console.log('Processing FLEX course - extracting booking users from nested structure');
+                  this.detailData.users = [];
+                  const bookingUsersMap = new Map(); // To avoid duplicates
+
+                  // Check both possible structures
+                  const courseGroupsData = this.detailData.courseGroups || this.detailData.course_groups || [];
+                  const courseDatesData = this.detailData.course_dates || [];
+
+                  console.log('Available courseGroups:', courseGroupsData);
+                  console.log('Available course_dates:', courseDatesData);
+
+                  // Try courseGroups structure first (from API relation)
+                  courseGroupsData.forEach((group: any) => {
+                    console.log('Processing courseGroup:', group);
+                    const courseDates = group.courseDates || group.course_dates || [];
+                    courseDates.forEach((courseDate: any) => {
+                      console.log('Processing courseDate:', courseDate);
+                      const subgroups = courseDate.courseSubgroups || courseDate.course_subgroups || [];
+                      subgroups.forEach((subgroup: any) => {
+                        console.log('Processing subgroup:', subgroup);
+                        const bookingUsers = subgroup.bookingUsers || subgroup.booking_users || [];
+                        bookingUsers.forEach((bookingUser: any) => {
+                          console.log('Found bookingUser:', bookingUser);
+                          const key = `${bookingUser.client_id}-${bookingUser.booking_id || bookingUser.id}`;
+                          if (!bookingUsersMap.has(key)) {
+                            bookingUsersMap.set(key, {
+                              ...bookingUser,
+                              course_date_id: courseDate.id,
+                              course_group_id: group.id,
+                              course_subgroup_id: subgroup.id
+                            });
+                          }
+                        });
+                      });
+                    });
+                  });
+
+                  this.detailData.users = Array.from(bookingUsersMap.values());
+                  console.log('Flex course users extracted - total found:', this.detailData.users.length);
+                  console.log('Flex course users details:', this.detailData.users);
+
+                  // ALWAYS use API call for collective courses to ensure we get all booking users
+                  console.log('Using API call to get booking users for collective course...');
+                  this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
+                    .subscribe((bookingUser) => {
+                      console.log('API booking users response for collective course:', bookingUser);
+                      this.detailData.users = bookingUser.data || [];
+                      console.log('Final collective course users from API:', this.detailData.users.length);
+                      console.log('>>> DETAILED BOOKING USER STRUCTURE <<<');
+                      if (this.detailData.users.length > 0) {
+                        console.log('First booking user structure:', this.detailData.users[0]);
+                        console.log('Fields available:', Object.keys(this.detailData.users[0]));
+                        this.detailData.users.forEach((user: any, index: number) => {
+                          console.log(`User ${index}: degree_id=${user.degree_id}, course_date_id=${user.course_date_id}, course_group_id=${user.course_group_id}, client_id=${user.client_id}`);
+                        });
+                      }
+                      console.log('>>> END DETAILED STRUCTURE <<<');
+
+                      // For FIX courses, correct the reservation count to show unique bookings instead of individual dates
+                      if (isFIXCourse && this.detailData.users.length > 0) {
+                        const uniqueBookings = new Set();
+                        this.detailData.users.forEach((user: any) => {
+                          const bookingId = user.booking_id || user.id;
+                          if (bookingId) uniqueBookings.add(bookingId);
+                        });
+
+                        console.log('FIX Course correction:', {
+                          originalTotal: this.detailData.total_reservations,
+                          uniqueBookings: uniqueBookings.size,
+                          totalUsers: this.detailData.users.length
+                        });
+
+                        // Override the total_reservations for FIX courses
+                        this.detailData.total_reservations = uniqueBookings.size;
+                      }
+
+                      // Update detailData with the new booking users before setting form group
+                      this.detailData.booking_users = this.detailData.users;
+
+                      // Initialize courseFormGroup for collective courses
+                      this.courses.settcourseFormGroup(this.detailData)
+
+                      // CRITICAL: After setting the form group, ensure booking_users control is updated
+                      if (this.courses.courseFormGroup && this.detailData.users.length > 0) {
+                        console.log('Updating form booking_users control with:', this.detailData.users.length, 'users');
+                        const patchData: any = {
+                          booking_users: this.detailData.users
+                        };
+
+                        // For FIX courses, also update the total_reservations in the form
+                        if (isFIXCourse) {
+                          patchData.total_reservations = this.detailData.total_reservations;
+                          console.log('Also updating form total_reservations for FIX course:', this.detailData.total_reservations);
+                        }
+
+                        this.courses.courseFormGroup.patchValue(patchData);
+                      }
+
+                      this.toggleClaimText = Boolean(this.courses.courseFormGroup.controls['claim_text'].value)
+                      setTimeout(() => this.loading = false, 0);
+                    });
+                } else {
+                  // Regular courses - use direct API call
+                  this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
+                    .subscribe((bookingUser) => {
+                      this.detailData.users = [];
+                      this.detailData.users = bookingUser.data;
+                      this.courses.settcourseFormGroup(this.detailData)
+                      this.toggleClaimText = Boolean(this.courses.courseFormGroup.controls['claim_text'].value)
+                      setTimeout(() => this.loading = false, 0);
+                    })
+                }
               })
           });
       })

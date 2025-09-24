@@ -86,9 +86,9 @@
 					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'">
 				</td>
 			</tr>
-			<tr *ngFor="let user of courseFormGroup.controls['booking_users'].value || []; index as i">
+			<tr *ngFor="let user of booking_users || []; index as i">
 				<ng-container
-					*ngIf="user.course_subgroup_id === find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.course_subgroups?.[subgroup_index]?.id">
+					*ngIf="user.degree_id === level.id">
 					<td
 						style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
 						<div class="flexicon" style="font-size: 12px; font-weight: 600;">
@@ -103,36 +103,54 @@
 					<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as j"
 						[style.backgroundColor]="selectDate===j?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
 						(click)="selectDate=j;getAvail(item)">
-            <div style="display: flex; gap: 5px; justify-content: center;" *ngIf="item.booking_users_active?.length">
-              <!-- Confirmación de asistencia (accepted) -->
-              <mat-icon class="icon10" 
-                        *ngIf="find(item.booking_users_active,'client_id',user.client_id)?.accepted === true" 
-                        style="color: #2196F3; cursor: pointer;"
-                        [matTooltip]="'attendance.confirmed' | translate"
-                        matTooltipPosition="above"
-                        (click)="toggleAcceptance(find(item.booking_users_active,'client_id',user.client_id), false); $event.stopPropagation()">
-                check_circle
+            <div style="display: flex; gap: 5px; justify-content: center;">
+              <ng-container *ngIf="find(item.booking_users_active,'client_id',user.client_id) as userInDate">
+                <!-- Verde: Presente el día del curso (attended=true) -->
+                <mat-icon class="icon10"
+                          *ngIf="userInDate?.attended"
+                          style="color: #31C044;"
+                          [matTooltip]="'present_course_day' | translate">
+                  circle
+                </mat-icon>
+
+                <!-- Amarillo: Cambio de grupo -->
+                <mat-icon class="icon10"
+                          *ngIf="userInDate?.group_changed && !userInDate?.attended"
+                          style="color: #FFCF25;"
+                          [matTooltip]="'student_changed' | translate">
+                  circle
+                </mat-icon>
+
+                <!-- Rojo: Día pasado sin asistencia -->
+                <mat-icon class="icon10"
+                          *ngIf="Date(item.date) < today && !userInDate?.attended && !userInDate?.group_changed"
+                          style="color: #E70F0F;"
+                          [matTooltip]="'not_presented' | translate">
+                  circle
+                </mat-icon>
+
+                <!-- Gris: Día futuro o sin estados especiales -->
+                <mat-icon class="icon10"
+                          *ngIf="!userInDate?.attended && !userInDate?.group_changed"
+                          style="color: #C7D0D3;"
+                          [matTooltip]="'upcoming_day' | translate">
+                  circle
+                </mat-icon>
+              </ng-container>
+
+              <!-- Si no hay usuario para esta fecha, mostrar gris -->
+              <mat-icon class="icon10"
+                        *ngIf="!find(item.booking_users_active,'client_id',user.client_id)"
+                        style="color: #C7D0D3;"
+                        [matTooltip]="'upcoming_day' | translate">
+                circle
               </mat-icon>
-              <mat-icon class="icon10" 
-                        *ngIf="find(item.booking_users_active,'client_id',user.client_id)?.accepted === false || find(item.booking_users_active,'client_id',user.client_id)?.accepted === null" 
-                        style="color: #FF9800; cursor: pointer;"
-                        [matTooltip]="'attendance.pending' | translate"
-                        matTooltipPosition="above"
-                        (click)="toggleAcceptance(find(item.booking_users_active,'client_id',user.client_id), true); $event.stopPropagation()">
-                pending
-              </mat-icon>
-              
-              <!-- Estados existentes -->
-              <mat-icon class="icon10" *ngIf="Date(item.date) > today && find(item.booking_users_active,'client_id',user.client_id)?.attended" style="color: #31C044;">circle</mat-icon>
-              <mat-icon class="icon10" *ngIf="find(item.booking_users_active,'client_id',user.client_id).group_changed" style="color: #FFCF25;">circle</mat-icon>
-              <mat-icon class="icon10" *ngIf="Date(item.date) < today && !find(item.booking_users_active,'client_id',user.client_id)?.attended" style="color: #E70F0F;">circle</mat-icon>
-              <mat-icon class="icon10" *ngIf="!find(item.booking_users_active,'client_id',user.client_id).attended && !find(item.booking_users_active,'client_id',user.client_id)?.group_changed && !(Date(item.date) < today)" style="color: #C7D0D3;">circle</mat-icon>
             </div>
 					</td>
 				</ng-container>
 			</tr>
 			<tr
-				*ngIf="!find(courseFormGroup.controls['booking_users'].value,'course_subgroup_id',find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.course_subgroups?.[subgroup_index]?.id)">
+				*ngIf="!find(booking_users,'degree_id',level.id)">
 				<td
 					style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
 					<div class="flexicon" style="font-size: 12px; font-weight: 600;">

@@ -60,11 +60,20 @@ export class CoursesComponent {
   }
 
   showDetailEvent(event: any) {
+    console.log('=== showDetailEvent called ===');
+    console.log('event.showDetail:', event.showDetail);
+    console.log('event.item:', event.item);
+    console.log('this.detailData:', this.detailData);
+
     if (event.showDetail || (!event.showDetail && this.detailData !== null && this.detailData.id !== event.item.id)) {
+      console.log('=== Condition met, processing item ===');
       this.detailData = event.item;
       this.groupedByColor = {};
       this.colorKeys = [];
+      console.log('detailData.course_type:', this.detailData.course_type);
+
       if(this.detailData.course_type ==1) {
+        console.log('=== DETAIL VIEW PATH (course_type == 1) ===');
         this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id=' + this.detailData.sport_id)
           .subscribe((data) => {
             this.detailData.degrees = [];
@@ -94,19 +103,80 @@ export class CoursesComponent {
             //      if (element.id === this.detailData.station_id) this.detailData.station = element
             //    });
             //  })
-            //this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.//detailData.id)
-            //  .subscribe((bookingUser: any) => {
-            //    this.detailData.users = bookingUser.data;
-            //  })
-            this.courses.settcourseFormGroup(this.detailData)
-            this.showDetail = true;
+            // Load booking users for the detail view
+            console.log('Loading booking users for detail view...');
+            this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
+              .subscribe((bookingUser: any) => {
+                console.log('Detail view - booking users loaded:', bookingUser.data?.length || 0);
+                console.log('Detail view - booking users data:', bookingUser.data);
+                // Set booking users in all the expected properties for the service to find them
+                this.detailData.booking_users_active = bookingUser.data || [];
+                this.detailData.booking_users = bookingUser.data || [];
+                this.detailData.users = bookingUser.data || [];
+                this.courses.settcourseFormGroup(this.detailData)
+                this.showDetail = true;
+              });
+            // Remove the original settcourseFormGroup call since it now happens in the booking users callback
           });
       } else  {
+        console.log('=== PREVIEW VIEW PATH (course_type != 1) ===');
         this.showDetail = true;
-        this.courses.settcourseFormGroup(this.detailData, true)
+
+        console.log('Preview - detailData received:', this.detailData);
+        console.log('Preview - course_type:', this.detailData.course_type, 'id:', this.detailData.id);
+
+        // For course previews, we also need to load degrees and booking users for collective courses
+        if (this.detailData.course_type === 1) {
+          console.log('Loading degrees and booking users for course preview...');
+          // Load degrees first
+          this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id=' + this.detailData.sport_id)
+            .subscribe((degreesData) => {
+              console.log('Preview - degrees loaded:', degreesData.data?.length || 0);
+              this.detailData.degrees = [];
+              degreesData.data.forEach((element: any) => {
+                if (element.active) this.detailData.degrees.push({ ...element, Subgrupo: this.getSubGroups(element.id) });
+              });
+
+              // Set up degrees with course groups relation like in detail view
+              this.detailData.degrees.forEach((level: any) => {
+                level.active = false;
+                this.detailData.course_dates.forEach((cs: any) => {
+                  if(cs.course_groups) {
+                    cs.course_groups.forEach((group: any) => {
+                      if (group.degree_id === level.id) {
+                        level.active = true;
+                        level.old = true;
+                      }
+                      level.visible = false;
+                    });
+                  }
+                });
+              });
+
+              // Now load booking users
+              this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
+                .subscribe((bookingUser) => {
+                  console.log('Preview - booking users loaded:', bookingUser.data?.length || 0);
+                  console.log('Preview - booking users data:', bookingUser.data);
+                  // Set booking users in all the expected properties for the service to find them
+                  this.detailData.booking_users_active = bookingUser.data || [];
+                  this.detailData.booking_users = bookingUser.data || [];
+                  this.detailData.users = bookingUser.data || [];
+                  this.courses.settcourseFormGroup(this.detailData, true);
+                });
+            });
+        } else {
+          console.log('Skipping booking users load - not collective course or different course type');
+          this.courses.settcourseFormGroup(this.detailData, true);
+        }
       }
 
-    } else this.showDetail = event.showDetail;
+    } else {
+      console.log('=== CONDITION NOT MET - not processing item ===');
+      console.log('event.showDetail:', event.showDetail);
+      console.log('Setting showDetail to:', event.showDetail);
+      this.showDetail = event.showDetail;
+    }
   }
 
   calculateFormattedDuration(hourStart: string, hourEnd: string): string {

@@ -22,8 +22,8 @@
 		<vex-aio-table [columns]="columns" [entity]="entity" [deleteEntity]="deleteEntity" [title]="'bookings'"
 			[filterField]="filterCourseId===0?null:filterCourseId" [route]="'bookings'"
 			[createComponent]="createComponent" [canDelete]="false" [canDeactivate]="false" [with]="['bookingUsers.course.sport','clientMain']"
-			[filterColumn]="filterCourseId===0?null:'course_id'" [sectionIcon]="icon" [showDetail]="showDetail"
-			(showDetailEvent)="showDetailEvent($event)">
+			[filterColumn]="filterCourseId===0?null:(isFlexCourse ? 'flex_course_id' : 'course_id')" [sectionIcon]="icon" [showDetail]="showDetail"
+			(showDetailEvent)="showDetailEvent($event)" (dataLoaded)="onDataLoaded($event)">
 		</vex-aio-table>
 	</vex-page-layout-content>
 
@@ -481,14 +481,14 @@
             </div>
           </div>
 
-					<div class="list-inner-holder" *ngIf="detailData.price_boukii_care>0">
+					<div class="list-inner-holder" *ngIf="detailData?.price_boukii_care>0">
 						<div class="col-left">
 							<mat-slide-toggle [disabled]="true"
-								[checked]="detailData.has_boukii_care"></mat-slide-toggle>
+								[checked]="detailData?.has_boukii_care"></mat-slide-toggle>
 							Boukii Care
 						</div>
 						<div class="col-right">
-							{{detailData.price_boukii_care | number:'0.2-2'}} {{detailData.currency}}
+							{{detailData?.price_boukii_care | number:'0.2-2'}} {{detailData?.currency}}
 						</div>
 					</div>
 
@@ -500,7 +500,7 @@
 							</div>
 						</div>
 						<div class="col-right">
-							{{getExtrasPrice() | number:'0.2-2'}} {{detailData.currency}}
+							{{getExtrasPrice() | number:'0.2-2'}} {{detailData?.currency}}
 						</div>
 					</div>
 				</div>
@@ -509,7 +509,7 @@
 						{{'bonus' | translate}}
 					</div>
 					<div class="col-right">
-						-{{getBonusPrice() | number:'0.2-2'}} {{detailData.currency}}
+						-{{getBonusPrice() | number:'0.2-2'}} {{detailData?.currency}}
 					</div>
 				</div>
 				<div class="title-actividad">
@@ -519,14 +519,14 @@
 						</b>
 					</div>
 					<div class="col-right">
-						{{ getPaymentMethod(detailData.payment_method) | translate }}
+						{{ getPaymentMethod(detailData?.payment_method) | translate }}
 					</div>
 				</div>
 				<!--<div *ngIf="detailData.payment_method != 6" class="list-holder">
 					<div>
 						class="col-left"
 						<div class="col-l">
-							{{ getPaymentMethod(detailData.payment_method) | translate }}
+							{{ getPaymentMethod(detailData?.payment_method) | translate }}
 						</div>
 						TODO: revisar metodo de pago cuando hay varios pagos y que estado poner??
 						 <div class="col-r">
@@ -605,7 +605,7 @@
 					<div class="col-right">
 						<ul>
 							<li class="total">
-								{{detailData.price_total | number:'0.2-2'}} {{detailData.currency}}
+								{{detailData?.price_total | number:'0.2-2'}} {{detailData?.currency}}
 							</li>
 						</ul>
 					</div>

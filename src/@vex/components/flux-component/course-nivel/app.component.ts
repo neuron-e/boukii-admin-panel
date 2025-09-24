@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiCrudService } from '../../../../service/crud.service';
@@ -9,7 +9,7 @@ import { TranslateService } from '@ngx-translate/core';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
-export class CourseDetailCardNivelComponent {
+export class CourseDetailCardNivelComponent implements OnInit {
 
   @Input() courseFormGroup!: UntypedFormGroup
   @Input() checkbox: boolean = false
@@ -18,6 +18,39 @@ export class CourseDetailCardNivelComponent {
   @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any, selectedDate?: any }>()
 
   today: Date = new Date()
+
+  ngOnInit() {
+    console.log('=== COURSE NIVEL COMPONENT DEBUG ===');
+    console.log('CourseFormGroup value:', this.courseFormGroup?.value);
+
+    const courseDates = this.getCourseDates();
+    console.log('Course dates:', courseDates);
+    console.log('Course dates IDs:', courseDates.map(d => ({ id: d.id, date: d.date })));
+
+    console.log('Booking users from form users:', this.courseFormGroup?.value?.users);
+    console.log('Booking users from form booking_users:', this.courseFormGroup?.value?.booking_users);
+    console.log('Total booking users found:', (this.courseFormGroup?.value?.booking_users || []).length);
+    console.log('Course type:', this.courseFormGroup?.value?.type);
+    console.log('Course name:', this.courseFormGroup?.value?.name);
+    console.log('Is flexible:', this.courseFormGroup?.value?.is_flexible);
+
+    // Debug specific to FIX courses
+    const isFIXCourse = this.courseFormGroup?.value?.name?.toUpperCase().includes('FIX');
+    if (isFIXCourse) {
+      console.log('>>> FIX COURSE DETECTED in nivel component <<<');
+      console.log('Total reservations:', this.courseFormGroup?.value?.total_reservations);
+
+      // Compare date IDs
+      const bookingUsers = this.courseFormGroup?.value?.booking_users || [];
+      const courseDateIds = courseDates.map(d => d.id);
+      const bookingDateIds = [...new Set(bookingUsers.map((u: any) => u.course_date_id))];
+
+      console.log('Form course_dates IDs:', courseDateIds);
+      console.log('Booking users course_date_id:', bookingDateIds);
+      console.log('IDs match?', courseDateIds.some(id => bookingDateIds.includes(id)));
+    }
+    console.log('====================================');
+  }
 
   constructor(
     private snackBar: MatSnackBar,
@@ -147,11 +180,51 @@ export class CourseDetailCardNivelComponent {
   getUsersForSpecificDate(bookingUsers: any, degreeId: number, courseDateId: number): any[] {
     try {
       const users = this.asArray(bookingUsers);
+      console.log(`>>> getUsersForSpecificDate DEBUG <<<`);
+      console.log(`Looking for degreeId: ${degreeId}, courseDateId: ${courseDateId}`);
+      console.log(`Total booking users available: ${users.length}`);
+      console.log(`All booking users:`, users);
+
+      // Show detailed structure for debugging (first call only)
+      if (users.length > 0 && courseDateId === 9601) {
+        console.log('First user with client data:', users[0]);
+        console.log('Client structure:', users[0].client);
+      }
+
       const matchingUsers = users.filter((user: any) => {
         const userDegreeId = user?.degree_id ?? user?.degreeId;
         const userCourseDateId = user?.course_date_id ?? user?.courseDateId;
-        return userDegreeId === degreeId && userCourseDateId === courseDateId;
+
+        // For FIX courses, try matching by date instead of course_date_id if IDs don't match
+        let matches = userDegreeId === degreeId && userCourseDateId === courseDateId;
+
+        // If no match and this is a FIX course, try matching by date
+        if (!matches && user?.date && courseDateId) {
+          // Get the course date object to compare actual dates
+          const courseDates = this.getCourseDates();
+          const targetDate = courseDates.find(cd => cd.id === courseDateId);
+
+          if (targetDate && user.date) {
+            const userDate = new Date(user.date).toDateString();
+            const targetDateStr = new Date(targetDate.date).toDateString();
+            matches = userDegreeId === degreeId && userDate === targetDateStr;
+
+            if (matches) {
+              console.log(`✅ MATCH BY DATE:`, { user: user.id, userDate, targetDateStr });
+            }
+          }
+        }
+
+        if (matches && userCourseDateId === courseDateId) {
+          console.log(`✅ MATCH BY ID:`, user);
+        }
+
+        return matches;
       });
+
+      console.log(`Matching users found: ${matchingUsers.length}`, matchingUsers);
+      console.log(`>>> END DEBUG <<<`);
+
       return matchingUsers;
     } catch (e) {
       console.warn("getUsersForSpecificDate failed:", e);
