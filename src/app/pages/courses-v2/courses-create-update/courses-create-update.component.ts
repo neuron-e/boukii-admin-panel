@@ -2259,7 +2259,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
           country: u.client?.country,
           image: u.client?.image
         }))
-      : studentsBase;
+      : Array.from(studentsBase);
+
+    console.log('Final students array length:', students.length);
+    console.log('Final students array:', students);
 
     console.log('Final students for modal:', Array.from(students));
     console.log('===============================');

@@ -34,12 +34,25 @@ export class StepTwoComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
+    // VALIDACIÓN: Solo permitir utilizers que pertenezcan al cliente principal
     this.utilizers = [this.client, ...this.client.utilizers];
+
+    // Filtrar utilizers iniciales para asegurar coherencia
     if(this.initialData && this.initialData.length) {
-      this.selectedUtilizers = Array.isArray(this.initialData.utilizers) ? this.initialData.utilizers : [this.initialData.utilizers];
+      const initialUtilizers = Array.isArray(this.initialData.utilizers) ? this.initialData.utilizers : [this.initialData.utilizers];
+      // Solo incluir utilizers que estén en la lista válida
+      this.selectedUtilizers = initialUtilizers.filter(u =>
+        this.utilizers.some(validU => validU.id === u.id)
+      );
+
+      // Log de advertencia si se filtró algún utilizer inválido
+      if (initialUtilizers.length !== this.selectedUtilizers.length) {
+        console.warn('Se filtraron utilizers que no pertenecen al cliente principal');
+      }
     } else {
       this.selectedUtilizers = [];
     }
+
     this.stepForm = this.fb.group({
       utilizers: this.fb.array(this.selectedUtilizers, Validators.required),
     });
