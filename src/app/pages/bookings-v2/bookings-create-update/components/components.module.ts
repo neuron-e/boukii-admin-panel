@@ -42,6 +42,7 @@ import {IconComponent} from '../../../../../@vex/components/icon/app.component';
 import { ComponenteButtonModule } from "../../../../../@vex/components/form/button/app.module";
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 import {MatFormFieldModule} from '@angular/material/form-field';
+import { ClientParticipantConflictDialogComponent } from './client-participant-conflict-dialog/client-participant-conflict-dialog.component';
 
 @NgModule({
     imports: [
@@ -90,6 +91,7 @@ import {MatFormFieldModule} from '@angular/material/form-field';
         AddReductionModalComponent,
         AddDiscountBonusModalComponent,
         BookingReservationDetailComponent,
+        ClientParticipantConflictDialogComponent,
     ],
     exports: [
         BookingFormStepper,

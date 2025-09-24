@@ -1,0 +1,86 @@
+<div class="conflict-dialog">
+  <div class="dialog-header">
+    <mat-icon color="warn" class="warning-icon">warning</mat-icon>
+    <h2>{{ 'booking_consistency_error_title' | translate }}</h2>
+  </div>
+
+  <div class="dialog-content">
+    <div class="error-message">
+      <p>{{ data.errorMessage }}</p>
+    </div>
+
+    <!-- Información del problema -->
+    <div class="problem-info">
+      <h3>{{ 'current_situation' | translate }}</h3>
+      <div class="client-info">
+        <strong>Cliente principal:</strong> {{ data.mainClient.first_name }} {{ data.mainClient.last_name }}
+      </div>
+
+      <div class="participants-info" *ngIf="getProblematicParticipants().length > 0">
+        <strong>Participantes problemáticos:</strong>
+        <ul>
+          <li *ngFor="let participant of getProblematicParticipants()">
+            {{ participant.first_name }} {{ participant.last_name }}
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Opciones de solución -->
+    <div class="solution-options">
+      <h3>{{ 'select_solution' | translate }}</h3>
+
+      <mat-radio-group [(ngModel)]="selectedSolution" (change)="onSolutionSelected($event.value)">
+        <mat-radio-button
+          *ngFor="let option of solutionOptions"
+          [value]="option.value"
+          class="solution-option">
+          <div class="option-content">
+            <div class="option-label">{{ option.label }}</div>
+            <div class="option-description">{{ option.description }}</div>
+          </div>
+        </mat-radio-button>
+      </mat-radio-group>
+
+      <!-- Selector de nuevo cliente principal -->
+      <div *ngIf="selectedSolution === 'change_main_client'" class="new-client-selector">
+        <h4>{{ 'select_new_main_client' | translate }}</h4>
+        <mat-select
+          [(ngModel)]="selectedNewMainClient"
+          (selectionChange)="onNewMainClientSelected($event.value)"
+          placeholder="Seleccionar nuevo cliente principal">
+          <mat-option *ngFor="let client of getPotentialMainClients()" [value]="client">
+            {{ client.first_name }} {{ client.last_name }}
+          </mat-option>
+        </mat-select>
+      </div>
+
+      <!-- Información adicional para creación de relación -->
+      <div *ngIf="selectedSolution === 'create_relationship'" class="relationship-info">
+        <mat-icon color="primary">info</mat-icon>
+        <p>Esta opción creará automáticamente la relación familiar entre el cliente principal y los participantes, permitiendo que aparezcan como utilizers válidos.</p>
+      </div>
+
+      <!-- Información adicional para remover participantes -->
+      <div *ngIf="selectedSolution === 'remove_participants'" class="remove-info">
+        <mat-icon color="warn">delete</mat-icon>
+        <p><strong>Atención:</strong> Se eliminarán {{ getProblematicParticipants().length }} participante(s) de la reserva.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-actions">
+    <button mat-button (click)="cancel()" class="cancel-btn">
+      {{ 'cancel' | translate }}
+    </button>
+
+    <button
+      mat-raised-button
+      color="primary"
+      [disabled]="!selectedSolution || (selectedSolution === 'change_main_client' && !selectedNewMainClient)"
+      (click)="applySolution()"
+      class="apply-btn">
+      {{ 'apply_solution' | translate }}
+    </button>
+  </div>
+</div>

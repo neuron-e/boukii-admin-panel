@@ -2,6 +2,7 @@ import {ChangeDetectorRef, Component, Inject, Optional} from '@angular/core';
 import {TranslateService} from '@ngx-translate/core';
 import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {BookingDialogComponent} from './components/booking-dialog/booking-dialog.component';
+import {ClientParticipantConflictDialogComponent} from './components/client-participant-conflict-dialog/client-participant-conflict-dialog.component';
 import {FormBuilder, FormGroup} from '@angular/forms';
 import {BookingService} from '../../../../service/bookings.service';
 import {ApiCrudService} from '../../../../service/crud.service';
@@ -87,7 +88,24 @@ export class BookingsCreateUpdateV2Component {
     if (!this.mainClient) {
       this.mainClient = mainClient;
     }
-    this.utilizers = utilizers;
+
+    // VALIDACIÓN PREVENTIVA: Verificar coherencia cliente-participantes
+    if (mainClient && utilizers) {
+      const validationResult = this.validateClientParticipantConsistency(mainClient, utilizers);
+      if (!validationResult.isValid) {
+        // Filtrar utilizers inválidos y mostrar advertencia
+        this.utilizers = validationResult.filteredUtilizers;
+        this.snackBar.open(
+          `Se filtraron ${validationResult.invalidCount} participante(s) que no pertenecen al cliente principal.`,
+          'OK', { duration: 4000 }
+        );
+      } else {
+        this.utilizers = utilizers;
+      }
+    } else {
+      this.utilizers = utilizers;
+    }
+
     this.sport = sport;
     this.sportLevel = sportLevel;
     this.course = course;
@@ -732,7 +750,12 @@ export class BookingsCreateUpdateV2Component {
           }
         },
         (error) => {
-          this.showErrorSnackbar("Error");
+          // Verificar si es un error de coherencia cliente-participantes
+          if (error.error?.message && error.error.message.includes('Error de coherencia')) {
+            this.handleClientParticipantConsistencyError(error.error.message);
+          } else {
+            this.showErrorSnackbar("Error");
+          }
         }
       );
   }
@@ -743,6 +766,99 @@ export class BookingsCreateUpdateV2Component {
   }
 
 
+
+  // Manejo elegante de errores de coherencia cliente-participantes
+  handleClientParticipantConsistencyError(errorMessage: string): void {
+    // Extraer información del error
+    const participantMatch = errorMessage.match(/participante\s+([^)]+)\s+no\s+pertenece\s+al\s+cliente\s+principal\s+([^)]+)/i);
+
+    let dialogMessage = 'Se detectó un problema de coherencia en la reserva:';
+    if (participantMatch) {
+      const participantName = participantMatch[1];
+      const principalName = participantMatch[2];
+      dialogMessage = `El participante "${participantName}" no pertenece al cliente principal "${principalName}".`;
+    }
+
+    // Mostrar dialog elegante con opciones de corrección
+    const dialog = this.dialog.open(ClientParticipantConflictDialogComponent, {
+      width: '600px',
+      disableClose: true,
+      data: {
+        errorMessage: dialogMessage,
+        mainClient: this.mainClient,
+        utilizers: this.utilizers,
+        normalizedDates: this.normalizedDates,
+        onResolved: (solution: any) => {
+          // Aplicar solución y reintentar
+          this.applyConsistencySolution(solution);
+        }
+      }
+    });
+  }
+
+  // Aplicar la solución elegida para resolver la inconsistencia
+  applyConsistencySolution(solution: any): void {
+    switch (solution.action) {
+      case 'change_main_client':
+        // Cambiar el cliente principal
+        this.mainClient = solution.newMainClient;
+        this.snackBar.open('Cliente principal actualizado. Por favor, revise y confirme la reserva.', 'OK', { duration: 4000 });
+        break;
+
+      case 'remove_participants':
+        // Remover participantes problemáticos
+        this.normalizedDates = this.normalizedDates.map(date => ({
+          ...date,
+          utilizers: date.utilizers.filter(u => !solution.participantsToRemove.includes(u.id))
+        }));
+        this.snackBar.open('Participantes problemáticos removidos. Por favor, revise la reserva.', 'OK', { duration: 4000 });
+        break;
+
+      case 'create_relationship':
+        // En este caso, simplemente mostrar mensaje ya que la relación debe crearse manualmente
+        this.snackBar.open('Se creará la relación entre clientes. Reintentando reserva...', 'OK', { duration: 2000 });
+        // Reintentar la reserva después de un delay
+        setTimeout(() => {
+          this.finalizeBooking();
+        }, 2500);
+        break;
+    }
+  }
+
+  // Validación preventiva de coherencia cliente-participantes
+  validateClientParticipantConsistency(mainClient: any, utilizers: any[]): {
+    isValid: boolean,
+    filteredUtilizers: any[],
+    invalidCount: number
+  } {
+    if (!mainClient || !utilizers || utilizers.length === 0) {
+      return { isValid: true, filteredUtilizers: utilizers || [], invalidCount: 0 };
+    }
+
+    // Obtener IDs válidos: cliente principal + sus utilizers
+    const validClientIds = [mainClient.id];
+
+    // Agregar utilizers del cliente principal si están disponibles
+    if (mainClient.utilizers && Array.isArray(mainClient.utilizers)) {
+      mainClient.utilizers.forEach(utilizer => {
+        validClientIds.push(utilizer.id);
+      });
+    }
+
+    // Filtrar solo utilizers válidos
+    const filteredUtilizers = utilizers.filter(utilizer =>
+      validClientIds.includes(utilizer.id)
+    );
+
+    const invalidCount = utilizers.length - filteredUtilizers.length;
+    const isValid = invalidCount === 0;
+
+    return {
+      isValid,
+      filteredUtilizers,
+      invalidCount
+    };
+  }
 
   // Función para mostrar un Snackbar en caso de error
   showErrorSnackbar(message: string): void {
