@@ -176,9 +176,10 @@
         <div *ngIf="paymentMethod === 1" style="margin: 10px 0;">
           <mat-form-field appearance="fill">
             <mat-label>{{"select_payment_method" | translate}}</mat-label>
-            <mat-select [(ngModel)]="selectedPaymentOption">
-              <mat-option *ngFor="let option of paymentOptions" [value]="option.type" >
-                {{option.translation}}
+            <mat-select [(ngModel)]="selectedPaymentOptionId"
+                        (selectionChange)="onPaymentOptionSelectionChange($event.value)">
+              <mat-option *ngFor="let option of paymentOptions" [value]="option.id" >
+                {{option.label}}
               </mat-option>
             </mat-select>
           </mat-form-field>
@@ -186,6 +187,9 @@
 
         <mat-radio-button [value]="3" style="display: block;">
           {{"online_payment" | translate}}  <!-- Online Payment -->
+        </mat-radio-button>
+        <mat-radio-button [value]="4" style="display: block;">
+          {{"payment_no_payment" | translate}}
         </mat-radio-button>
       </mat-radio-group>
     </div>

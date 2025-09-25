@@ -80,10 +80,24 @@ export class BookingService {
   }
 
   calculatePendingPrice(): number {
-    const totalVouchers =  this.getBookingData().vouchers.reduce((acc, item) => acc + item.bonus.reducePrice, 0);
-    const total =  this.getBookingData().price_total - totalVouchers;
+    const data = this.getBookingData();
+    if (!data) {
+      return 0;
+    }
 
-    return total > 0 ? total : 0; // Si el precio total es negativo o cero, devolver 0.
+    const vouchers = Array.isArray((data as any).vouchers) ? (data as any).vouchers : [];
+    const totalVouchers = vouchers.reduce((acc: number, item: any) => {
+      const value = item?.bonus?.reducePrice;
+      const parsed = typeof value === 'number' ? value : parseFloat(value ?? '0');
+      return acc + (isNaN(parsed) ? 0 : parsed);
+    }, 0);
+
+    const priceTotal = typeof (data as any).price_total === 'number'
+      ? (data as any).price_total
+      : parseFloat((data as any).price_total ?? '0');
+
+    const pending = priceTotal - totalVouchers;
+    return pending > 0 ? pending : 0;
   }
 
   calculateActivityPrice(activity: any): number {
@@ -131,7 +145,9 @@ export class BookingService {
 
       // Calcular extras solo para esta fecha
       extraPrice = date.extras?.reduce((sum: number, extra: any) => {
-        return sum + (parseFloat(extra?.price) || 0);
+        const price = parseFloat(extra?.price ?? '0');
+        const quantity = Number(extra?.quantity ?? 1) || 1;
+        return sum + (isNaN(price) ? 0 : price * quantity);
       }, 0) || 0;
     }
 
@@ -184,12 +200,14 @@ export class BookingService {
               u.first_name == utilizer.first_name && u.last_name == utilizer.last_name);
             if(utilizers && utilizers.extras && utilizers.extras.length) {
               utilizers.extras.forEach(extra => {
-                let extraPrice = parseFloat(extra.price);
-                totalExtrasPrice += extraPrice;
+                const extraPrice = parseFloat(extra.price ?? '0');
+                const quantity = Number(extra.quantity ?? 1) || 1;
+                const totalExtra = (isNaN(extraPrice) ? 0 : extraPrice) * quantity;
+                totalExtrasPrice += totalExtra;
                 extras.push({
                   course_extra_id: extra.id,
                   name: extra.name,
-                  quantity: extra.quantity,
+                  quantity: quantity,
                   price: extraPrice
                 });
               });
@@ -197,12 +215,14 @@ export class BookingService {
           } else {
             if(date.extras &&  date.extras.length) {
               date.extras.forEach(extra => {
-                let extraPrice = parseFloat(extra.price);
-                totalExtrasPrice += extraPrice;
+                const extraPrice = parseFloat(extra.price ?? '0');
+                const quantity = Number(extra.quantity ?? 1) || 1;
+                const totalExtra = (isNaN(extraPrice) ? 0 : extraPrice) * quantity;
+                totalExtrasPrice += totalExtra;
                 extras.push({
                   course_extra_id: extra.id,
                   name: extra.name,
-                  quantity: extra.quantity,
+                  quantity: quantity,
                   price: extraPrice
                 });
               });

@@ -5,10 +5,25 @@
       { text: 'bookings', title: true, link: '/bookings' },
       { text: 'bookings_page.creation.title', subtitle: true }
     ]" class="booking-breadcrumb"></vex-breadcrumbs>
+
+    <!-- MEJORA CRÍTICA: Indicador de autoguardado -->
+    <div class="auto-save-indicator" *ngIf="hasUnsavedChanges || isDraftLoaded">
+      <mat-icon [ngClass]="{'spinning': hasUnsavedChanges}" class="save-icon">
+        {{hasUnsavedChanges ? 'sync' : 'cloud_done'}}
+      </mat-icon>
+      <span class="save-text">
+        {{ hasUnsavedChanges
+            ? ('booking.draft.saving' | translate)
+            : (isDraftLoaded
+                ? ('booking.draft.loaded' | translate)
+                : ('booking.draft.saved' | translate))
+        }}
+      </span>
+    </div>
 	</div>
 	<div class="barWrapper">
 		<div >
-			<button [disabled]="forms.length || externalData?.mainClient" [ngClass]="{ active: currentStep === 0, prev: currentStep > 0 }"
+			<button [disabled]="(forms.length || (normalizedDates?.length || 0) > 0) || externalData?.mainClient" [ngClass]="{ active: currentStep === 0, prev: currentStep > 0 }"
 				(click)="forceChange(0)" class="crumb">
 				{{ "bookings_page.crumbs.client" | translate }}
 			</button>
@@ -52,10 +67,11 @@
 					<span>{{ "confirm_reset_selections" | translate }}</span>
 				</mat-card-content>
 			</mat-card>
-			<booking-form-stepper [forceStep]="forceStep" [activitiesBooked]="normalizedDates"
-				[selectedForm]="selectedForm" [selectedDates]="normalizedDates[selectedIndexForm] || null"
-				[allLevels]=allLevels (changedCurrentStep)="currentStep = $event; forceStep = $event;"
-				(changedFormData)="handleFormChange($event)"
+            <booking-form-stepper [forceStep]="forceStep" [activitiesBooked]="normalizedDates"
+                [selectedForm]="selectedForm" [selectedDates]="normalizedDates[selectedIndexForm] || null"
+                [allLevels]=allLevels [lockClient]="(forms.length>0) || ((normalizedDates?.length||0)>0) || externalData?.mainClient"
+                (changedCurrentStep)="currentStep = $event; forceStep = $event;"
+                (changedFormData)="handleFormChange($event)"
                             (formSaveAndCreateNew)="handleFormChange($event, true)"></booking-form-stepper>
 		</mat-card>
 		<mat-card class="right-column">
@@ -205,9 +221,10 @@
         <div *ngIf="paymentMethod === 1" style="margin: 10px 0;">
           <mat-form-field appearance="fill">
             <mat-label>{{"select_payment_method" | translate}}</mat-label>
-            <mat-select [(ngModel)]="selectedPaymentOption">
-              <mat-option *ngFor="let option of paymentOptions" [value]="option.type" >
-                {{option.translation}}
+            <mat-select [(ngModel)]="selectedPaymentOptionId"
+                        (selectionChange)="onPaymentOptionSelectionChange($event.value)">
+              <mat-option *ngFor="let option of paymentOptions" [value]="option.id" >
+                {{option.label}}
               </mat-option>
             </mat-select>
           </mat-form-field>
@@ -244,7 +261,7 @@
     </button>
 
     <!-- Botón de Confirmar (Solo si Efectivo o Tarjeta) -->
-    <button *ngIf="step === 1 && (selectedPaymentOption === 'Efectivo' || selectedPaymentOption === 'Tarjeta')"
+    <button *ngIf="step === 1 && (selectedPaymentOptionId === 1 || selectedPaymentOptionId === 4)"
             (click)="goToNextStep()"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
@@ -252,7 +269,7 @@
     </button>
 
     <!-- Botón Finalizar Pago o Finalizar Reserva -->
-    <button *ngIf="step === 1 && !(selectedPaymentOption === 'Efectivo' || selectedPaymentOption === 'Tarjeta')"
+    <button *ngIf="step === 1 && !(selectedPaymentOptionId === 1 || selectedPaymentOptionId === 4)"
             (click)="finalizeBooking()"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">

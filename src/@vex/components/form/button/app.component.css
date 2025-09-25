@@ -3,11 +3,8 @@ span {
     align-items: center;
 }
 
-
-button:hover {
-    span {
-        color: white !important;
-    }
+button:hover span {
+    color: white !important;
 }
 
 button {

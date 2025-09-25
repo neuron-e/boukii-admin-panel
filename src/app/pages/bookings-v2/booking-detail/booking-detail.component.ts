@@ -13,6 +13,7 @@ import {
 import {CancelBookingModalComponent} from '../../bookings/cancel-booking/cancel-booking.component';
 import {BookingDetailDialogComponent} from './components/booking-dialog/booking-dialog.component';
 import { SchoolService } from 'src/service/school.service';
+import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
 
 @Component({
   selector: 'booking-detail-v2',
@@ -34,22 +35,110 @@ export class BookingDetailV2Component implements OnInit {
   groupedActivities: any[] = [];
   id: number;
   user: any;
-  paymentMethod: number = 1; // Valor por defecto
+  paymentMethod: number = 1; // Valor por defecto (directo)
   step: number = 1;  // Paso inicial
-  selectedPaymentOption: string = 'Tarjeta';
+  selectedPaymentOptionId: PaymentMethodId | null = null;
+  selectedPaymentOptionLabel: string = '';
   isPaid = false;
-  paymentProviderLabel = this.schoolService.getPaymentProvider() === 'payyo'
-    ? this.translateService.instant('payment_payyo')
-    : 'Boukii Pay';
-  paymentOptions: any[] = [
-    { type: 'Tarjeta', value: 4, translation: this.translateService.instant('credit_card') },
-    { type: 'Efectivo', value: 1,  translation: this.translateService.instant('payment_cash') },
-    { type: this.paymentProviderLabel, value: 2, translation: this.paymentProviderLabel }
-  ];
+  paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
+  readonly paymentMethods = PAYMENT_METHODS;
 
   private activitiesChangedSubject = new Subject<void>();
 
   activitiesChanged$ = this.activitiesChangedSubject.asObservable();
+
+  private buildDirectPaymentOptions(): Array<{ id: PaymentMethodId; label: string }> {
+    const offlineIds: PaymentMethodId[] = [1, 2, 4];
+    return this.paymentMethods
+      .filter(method => offlineIds.includes(method.id))
+      .map(method => ({ id: method.id, label: this.resolvePaymentLabel(method.id) }));
+  }
+
+  private resolvePaymentLabel(id: PaymentMethodId | null): string {
+    if (id === null || id === undefined) {
+      return '';
+    }
+
+    if (Number(id) === 2) {
+      return this.getGatewayLabel();
+    }
+
+    if (Number(id) === 3) {
+      return this.translateService.instant('payment_paylink');
+    }
+
+    const method = this.paymentMethods.find(m => m.id === id);
+    if (!method) {
+      return '';
+    }
+
+    return this.translateService.instant(method.i18nKey);
+  }
+
+  private getGatewayLabel(): string {
+    const provider = (this.schoolService.getPaymentProvider() || '').toLowerCase();
+    if (provider === 'payyo') {
+      return this.translateService.instant('payment_payyo');
+    }
+
+    const providerName = provider ? this.formatProviderName(provider) : 'Boukii Pay';
+    return this.translateService.instant('payment_gateway', { provider: providerName });
+  }
+
+  private formatProviderName(value: string): string {
+    return value
+      .split(/[_\s]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  private determinePaymentMethodId(): PaymentMethodId {
+    if (this.paymentMethod === 1 && this.selectedPaymentOptionId) {
+      return this.selectedPaymentOptionId;
+    }
+
+    if (this.paymentMethod === 3) {
+      return 3;
+    }
+
+    if (this.paymentMethod === 4) {
+      return 5;
+    }
+
+    return this.selectedPaymentOptionId ?? 1;
+  }
+
+  private syncPaymentSelectionFromBooking(booking: any): void {
+    const methodId = booking?.payment_method_id as PaymentMethodId;
+    if (!methodId) {
+      return;
+    }
+
+    if (methodId === 1 || methodId === 2 || methodId === 4) {
+      this.paymentMethod = 1;
+      this.selectedPaymentOptionId = methodId;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(methodId);
+      return;
+    }
+
+    if (methodId === 3) {
+      this.paymentMethod = 3;
+      this.selectedPaymentOptionId = 3;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(3);
+      return;
+    }
+
+    if (methodId === 5) {
+      this.paymentMethod = 4;
+      this.selectedPaymentOptionId = 5;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(5);
+    }
+  }
+
+  private getCloseActionLabel(): string {
+    return this.translateService.instant('close');
+  }
 
   constructor(
     public translateService: TranslateService,
@@ -62,7 +151,11 @@ export class BookingDetailV2Component implements OnInit {
     private schoolService: SchoolService,
     @Optional() @Inject(MAT_DIALOG_DATA) public incData: any
   ) {
-
+    this.paymentOptions = this.buildDirectPaymentOptions();
+    if (this.paymentOptions.length > 0) {
+      this.selectedPaymentOptionId = this.paymentOptions[0].id;
+      this.selectedPaymentOptionLabel = this.paymentOptions[0].label;
+    }
   }
 
   ngOnInit(): void {
@@ -149,6 +242,7 @@ export class BookingDetailV2Component implements OnInit {
         // Asegurar estructura de actividades agrupadas y totales calculados
         this.groupedActivities = this.groupBookingUsersByGroupId(data.data);
         this.mainClient = data.data.client_main;
+        this.syncPaymentSelectionFromBooking(data.data);
       });
   }
 
@@ -299,7 +393,11 @@ export class BookingDetailV2Component implements OnInit {
           this.groupedActivities = [...this.groupBookingUsersByGroupId(response.data)];
           this.activitiesChangedSubject.next(response.data);*/
           this.getBooking();
-          this.snackBar.open(this.translateService.instant('snackbar.booking_detail.update'), 'OK', { duration: 3000 });
+          this.snackBar.open(
+            this.translateService.instant('snackbar.booking_detail.update'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
         });
 
     }
@@ -319,7 +417,7 @@ export class BookingDetailV2Component implements OnInit {
       .subscribe(() => {
         this.snackBar.open(
           this.translateService.instant("snackbar.booking_detail.notes_client"),
-          "OK",
+          this.getCloseActionLabel(),
           { duration: 3000 }
         );
       }, error => {
@@ -363,7 +461,7 @@ export class BookingDetailV2Component implements OnInit {
                   this.getBooking();
                   this.snackBar.open(
                     this.translateService.instant('snackbar.booking_detail.update'),
-                    'OK',
+                    this.getCloseActionLabel(),
                     { duration: 3000 }
                   );
                 },
@@ -371,7 +469,7 @@ export class BookingDetailV2Component implements OnInit {
                   console.error('Error processing cancellation:', error);
                   this.snackBar.open(
                     this.translateService.instant('snackbar.error'),
-                    'OK',
+                    this.getCloseActionLabel(),
                     { duration: 3000 }
                   );
                 }
@@ -408,7 +506,7 @@ export class BookingDetailV2Component implements OnInit {
                 this.getBooking();
                 this.snackBar.open(
                   this.translateService.instant('snackbar.booking_detail.update'),
-                  'OK',
+                  this.getCloseActionLabel(),
                   {duration: 3000}
                 );
               },
@@ -416,7 +514,7 @@ export class BookingDetailV2Component implements OnInit {
                 console.error('Error processing cancellation:', error);
                 this.snackBar.open(
                   this.translateService.instant('snackbar.error'),
-                  'OK',
+                  this.getCloseActionLabel(),
                   {duration: 3000}
                 );
               }
@@ -437,7 +535,11 @@ export class BookingDetailV2Component implements OnInit {
           vouchers: response.data.voucher_logs
         };
         this.bookingData$.next(bookingData);
-        this.snackBar.open(this.translateService.instant('snackbar.booking_detail.delete'), 'OK', { duration: 3000 });
+        this.snackBar.open(
+          this.translateService.instant('snackbar.booking_detail.delete'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
         this.deleteFullModal = false;
       });
   }
@@ -456,42 +558,49 @@ export class BookingDetailV2Component implements OnInit {
           vouchers: response.data.voucher_logs
         };
         this.bookingData$.next(bookingData);
-        this.snackBar.open(this.translateService.instant('snackbar.booking_detail.delete'), 'OK', { duration: 3000 });
+        this.snackBar.open(
+          this.translateService.instant('snackbar.booking_detail.delete'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
         this.deleteModal = false;
       });
   }
 
   // Método para finalizar la reserva
   finalizeBooking(): void {
-    let bookingData = this.bookingData;
-    bookingData.selectedPaymentOption = this.selectedPaymentOption
-    bookingData.payment_method_id = this.paymentMethod
-    bookingData.paid = false
-    bookingData.paid_total = 0
-
-    // bookingData.cart = this.bookingService.setCart(this.groupedActivities.flatMap(activity => activity.dates), this.bookingService.getBookingData());
-
-    if(this.paymentMethod === 1) {
-      // Mapear la opción seleccionada con el método de pago
-      if (this.selectedPaymentOption === 'Efectivo') {
-        bookingData.payment_method_id = 1;
-      } else if (this.selectedPaymentOption === this.paymentProviderLabel) {
-        bookingData.payment_method_id = 2;
-      } else if (this.selectedPaymentOption === 'Tarjeta') {
-        bookingData.payment_method_id = 4;
-      }
+    if (!this.bookingData) {
+      return;
     }
 
-    if (this.bookingService.calculatePendingPrice() === 0) {
+    const paymentMethodId = this.determinePaymentMethodId();
+    const label = this.selectedPaymentOptionLabel || this.resolvePaymentLabel(paymentMethodId);
+
+    const bookingData = {
+      ...this.bookingData,
+      selectedPaymentOption: label,
+      payment_method_id: paymentMethodId,
+      paid: false,
+      paid_total: 0
+    };
+
+    const priceTotalRaw = bookingData.price_total as any;
+    const priceTotalNum = typeof priceTotalRaw === 'number' ? priceTotalRaw : parseFloat(priceTotalRaw ?? '0');
+    const safePriceTotal = isNaN(priceTotalNum) ? 0 : priceTotalNum;
+
+    const vouchersTotal = this.calculateTotalVoucherPrice();
+    const safeVouchersTotal = isNaN(vouchersTotal) ? 0 : vouchersTotal;
+    const outstanding = Math.max(0, safePriceTotal - safeVouchersTotal);
+
+    if (outstanding === 0) {
       bookingData.paid = true;
-      bookingData.paid_total = bookingData.price_total - this.calculateTotalVoucherPrice();
-    }
-    // Si es pago en efectivo o tarjeta, guardar si fue pagado
-    if (bookingData.payment_method_id === 1 || bookingData.payment_method_id === 4) {
-      bookingData.paid_total = bookingData.price_total - this.calculateTotalVoucherPrice();
-      bookingData.paid = true;
+      bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
     }
 
+    if (paymentMethodId === 1 || paymentMethodId === 4) {
+      bookingData.paid = true;
+      bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
+    }
 
     // Enviar la reserva a la API
     this.crudService.post(`/admin/bookings/update/${this.id}/payment`, bookingData)
@@ -505,8 +614,11 @@ export class BookingDetailV2Component implements OnInit {
                   if (bookingData.payment_method_id === 2) {
                     window.open(paymentResult.data, "_self");
                   } else {
-                    this.snackBar.open(this.translateService.instant('snackbar.booking_detail.send_mail'),
-                      'OK', { duration: 1000 });
+                    this.snackBar.open(
+                      this.translateService.instant('snackbar.booking_detail.send_mail'),
+                      this.getCloseActionLabel(),
+                      { duration: 1000 }
+                    );
                   }
                 },
                 (error) => {
@@ -514,11 +626,15 @@ export class BookingDetailV2Component implements OnInit {
                 }
               );
           } else {
-            this.snackBar.open(this.translateService.instant('snackbar.booking_detail.update'),
-              'OK', { duration: 3000 });
+            this.snackBar.open(
+              this.translateService.instant('snackbar.booking_detail.update'),
+              this.getCloseActionLabel(),
+              { duration: 3000 }
+            );
             this.payModal = false;
             this.bookingData$.next(result.data);
             this.bookingData = result.data;
+            this.syncPaymentSelectionFromBooking(result.data);
           }
         },
         (error) => {
@@ -528,8 +644,11 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   calculateTotalVoucherPrice(): number {
-    const vouchers = this.bookingData?.vouchers;
-    if (!vouchers || !Array.isArray(vouchers)) return 0;
+    const vouchers = Array.isArray(this.bookingData?.vouchers)
+      ? this.bookingData?.vouchers
+      : Array.isArray((this.bookingData as any)?.voucher_logs)
+        ? (this.bookingData as any)?.voucher_logs
+        : [];
     return vouchers.reduce((total: number, item: any) => {
       const value = item?.bonus?.reducePrice;
       const num = typeof value === 'number' ? value : parseFloat(value ?? '0');
@@ -539,14 +658,32 @@ export class BookingDetailV2Component implements OnInit {
 
 
   onPaymentMethodChange(event: any) {
-    // Lógica para manejar el cambio de método de pago
-    if (event.value === 1) {
-      // Si se selecciona 'Pago directo', establecer un valor predeterminado o comportamiento necesario
-      this.selectedPaymentOption = null; // Resetear la opción de pago seleccionada si es necesario
+    const value = event?.value;
+
+    if (value === 1) {
+      const defaultOption = this.paymentOptions[0];
+      if (defaultOption) {
+        this.selectedPaymentOptionId = defaultOption.id;
+        this.selectedPaymentOptionLabel = defaultOption.label;
+      } else {
+        this.selectedPaymentOptionId = null;
+        this.selectedPaymentOptionLabel = '';
+      }
+    } else if (value === 3) {
+      this.selectedPaymentOptionId = 3;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(3);
+    } else if (value === 4) {
+      this.selectedPaymentOptionId = 5;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(5);
     } else {
-      // Para otros métodos de pago, puedes asignar flags específicos
-      this.selectedPaymentOption = event.value; // Ejemplo: asignar el método seleccionado
+      this.selectedPaymentOptionId = null;
+      this.selectedPaymentOptionLabel = '';
     }
+  }
+
+  onPaymentOptionSelectionChange(methodId: PaymentMethodId): void {
+    this.selectedPaymentOptionId = methodId;
+    this.selectedPaymentOptionLabel = this.resolvePaymentLabel(methodId);
   }
   cancelPaymentStep() {
     if(this.step == 1) {
@@ -558,7 +695,7 @@ export class BookingDetailV2Component implements OnInit {
 
 
   showErrorSnackbar(message: string): void {
-    this.snackBar.open(message, "OK", {
+    this.snackBar.open(message, this.getCloseActionLabel(), {
       duration: 3000,
       panelClass: ['error-snackbar']
     });

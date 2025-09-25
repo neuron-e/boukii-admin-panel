@@ -397,26 +397,51 @@ export class UtilsService {
       }
     }
 
-    // 📌 Filtrar duraciones con `price_range`
-    const tableDurations = [];
-    const tablePaxes = [];
+    // Filtrar duraciones con `price_range` si existe
+    const tableDurations: string[] = [];
+    const tablePaxes: string[] = [];
 
-    const priceRangeCourse = typeof course.price_range === 'string' ? JSON.parse(course.price_range) : course.price_range;
-    durations.forEach(element => {
-      const priceRange = priceRangeCourse ? priceRangeCourse.find((p) => p.intervalo === element) : null;
-      if (priceRange && priceRange.intervalo === element) {
-        if (this.extractValues(priceRange)[0] && (+this.extractValues(priceRange)[0].key) <= course.max_participants) {
-          tableDurations.push(this.extractValues(priceRange)[0].interval);
+    const priceRangeCourse = typeof course?.price_range === 'string' ? JSON.parse(course.price_range) : course?.price_range;
+    if (Array.isArray(priceRangeCourse) && priceRangeCourse.length > 0) {
+      durations.forEach(element => {
+        const priceRange = priceRangeCourse ? priceRangeCourse.find((p: any) => p?.intervalo === element) : null;
+        if (priceRange && priceRange.intervalo === element) {
+          const values = this.extractValues(priceRange);
+          if (values[0] && (+values[0].key) <= (course?.max_participants ?? Number.MAX_SAFE_INTEGER)) {
+            tableDurations.push(values[0].interval);
 
-          this.extractValues(priceRange).forEach(element => {
-            const pax = element.key;
-            if (pax && tablePaxes.length === 0 || pax && tablePaxes.length > 0 && !tablePaxes.includes(pax)) {
-              tablePaxes.push(element.key);
-            }
-          });
+            values.forEach(v => {
+              const pax = v.key;
+              if ((pax && tablePaxes.length === 0) || (pax && tablePaxes.length > 0 && !tablePaxes.includes(pax))) {
+                tablePaxes.push(v.key);
+              }
+            });
+          }
         }
+      });
+    }
+
+    // Fallback: si no hay price_range o no hay duraciones válidas, usar una lista segura
+    if (tableDurations.length === 0) {
+      const totalWindow = endMinutes - startMinutes;
+      const raw = course?.duration ?? course?.minDuration ?? '';
+      let fallbackMinutes = 0;
+      if (typeof raw === 'string' && raw.includes(':')) {
+        const [h, m] = raw.split(':').map((n: string) => parseInt(n, 10) || 0);
+        fallbackMinutes = (h * 60) + m;
+      } else if (typeof raw === 'string' && raw.length > 0) {
+        fallbackMinutes = this.parseDurationToMinutes(raw);
       }
-    });
+
+      const formatLabel = (mins: number) => `${Math.floor(mins / 60) > 0 ? Math.floor(mins / 60) + 'h' : ''} ${mins % 60 > 0 ? (mins % 60) + 'm' : ''}`.trim();
+      const fallbackLabel = (fallbackMinutes > 0 && fallbackMinutes <= totalWindow)
+        ? formatLabel(fallbackMinutes)
+        : (durations.length > 0 ? durations[0] : formatLabel(Math.max(5, totalWindow)));
+
+      const set = new Set<string>(durations);
+      set.add(fallbackLabel);
+      return Array.from(set.values());
+    }
 
     return tableDurations;
   }

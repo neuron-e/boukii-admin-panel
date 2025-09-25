@@ -1,0 +1,303 @@
+<div class="analytics-dashboard" *ngIf="!isLoading">
+  <!-- HEADER CON MÉTRICAS PRINCIPALES -->
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1 class="dashboard-title">
+        <mat-icon>dashboard</mat-icon>
+        Analytics & Monitoring
+      </h1>
+
+      <div class="dashboard-controls">
+        <button mat-button
+                [color]="autoRefresh ? 'primary' : 'basic'"
+                (click)="toggleAutoRefresh()"
+                class="control-button">
+          <mat-icon>{{autoRefresh ? 'pause' : 'play_arrow'}}</mat-icon>
+          {{autoRefresh ? 'Pausar' : 'Activar'}} Auto-refresh
+        </button>
+
+        <button mat-button (click)="refreshDashboard()" class="control-button">
+          <mat-icon>refresh</mat-icon>
+          Actualizar
+        </button>
+
+        <button mat-button (click)="exportDashboardReport()" class="control-button">
+          <mat-icon>file_download</mat-icon>
+          Exportar
+        </button>
+      </div>
+    </div>
+
+    <div class="last-updated" *ngIf="lastUpdated">
+      <mat-icon>schedule</mat-icon>
+      Última actualización: {{lastUpdated | date:'dd/MM/yyyy HH:mm:ss'}}
+    </div>
+  </div>
+
+  <!-- MÉTRICAS DESTACADAS -->
+  <div class="metrics-grid">
+    <!-- Estado del Sistema -->
+    <mat-card class="metric-card system-status"
+              [ngClass]="getSystemStatusClass(highlightedMetrics.systemStatus)">
+      <mat-card-header>
+        <mat-icon mat-card-avatar [ngClass]="getSystemStatusClass(highlightedMetrics.systemStatus)">
+          {{getSystemStatusIcon(highlightedMetrics.systemStatus)}}
+        </mat-icon>
+        <mat-card-title>Estado del Sistema</mat-card-title>
+        <mat-card-subtitle>Salud general</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-value">
+          {{highlightedMetrics.systemStatus | titlecase}}
+        </div>
+        <div class="metric-details" *ngIf="systemHealth">
+          <div class="detail-item">
+            <span>Tiempo respuesta:</span>
+            <span [ngClass]="getMetricColor('responseTime', highlightedMetrics.averageResponseTime)">
+              {{formatResponseTime(highlightedMetrics.averageResponseTime)}}
+            </span>
+          </div>
+          <div class="detail-item">
+            <span>Tasa de error:</span>
+            <span [ngClass]="getMetricColor('errorRate', highlightedMetrics.errorRatePercentage)">
+              {{highlightedMetrics.errorRatePercentage}}%
+            </span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Reservas de Hoy -->
+    <mat-card class="metric-card bookings-today">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="booking-icon">event</mat-icon>
+        <mat-card-title>Reservas Hoy</mat-card-title>
+        <mat-card-subtitle>Total procesadas</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-value">{{highlightedMetrics.totalBookingsToday}}</div>
+        <div class="metric-details" *ngIf="dashboardMetrics?.booking_metrics">
+          <div class="detail-item success">
+            <mat-icon>check_circle</mat-icon>
+            <span>Exitosas: {{dashboardMetrics.booking_metrics.successful_bookings_today}}</span>
+          </div>
+          <div class="detail-item error">
+            <mat-icon>cancel</mat-icon>
+            <span>Fallidas: {{dashboardMetrics.booking_metrics.failed_bookings_today}}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Usuarios Activos -->
+    <mat-card class="metric-card active-users">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="users-icon">people</mat-icon>
+        <mat-card-title>Usuarios Activos</mat-card-title>
+        <mat-card-subtitle>Últimos 15 minutos</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-value">{{highlightedMetrics.activeUsers}}</div>
+        <div class="metric-details">
+          <div class="detail-item">
+            <mat-icon>trending_up</mat-icon>
+            <span>En tiempo real</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Alertas Críticas -->
+    <mat-card class="metric-card critical-alerts"
+              [ngClass]="{'has-alerts': highlightedMetrics.criticalAlerts > 0}">
+      <mat-card-header>
+        <mat-icon mat-card-avatar [ngClass]="{'alert-active': highlightedMetrics.criticalAlerts > 0}">
+          {{highlightedMetrics.criticalAlerts > 0 ? 'warning' : 'check'}}
+        </mat-icon>
+        <mat-card-title>Alertas Críticas</mat-card-title>
+        <mat-card-subtitle>Requieren atención</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-value">{{highlightedMetrics.criticalAlerts}}</div>
+        <div class="metric-details">
+          <div class="detail-item" *ngIf="highlightedMetrics.criticalAlerts === 0">
+            <mat-icon class="text-success">check_circle</mat-icon>
+            <span>Todo en orden</span>
+          </div>
+          <div class="detail-item error" *ngIf="highlightedMetrics.criticalAlerts > 0">
+            <mat-icon>priority_high</mat-icon>
+            <span>Acción requerida</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- CONTENIDO PRINCIPAL DEL DASHBOARD -->
+  <div class="dashboard-content">
+    <div class="content-row">
+      <!-- EVENTOS CRÍTICOS -->
+      <mat-card class="content-card critical-events-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="error-icon">error_outline</mat-icon>
+          <mat-card-title>Eventos Críticos Recientes</mat-card-title>
+          <mat-card-subtitle>Últimos 20 eventos</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="events-list" *ngIf="criticalEvents && criticalEvents.length > 0; else noEvents">
+            <div class="event-item"
+                 *ngFor="let event of criticalEvents.slice(0, 10)"
+                 (click)="viewEventDetails(event)"
+                 [title]="event.metadata | json">
+              <div class="event-icon">
+                <mat-icon [ngClass]="event.category === 'error' ? 'text-danger' : 'text-warning'">
+                  {{event.category === 'error' ? 'error' : 'warning'}}
+                </mat-icon>
+              </div>
+              <div class="event-content">
+                <div class="event-action">{{event.action}}</div>
+                <div class="event-label">{{event.label}}</div>
+                <div class="event-time">
+                  {{event.timestamp | date:'dd/MM HH:mm'}}
+                </div>
+              </div>
+              <div class="event-category">
+                <span class="category-badge" [ngClass]="'badge-' + event.category">
+                  {{event.category}}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <ng-template #noEvents>
+            <div class="no-events">
+              <mat-icon class="large-icon text-success">check_circle</mat-icon>
+              <p>No hay eventos críticos recientes</p>
+              <span class="text-muted">El sistema funciona correctamente</span>
+            </div>
+          </ng-template>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- ALERTAS RECIENTES -->
+      <mat-card class="content-card alerts-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="alert-icon">notifications</mat-icon>
+          <mat-card-title>Alertas del Sistema</mat-card-title>
+          <mat-card-subtitle>Gestión de notificaciones</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="alerts-list" *ngIf="recentAlerts && recentAlerts.length > 0; else noAlerts">
+            <div class="alert-item"
+                 *ngFor="let alert of recentAlerts.slice(0, 8)"
+                 [ngClass]="'severity-' + alert.severity">
+              <div class="alert-icon">
+                <mat-icon [ngClass]="'severity-' + alert.severity">
+                  {{alert.severity === 'critical' ? 'priority_high' :
+                    alert.severity === 'warning' ? 'warning' : 'info'}}
+                </mat-icon>
+              </div>
+              <div class="alert-content">
+                <div class="alert-message">{{alert.message}}</div>
+                <div class="alert-type">{{alert.type}} • {{alert.timestamp | date:'dd/MM HH:mm'}}</div>
+              </div>
+              <div class="alert-actions" *ngIf="alert.status === 'active'">
+                <button mat-icon-button
+                        (click)="resolveAlert(alert.id)"
+                        title="Resolver alerta">
+                  <mat-icon>check</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <ng-template #noAlerts>
+            <div class="no-alerts">
+              <mat-icon class="large-icon text-success">notifications_off</mat-icon>
+              <p>No hay alertas activas</p>
+              <span class="text-muted">Sistema funcionando sin problemas</span>
+            </div>
+          </ng-template>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- MÉTRICAS DETALLADAS -->
+    <div class="detailed-metrics" *ngIf="dashboardMetrics">
+      <mat-card class="content-card metrics-detail-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="metrics-icon">analytics</mat-icon>
+          <mat-card-title>Métricas Detalladas</mat-card-title>
+          <mat-card-subtitle>Estadísticas completas del sistema</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metrics-tabs">
+            <mat-tab-group>
+              <!-- Tab de Reservas -->
+              <mat-tab label="Reservas" *ngIf="dashboardMetrics.booking_metrics">
+                <div class="tab-content">
+                  <div class="metric-row">
+                    <div class="metric-item">
+                      <span class="metric-label">Tiempo promedio de reserva:</span>
+                      <span class="metric-value">{{dashboardMetrics.booking_metrics.average_completion_time | number:'1.1-1'}} min</span>
+                    </div>
+                    <div class="metric-item">
+                      <span class="metric-label">Reservas concurrentes:</span>
+                      <span class="metric-value">{{dashboardMetrics.booking_metrics.concurrent_bookings}}</span>
+                    </div>
+                  </div>
+                  <div class="metric-row">
+                    <div class="metric-item">
+                      <span class="metric-label">Utilización de capacidad:</span>
+                      <span class="metric-value">{{dashboardMetrics.booking_metrics.capacity_utilization | number:'1.1-1'}}%</span>
+                    </div>
+                  </div>
+                </div>
+              </mat-tab>
+
+              <!-- Tab de Performance -->
+              <mat-tab label="Performance" *ngIf="dashboardMetrics.performance_metrics">
+                <div class="tab-content">
+                  <div class="metric-row">
+                    <div class="metric-item">
+                      <span class="metric-label">Tiempo respuesta promedio:</span>
+                      <span class="metric-value" [ngClass]="getMetricColor('responseTime', dashboardMetrics.performance_metrics.average_response_time)">
+                        {{formatResponseTime(dashboardMetrics.performance_metrics.average_response_time)}}
+                      </span>
+                    </div>
+                    <div class="metric-item">
+                      <span class="metric-label">Requests lentos (>3s):</span>
+                      <span class="metric-value">{{dashboardMetrics.performance_metrics.slow_requests_count}}</span>
+                    </div>
+                  </div>
+                </div>
+              </mat-tab>
+
+              <!-- Tab de Errores -->
+              <mat-tab label="Errores" *ngIf="dashboardMetrics.error_metrics">
+                <div class="tab-content">
+                  <div class="metric-row">
+                    <div class="metric-item">
+                      <span class="metric-label">Total errores hoy:</span>
+                      <span class="metric-value text-danger">{{dashboardMetrics.error_metrics.total_errors_today}}</span>
+                    </div>
+                    <div class="metric-item">
+                      <span class="metric-label">Errores críticos:</span>
+                      <span class="metric-value text-danger">{{dashboardMetrics.error_metrics.critical_errors_today}}</span>
+                    </div>
+                  </div>
+                </div>
+              </mat-tab>
+            </mat-tab-group>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+</div>
+
+<!-- ESTADO DE CARGA -->
+<div class="loading-container" *ngIf="isLoading">
+  <mat-spinner diameter="60"></mat-spinner>
+  <p class="loading-text">Cargando dashboard de analytics...</p>
+</div>

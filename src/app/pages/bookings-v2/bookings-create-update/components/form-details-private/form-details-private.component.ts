@@ -396,7 +396,12 @@ export class FormDetailsPrivateComponent implements OnInit {
       });
 
       if (interval) {
-        total += parseFloat(interval[selectedUtilizers]); // Precio por utilizador para cada fecha
+        const val = parseFloat(interval[selectedUtilizers]);
+        total += isNaN(val) ? 0 : val; // Precio por utilizador para cada fecha
+      } else {
+        // Fallback: sin price_range válido, usar precio base del curso por nº de utilizadores
+        const base = parseFloat(this.course?.price ?? '0');
+        total += (isNaN(base) ? 0 : base) * selectedUtilizers;
       }
 
     } else {

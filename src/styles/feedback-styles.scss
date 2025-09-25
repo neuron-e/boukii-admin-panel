@@ -1,0 +1,410 @@
+/**
+ * MEJORA CRÍTICA: Estilos para sistema de feedback visual mejorado
+ *
+ * Estilos para notificaciones contextuales, estados de carga,
+ * y feedback visual inmediato para mejor UX
+ */
+
+// Variables para el sistema de feedback
+:root {
+  --feedback-success-bg: linear-gradient(135deg, #4caf50, #8bc34a);
+  --feedback-error-bg: linear-gradient(135deg, #f44336, #e57373);
+  --feedback-warning-bg: linear-gradient(135deg, #ff9800, #ffc107);
+  --feedback-info-bg: linear-gradient(135deg, #2196f3, #64b5f6);
+  --feedback-loading-bg: linear-gradient(135deg, #607d8b, #90a4ae);
+  --feedback-capacity-bg: linear-gradient(135deg, #9c27b0, #ba68c8);
+  --feedback-booking-bg: linear-gradient(135deg, #00bcd4, #4dd0e1);
+
+  --feedback-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --feedback-border-radius: 8px;
+  --feedback-animation-duration: 0.3s;
+}
+
+// Snackbar mejorados con gradientes y animaciones
+.mat-mdc-snack-bar-container {
+  &.success-snackbar {
+    --mat-snack-bar-button-color: #ffffff;
+    --mdc-snackbar-container-color: transparent;
+    background: var(--feedback-success-bg) !important;
+    color: white !important;
+    box-shadow: var(--feedback-shadow);
+    border-radius: var(--feedback-border-radius);
+
+    .mat-mdc-snack-bar-action {
+      color: rgba(255, 255, 255, 0.9) !important;
+      font-weight: 600;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+    }
+  }
+
+  &.error-snackbar {
+    --mat-snack-bar-button-color: #ffffff;
+    --mdc-snackbar-container-color: transparent;
+    background: var(--feedback-error-bg) !important;
+    color: white !important;
+    box-shadow: var(--feedback-shadow);
+    border-radius: var(--feedback-border-radius);
+
+    .mat-mdc-snack-bar-action {
+      color: rgba(255, 255, 255, 0.9) !important;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+    }
+  }
+
+  &.warning-snackbar {
+    --mat-snack-bar-button-color: #ffffff;
+    --mdc-snackbar-container-color: transparent;
+    background: var(--feedback-warning-bg) !important;
+    color: white !important;
+    box-shadow: var(--feedback-shadow);
+    border-radius: var(--feedback-border-radius);
+
+    .mat-mdc-snack-bar-action {
+      color: rgba(255, 255, 255, 0.9) !important;
+      font-weight: 600;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+    }
+  }
+
+  &.info-snackbar {
+    --mat-snack-bar-button-color: #ffffff;
+    --mdc-snackbar-container-color: transparent;
+    background: var(--feedback-info-bg) !important;
+    color: white !important;
+    box-shadow: var(--feedback-shadow);
+    border-radius: var(--feedback-border-radius);
+  }
+
+  &.loading-snackbar {
+    --mat-snack-bar-button-color: #ffffff;
+    --mdc-snackbar-container-color: transparent;
+    background: var(--feedback-loading-bg) !important;
+    color: white !important;
+    box-shadow: var(--feedback-shadow);
+    border-radius: var(--feedback-border-radius);
+
+    .mat-mdc-snack-bar-label::before {
+      content: '';
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      vertical-align: text-bottom;
+    }
+  }
+
+  &.capacity-snackbar {
+    --mat-snack-bar-button-color: #ffffff;
+    --mdc-snackbar-container-color: transparent;
+    background: var(--feedback-capacity-bg) !important;
+    color: white !important;
+    box-shadow: var(--feedback-shadow);
+    border-radius: var(--feedback-border-radius);
+  }
+
+  &.booking-snackbar {
+    --mat-snack-bar-button-color: #ffffff;
+    --mdc-snackbar-container-color: transparent;
+    background: var(--feedback-booking-bg) !important;
+    color: white !important;
+    box-shadow: var(--feedback-shadow);
+    border-radius: var(--feedback-border-radius);
+  }
+}
+
+// Animaciones para estados de carga
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+// Clases de utilidad para feedback visual
+.feedback-success { color: #4caf50; }
+.feedback-error { color: #f44336; }
+.feedback-warning { color: #ff9800; }
+.feedback-info { color: #2196f3; }
+.feedback-loading {
+  color: #607d8b;
+  animation: pulse 2s ease-in-out infinite;
+}
+.feedback-capacity { color: #9c27b0; }
+.feedback-booking { color: #00bcd4; }
+
+// Indicadores de estado mejorados
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: slideInRight var(--feedback-animation-duration) ease-out;
+
+  &.success {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+  }
+
+  &.error {
+    background: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+    border: 1px solid rgba(244, 67, 54, 0.3);
+  }
+
+  &.warning {
+    background: rgba(255, 152, 0, 0.1);
+    color: #ff9800;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+  }
+
+  &.loading {
+    background: rgba(96, 125, 139, 0.1);
+    color: #607d8b;
+    border: 1px solid rgba(96, 125, 139, 0.3);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .status-icon {
+    font-size: 14px;
+  }
+}
+
+// Mejoras para indicadores de progreso
+.progress-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--feedback-border-radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+
+  .progress-content {
+    flex: 1;
+
+    .progress-label {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .progress-details {
+      font-size: 14px;
+      color: #666;
+    }
+  }
+
+  .progress-spinner {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+// Estados de validación en tiempo real
+.field-validation {
+  .validation-success {
+    border-color: #4caf50 !important;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+
+    &::after {
+      content: '✓';
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #4caf50;
+      font-weight: bold;
+    }
+  }
+
+  .validation-error {
+    border-color: #f44336 !important;
+    box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.1);
+    animation: shake 0.5s ease-in-out;
+
+    &::after {
+      content: '⚠';
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #f44336;
+      font-weight: bold;
+    }
+  }
+
+  .validation-warning {
+    border-color: #ff9800 !important;
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.1);
+
+    &::after {
+      content: '⚠';
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #ff9800;
+      font-weight: bold;
+    }
+  }
+}
+
+// Animación de shake para errores
+@keyframes shake {
+  0%, 20%, 40%, 60%, 80%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+}
+
+// Mejoras para tooltips y hints
+.enhanced-tooltip {
+  background: rgba(0, 0, 0, 0.9) !important;
+  color: white !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(10px) !important;
+
+  &.error-tooltip {
+    background: var(--feedback-error-bg) !important;
+  }
+
+  &.warning-tooltip {
+    background: var(--feedback-warning-bg) !important;
+  }
+
+  &.success-tooltip {
+    background: var(--feedback-success-bg) !important;
+  }
+}
+
+// Overlay para estados de carga globales
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-in-out;
+
+  .loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+    }
+
+    .loading-text {
+      font-weight: 600;
+      color: #333;
+      text-align: center;
+    }
+
+    .loading-details {
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+// Estados hover mejorados para botones de acción
+.enhanced-button {
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &.loading {
+    pointer-events: none;
+    opacity: 0.7;
+
+    &::after {
+      content: '';
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-left: 8px;
+      border: 2px solid transparent;
+      border-top: 2px solid currentColor;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+  }
+}

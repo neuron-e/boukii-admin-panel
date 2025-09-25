@@ -41,6 +41,7 @@ import {CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport} fr
 import {IconComponent} from '../../../../../@vex/components/icon/app.component';
 import { ComponenteButtonModule } from "../../../../../@vex/components/form/button/app.module";
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
+import {MatProgressBarModule} from '@angular/material/progress-bar';
 import {MatFormFieldModule} from '@angular/material/form-field';
 import { ClientParticipantConflictDialogComponent } from './client-participant-conflict-dialog/client-participant-conflict-dialog.component';
 
@@ -69,6 +70,7 @@ import { ClientParticipantConflictDialogComponent } from './client-participant-c
         IconComponent,
         ComponenteButtonModule,
         MatProgressSpinnerModule,
+        MatProgressBarModule,
         MatFormFieldModule
     ],
     declarations: [

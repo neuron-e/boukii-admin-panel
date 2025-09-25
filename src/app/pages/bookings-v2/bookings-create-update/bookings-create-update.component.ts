@@ -1,4 +1,4 @@
-import {ChangeDetectorRef, Component, Inject, Optional} from '@angular/core';
+﻿import {ChangeDetectorRef, Component, Inject, Optional, OnInit, OnDestroy} from '@angular/core';
 import {TranslateService} from '@ngx-translate/core';
 import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {BookingDialogComponent} from './components/booking-dialog/booking-dialog.component';
@@ -10,13 +10,16 @@ import {Router} from '@angular/router';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import moment from 'moment';
 import { SchoolService } from 'src/service/school.service';
+import { BookingPersistenceService } from 'src/app/services/booking-persistence.service';
+import { Subscription } from 'rxjs';
+import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
 
 @Component({
   selector: "bookings-create-update-v2",
   templateUrl: "./bookings-create-update.component.html",
   styleUrls: ["./bookings-create-update.component.scss"],
 })
-export class BookingsCreateUpdateV2Component {
+export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   currentStep = 0;
   currentBookingData = {};
   mainClient: any;
@@ -42,19 +45,83 @@ export class BookingsCreateUpdateV2Component {
   selectedIndexForm = null;
   selectedForm: FormGroup;
   payModal: boolean = false;
-  paymentMethod: number = 1; // Valor por defecto
+  paymentMethod: number = 1; // Valor por defecto (directo)
   step: number = 1;  // Paso inicial
-  selectedPaymentOption: string = 'Tarjeta';
+  selectedPaymentOptionId: PaymentMethodId | null = null;
+  selectedPaymentOptionLabel: string = '';
   isPaid = false;
   isConfirmingPayment = false;
-  paymentProviderLabel = this.schoolService.getPaymentProvider() === 'payyo'
-    ? this.translateService.instant('payment_payyo')
-    : 'Boukii Pay';
-  paymentOptions: any[] = [
-    { type: 'Tarjeta', value: 4, translation: this.translateService.instant('credit_card') },
-    { type: 'Efectivo', value: 1,  translation: this.translateService.instant('payment_cash') },
-    { type: this.paymentProviderLabel, value: 2, translation: this.paymentProviderLabel }
-  ]; // Opciones de pago para "Pago directo"
+  paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
+  readonly paymentMethods = PAYMENT_METHODS;
+
+  // MEJORA CRÃTICA: Propiedades para persistencia de estado
+  private autoSaveInterval: any;
+  private syncSubscription: Subscription = new Subscription();
+  private currentBookingId: string = '';
+  hasUnsavedChanges: boolean = false;
+  isDraftLoaded: boolean = false;
+
+  private buildDirectPaymentOptions(): Array<{ id: PaymentMethodId; label: string }> {
+    const offlineIds: PaymentMethodId[] = [1, 2, 4];
+    return this.paymentMethods
+      .filter(method => offlineIds.includes(method.id))
+      .map(method => ({ id: method.id, label: this.resolvePaymentLabel(method.id) }));
+  }
+
+  private resolvePaymentLabel(id: PaymentMethodId | null): string {
+    if (id === null || id === undefined) {
+      return '';
+    }
+
+    if (id === 2) {
+      return this.getGatewayLabel();
+    }
+
+    if (id === 3) {
+      return this.translateService.instant('payment_paylink');
+    }
+
+    const method = this.paymentMethods.find(m => m.id === id);
+    if (!method) {
+      return '';
+    }
+
+    return this.translateService.instant(method.i18nKey);
+  }
+
+  private getGatewayLabel(): string {
+    const provider = (this.schoolService.getPaymentProvider() || '').toLowerCase();
+    if (provider === 'payyo') {
+      return this.translateService.instant('payment_payyo');
+    }
+
+    const providerName = provider ? this.formatProviderName(provider) : 'Boukii Pay';
+    return this.translateService.instant('payment_gateway', { provider: providerName });
+  }
+
+  private formatProviderName(value: string): string {
+    return value
+      .split(/[_\s]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  private determinePaymentMethodId(): PaymentMethodId {
+    if (this.paymentMethod === 1 && this.selectedPaymentOptionId) {
+      return this.selectedPaymentOptionId;
+    }
+
+    if (this.paymentMethod === 3) {
+      return 3;
+    }
+
+    if (this.paymentMethod === 4) {
+      return 5;
+    }
+
+    return this.selectedPaymentOptionId ?? 1;
+  }
 
   constructor(
     public translateService: TranslateService,
@@ -66,12 +133,246 @@ export class BookingsCreateUpdateV2Component {
     private router: Router,
     private snackBar: MatSnackBar,
     private schoolService: SchoolService,
+    private persistenceService: BookingPersistenceService,
     @Optional() public dialogRef: MatDialogRef<BookingsCreateUpdateV2Component>,
     @Optional() @Inject(MAT_DIALOG_DATA) public externalData: any
   ) {
     this.normalizedDates = []
     this.forms = []
+
+    this.paymentOptions = this.buildDirectPaymentOptions();
+    if (this.paymentOptions.length > 0) {
+      this.selectedPaymentOptionId = this.paymentOptions[0].id;
+      this.selectedPaymentOptionLabel = this.paymentOptions[0].label;
+    }
+
+    // MEJORA CRÃTICA: Inicializar sistema de persistencia
+    this.initializePersistence();
+
     this.getDegrees();
+  }
+
+  ngOnInit(): void {
+    this.loadDraftIfExists();
+  }
+
+  ngOnDestroy(): void {
+    this.cleanupPersistence();
+  }
+
+  /**
+   * MEJORA CRÃTICA: Inicializar sistema de persistencia de estado
+   */
+  private initializePersistence(): void {
+    // Generar ID Ãºnico para esta sesiÃ³n de reserva
+    this.currentBookingId = this.generateBookingId();
+
+    // Configurar sincronizaciÃ³n entre tabs
+    this.syncSubscription.add(
+      this.persistenceService.syncUpdate$.subscribe((syncData) => {
+        if (syncData && syncData.bookingId === this.currentBookingId) {
+          this.handleSyncUpdate(syncData);
+        }
+      })
+    );
+
+    // Configurar autoguardado cada 30 segundos
+    this.autoSaveInterval = setInterval(() => {
+      if (this.hasUnsavedChanges && this.forms.length > 0) {
+        this.saveDraft();
+      }
+    }, 30000);
+  }
+
+  /**
+   * MEJORA CRÃTICA: Intentar cargar borrador existente
+   */
+  private loadDraftIfExists(): void {
+    // Si estamos editando una reserva existente, usar ese ID
+    if (this.externalData?.booking?.id) {
+      this.currentBookingId = `edit_${this.externalData.booking.id}`;
+    }
+
+    const draft = this.persistenceService.loadDraft(this.currentBookingId);
+
+    if (draft && this.shouldLoadDraft(draft)) {
+      this.showDraftRecoveryDialog(draft);
+    }
+  }
+
+  /**
+   * MEJORA CRÃTICA: Verificar si debe cargar el borrador
+   */
+  private shouldLoadDraft(draft: any): boolean {
+    // No cargar si ya hay datos externos
+    if (this.externalData?.booking) return false;
+
+    // No cargar si el borrador es muy antiguo (mÃ¡s de 1 hora)
+    const hourAgo = Date.now() - (60 * 60 * 1000);
+    if (draft.timestamp < hourAgo) return false;
+
+    return true;
+  }
+
+  /**
+   * MEJORA CRÃTICA: Mostrar diÃ¡logo de recuperaciÃ³n de borrador
+   */
+  private showDraftRecoveryDialog(draft: any): void {
+    const dialogRef = this.dialog.open(BookingDialogComponent, {
+      width: '400px',
+      data: {
+        title: this.translateService.instant('booking.draft.recover_title'),
+        message: this.translateService.instant('booking.draft.recover_message', {
+          timestamp: this.formatTimestamp(draft.timestamp)
+        }),
+        confirmText: this.translateService.instant('booking.draft.recover_confirm'),
+        cancelText: this.translateService.instant('booking.draft.recover_cancel'),
+        type: 'question'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadDraftData(draft);
+      } else {
+        this.persistenceService.removeDraft(this.currentBookingId);
+      }
+    });
+  }
+
+  /**
+   * MEJORA CRÃTICA: Cargar datos del borrador
+   */
+  private loadDraftData(draft: any): void {
+    try {
+      // Restaurar formularios
+      if (draft.data.forms) {
+        this.forms = draft.data.forms.map(formData => {
+          const form = this.fb.group({});
+          Object.keys(formData).forEach(key => {
+            form.addControl(key, this.fb.group(formData[key]));
+          });
+          return form;
+        });
+      }
+
+      // Restaurar estado de los pasos
+      if (draft.data.currentStep !== undefined) {
+        this.currentStep = draft.data.currentStep;
+      }
+
+      // Restaurar datos calculados
+      this.restoreCalculatedData(draft.data);
+
+      this.isDraftLoaded = true;
+      this.hasUnsavedChanges = false;
+
+      this.snackBar.open(
+        this.translateService.instant('booking.draft.recover_success'),
+        this.translateService.instant('close'),
+        {
+          duration: 3000,
+          horizontalPosition: 'end',
+          verticalPosition: 'top'
+        }
+      );
+
+      console.log('ðŸ“‹ Borrador cargado exitosamente');
+    } catch (error) {
+      console.error('Error al cargar borrador:', error);
+      this.persistenceService.removeDraft(this.currentBookingId);
+
+      this.snackBar.open(
+        this.translateService.instant('booking.draft.recover_error'),
+        this.translateService.instant('close'),
+        {
+          duration: 5000,
+          horizontalPosition: 'end',
+          verticalPosition: 'top'
+        }
+      );
+    }
+  }
+
+  /**
+   * MEJORA CRÃTICA: Restaurar datos calculados del borrador
+   */
+  private restoreCalculatedData(data: any): void {
+    if (data.mainClient) this.mainClient = data.mainClient;
+    if (data.utilizers) this.utilizers = data.utilizers;
+    if (data.sport) this.sport = data.sport;
+    if (data.sportLevel) this.sportLevel = data.sportLevel;
+    if (data.course) this.course = data.course;
+    if (data.total) this.total = data.total;
+    if (data.subtotal) this.subtotal = data.subtotal;
+    if (data.normalizedDates) this.normalizedDates = data.normalizedDates;
+  }
+
+  /**
+   * MEJORA CRÃTICA: Guardar borrador actual
+   */
+  private saveDraft(): void {
+    if (!this.currentBookingId) return;
+
+    const formData = this.collectFormData();
+    const metadata = {
+      currentStep: this.currentStep,
+      totalForms: this.forms.length,
+      mainClientName: this.mainClient?.name || 'Sin definir',
+      sport: this.sport?.name || 'Sin definir',
+      lastModified: new Date().toISOString()
+    };
+
+    this.persistenceService.saveDraft(this.currentBookingId, formData, metadata);
+    this.hasUnsavedChanges = false;
+  }
+
+  /**
+   * MEJORA CRÃTICA: Recopilar datos de formularios para guardado
+   */
+  private collectFormData(): any {
+    return {
+      forms: this.forms.map(form => form.value),
+      currentStep: this.currentStep,
+      mainClient: this.mainClient,
+      utilizers: this.utilizers,
+      sport: this.sport,
+      sportLevel: this.sportLevel,
+      course: this.course,
+      total: this.total,
+      subtotal: this.subtotal,
+      normalizedDates: this.normalizedDates,
+      clientObs: this.clientObs,
+      schoolObs: this.schoolObs
+    };
+  }
+
+  // MÃ©todos auxiliares
+
+  private generateBookingId(): string {
+    return `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private formatTimestamp(timestamp: number): string {
+    return moment(timestamp).fromNow();
+  }
+
+  private handleSyncUpdate(syncData: any): void {
+    if (syncData.action === 'draft_saved') {
+      console.log('ðŸ“¡ SincronizaciÃ³n detectada desde otra tab');
+    }
+  }
+
+  private cleanupPersistence(): void {
+    if (this.autoSaveInterval) {
+      clearInterval(this.autoSaveInterval);
+    }
+    this.syncSubscription.unsubscribe();
+
+    // Guardar antes de salir si hay cambios
+    if (this.hasUnsavedChanges) {
+      this.saveDraft();
+    }
   }
 
   handleFormChange(formData: any, createNew: boolean = false) {
@@ -89,15 +390,18 @@ export class BookingsCreateUpdateV2Component {
       this.mainClient = mainClient;
     }
 
-    // VALIDACIÓN PREVENTIVA: Verificar coherencia cliente-participantes
+    // VALIDACIÃ“N PREVENTIVA: Verificar coherencia cliente-participantes
     if (mainClient && utilizers) {
       const validationResult = this.validateClientParticipantConsistency(mainClient, utilizers);
       if (!validationResult.isValid) {
-        // Filtrar utilizers inválidos y mostrar advertencia
+        // Filtrar utilizers invÃ¡lidos y mostrar advertencia
         this.utilizers = validationResult.filteredUtilizers;
         this.snackBar.open(
-          `Se filtraron ${validationResult.invalidCount} participante(s) que no pertenecen al cliente principal.`,
-          'OK', { duration: 4000 }
+          this.translateService.instant('booking.conflict.filtered', {
+            count: validationResult.invalidCount
+          }),
+          this.translateService.instant('close'),
+          { duration: 4000 }
         );
       } else {
         this.utilizers = utilizers;
@@ -123,7 +427,10 @@ export class BookingsCreateUpdateV2Component {
       } else {
         this.forms[this.selectedIndexForm] = formData;
       }
-      this.normalizeDates(createNew)
+      this.normalizeDates(createNew);
+
+      // MEJORA CRÃTICA: Marcar como cambios no guardados para persistencia
+      this.hasUnsavedChanges = true;
     }
   }
 
@@ -249,7 +556,7 @@ export class BookingsCreateUpdateV2Component {
         if (this.course.course_type === 1) {
           if (date.extras && date.extras.length) {
             const extrasPrice = date.extras.reduce((extraAcc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un número
+              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
               return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
             }, 0);
             return acc + extrasPrice;
@@ -257,13 +564,13 @@ export class BookingsCreateUpdateV2Component {
         }
         // Para cursos privados
         else if (this.course.course_type === 2) {
-          // Asegúrate de que 'utilizers' está definido en la fecha
+          // AsegÃºrate de que 'utilizers' estÃ¡ definido en la fecha
           if (date.utilizers && date.utilizers.length) {
             // Sumar el total de extras de cada utilizador
             date.utilizers.forEach(utilizer => {
               if (utilizer.extras && utilizer.extras.length) {
                 const extrasPrice = utilizer.extras.reduce((extraAcc, extra) => {
-                  const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un número
+                  const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
                   return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
                 }, 0);
                 acc += extrasPrice; // Suma el precio de los extras del utilizador al acumulador
@@ -274,7 +581,7 @@ export class BookingsCreateUpdateV2Component {
         return acc; // Retorna el acumulador
       }, 0);
 
-      // Asegurarse de que el total de extras sea un número válido
+      // Asegurarse de que el total de extras sea un nÃºmero vÃ¡lido
       const validExtrasTotal = isNaN(extrasTotal) ? 0 : extrasTotal;
 
       // Calcular el total final y asegurarse de que no sea NaN
@@ -318,14 +625,14 @@ export class BookingsCreateUpdateV2Component {
     let total = 0;
 
     if (this.course.is_flexible) {
-      // Calcula el precio basado en el intervalo y el número de utilizadores para cada fecha
+      // Calcula el precio basado en el intervalo y el nÃºmero de utilizadores para cada fecha
       this.dates.forEach((date: any) => {
-        const duration = date.duration; // Duración de cada fecha
-        const selectedUtilizers = this.utilizers.length; // Número de utilizadores
+        const duration = date.duration; // DuraciÃ³n de cada fecha
+        const selectedUtilizers = this.utilizers.length; // NÃºmero de utilizadores
 
-        // Encuentra el intervalo de duración que se aplica
+        // Encuentra el intervalo de duraciÃ³n que se aplica
         const interval = this.course.price_range.find(range => {
-          return range.intervalo === duration; // Comparar con la duración de la fecha
+          return range.intervalo === duration; // Comparar con la duraciÃ³n de la fecha
         });
 
         if (interval) {
@@ -336,7 +643,7 @@ export class BookingsCreateUpdateV2Component {
        /* date.utilizers.forEach((utilizer: any) => {
           if (utilizer.extras && utilizer.extras.length) {
             const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un número
+              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
               return acc + price;
             }, 0);
             total += extrasTotal; // Suma el total de extras por cada utilizador
@@ -347,12 +654,12 @@ export class BookingsCreateUpdateV2Component {
     } else {
       // Si el curso no es flexible
       this.dates.forEach((date: any) => {
-        const dateTotal = parseFloat(this.course.price); // Precio por número de utilizadores
+        const dateTotal = parseFloat(this.course.price); // Precio por nÃºmero de utilizadores
         total += dateTotal;
         /*date.utilizers.forEach((utilizer: any) => {
           if (utilizer.extras && utilizer.extras.length) {
             const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un número
+              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
               return acc + price;
             }, 0);
             total += extrasTotal; // Suma el total de extras por cada utilizador
@@ -420,7 +727,7 @@ export class BookingsCreateUpdateV2Component {
       if (course.course_type === 1) {
         if (date.extras && date.extras.length) {
           const extrasPrice = date.extras.reduce((extraAcc, extra) => {
-            const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un número
+            const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
             return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
           }, 0);
           return acc + extrasPrice;
@@ -428,13 +735,13 @@ export class BookingsCreateUpdateV2Component {
       }
       // Para cursos privados
       else if (course.course_type === 2) {
-        // Asegúrate de que 'utilizers' está definido en la fecha
+        // AsegÃºrate de que 'utilizers' estÃ¡ definido en la fecha
         if (date.utilizers && date.utilizers.length) {
           // Sumar el total de extras de cada utilizador
           date.utilizers.forEach(utilizer => {
             if (utilizer.extras && utilizer.extras.length) {
               const extrasPrice = utilizer.extras.reduce((extraAcc, extra) => {
-                const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un número
+                const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
                 return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
               }, 0);
               acc += extrasPrice; // Suma el precio de los extras del utilizador al acumulador
@@ -460,44 +767,63 @@ export class BookingsCreateUpdateV2Component {
     };
   }
 
-  private calculateColectivePriceForDates(course, dates) {
-    let total = 0;
-    if (course.is_flexible) {
-      const selectedDatesCount = dates.length; // Número de fechas seleccionadas
-      total = course.price * selectedDatesCount;
-      const discounts = [];
-      if (this.course && this.course.discounts && !Array.isArray(this.course.discounts) ) {
-        const discounts = [];
-        try {
-          const discounts = JSON.parse(this.course.discounts);
-          console.log("Discounts parseado correctamente:", discounts);
-        } catch (error) {
-          console.error("Error al parsear discounts:", error);
-        }
-      }
-      discounts.forEach((discount: { date: number; percentage: number }) => {
-        if (discount.date <= selectedDatesCount) {
-          const discountAmount = (course.price * discount.percentage) / 100;
-          total -= discountAmount;
-        }
-      });
-    } else {
-      total = parseFloat(course.price);
+  private parseFlexibleDiscounts(raw: any): Array<{ threshold: number; percentage: number }> {
+    if (!raw) {
+      return [];
     }
-    // Calcula el total de los extras
-/*    const extrasTotal = dates.reduce((acc, date) => {
-      // Para cursos colectivos
 
-      if (date.extras && date.extras.length) {
-        const extrasPrice = date.extras.reduce((extraAcc, extra) => {
-          const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un número
-          return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
-        }, 0);
-        return acc + extrasPrice;
-
+    let parsed = raw;
+    if (typeof raw === 'string') {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        return [];
       }
-    });*/
-    return total;
+    }
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((item: any) => {
+        const threshold = Number(item?.date ?? item?.count ?? item?.n ?? 0);
+        const percentage = Number(item?.percentage ?? item?.percent ?? item?.value ?? 0);
+        return { threshold, percentage };
+      })
+      .filter(item => item.threshold > 0 && !isNaN(item.percentage));
+  }
+
+  private applyFlexibleDiscount(baseTotal: number, selectedDatesCount: number, rawDiscounts: any): number {
+    const discounts = this.parseFlexibleDiscounts(rawDiscounts);
+    if (baseTotal <= 0 || selectedDatesCount <= 0 || discounts.length === 0) {
+      return Math.max(0, baseTotal);
+    }
+
+    const applicable = discounts
+      .filter(discount => selectedDatesCount >= discount.threshold)
+      .sort((a, b) => b.percentage - a.percentage)[0];
+
+    if (!applicable || applicable.percentage <= 0) {
+      return Math.max(0, baseTotal);
+    }
+
+    const boundedPercentage = Math.max(0, Math.min(100, applicable.percentage));
+    const discountedTotal = baseTotal * (1 - boundedPercentage / 100);
+    return Math.max(0, discountedTotal);
+  }
+
+  private calculateColectivePriceForDates(course, dates): number {
+    const price = parseFloat(course?.price ?? '0');
+    const basePrice = isNaN(price) ? 0 : price;
+
+    if (!course?.is_flexible) {
+      return Math.max(0, basePrice);
+    }
+
+    const selectedDates = Array.isArray(dates) ? dates.length : 0;
+    const baseTotal = Math.max(0, basePrice * selectedDates);
+    return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
   }
 
   private calculatePrivatePriceForDates(course: any, dates: any, utilizers: any) {
@@ -545,7 +871,7 @@ export class BookingsCreateUpdateV2Component {
     return total;
   }
 
-  // Método para obtener el intervalo de precios basado en la duración
+  // MÃ©todo para obtener el intervalo de precios basado en la duraciÃ³n
   private getPriceInterval(duration: number) {
     const priceRanges = this.course.price_range;
     return priceRanges.find((interval: any) => {
@@ -554,7 +880,7 @@ export class BookingsCreateUpdateV2Component {
     });
   }
 
-  // Método para parsear la duración en formato de texto a minutos
+  // MÃ©todo para parsear la duraciÃ³n en formato de texto a minutos
   private parseDuration(durationStr: string): number {
     const parts = durationStr.split(' ');
     let totalMinutes = 0;
@@ -570,33 +896,22 @@ export class BookingsCreateUpdateV2Component {
     return totalMinutes;
   }
 
-  private calculateColectivePrice() {
-    let total = 0;
-    if (this.course.is_flexible) {
-      // Si el curso es flexible
-      const selectedDatesCount = this.dates.length; // Número de fechas seleccionadas
-      total = this.course.price * selectedDatesCount;
-      const discounts = [];
-      // Aplica los descuentos
-      if (this.course && this.course.discounts && !Array.isArray(this.course.discounts) ) {
-        try {
-          const discounts = JSON.parse(this.course.discounts);
-          console.log("Discounts parseado correctamente:", discounts);
-        } catch (error) {
-          console.error("Error al parsear discounts:", error);
-        }
-      }
-      discounts.forEach((discount: { date: number; percentage: number }) => {
-        if (discount.date <= selectedDatesCount) {
-          const discountAmount = (this.course.price * discount.percentage) / 100;
-          total -= discountAmount;
-        }
-      });
-    } else {
-      // Si el curso no es flexible
-      total = parseFloat(this.course.price);
+  private calculateColectivePrice(): number {
+    const course = this.course;
+    if (!course) {
+      return 0;
     }
-    return total;
+
+    const price = parseFloat(course?.price ?? '0');
+    const basePrice = isNaN(price) ? 0 : price;
+
+    if (!course.is_flexible) {
+      return Math.max(0, basePrice);
+    }
+
+    const selectedDates = Array.isArray(this.dates) ? this.dates.length : 0;
+    const baseTotal = Math.max(0, basePrice * selectedDates);
+    return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
   }
 
   // Filtra las fechas seleccionadas
@@ -631,7 +946,7 @@ export class BookingsCreateUpdateV2Component {
 
   sumActivityTotal(): number {
     return this.normalizedDates.reduce((acc, item) => {
-      const numericValue = parseFloat(item.total.replace(/[^\d.-]/g, '')); // Eliminar cualquier cosa que no sea un número o signo
+      const numericValue = parseFloat(item.total.replace(/[^\d.-]/g, '')); // Eliminar cualquier cosa que no sea un nÃºmero o signo
       return acc + numericValue;
     }, 0);
   }
@@ -650,18 +965,36 @@ export class BookingsCreateUpdateV2Component {
 
 
   onPaymentMethodChange(event: any) {
-    // Lógica para manejar el cambio de método de pago
-    if (event.value === 1) {
-      // Si se selecciona 'Pago directo', establecer un valor predeterminado o comportamiento necesario
-      this.selectedPaymentOption = null; // Resetear la opción de pago seleccionada si es necesario
+    const value = event?.value;
+
+    if (value === 1) {
+      const defaultOption = this.paymentOptions[0];
+      if (defaultOption) {
+        this.selectedPaymentOptionId = defaultOption.id;
+        this.selectedPaymentOptionLabel = defaultOption.label;
+      } else {
+        this.selectedPaymentOptionId = null;
+        this.selectedPaymentOptionLabel = '';
+      }
+    } else if (value === 3) {
+      this.selectedPaymentOptionId = 3;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(3);
+    } else if (value === 4) {
+      this.selectedPaymentOptionId = 5;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(5);
     } else {
-      // Para otros métodos de pago, puedes asignar flags específicos
-      this.selectedPaymentOption = event.value; // Ejemplo: asignar el método seleccionado
+      this.selectedPaymentOptionId = null;
+      this.selectedPaymentOptionLabel = '';
     }
   }
 
+  onPaymentOptionSelectionChange(methodId: PaymentMethodId): void {
+    this.selectedPaymentOptionId = methodId;
+    this.selectedPaymentOptionLabel = this.resolvePaymentLabel(methodId);
+  }
+
   goToNextStep() {
-    this.step = 2;  // Cambiar al paso 2 de confirmación de pago
+    this.step = 2;  // Cambiar al paso 2 de confirmaciÃ³n de pago
   }
 
   cancelPaymentStep() {
@@ -672,40 +1005,43 @@ export class BookingsCreateUpdateV2Component {
     this.isPaid = false;  // Resetear isPaid
   }
 
-  // Método para finalizar la reserva
+  // MÃ©todo para finalizar la reserva
   finalizeBooking(): void {
-    let bookingData = this.bookingService.getBookingData();
+    const bookingData = this.bookingService.getBookingData();
+    if (!bookingData) {
+      return;
+    }
+
     bookingData.cart = this.bookingService.setCart(this.normalizedDates, bookingData);
-    bookingData.payment_method_id = this.paymentMethod;
 
-    if(this.paymentMethod === 1) {
-      // Mapear la opción seleccionada con el método de pago
-      if (this.selectedPaymentOption === 'Efectivo') {
-        bookingData.payment_method_id = 1;
-      } else if (this.selectedPaymentOption === this.paymentProviderLabel) {
-        bookingData.payment_method_id = 2;
-      } else if (this.selectedPaymentOption === 'Tarjeta') {
-        bookingData.payment_method_id = 4;
-      }
-    }
+    const paymentMethodId = this.determinePaymentMethodId();
+    const label = this.selectedPaymentOptionLabel || this.resolvePaymentLabel(paymentMethodId);
 
+    bookingData.payment_method_id = paymentMethodId;
+    bookingData.selectedPaymentOption = label;
 
-    if (this.bookingService.calculatePendingPrice() === 0) {
-      bookingData.paid = true;
-      bookingData.paid_total = bookingData.price_total - this.calculateTotalVoucherPrice();
-    }
-    // Si es pago en efectivo o tarjeta, guardar si fue pagado
-    if (bookingData.payment_method_id === 1 || bookingData.payment_method_id === 4) {
-      if (this.isPaid) {
+    const priceTotalRaw = bookingData.price_total as any;
+    const priceTotalNum = typeof priceTotalRaw === 'number' ? priceTotalRaw : parseFloat(priceTotalRaw ?? '0');
+    const safePriceTotal = isNaN(priceTotalNum) ? 0 : priceTotalNum;
+
+    const vouchersTotal = this.calculateTotalVoucherPrice();
+    const safeVouchersTotal = isNaN(vouchersTotal) ? 0 : vouchersTotal;
+    const outstanding = Math.max(0, safePriceTotal - safeVouchersTotal);
+
+    bookingData.paid = false;
+    bookingData.paid_total = 0;
+
+    if (paymentMethodId === 1 || paymentMethodId === 4) {
+      if (this.isPaid || outstanding === 0) {
         bookingData.paid = true;
-        bookingData.paid_total = bookingData.price_total - this.calculateTotalVoucherPrice();
-      } else {
-        bookingData.paid = false;
+        bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
       }
+    } else if (outstanding === 0) {
+      bookingData.paid = true;
+      bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
     }
 
     const user = JSON.parse(localStorage.getItem("boukiiUser"));
-    bookingData.selectedPaymentOption = this.selectedPaymentOption;
     bookingData.user_id = user.id;
 
     // Enviar la reserva a la API
@@ -714,7 +1050,7 @@ export class BookingsCreateUpdateV2Component {
         (result: any) => {
           const bookingId = result.data.id;
 
-          // Manejar pagos en línea
+          // Manejar pagos en lÃ­nea
           if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
             this.crudService.post(`/admin/bookings/payments/${bookingId}`, result.data.basket)
               .subscribe(
@@ -729,7 +1065,12 @@ export class BookingsCreateUpdateV2Component {
                       this.dialogRef.close();
                     }
                     this.snackBar.open(this.translateService.instant('snackbar.booking_detail.send_mail'),
-                      'OK', { duration: 1000 });
+                      this.translateService.instant('close'),
+                      { duration: 1000 });
+                    // MEJORA CRÃTICA: Limpiar borrador al completar reserva exitosamente
+                    this.persistenceService.removeDraft(this.currentBookingId);
+                    this.hasUnsavedChanges = false;
+
                     this.router.navigate([`/bookings/update/${bookingId}`]);
                   }
                 },
@@ -737,7 +1078,11 @@ export class BookingsCreateUpdateV2Component {
                   if (this.dialogRef) {
                     this.dialogRef.close();
                   }
-                  this.showErrorSnackbar("Error al procesar el pago en línea.");
+                  // MEJORA CRÃTICA: Incluso con error de pago, la reserva se creÃ³ exitosamente
+                  this.persistenceService.removeDraft(this.currentBookingId);
+                  this.hasUnsavedChanges = false;
+
+                  this.showErrorSnackbar(this.translateService.instant('snackbar.booking.payment.error'));
                   this.router.navigate([`/bookings/update/${bookingId}`]);
                 }
               );
@@ -745,7 +1090,11 @@ export class BookingsCreateUpdateV2Component {
             if (this.dialogRef) {
               this.dialogRef.close();
             }
-            // Si no es pago online, llevar directamente a la página de actualización
+            // MEJORA CRÃTICA: Limpiar borrador al completar reserva exitosamente
+            this.persistenceService.removeDraft(this.currentBookingId);
+            this.hasUnsavedChanges = false;
+
+            // Si no es pago online, llevar directamente a la pÃ¡gina de actualizaciÃ³n
             this.router.navigate([`/bookings/update/${bookingId}`]);
           }
         },
@@ -754,32 +1103,44 @@ export class BookingsCreateUpdateV2Component {
           if (error.error?.message && error.error.message.includes('Error de coherencia')) {
             this.handleClientParticipantConsistencyError(error.error.message);
           } else {
-            this.showErrorSnackbar("Error");
+            this.showErrorSnackbar(this.translateService.instant('snackbar.error'));
           }
         }
       );
   }
 
   calculateTotalVoucherPrice(): number {
-    return  this.bookingService.getBookingData().vouchers ?
-      this.bookingService.getBookingData().vouchers.reduce( (e, i) => e + parseFloat(i.bonus.reducePrice), 0) : 0
+    const data = this.bookingService.getBookingData();
+    if (!data) {
+      return 0;
+    }
+
+    const vouchers = Array.isArray((data as any).vouchers) ? (data as any).vouchers : [];
+    return vouchers.reduce((acc: number, item: any) => {
+      const value = item?.bonus?.reducePrice;
+      const parsed = typeof value === 'number' ? value : parseFloat(value ?? '0');
+      return acc + (isNaN(parsed) ? 0 : parsed);
+    }, 0);
   }
 
 
 
   // Manejo elegante de errores de coherencia cliente-participantes
   handleClientParticipantConsistencyError(errorMessage: string): void {
-    // Extraer información del error
+    // Extraer informaciÃ³n del error
     const participantMatch = errorMessage.match(/participante\s+([^)]+)\s+no\s+pertenece\s+al\s+cliente\s+principal\s+([^)]+)/i);
 
-    let dialogMessage = 'Se detectó un problema de coherencia en la reserva:';
+    let dialogMessage = this.translateService.instant('booking.conflict.detected');
     if (participantMatch) {
       const participantName = participantMatch[1];
       const principalName = participantMatch[2];
-      dialogMessage = `El participante "${participantName}" no pertenece al cliente principal "${principalName}".`;
+      dialogMessage = this.translateService.instant('booking.conflict.participant_mismatch', {
+        participant: participantName,
+        principal: principalName
+      });
     }
 
-    // Mostrar dialog elegante con opciones de corrección
+    // Mostrar dialog elegante con opciones de correcciÃ³n
     const dialog = this.dialog.open(ClientParticipantConflictDialogComponent, {
       width: '600px',
       disableClose: true,
@@ -789,35 +1150,57 @@ export class BookingsCreateUpdateV2Component {
         utilizers: this.utilizers,
         normalizedDates: this.normalizedDates,
         onResolved: (solution: any) => {
-          // Aplicar solución y reintentar
+          // Aplicar soluciÃ³n y reintentar
           this.applyConsistencySolution(solution);
         }
       }
     });
   }
 
-  // Aplicar la solución elegida para resolver la inconsistencia
+  // Aplicar la soluciÃ³n elegida para resolver la inconsistencia
   applyConsistencySolution(solution: any): void {
+    const clientLocked = (this.forms && this.forms.length > 0) || (this.normalizedDates && this.normalizedDates.length > 0);
     switch (solution.action) {
       case 'change_main_client':
+        // Bloquear cambio si ya hay actividades en la reserva
+        if (clientLocked) {
+          this.snackBar.open(
+            this.translateService.instant('snackbar.error'),
+            this.translateService.instant('close'),
+            { duration: 4000 }
+          );
+          break;
+        }
         // Cambiar el cliente principal
         this.mainClient = solution.newMainClient;
-        this.snackBar.open('Cliente principal actualizado. Por favor, revise y confirme la reserva.', 'OK', { duration: 4000 });
+        this.snackBar.open(
+          this.translateService.instant('booking.conflict.main_client_updated'),
+          this.translateService.instant('close'),
+          { duration: 4000 }
+        );
         break;
 
       case 'remove_participants':
-        // Remover participantes problemáticos
+        // Remover participantes problemÃ¡ticos
         this.normalizedDates = this.normalizedDates.map(date => ({
           ...date,
           utilizers: date.utilizers.filter(u => !solution.participantsToRemove.includes(u.id))
         }));
-        this.snackBar.open('Participantes problemáticos removidos. Por favor, revise la reserva.', 'OK', { duration: 4000 });
+        this.snackBar.open(
+          this.translateService.instant('booking.conflict.participants_removed'),
+          this.translateService.instant('close'),
+          { duration: 4000 }
+        );
         break;
 
       case 'create_relationship':
-        // En este caso, simplemente mostrar mensaje ya que la relación debe crearse manualmente
-        this.snackBar.open('Se creará la relación entre clientes. Reintentando reserva...', 'OK', { duration: 2000 });
-        // Reintentar la reserva después de un delay
+        // En este caso, simplemente mostrar mensaje ya que la relaciÃ³n debe crearse manualmente
+        this.snackBar.open(
+          this.translateService.instant('booking.conflict.create_relationship'),
+          this.translateService.instant('close'),
+          { duration: 2000 }
+        );
+        // Reintentar la reserva despuÃ©s de un delay
         setTimeout(() => {
           this.finalizeBooking();
         }, 2500);
@@ -825,7 +1208,7 @@ export class BookingsCreateUpdateV2Component {
     }
   }
 
-  // Validación preventiva de coherencia cliente-participantes
+  // ValidaciÃ³n preventiva de coherencia cliente-participantes
   validateClientParticipantConsistency(mainClient: any, utilizers: any[]): {
     isValid: boolean,
     filteredUtilizers: any[],
@@ -835,17 +1218,17 @@ export class BookingsCreateUpdateV2Component {
       return { isValid: true, filteredUtilizers: utilizers || [], invalidCount: 0 };
     }
 
-    // Obtener IDs válidos: cliente principal + sus utilizers
+    // Obtener IDs vÃ¡lidos: cliente principal + sus utilizers
     const validClientIds = [mainClient.id];
 
-    // Agregar utilizers del cliente principal si están disponibles
+    // Agregar utilizers del cliente principal si estÃ¡n disponibles
     if (mainClient.utilizers && Array.isArray(mainClient.utilizers)) {
       mainClient.utilizers.forEach(utilizer => {
         validClientIds.push(utilizer.id);
       });
     }
 
-    // Filtrar solo utilizers válidos
+    // Filtrar solo utilizers vÃ¡lidos
     const filteredUtilizers = utilizers.filter(utilizer =>
       validClientIds.includes(utilizer.id)
     );
@@ -860,7 +1243,7 @@ export class BookingsCreateUpdateV2Component {
     };
   }
 
-  // Función para mostrar un Snackbar en caso de error
+  // FunciÃ³n para mostrar un Snackbar en caso de error
   showErrorSnackbar(message: string): void {
     this.snackBar.open(message, "Cerrar", {
       duration: 3000,
@@ -868,3 +1251,5 @@ export class BookingsCreateUpdateV2Component {
     });
   }
 }
+
+

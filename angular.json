@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "newProjectRoot": "projects",
@@ -48,6 +48,7 @@
               "node_modules/swiper/swiper-bundle.min.css"
             ],
             "scripts": [],
+            "preserveSymlinks": true,
             "allowedCommonJsDependencies": [
               "simplebar",
               "highlight.js",
@@ -197,8 +198,8 @@
               "src/styles.scss",
               "node_modules/tinymce/skins/content/default/content.min.css"
             ],
-            "scripts": []
-          }
+            "scripts": [],
+            "preserveSymlinks": true}
         }
       }
     }
@@ -207,3 +208,12 @@
     "analytics": "ecd5455d-e245-41d2-aeec-d58ff751354a"
   }
 }
+
+
+
+
+
+
+
+
+

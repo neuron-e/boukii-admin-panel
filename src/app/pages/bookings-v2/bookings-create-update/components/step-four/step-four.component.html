@@ -100,27 +100,107 @@
 
 
           </div>
-          <!--          <ng-container *ngIf="item.course_type === 1 && selectedCourse === item">
-                      <div class="subGroups-container">
-                        <mat-radio-group formControlName="selectedSubGroup">
-                          <div
-                            class="subGroup"
-                            *ngFor="let group of selectedSubGroups"
-                            (click)="selectSubGroup(group)"
-                          >
-                            <mat-radio-button [value]="group">
-                              <div
-                                [style.background]="sportLevel?.color"
-                                style="padding: 5%;;color: #fff;border-radius: 5px;width: 100%;text-align: center; font-size:10px;overflow: inherit;">
-                                {{sportLevel?.annotation}}
-                                {{sportLevel?.name}}
-                              </div>
-                              {{group.booking_users.length}} - {{group.max_participants}}
-                            </mat-radio-button>
-                          </div>
-                        </mat-radio-group>
+
+          <!-- MEJORA CRÍTICA: Selector de subgrupos con información de capacidad en tiempo real -->
+          <ng-container *ngIf="item.course_type === 1 && selectedCourse === item">
+            <div class="capacity-loading enhanced" *ngIf="isCapacityLoading">
+              <mat-spinner diameter="20" class="loading-spinner"></mat-spinner>
+              <div class="loading-content">
+                <span class="loading-text">{{ 'checking_capacity' | translate }}</span>
+                <div class="loading-progress">
+                  <mat-progress-bar mode="indeterminate" class="slim-progress"></mat-progress-bar>
+                </div>
+              </div>
+            </div>
+
+            <div class="subGroups-container" *ngIf="!isCapacityLoading && selectedSubGroups.length > 0">
+              <h4>{{ 'available_groups' | translate }}</h4>
+              <mat-radio-group formControlName="selectedSubGroup">
+                <div
+                  class="subGroup enhanced"
+                  *ngFor="let group of selectedSubGroups"
+                  (click)="selectSubGroup(group)"
+                  [ngClass]="{
+                    'has-capacity': group.capacity_info?.has_capacity,
+                    'no-capacity': !group.capacity_info?.has_capacity,
+                    'almost-full': group.capacity_info?.capacity_percentage > 80,
+                    'unlimited': group.capacity_info?.is_unlimited
+                  }"
+                >
+                  <mat-radio-button [value]="group" [disabled]="!group.capacity_info?.has_capacity">
+                    <div class="group-header">
+                      <div
+                        [style.background]="sportLevel?.color"
+                        class="group-badge">
+                        {{sportLevel?.annotation}} {{sportLevel?.name}}
                       </div>
-                    </ng-container>-->
+                      <div class="capacity-indicator">
+                        <mat-icon
+                          [ngClass]="{
+                            'capacity-ok': group.capacity_info?.has_capacity,
+                            'capacity-full': !group.capacity_info?.has_capacity
+                          }">
+                          {{group.capacity_info?.has_capacity ? 'check_circle' : 'cancel'}}
+                        </mat-icon>
+                      </div>
+                    </div>
+
+                    <div class="capacity-details">
+                      <ng-container *ngIf="!group.capacity_info?.is_unlimited">
+                        <div class="capacity-bar enhanced">
+                          <div class="capacity-background"></div>
+                          <div class="capacity-fill animated"
+                               [style.width.%]="group.capacity_info?.capacity_percentage"
+                               [ngClass]="{
+                                 'fill-ok': group.capacity_info?.capacity_percentage <= 50,
+                                 'fill-warning': group.capacity_info?.capacity_percentage > 50 && group.capacity_info?.capacity_percentage <= 80,
+                                 'fill-danger': group.capacity_info?.capacity_percentage > 80,
+                                 'fill-full': group.capacity_info?.capacity_percentage >= 100
+                               }">
+                          </div>
+                          <div class="capacity-glow"
+                               *ngIf="group.capacity_info?.capacity_percentage > 80"
+                               [ngClass]="{'pulsing': group.capacity_info?.capacity_percentage > 90}">
+                          </div>
+                        </div>
+                        <div class="capacity-text">
+                          <span class="current">{{group.capacity_info?.current_bookings}}</span>
+                          <span class="separator">/</span>
+                          <span class="max">{{group.capacity_info?.max_participants}}</span>
+                          <span class="label">{{ 'participants' | translate }}</span>
+                        </div>
+                        <div class="availability-info" *ngIf="group.capacity_info?.available_slots > 0">
+                          <span class="available">
+                            {{group.capacity_info?.available_slots}} {{ 'slots_available' | translate }}
+                          </span>
+                          <span class="needed" *ngIf="group.capacity_info?.needed_slots > 1">
+                            ({{ 'need' | translate }} {{group.capacity_info?.needed_slots}})
+                          </span>
+                        </div>
+                      </ng-container>
+                      <div class="unlimited-indicator" *ngIf="group.capacity_info?.is_unlimited">
+                        <mat-icon>all_inclusive</mat-icon>
+                        <span>{{ 'unlimited_capacity' | translate }}</span>
+                      </div>
+                    </div>
+
+                    <!-- Estado de no disponibilidad -->
+                    <div class="no-capacity-warning" *ngIf="!group.capacity_info?.has_capacity && !group.capacity_info?.is_unlimited">
+                      <mat-icon>warning</mat-icon>
+                      <span>{{ 'course_full' | translate }}</span>
+                    </div>
+                  </mat-radio-button>
+                </div>
+              </mat-radio-group>
+            </div>
+
+            <!-- Mensaje cuando no hay subgrupos disponibles -->
+            <div class="no-subgroups-warning" *ngIf="!isCapacityLoading && selectedSubGroups.length === 0">
+              <mat-icon>error_outline</mat-icon>
+              <h4>{{ 'no_available_groups' | translate }}</h4>
+              <p>{{ 'no_groups_for_level_date' | translate }}</p>
+            </div>
+          </ng-container>
         </label>
       </mat-radio-group>
     </div>

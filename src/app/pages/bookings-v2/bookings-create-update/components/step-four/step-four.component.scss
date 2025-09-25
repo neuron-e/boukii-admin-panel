@@ -197,10 +197,301 @@
   border: 1px solid var(--color-grey2);
   border-radius: 5px;
   cursor: pointer;
+
+  // MEJORA CRÍTICA: Estilos mejorados para información de capacidad
+  &.enhanced {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+    transition: all 0.3s ease;
+
+    &.has-capacity {
+      border-color: #4caf50;
+      background: rgba(76, 175, 80, 0.05);
+
+      &:hover {
+        background: rgba(76, 175, 80, 0.1);
+        border-color: #4caf50;
+      }
+    }
+
+    &.no-capacity {
+      border-color: #f44336;
+      background: rgba(244, 67, 54, 0.05);
+      opacity: 0.7;
+
+      mat-radio-button {
+        pointer-events: none;
+      }
+    }
+
+    &.almost-full {
+      border-color: #ff9800;
+      background: rgba(255, 152, 0, 0.05);
+    }
+
+    &.unlimited {
+      border-color: #2196f3;
+      background: rgba(33, 150, 243, 0.05);
+    }
+
+    .group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+
+      .group-badge {
+        padding: 0.3rem 0.6rem;
+        color: #fff;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        text-align: center;
+      }
+
+      .capacity-indicator {
+        .capacity-ok {
+          color: #4caf50;
+        }
+        .capacity-full {
+          color: #f44336;
+        }
+      }
+    }
+
+    .capacity-details {
+      .capacity-bar {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+        position: relative;
+
+        &.enhanced {
+          height: 10px;
+          box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+          border: 1px solid rgba(0, 0, 0, 0.1);
+
+          .capacity-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, #f5f5f5, #e0e0e0);
+          }
+
+          .capacity-glow {
+            position: absolute;
+            top: -2px;
+            left: 0;
+            right: 0;
+            bottom: -2px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, transparent, rgba(244, 67, 54, 0.3));
+            filter: blur(2px);
+            z-index: -1;
+
+            &.pulsing {
+              animation: capacityPulse 2s ease-in-out infinite;
+            }
+          }
+        }
+
+        .capacity-fill {
+          height: 100%;
+          transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          z-index: 1;
+
+          &.animated {
+            background-size: 200% 100%;
+            animation: shimmer 2s ease-in-out;
+          }
+
+          &.fill-ok {
+            background: linear-gradient(90deg, #4caf50, #8bc34a, #4caf50);
+          }
+          &.fill-warning {
+            background: linear-gradient(90deg, #ff9800, #ffc107, #ff9800);
+          }
+          &.fill-danger {
+            background: linear-gradient(90deg, #f44336, #e57373, #f44336);
+          }
+          &.fill-full {
+            background: linear-gradient(90deg, #d32f2f, #f44336, #d32f2f);
+            animation: dangerPulse 1s ease-in-out infinite;
+          }
+        }
+      }
+
+      .capacity-text {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 14px;
+        margin-bottom: 0.3rem;
+
+        .current {
+          font-weight: 600;
+          color: #333;
+        }
+        .separator {
+          color: #666;
+        }
+        .max {
+          font-weight: 500;
+          color: #666;
+        }
+        .label {
+          color: #999;
+          font-size: 12px;
+          margin-left: 0.5rem;
+        }
+      }
+
+      .availability-info {
+        font-size: 12px;
+        color: #666;
+
+        .available {
+          color: #4caf50;
+          font-weight: 500;
+        }
+        .needed {
+          color: #ff9800;
+          font-style: italic;
+        }
+      }
+
+      .unlimited-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #2196f3;
+        font-weight: 500;
+
+        mat-icon {
+          font-size: 18px;
+        }
+      }
+    }
+
+    .no-capacity-warning {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #f44336;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      background: rgba(244, 67, 54, 0.1);
+      border-radius: 4px;
+
+      mat-icon {
+        font-size: 16px;
+      }
+    }
+  }
 }
 
 .subGroup:hover {
   background-color: var(--color-grey4);
+}
+
+// MEJORA CRÍTICA: Estilos adicionales para estados de capacidad
+.capacity-loading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  margin-top: 1rem;
+  color: #666;
+
+  span {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  &.enhanced {
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05));
+    border: 1px solid rgba(33, 150, 243, 0.2);
+    backdrop-filter: blur(10px);
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+
+    .loading-spinner {
+      animation: spin 1.5s linear infinite;
+    }
+
+    .loading-content {
+      text-align: center;
+
+      .loading-text {
+        font-weight: 600;
+        color: #2196f3;
+        margin-bottom: 0.5rem;
+        display: block;
+      }
+
+      .loading-progress {
+        width: 200px;
+
+        .slim-progress {
+          height: 2px;
+          border-radius: 1px;
+        }
+      }
+    }
+  }
+}
+
+.no-subgroups-warning {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  background: rgba(244, 67, 54, 0.05);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-radius: 8px;
+  margin-top: 1rem;
+  text-align: center;
+
+  mat-icon {
+    font-size: 48px;
+    height: 48px;
+    width: 48px;
+    color: #f44336;
+  }
+
+  h4 {
+    margin: 0;
+    color: #f44336;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+  }
+}
+
+.subGroups-container {
+  h4 {
+    margin: 0 0 1rem;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+  }
 }
 
 .subGroupTitle {
@@ -212,4 +503,79 @@
   font-size: 0.85rem;
   font-weight: 400;
   color: var(--color-dark2);
+}
+
+// MEJORA CRÍTICA: Animaciones adicionales para feedback visual mejorado
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes capacityPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes dangerPulse {
+  0%, 100% { transform: scaleY(1); opacity: 1; }
+  50% { transform: scaleY(1.1); opacity: 0.8; }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Estados visuales mejorados para subgrupos
+.subGroup.enhanced {
+  animation: slideInUp 0.4s ease-out;
+
+  &.has-capacity {
+    &:hover {
+      animation: bounceIn 0.6s ease-out;
+    }
+  }
+
+  &.no-capacity {
+    filter: grayscale(50%);
+    transition: filter 0.3s ease;
+
+    &:hover {
+      filter: grayscale(30%);
+    }
+  }
+
+  &.almost-full {
+    .capacity-fill {
+      animation: shimmer 3s infinite;
+    }
+  }
 }

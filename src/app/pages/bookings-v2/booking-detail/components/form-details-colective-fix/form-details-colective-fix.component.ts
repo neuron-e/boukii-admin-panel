@@ -39,11 +39,13 @@ export class FormDetailsColectiveFixComponent implements OnInit {
     // Si no existe el FormArray, lo inicializamos
     if (!existingCourseDatesArray) {
       const courseDatesArray = this.fb.array(
-        this.course.course_dates.map((date, index) => {
-          // Si hay datos iniciales, usamos esos datos para restaurar los valores seleccionados
-          const initialExtras = this.initialData?.[index]?.extras || [];
-          return this.createCourseDateGroup(date, initialExtras);
-        }),
+        this.course.course_dates
+          .filter((date) => !!this.findMonitor(date)) // Filtrar fechas sin capacidad para el nivel
+          .map((date, index) => {
+            // Si hay datos iniciales, usamos esos datos para restaurar los valores seleccionados
+            const initialExtras = this.initialData?.[index]?.extras || [];
+            return this.createCourseDateGroup(date, initialExtras);
+          }),
       );
       // Añadir el FormArray al formulario del padre
       this.stepForm.addControl('course_dates', courseDatesArray);

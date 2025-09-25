@@ -1,28 +1,43 @@
-<mat-card-content>
+﻿<mat-card-content>
   <p class="stepTitle">{{ "bookings_page.select_utilizers" | translate }}</p>
+
+  <mat-form-field appearance="outline" class="utilizer-search">
+    <mat-label>{{ 'booking.utilizer.search' | translate }}</mat-label>
+    <input matInput [formControl]="searchControl" [placeholder]="'booking.utilizer.search_placeholder' | translate" />
+    <button mat-icon-button matSuffix *ngIf="searchControl.value" (click)="clearSearch()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </mat-form-field>
+
   <form [formGroup]="stepForm">
-    <div class="cards-wrapper">
-      <label class="utilizerCard" *ngFor="let item of utilizers">
-        <mat-checkbox [value]="item" [checked]="isChecked(item)" (change)="onCheckboxChange($event)"></mat-checkbox>
-        <div class="image" *ngIf="!item.client_sports || !item.client_sports.length">
-          <img [src]="item.image !== null && item.image !== '' ? item.image : userAvatar" />
-        </div>
-        <app-level-user *ngIf="item.client_sports && item.client_sports.length " mat-card-avatar
-          style="margin-right: 5px" [allLevels]="utilsService.getSportLevels(item.client_sports[0].sport_id, allLevels)"
-          [selectLevel]="item.client_sports[0]?.degree_id" [size]="60"
-          [userImage]="item.image !== null && item.image !== '' ? item.image : userAvatar">
-        </app-level-user>
-        <div class="utilizerCard__description">
-          <h4>{{ item.first_name }} {{ item.last_name }}</h4>
-          <span>{{ langService.getLanguage(item.language1_id) }} ·
-            {{ utilsService.calculateYears(item.birth_date) }} &ensp;{{
-            "years" | translate
-            }}
-            · {{ utilsService.getCountry(item.country) }}</span>
-        </div>
-      </label>
-    </div>
+    <ng-container *ngIf="filteredUtilizers$ | async as filtered">
+      <div class="cards-wrapper" *ngIf="filtered.length; else noUtilizers">
+        <label class="utilizerCard" *ngFor="let item of filtered">
+          <mat-checkbox [value]="item" [checked]="isChecked(item)" (change)="onCheckboxChange($event)"></mat-checkbox>
+          <div class="image" *ngIf="!item.client_sports || !item.client_sports.length">
+            <img [src]="item.image !== null && item.image !== '' ? item.image : userAvatar" />
+          </div>
+          <app-level-user *ngIf="item.client_sports && item.client_sports.length " mat-card-avatar
+            style="margin-right: 5px" [allLevels]="utilsService.getSportLevels(item.client_sports[0].sport_id, allLevels)"
+            [selectLevel]="item.client_sports[0]?.degree_id" [size]="60"
+            [userImage]="item.image !== null && item.image !== '' ? item.image : userAvatar">
+          </app-level-user>
+          <div class="utilizerCard__description">
+            <h4>{{ item.first_name }} {{ item.last_name }}</h4>
+            <span>{{ langService.getLanguage(item.language1_id) }} ·
+              {{ utilsService.calculateYears(item.birth_date) }} &ensp;{{
+              "years" | translate
+              }}
+              · {{ utilsService.getCountry(item.country) }}</span>
+          </div>
+        </label>
+      </div>
+    </ng-container>
   </form>
+
+  <ng-template #noUtilizers>
+    <div class="empty-utilizer">{{ 'booking.utilizer.no_results' | translate }}</div>
+  </ng-template>
 
   <mat-card class="info-message">
     <mat-card-content>
@@ -43,3 +58,4 @@
 
   </div>
 </mat-card-content>
+

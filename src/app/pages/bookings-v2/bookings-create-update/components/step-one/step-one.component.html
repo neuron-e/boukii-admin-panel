@@ -1,11 +1,11 @@
-<mat-card-content>
+﻿<mat-card-content>
   <form [formGroup]="stepOneForm">
     <mat-form-field appearance="outline" class="stepOneSearchInput">
       <mat-label style="display: flex;align-items: center;" >
         <img src="assets/img/icons/clientes2.svg" class="icon24" />
         {{ "client" | translate }}</mat-label>
       <input type="text" placeholder="{{ 'choose_client' | translate }}" matInput [matAutocomplete]="auto"
-        formControlName="client" />
+        formControlName="client" [disabled]="lockClient" />
 
       <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn">
         <cdk-virtual-scroll-viewport itemSize="50" class="viewport" minBufferPx="200" maxBufferPx="400">

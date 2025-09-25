@@ -217,101 +217,100 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
       border-bottom: 1px solid #f0f0f0;
     }
 
-    .client-info {
-      .client-name {
-        font-weight: 500;
-        color: #333;
-        margin-bottom: 2px;
-      }
-      .client-email {
-        font-size: 0.875rem;
-        color: #666;
-      }
+    .client-info .client-name {
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 2px;
+    }
+
+    .client-info .client-email {
+      font-size: 0.875rem;
+      color: #666;
     }
 
     .amount {
       font-weight: 500;
       font-family: 'Roboto Mono', monospace;
+    }
 
-      &.pending {
-        color: #f57c00;
-        font-weight: 600;
-      }
+    .amount.pending {
+      color: #f57c00;
+      font-weight: 600;
+    }
 
-      &.received {
-        color: #2e7d32;
-        font-weight: 600;
-      }
+    .amount.received {
+      color: #2e7d32;
+      font-weight: 600;
     }
 
     .status-chip {
       font-size: 0.75rem;
       min-height: 24px;
       position: relative;
+    }
 
-      &.status-active {
-        background: #e8f5e8;
-        color: #2e7d32;
-      }
+    .status-chip.status-active {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
 
-      &.status-cancelled {
-        background: #ffebee;
-        color: #c62828;
-      }
+    .status-chip.status-cancelled {
+      background: #ffebee;
+      color: #c62828;
+    }
 
-      &.status-partial {
-        background: #fff3e0;
-        color: #f57c00;
-      }
+    .status-chip.status-partial {
+      background: #fff3e0;
+      color: #f57c00;
+    }
 
-      &.has-issues::after {
-        content: '⚠️';
-        position: absolute;
-        top: -2px;
-        right: -2px;
-        font-size: 10px;
-      }
+    .status-chip.has-issues::after {
+      content: '!';
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      font-size: 10px;
     }
 
     .booking-row {
       transition: background-color 0.2s ease;
+    }
 
-      &:hover {
-        background-color: rgba(63, 81, 181, 0.05);
-        cursor: pointer;
-      }
+    .booking-row:hover {
+      background-color: rgba(63, 81, 181, 0.05);
+      cursor: pointer;
+    }
 
-      &.high-priority {
-        border-left: 3px solid #f44336;
-      }
+    .booking-row.high-priority {
+      border-left: 3px solid #f44336;
+    }
 
-      &.medium-priority {
-        border-left: 3px solid #ff9800;
-      }
+    .booking-row.medium-priority {
+      border-left: 3px solid #ff9800;
     }
 
     .no-data {
       text-align: center;
       padding: 60px 40px;
       color: #999;
+    }
 
-      mat-icon {
-        font-size: 64px;
-        width: 64px;
-        height: 64px;
-        margin-bottom: 16px;
-        opacity: 0.5;
-      }
+    .no-data mat-icon {
+      font-size: 64px;
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
 
-      p {
-        margin: 8px 0;
-        font-size: 1rem;
-      }
+    .no-data p {
+      margin: 8px 0;
+      font-size: 1rem;
+    }
 
-      .no-data-subtitle {
-        font-size: 0.875rem;
-        color: #bbb;
-      }
+    .no-data .no-data-subtitle {
+      font-size: 0.875rem;
+      color: #bbb;
     }
 
     .dialog-actions {
@@ -326,23 +325,23 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
     .summary {
       color: #666;
       font-size: 0.875rem;
+    }
 
-      .total-count {
-        font-weight: 600;
-        color: #333;
-      }
+    .summary .total-count {
+      font-weight: 600;
+      color: #333;
+    }
 
-      .total-amount {
-        color: #f57c00;
-        font-weight: 500;
-        margin-left: 8px;
-      }
+    .summary .total-amount {
+      color: #f57c00;
+      font-weight: 500;
+      margin-left: 8px;
+    }
 
-      .priority-warning {
-        color: #f44336;
-        font-weight: 600;
-        margin-left: 8px;
-      }
+    .summary .priority-warning {
+      color: #f44336;
+      font-weight: 600;
+      margin-left: 8px;
     }
 
     .actions {
@@ -350,7 +349,6 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
       gap: 8px;
     }
 
-    /* Responsive adjustments */
     @media (max-width: 768px) {
       .search-field {
         width: 100%;
@@ -360,14 +358,14 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
+      }
 
-        .summary {
-          text-align: center;
-        }
+      .dialog-actions .summary {
+        text-align: center;
+      }
 
-        .actions {
-          justify-content: center;
-        }
+      .dialog-actions .actions {
+        justify-content: center;
       }
 
       .mat-header-cell,

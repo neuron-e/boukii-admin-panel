@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Inject, Input, OnInit, Output} from '@angular/core';
+﻿import {Component, EventEmitter, Inject, Input, OnInit, Output} from '@angular/core';
 import { UtilsService } from "src/service/utils.service";
 import {FormArray, FormBuilder, FormGroup, Validators} from '@angular/forms';
 import moment from 'moment';
@@ -72,23 +72,26 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
           // Verificamos si la hora de inicio es posterior a la hora actual (solo si es hoy)
           const hourStartMoment = moment(date.hour_start, "HH:mm");
           const isValidToday = isToday && hourStartMoment.isAfter(currentTime);
+          // Comprobar capacidad por nivel (subgrupo con hueco) y autoasignar monitor
+          const monitor = this.findMonitor(date);
+          const hasCapacity = !!monitor;
 
-          // Si es una fecha en el futuro o es hoy y cumple con la hora, añadimos el grupo
-          if (isInFuture || isValidToday) {
+          // Si es una fecha en el futuro o es hoy y cumple con la hora, aÃ±adimos el grupo
+          if ((isInFuture || isValidToday) && hasCapacity) {
             // Si hay datos iniciales, usamos esos datos para restaurar los valores seleccionados
             // Si hay datos iniciales, usamos esos datos para restaurar los valores seleccionados
             const initialSelected = this.initialData?.[index] || false;
             const initialExtras = this.initialData?.[index]?.extras || [];
             return this.createCourseDateGroup(date, initialSelected, initialExtras);
           } else {
-            // Si la fecha no es válida (pasada o hoy pero la hora es menor a la actual), devolvemos null
+            // Si la fecha no es vÃ¡lida (pasada o hoy pero la hora es menor a la actual), devolvemos null
             return null;
           }
-        }).filter(group => group !== null), // Filtrar los null (fechas no válidas)
-        this.atLeastOneSelectedValidator  // Validación personalizada
+        }).filter(group => group !== null), // Filtrar los null (fechas no vÃ¡lidas)
+        this.atLeastOneSelectedValidator  // ValidaciÃ³n personalizada
       );
 
-      // Añadir el FormArray al formulario del padre
+      // AÃ±adir el FormArray al formulario del padre
       this.stepForm.addControl('course_dates', courseDatesArray);
     }
   }
@@ -111,7 +114,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
       const hasLocalOverlap = this.checkLocalOverlap(checkAval.bookingUsers);
 
       if (hasLocalOverlap) {
-        // Si hay solapamiento en la verificación local, mostramos mensaje y resolvemos como false
+        // Si hay solapamiento en la verificaciÃ³n local, mostramos mensaje y resolvemos como false
         this.snackbar.open(this.translateService.instant('snackbar.booking.localOverlap'), 'OK', { duration: 3000 });
         resolve(false);
         return;
@@ -120,7 +123,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
       this.crudService.post('/admin/bookings/checkbooking', checkAval)
         .subscribe((response: any) => {
           // Supongamos que la API devuelve un campo 'available' que indica la disponibilidad
-          const isAvailable = response.success; // Ajusta según la respuesta real de tu API
+          const isAvailable = response.success; // Ajusta segÃºn la respuesta real de tu API
           resolve(isAvailable); // Resolvemos la promesa con el valor de disponibilidad
         }, (error) => {
           this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
@@ -136,9 +139,9 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
     // Recorremos cada normalizedDate
     for (let normalized of this.activitiesBooked) {
       if (this.selectedForm && this.selectedForm === normalized) {
-        continue; // Saltamos la comparación si es el mismo FormGroup
+        continue; // Saltamos la comparaciÃ³n si es el mismo FormGroup
       }
-      // Verificamos si alguno de los utilizers de bookingUsers está en los utilizers de normalizedDates
+      // Verificamos si alguno de los utilizers de bookingUsers estÃ¡ en los utilizers de normalizedDates
       for (let bookingUser of bookingUsers) {
         const matchingUtilizer = normalized.utilizers.find(
           (utilizer: any) => utilizer.id === bookingUser.client_id
@@ -166,7 +169,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
   }
 
 
-  // Validación personalizada para asegurarse de que al menos una fecha esté seleccionada
+  // ValidaciÃ³n personalizada para asegurarse de que al menos una fecha estÃ© seleccionada
   atLeastOneSelectedValidator(formArray: FormArray): { [key: string]: boolean } | null {
     const selectedDates = formArray.controls.some(control => control.get('selected')?.value);
     return selectedDates ? null : { noDatesSelected: true };
@@ -203,7 +206,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
     const matchingGroup = courseDate.course_groups.find(group => group.degree_id === this.sportLevel.id);
 
     if (matchingGroup) {
-      // Busca el subgrupo que tiene menos participantes que el máximo permitido
+      // Busca el subgrupo que tiene menos participantes que el mÃ¡ximo permitido
 const availableSubgroup = matchingGroup.course_subgroups.find(
   (subgroup) => ((subgroup.booking_users || []).length) < subgroup.max_participants
 );
@@ -212,7 +215,7 @@ const availableSubgroup = matchingGroup.course_subgroups.find(
       return availableSubgroup?.monitor || null;
     }
 
-    // Si no encuentra ningún grupo o subgrupo adecuado, retorna null
+    // Si no encuentra ningÃºn grupo o subgrupo adecuado, retorna null
     return null;
   }
 
@@ -240,7 +243,7 @@ const availableSubgroup = matchingGroup.course_subgroups.find(
     }
   }
 
-  // Calcula el total de extras seleccionados para una fecha específica
+  // Calcula el total de extras seleccionados para una fecha especÃ­fica
   onExtraChange(index: number) {
     const selectedExtras = this.courseDatesArray.at(index).get('extras').value || [];
     this.totalExtraPrice[index] = selectedExtras.reduce((acc, extra) => acc*1 + extra.price*1, 0);
@@ -260,7 +263,7 @@ const availableSubgroup = matchingGroup.course_subgroups.find(
 
   submitForm() {
     if (this.stepForm.valid) {
-      // Cerrar el diálogo pasando los valores del formulario
+      // Cerrar el diÃ¡logo pasando los valores del formulario
       this.dialogRef.close(this.stepForm.value);
 
     } else {
@@ -274,3 +277,4 @@ const availableSubgroup = matchingGroup.course_subgroups.find(
     this.dialogRef.close();
   }
 }
+

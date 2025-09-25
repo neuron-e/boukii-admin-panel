@@ -1,7 +1,7 @@
 <div class="stepper" *ngIf="stepperForm">
   <!-- Paso 1 -->
   <div *ngIf="currentStep === 0">
-    <booking-step-one [initialData]="stepperForm.get('step1')?.value" [allLevels]="allLevels"
+    <booking-step-one [initialData]="stepperForm.get('step1')?.value" [allLevels]="allLevels" [lockClient]="lockClient"
       (stepCompleted)="handleStepCompletion(1, $event)">
     </booking-step-one>
   </div>

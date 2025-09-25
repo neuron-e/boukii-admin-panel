@@ -1,4 +1,4 @@
-.stepTitle {
+﻿.stepTitle {
   font-family: var(--font-dm);
   font-size: 0.9rem;
   font-weight: 400;
@@ -94,3 +94,17 @@
     border-radius: 50%;
   }
 }
+
+
+.utilizer-search {
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.empty-utilizer {
+  padding: 16px 0;
+  color: var(--color-dark3);
+  font-style: italic;
+}
+

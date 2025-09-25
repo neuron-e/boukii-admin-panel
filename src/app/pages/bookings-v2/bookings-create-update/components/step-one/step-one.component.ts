@@ -1,11 +1,11 @@
-import { Component, Input, OnInit, Output, EventEmitter } from "@angular/core";
+import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
-import { Observable, debounceTime, map, skip, startWith } from "rxjs";
+import { Observable, of } from "rxjs";
+import { debounceTime, distinctUntilChanged, finalize, map, shareReplay, startWith, switchMap, tap } from 'rxjs/operators';
 import { ApiCrudService } from "src/service/crud.service";
 import { ApiResponse } from "src/app/interface/api-response";
 import { MatDialog } from '@angular/material/dialog';
 import { UtilsService } from '../../../../../../service/utils.service';
-import { switchMap } from 'rxjs/operators';
 import { ClientCreateUpdateModalComponent } from "src/app/pages/clients/client-create-update-modal/client-create-update-modal.component";
 
 @Component({
@@ -16,6 +16,7 @@ import { ClientCreateUpdateModalComponent } from "src/app/pages/clients/client-c
 export class StepOneComponent implements OnInit {
   @Input() initialData: any;
   @Input() allLevels: any;
+  @Input() lockClient: boolean = false;
   @Output() stepCompleted = new EventEmitter<FormGroup>();
 
   stepOneForm: FormGroup;
@@ -26,6 +27,10 @@ export class StepOneComponent implements OnInit {
   expandClients: any[];
   userAvatar = "../../../../assets/img/avatar.png";
 
+  private readonly searchDebounceMs = 250;
+  private searchCache = new Map<string, any[]>();
+  private inFlightRequests = new Map<string, Observable<any[]>>();
+
   constructor(private fb: FormBuilder, private crudService: ApiCrudService, protected utilsService: UtilsService,
     private dialog: MatDialog) { }
 
@@ -33,34 +38,39 @@ export class StepOneComponent implements OnInit {
     this.user = JSON.parse(localStorage.getItem("boukiiUser"));
     this.selectedClient = this.initialData?.client;
     this.mainClient = this.initialData?.mainClient;
-    this.getClients().subscribe({ next: (response) => this.expandClients = this.getExpandClients(response.data) });
+    this.getClients().subscribe({
+      next: (response) => {
+        const expanded = this.getExpandClients(response.data);
+        this.expandClients = expanded;
+        this.searchCache.set('', expanded);
+      }
+    });
     this.stepOneForm = this.fb.group({
       client: [this.selectedClient || "", Validators.required],
       mainClient: [this.mainClient, Validators.required],
     });
     this.filteredOptions = this.stepOneForm.get('client')!.valueChanges.pipe(
       startWith(''),
-      debounceTime(300),
-      switchMap((value: string) =>
-        this.crudService.list(
-          '/admin/clients/mains',
-          1,
-          50, // Solo 50 resultados por página
-          'desc',
-          'id',
-          `&school_id=${this.user.schools[0].id}&active=1&search=${value}`
-        )
-      ),
-      map((response: any) => this.getExpandClients(response.data)),
+      map((value: unknown) => this.normalizeSearchTerm(value)),
+      debounceTime(this.searchDebounceMs),
+      distinctUntilChanged(),
+      switchMap((term) => this.lookupClients(term)),
+      tap((options) => (this.expandClients = options))
     );
   }
 
   setClient(ev: any) {
+    if (this.lockClient) {
+      // Cliente bloqueado: ignorar cambios
+      this.completeStep();
+      return;
+    }
     this.selectedClient = ev;
     this.stepOneForm.patchValue({
       client: ev,
       mainClient: this.selectedClient.main_client || this.selectedClient,
     });
+    this.completeStep();
   }
 
   addClient() {
@@ -75,24 +85,16 @@ export class StepOneComponent implements OnInit {
       if (data) {
         this.getClients().subscribe({
           next: (response) => {
-            this.filteredOptions = this.stepOneForm.get('client')!.valueChanges.pipe(
-              startWith(''),
-              debounceTime(300),
-              switchMap((value: string) =>
-                this.crudService.list(
-                  '/admin/clients/mains',
-                  1,
-                  50,
-                  'desc',
-                  'id',
-                  `&school_id=${this.user.schools[0].id}&active=1&search=${value}`
-                )
-              ),
-              map((response: any) => this.getExpandClients(response.data)),
-            );
-            this.expandClients = this.getExpandClients(response.data)
-            const newClient = this.expandClients.find((c) => c.id = data.data.data.id);
-            this.setClient(newClient)
+            const expanded = this.getExpandClients(response.data);
+            this.expandClients = expanded;
+            this.searchCache.set('', expanded);
+            const createdId = data?.data?.data?.id;
+            if (createdId) {
+              const newClient = expanded.find((c) => c.id === createdId);
+              if (newClient) {
+                this.setClient(newClient);
+              }
+            }
           }
         });
       }
@@ -150,5 +152,50 @@ export class StepOneComponent implements OnInit {
         client.first_name.toLowerCase().includes(filterValue) ||
         client.last_name.toLowerCase().includes(filterValue)
     );
+  }
+
+  private normalizeSearchTerm(raw: unknown): string {
+    if (typeof raw === 'string') {
+      return raw.trim().toLowerCase();
+    }
+    if (raw && typeof raw === 'object') {
+      const client: any = raw;
+      const first = client.first_name ?? '';
+      const last = client.last_name ?? '';
+      return `${first} ${last}`.trim().toLowerCase();
+    }
+    return '';
+  }
+
+  private lookupClients(term: string): Observable<any[]> {
+    const normalized = term.length >= 2 ? term : '';
+
+    const cached = this.searchCache.get(normalized);
+    if (cached) {
+      return of(cached);
+    }
+
+    const existingRequest = this.inFlightRequests.get(normalized);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const request$ = this.fetchClients(normalized).pipe(
+      tap((clients) => this.searchCache.set(normalized, clients)),
+      finalize(() => this.inFlightRequests.delete(normalized)),
+      shareReplay(1)
+    );
+
+    this.inFlightRequests.set(normalized, request$);
+    return request$;
+  }
+
+  private fetchClients(searchTerm: string): Observable<any[]> {
+    const encodedSearch = encodeURIComponent(searchTerm);
+    const filter = `&school_id=${this.user.schools[0].id}&active=1${searchTerm ? `&search=${encodedSearch}` : ''}`;
+
+    return this.crudService
+      .list('/admin/clients/mains', 1, 50, 'desc', 'id', filter)
+      .pipe(map((response: ApiResponse) => this.getExpandClients(response.data)));
   }
 }

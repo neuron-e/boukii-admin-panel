@@ -14,6 +14,7 @@ import { FormBuilder, FormGroup } from "@angular/forms";
   styleUrls: ["./form-stepper.component.scss"],
 })
 export class BookingFormStepper implements OnChanges {
+  @Input() lockClient: boolean = false;
   @Output() changedCurrentStep = new EventEmitter<number>();
   @Output() changedFormData = new EventEmitter();
   @Output() formSaveAndCreateNew  = new EventEmitter();
@@ -70,9 +71,12 @@ export class BookingFormStepper implements OnChanges {
   }
 
   previousStep() {
-    if (this.currentStep > 0) {
-      this.currentStep--;
+    // Bloquear volver al paso de cliente si está bloqueado
+    if (this.currentStep === 1 && this.lockClient) {
+      this.changedCurrentStep.emit(this.currentStep);
+      return;
     }
+    if (this.currentStep > 0) this.currentStep--;
     this.changedCurrentStep.emit(this.currentStep);
   }
 
