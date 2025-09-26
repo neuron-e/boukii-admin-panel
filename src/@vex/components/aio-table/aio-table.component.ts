@@ -449,7 +449,147 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     this.showDetailEvent.emit({ showDetail: !this.showDetail, item: row });
   }
 
+  /**
+   * MEJORA: Detectar si una reserva es huérfana (curso eliminado/inexistente)
+   */
+  isOrphanedBooking(booking: any): boolean {
+    if (!booking) return false;
+
+    // Solo aplicar a reservas (no a otros tipos de entidades)
+    if (!this.entity?.includes('bookings')) return false;
+
+    // Verificar si la reserva tiene problemas de curso
+    const hasNoCourse = !booking.course;
+    const hasCourseIdButNoCourseData = booking.course_id && !booking.course;
+    const hasEmptyCourseData = booking.course && (!booking.course.id || !booking.course.name);
+    const hasNoBookingUsers = !booking.booking_users || booking.booking_users.length === 0;
+
+    const isOrphaned = hasNoCourse || hasCourseIdButNoCourseData || hasEmptyCourseData || hasNoBookingUsers;
+
+    if (isOrphaned) {
+      console.warn('🔍 Reserva huérfana detectada:', {
+        booking_id: booking.id,
+        course_id: booking.course_id,
+        has_course: !!booking.course,
+        has_booking_users: !!booking.booking_users?.length,
+        issue: hasNoCourse ? 'no_course' :
+               hasCourseIdButNoCourseData ? 'course_id_no_data' :
+               hasEmptyCourseData ? 'empty_course_data' :
+               hasNoBookingUsers ? 'no_booking_users' : 'unknown'
+      });
+    }
+
+    return isOrphaned;
+  }
+
+  /**
+   * MEJORA: Mostrar acciones para reparar reserva huérfana
+   */
+  showOrphanedBookingActions(booking: any): void {
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      width: '600px',
+      panelClass: 'orphaned-booking-dialog',
+      data: {
+        title: this.translateService.instant('orphaned_booking_detected'),
+        message: this.createOrphanedBookingMessage(booking),
+        isError: true,
+        hideCancel: false,
+        confirmButtonText: this.translateService.instant('open_repair_tool'),
+        cancelButtonText: this.translateService.instant('ignore_for_now')
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((shouldOpenRepairTool) => {
+      if (shouldOpenRepairTool) {
+        // Navegar a la herramienta de reparación
+        this.router.navigate(['/system-maintenance/orphaned-bookings'], {
+          queryParams: { booking_id: booking.id }
+        });
+      }
+    });
+  }
+
+  /**
+   * Crear mensaje descriptivo para reserva huérfana
+   */
+  private createOrphanedBookingMessage(booking: any): string {
+    let message = `Reserva #${booking.id} presenta problemas de integridad:\n\n`;
+
+    if (!booking.course) {
+      message += '• El curso asociado no existe o fue eliminado\n';
+    } else if (!booking.course.name) {
+      message += '• Los datos del curso están corruptos\n';
+    }
+
+    if (!booking.booking_users?.length) {
+      message += '• No tiene participantes válidos\n';
+    }
+
+    message += `\nImporte: ${booking.price_total || 0}€`;
+    message += `\nCliente: ${booking.client_main?.name || 'Desconocido'}`;
+    message += `\n\n¿Deseas abrir la herramienta de reparación para solucionarlo?`;
+
+    return message;
+  }
+
+  /**
+   * CRÍTICO: Verificar si un curso tiene reservas activas antes de permitir eliminación
+   */
+  private async checkCourseHasActiveBookings(courseId: number): Promise<boolean> {
+    try {
+      // Verificar si hay reservas con status 1 (activas) o 3 (parcialmente canceladas) para este curso
+      const response = await this.crudService.get('/admin/courses/' + courseId + '/bookings-check').toPromise();
+
+      if (response?.success && response?.data) {
+        const activeBookingsCount = response.data.active_bookings_count || 0;
+        const partialBookingsCount = response.data.partial_bookings_count || 0;
+        const totalActiveBookings = activeBookingsCount + partialBookingsCount;
+
+        console.log(`Curso ${courseId} - Reservas activas: ${totalActiveBookings}`);
+        return totalActiveBookings > 0;
+      }
+
+      return false; // Si no hay respuesta, permitir eliminación (failsafe)
+    } catch (error) {
+      console.error('Error verificando reservas del curso:', error);
+
+      // FALLBACK: Si no existe el endpoint /bookings-check, usar consulta alternativa
+      try {
+        const bookingsResponse = await this.crudService.get('/admin/bookings', ['course'], {
+          course_id: courseId,
+          status: '1,3' // Solo reservas activas y parcialmente canceladas
+        }).toPromise();
+
+        const activeBookings = bookingsResponse?.data?.data || [];
+        console.log(`Curso ${courseId} - Reservas activas (fallback): ${activeBookings.length}`);
+        return activeBookings.length > 0;
+      } catch (fallbackError) {
+        console.error('Error en verificación fallback:', fallbackError);
+        // En caso de error total, bloquear eliminación por seguridad
+        return true;
+      }
+    }
+  }
+
   async delete(item: any) {
+    // CRÍTICO: Validar si es un curso con reservas activas antes de eliminar
+    if (this.deleteEntity === '/courses') {
+      const hasActiveBookings = await this.checkCourseHasActiveBookings(item.id);
+      if (hasActiveBookings) {
+        this.dialog.open(ConfirmModalComponent, {
+          maxWidth: '100vw',
+          panelClass: 'full-screen-dialog',
+          data: {
+            message: this.translateService.instant('course_cannot_delete_has_bookings'),
+            title: this.translateService.instant('course_delete_blocked'),
+            hideCancel: true,
+            confirmButtonText: this.translateService.instant('understood'),
+            isError: true
+          }
+        });
+        return; // Bloquear eliminación
+      }
+    }
 
     const dialogRef = this.dialog.open(ConfirmModalComponent, {
       maxWidth: '100vw',  // Asegurarse de que no haya un ancho máximo
@@ -709,20 +849,26 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   getMinMaxHours(data: any[]): { minHour: string, maxHour: string } {
     if (data.length === 0) return { minHour: '', maxHour: '' };
+
+    // MEJORA: Protección contra reservas huérfanas (course null)
+    if (!data[0].course) {
+      return { minHour: '', maxHour: '' };
+    }
+
     let minHour = null;
     let maxHour = null;
     if (data[0].course.course_type === 2) {
       minHour = data[0].hour_start;
-      maxHour = data[0].hour_end.replace(':00', '');
+      maxHour = data[0].hour_end?.replace(':00', '') || data[0].hour_end;
     } else {
       minHour = data[0].hour_start;
-      maxHour = data[0].hour_end.replace(':00', '');
+      maxHour = data[0].hour_end?.replace(':00', '') || data[0].hour_end;
       data.forEach(item => {
         if (item.hour_start < minHour) minHour = item.hour_start;
-        if (item.hour_end > maxHour) maxHour = item.hour_end.replace(':00', '');
+        if (item.hour_end > maxHour) maxHour = item.hour_end?.replace(':00', '') || item.hour_end;
       })
     }
-    minHour = minHour.replace(':00', '');
+    minHour = minHour?.replace(':00', '') || minHour;
     return { minHour, maxHour };
   }
 
@@ -778,6 +924,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   getBookingImage(data: any) {
     //if (data.length === 1) {
+    // MEJORA: Protección contra reservas huérfanas (course null)
+    if (!data.course || !data.course.sport_id) {
+      return '';
+    }
     const ret = this.sports.find((s) => s.id === data.course.sport_id);
     return ret ? ret.name.toLowerCase() : '';
     /* } else {

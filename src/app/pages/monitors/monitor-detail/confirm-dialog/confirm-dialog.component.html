@@ -14,11 +14,28 @@
   <mat-divider class="text-border"></mat-divider>
 
   <mat-dialog-content class="flex flex-col">
-    <h1>{{defaults.message}}</h1>
+    <!-- Mensaje de error para cursos con reservas -->
+    <div *ngIf="defaults.isError" style="display: flex; align-items: center; margin-bottom: 15px;">
+      <mat-icon style="color: #f44336; margin-right: 10px; font-size: 24px;">error</mat-icon>
+      <h2 style="color: #f44336; margin: 0;">{{defaults.message}}</h2>
+    </div>
+
+    <!-- Mensaje normal -->
+    <h1 *ngIf="!defaults.isError">{{defaults.message}}</h1>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end">
-    <button color="primary" mat-flat-button [mat-dialog-close]="true">{{'confirm' | translate}}</button>
-    <button color="primary" mat-flat-button [mat-dialog-close]="false">{{'no' | translate}}</button>
+    <!-- Botones para casos de error (solo "Entendido") -->
+    <div *ngIf="defaults.isError">
+      <button color="primary" mat-flat-button [mat-dialog-close]="false">
+        {{ defaults.confirmButtonText || ('understood' | translate) }}
+      </button>
+    </div>
+
+    <!-- Botones normales de confirmación -->
+    <div *ngIf="!defaults.isError && !defaults.hideCancel">
+      <button color="primary" mat-flat-button [mat-dialog-close]="true">{{'confirm' | translate}}</button>
+      <button color="primary" mat-flat-button [mat-dialog-close]="false">{{'no' | translate}}</button>
+    </div>
   </mat-dialog-actions>
 </form>

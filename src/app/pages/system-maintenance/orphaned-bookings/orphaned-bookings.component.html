@@ -1,0 +1,200 @@
+<div class="orphaned-bookings-container">
+  <!-- Header con estadísticas -->
+  <div class="stats-header" *ngIf="stats">
+    <mat-card class="stats-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon style="color: #ff9800; margin-right: 8px;">healing</mat-icon>
+          Sistema de Reparación de Reservas Huérfanas
+        </mat-card-title>
+        <mat-card-subtitle>Detección y reparación automática de reservas corruptas</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <div class="stats-grid">
+          <div class="stat-item critical" *ngIf="stats.total_orphaned > 0">
+            <span class="stat-number">{{ stats.total_orphaned }}</span>
+            <span class="stat-label">Reservas Huérfanas</span>
+          </div>
+
+          <div class="stat-item success" *ngIf="stats.total_orphaned === 0">
+            <mat-icon>check_circle</mat-icon>
+            <span class="stat-label">Sistema Íntegro</span>
+          </div>
+
+          <div class="stat-item warning" *ngIf="stats.by_course_status.soft_deleted > 0">
+            <span class="stat-number">{{ stats.by_course_status.soft_deleted }}</span>
+            <span class="stat-label">Cursos Soft-Deleted</span>
+          </div>
+
+          <div class="stat-item error" *ngIf="stats.by_course_status.hard_deleted > 0">
+            <span class="stat-number">{{ stats.by_course_status.hard_deleted }}</span>
+            <span class="stat-label">Cursos Hard-Deleted</span>
+          </div>
+
+          <div class="stat-item info">
+            <span class="stat-number">{{ stats.auto_repairable }}</span>
+            <span class="stat-label">Auto-Reparables</span>
+          </div>
+
+          <div class="stat-item money" *ngIf="stats.total_amount_affected > 0">
+            <span class="stat-number">{{ stats.total_amount_affected | currency:'EUR':'symbol':'1.2-2' }}</span>
+            <span class="stat-label">Importe Afectado</span>
+          </div>
+        </div>
+      </mat-card-content>
+
+      <!-- Acciones globales -->
+      <mat-card-actions *ngIf="stats.total_orphaned > 0">
+        <button mat-raised-button color="primary"
+                (click)="autoRepairAll()"
+                [disabled]="stats.auto_repairable === 0"
+                class="repair-all-btn">
+          <mat-icon>auto_fix_high</mat-icon>
+          Reparación Automática ({{ stats.auto_repairable }})
+        </button>
+
+        <button mat-button color="accent" (click)="refresh()">
+          <mat-icon>refresh</mat-icon>
+          Actualizar
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+
+  <!-- Cargando -->
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Analizando integridad de reservas...</p>
+  </div>
+
+  <!-- Filtros -->
+  <mat-card class="filters-card" *ngIf="!isLoading && orphanedBookings.length > 0">
+    <mat-card-content>
+      <div class="filters-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Estado del Curso</mat-label>
+          <mat-select [(ngModel)]="filterByCourseStatus">
+            <mat-option value="all">Todos</mat-option>
+            <mat-option value="soft_deleted">Soft Deleted</mat-option>
+            <mat-option value="hard_deleted">Hard Deleted</mat-option>
+            <mat-option value="unknown">Desconocido</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Estado de Reserva</mat-label>
+          <mat-select [(ngModel)]="filterByBookingStatus">
+            <mat-option value="all">Todas</mat-option>
+            <mat-option value="1">Activas</mat-option>
+            <mat-option value="3">Parcialmente Canceladas</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-checkbox [(ngModel)]="showAutoRepairableOnly" color="primary">
+          Solo Auto-Reparables
+        </mat-checkbox>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Lista de reservas huérfanas -->
+  <div class="orphaned-bookings-list" *ngIf="!isLoading">
+
+    <!-- Mensaje cuando no hay reservas huérfanas -->
+    <mat-card class="no-orphans-card" *ngIf="orphanedBookings.length === 0">
+      <mat-card-content>
+        <div class="no-orphans-content">
+          <mat-icon class="success-icon">verified</mat-icon>
+          <h2>¡Sistema íntegro!</h2>
+          <p>No se encontraron reservas huérfanas en el sistema.</p>
+          <p class="subtitle">Todas las reservas tienen cursos válidos asociados.</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Tabla de reservas huérfanas -->
+    <mat-card class="orphaned-list-card" *ngIf="filteredBookings.length > 0">
+      <mat-card-header>
+        <mat-card-title>
+          Reservas Huérfanas Detectadas ({{ filteredBookings.length }})
+        </mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+        <div class="orphaned-booking" *ngFor="let orphaned of filteredBookings"
+             [ngClass]="getCourseStatusClass(orphaned.course_status)">
+
+          <!-- Info principal -->
+          <div class="booking-header">
+            <div class="booking-info">
+              <h3>Reserva #{{ orphaned.booking_id }}</h3>
+              <p class="client-name">{{ orphaned.client_name }}</p>
+              <p class="course-info">
+                <strong>{{ orphaned.course_name }}</strong>
+                <span class="course-status" [ngClass]="getCourseStatusClass(orphaned.course_status)">
+                  {{ orphaned.course_status | titlecase }}
+                </span>
+              </p>
+            </div>
+
+            <div class="booking-stats">
+              <div class="stat">
+                <span class="label">Importe:</span>
+                <span class="value">{{ orphaned.total_amount | currency:'EUR':'symbol':'1.2-2' }}</span>
+              </div>
+              <div class="stat">
+                <span class="label">Estado:</span>
+                <span class="value" [ngClass]="getBookingStatusClass(orphaned.booking_status)">
+                  {{ orphaned.booking_status === 1 ? 'Activa' : 'Parcial' }}
+                </span>
+              </div>
+              <div class="stat" *ngIf="orphaned.course_deleted_at">
+                <span class="label">Eliminado:</span>
+                <span class="value">{{ orphaned.course_deleted_at | date:'short' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Opciones de reparación -->
+          <div class="repair-options">
+            <h4>Opciones de Reparación:</h4>
+            <div class="repair-buttons">
+              <button *ngFor="let option of orphaned.repair_options"
+                      mat-raised-button
+                      [color]="option.risk_level === 'low' ? 'primary' : (option.risk_level === 'medium' ? 'accent' : 'warn')"
+                      [disabled]="!option.auto_executable"
+                      (click)="repairBooking(orphaned, option.type)"
+                      class="repair-option-btn">
+
+                <mat-icon *ngIf="option.type === 'restore_course'">restore</mat-icon>
+                <mat-icon *ngIf="option.type === 'cancel_booking'">cancel</mat-icon>
+                <mat-icon *ngIf="option.type === 'transfer_booking'">swap_horiz</mat-icon>
+                <mat-icon *ngIf="option.type === 'manual_fix'">build</mat-icon>
+
+                {{ option.description }}
+
+                <span class="risk-badge" [ngClass]="'risk-' + option.risk_level">
+                  {{ option.risk_level }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Mensaje cuando los filtros no muestran resultados -->
+    <mat-card class="no-filtered-results" *ngIf="orphanedBookings.length > 0 && filteredBookings.length === 0">
+      <mat-card-content>
+        <div class="no-results-content">
+          <mat-icon>filter_alt_off</mat-icon>
+          <p>No hay reservas huérfanas que coincidan con los filtros seleccionados.</p>
+          <button mat-button color="primary" (click)="filterByCourseStatus = 'all'; filterByBookingStatus = 'all'; showAutoRepairableOnly = false">
+            Limpiar Filtros
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

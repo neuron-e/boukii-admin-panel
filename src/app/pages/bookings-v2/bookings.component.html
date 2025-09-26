@@ -200,11 +200,11 @@
                 <div class="holder-actividad">
                   <div class="col-left">
                     <div class="c-l">
-                      <img *ngIf="bUsers?.course?.course_type === 1"
+                      <img *ngIf="bUsers?.course?.course_type === 1 && bUsers?.course?.sport?.icon_collective"
                            [src]="bUsers.course.sport.icon_collective"
                            class="avatar h-16 w-16 align-middle"
                            style="display: inline; margin-right: 0.5rem; border-radius: 5px;">
-                      <img *ngIf="bUsers?.course?.course_type !== 1"
+                      <img *ngIf="bUsers?.course?.course_type !== 1 && bUsers?.course?.sport?.icon_prive"
                            [src]="bUsers.course.sport.icon_prive"
                            class="avatar h-16 w-16 align-middle"
                            style="display: inline; margin-right: 0.5rem; border-radius: 5px;">
@@ -223,7 +223,7 @@
                           (bUsers?.course?.isFlexible ? 'flex' : 'fix') |
                             translate
                         }}
-                        {{bUsers?.course?.sport.name}}
+                        {{bUsers?.course?.sport?.name}}
                       </div>
                       <ng-container *ngIf="bUsers?.course?.course_type == 1">
                         <div [style.background]="bUsers?.course_sub_group.degree.color"

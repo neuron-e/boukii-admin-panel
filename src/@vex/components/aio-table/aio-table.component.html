@@ -479,9 +479,23 @@
             <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
-            <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
-              {{
-                getBookingCourse(row[column.property]) }}
+            <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
+              <!-- MEJORA: Manejo elegante de reservas huérfanas -->
+              <ng-container *ngIf="!isOrphanedBooking(data[i]); else orphanedBooking">
+                {{ getBookingCourse(row[column.property]) }}
+              </ng-container>
+              <ng-template #orphanedBooking>
+                <div class="orphaned-booking-indicator">
+                  <mat-icon class="error-icon">error_outline</mat-icon>
+                  <span class="error-text">{{ 'orphaned_booking' | translate }}</span>
+                  <button mat-icon-button
+                          class="repair-btn"
+                          (click)="showOrphanedBookingActions(data[i])"
+                          matTooltip="{{ 'click_to_repair' | translate }}">
+                    <mat-icon>healing</mat-icon>
+                  </button>
+                </div>
+              </ng-template>
             </td>
           </ng-container>
         </ng-container>
@@ -529,12 +543,17 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
-              <img *ngIf="row[column.property] != 'multiple'" [src]="row[column.property]"
-                   class="avatar h-8 w-8 align-middle"
-                   style="border-radius: 5px;min-width: 48px;min-height: 48px;">
-              <!-- <ng-container *ngIf="data[i].booking_users > 1" >
-                <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>{{ 'MULTIPLE'}}</td>
-              </ng-container> -->
+              <!-- MEJORA: Manejo de reservas huérfanas para imágenes -->
+              <ng-container *ngIf="!isOrphanedBooking(data[i]); else orphanedImagePlaceholder">
+                <img *ngIf="row[column.property] != 'multiple'" [src]="row[column.property]"
+                     class="avatar h-8 w-8 align-middle"
+                     style="border-radius: 5px;min-width: 48px;min-height: 48px;">
+              </ng-container>
+              <ng-template #orphanedImagePlaceholder>
+                <div class="orphaned-image-placeholder">
+                  <mat-icon class="orphaned-icon">broken_image</mat-icon>
+                </div>
+              </ng-template>
             </td>
           </ng-container>
         </ng-container>

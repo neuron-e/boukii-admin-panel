@@ -217,7 +217,11 @@ export class BookingsV2Component implements OnInit, OnChanges {
     if (!client || !client.client_sports || !client.client_sports.length) {
       return 0;
     }
-    const sportId = this.detailData.bookingusers && this.detailData.bookingusers[0] ? this.detailData.bookingusers[0].course.sport_id : null;
+    // MEJORA: Protección contra reservas huérfanas (course null)
+    const sportId = this.detailData.bookingusers &&
+                   this.detailData.bookingusers[0] &&
+                   this.detailData.bookingusers[0].course ?
+                   this.detailData.bookingusers[0].course.sport_id : null;
     if (!sportId) {
       return 0;
     }
@@ -232,7 +236,13 @@ export class BookingsV2Component implements OnInit, OnChanges {
     if (!client || !client.client_sports || !client.client_sports.length) {
       return 0;
     }
-    const sportId = this.detailData.bookingusers && this.detailData.bookingusers[0] ? this.detailData.bookingusers[0].course.sport_id : null;
+
+    // MEJORA: Protección contra reservas huérfanas (course null)
+    const sportId = this.detailData.bookingusers &&
+                   this.detailData.bookingusers[0] &&
+                   this.detailData.bookingusers[0].course ?
+                   this.detailData.bookingusers[0].course.sport_id : null;
+
     if (!sportId) {
       return 0;
     }
@@ -394,9 +404,14 @@ export class BookingsV2Component implements OnInit, OnChanges {
 
       // Asignar degrees_sport en función de los bookingusers si es necesario
       if (this.detailData.bookingusers && this.detailData.bookingusers.length) {
-        const sportId = this.detailData.bookingusers[0].course.sport_id;
-        const matchingSport = this.detailData.sports.find(sport => sport.sport_id === sportId);
-        this.detailData.degrees_sport = matchingSport && matchingSport.degrees ? [...matchingSport.degrees].reverse() : [];
+        // MEJORA: Protección contra reservas huérfanas (course null)
+        const sportId = this.detailData.bookingusers[0].course?.sport_id;
+        if (sportId) {
+          const matchingSport = this.detailData.sports.find(sport => sport.sport_id === sportId);
+          this.detailData.degrees_sport = matchingSport && matchingSport.degrees ? [...matchingSport.degrees].reverse() : [];
+        } else {
+          this.detailData.degrees_sport = [];
+        }
       } else {
         this.detailData.degrees_sport = [];
       }
