@@ -54,7 +54,7 @@ export class BookingDetailV2Component implements OnInit {
       .map(method => ({ id: method.id, label: this.resolvePaymentLabel(method.id) }));
   }
 
-  private resolvePaymentLabel(id: PaymentMethodId | null): string {
+  public resolvePaymentLabel(id: PaymentMethodId | null): string {
     if (id === null || id === undefined) {
       return '';
     }
@@ -93,7 +93,7 @@ export class BookingDetailV2Component implements OnInit {
       .join(' ');
   }
 
-  private determinePaymentMethodId(): PaymentMethodId {
+  public determinePaymentMethodId(): PaymentMethodId {
     if (this.paymentMethod === 1 && this.selectedPaymentOptionId) {
       return this.selectedPaymentOptionId;
     }
@@ -379,27 +379,29 @@ export class BookingDetailV2Component implements OnInit {
 
   editActivity(data: any, index: any) {
     if (data && data.course_dates) {
+      // MEJORA: Verificar si se eliminaron fechas y calcular reembolso
+      const originalDates = this.groupedActivities[index].dates;
+      const newDates = data.course_dates;
+      const originalTotal = this.groupedActivities[index].total;
 
-      this.crudService.post('/admin/bookings/update',
-        {
-          dates: data.course_dates,
-          total: data.total,
-          group_id: this.groupedActivities[index].dates[0].booking_users[0].group_id,
-          booking_id: this.id
-        })
-        .subscribe((response) => {
-/*          this.bookingData$.next(response.data);
-          this.bookingData = response.data;
-          this.groupedActivities = [...this.groupBookingUsersByGroupId(response.data)];
-          this.activitiesChangedSubject.next(response.data);*/
-          this.getBooking();
-          this.snackBar.open(
-            this.translateService.instant('snackbar.booking_detail.update'),
-            this.getCloseActionLabel(),
-            { duration: 3000 }
-          );
+      const datesRemoved = originalDates.length - newDates.length;
+      const hasRemovedDates = datesRemoved > 0;
+
+      if (hasRemovedDates && this.bookingData.paid) {
+        // Calcular reembolso proporcional por fechas eliminadas
+        const refundAmount = this.calculateRefundForRemovedDates(
+          originalDates.length,
+          newDates.length,
+          originalTotal
+        );
+
+        this.showRefundPreviewDialog(refundAmount, datesRemoved, () => {
+          this.processActivityUpdate(data, index);
         });
-
+      } else {
+        // No hay fechas eliminadas o no está pagado, proceder normalmente
+        this.processActivityUpdate(data, index);
+      }
     }
     else if (data && (data.schoolObs || data.clientObs)) {
       this.groupedActivities[index].schoolObs = data.schoolObs;
@@ -546,25 +548,35 @@ export class BookingDetailV2Component implements OnInit {
 
   cancelActivity(index: any) {
     const group = this.groupedActivities[index];
-    const bookingUserIds = group.dates.flatMap(date =>
-      date.booking_users.map(b => b.id)
-    );
-    this.crudService.post('/admin/bookings/cancel',
-      { bookingUsers: bookingUserIds })
-      .subscribe((response) => {
-        this.groupedActivities[index].status = 2;
-        let bookingData = {
-          ...response.data,
-          vouchers: response.data.voucher_logs
-        };
-        this.bookingData$.next(bookingData);
+
+    // MEJORA: Unificar cancelación vía BookingService.processCancellation
+    // para mantener consistencia en logs y auditoría
+    this.bookingService.processCancellation(
+      { type: 'no_refund' },
+      this.bookingData,
+      this.hasOtherActiveGroups(group),
+      this.user,
+      group
+    ).subscribe({
+      next: () => {
+        this.getBooking();
         this.snackBar.open(
           this.translateService.instant('snackbar.booking_detail.delete'),
           this.getCloseActionLabel(),
           { duration: 3000 }
         );
         this.deleteModal = false;
-      });
+      },
+      error: (error) => {
+        console.error('Error al cancelar actividad:', error);
+        this.snackBar.open(
+          this.translateService.instant('snackbar.error'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+        this.deleteModal = false;
+      }
+    });
   }
 
   // Método para finalizar la reserva
@@ -573,6 +585,18 @@ export class BookingDetailV2Component implements OnInit {
       return;
     }
 
+    // MEJORA: Implementar step 2 para pagos offline que requieren confirmación
+    if (this.step === 1) {
+      const paymentMethodId = this.determinePaymentMethodId();
+
+      // Si es pago offline (efectivo/tarjeta o sin pago), ir al step 2 para confirmación
+      if (paymentMethodId === 1 || paymentMethodId === 4) {
+        this.step = 2;
+        return;
+      }
+    }
+
+    // Procesar pago (step 1 para pagos online o step 2 para pagos offline)
     const paymentMethodId = this.determinePaymentMethodId();
     const label = this.selectedPaymentOptionLabel || this.resolvePaymentLabel(paymentMethodId);
 
@@ -597,7 +621,9 @@ export class BookingDetailV2Component implements OnInit {
       bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
     }
 
-    if (paymentMethodId === 1 || paymentMethodId === 4) {
+    // MEJORA: Requerir confirmación explícita para pagos offline
+    // Solo marcar como pagado si hay confirmación explícita del admin
+    if ((paymentMethodId === 1 || paymentMethodId === 4) && this.isPaid) {
       bookingData.paid = true;
       bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
     }
@@ -691,6 +717,110 @@ export class BookingDetailV2Component implements OnInit {
     }
     this.step = 1;  // Regresar al paso 1
     this.isPaid = false;  // Resetear isPaid
+  }
+
+  /**
+   * MEJORA: Calcular reembolso proporcional por fechas eliminadas
+   */
+  calculateRefundForRemovedDates(originalDatesCount: number, newDatesCount: number, originalTotal: number): number {
+    if (originalDatesCount <= newDatesCount) return 0;
+
+    const removedDates = originalDatesCount - newDatesCount;
+    const pricePerDate = originalTotal / originalDatesCount;
+    return Math.round(removedDates * pricePerDate * 100) / 100; // Redondear a 2 decimales
+  }
+
+  /**
+   * MEJORA: Mostrar diálogo de preview de reembolso
+   */
+  showRefundPreviewDialog(refundAmount: number, datesRemoved: number, onConfirm: () => void): void {
+    const currency = this.groupedActivities[0]?.course?.currency || '€';
+
+    const dialogRef = this.dialog.open(CancelPartialBookingModalComponent, {
+      width: "600px",
+      panelClass: "refund-preview-dialog",
+      data: {
+        itemPrice: refundAmount,
+        booking: this.bookingData,
+        datesRemoved: datesRemoved,
+        isDateRemovalRefund: true,
+        currency: currency,
+        title: 'Fechas eliminadas - Reembolso requerido'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result: any) => {
+      if (result && result.type) {
+        // Procesar el reembolso según el tipo seleccionado
+        this.processRefundForRemovedDates(result, refundAmount, onConfirm);
+      } else {
+        // Usuario canceló, no hacer cambios
+        this.snackBar.open(
+          this.translateService.instant('snackbar.booking_detail.cancelled'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+      }
+    });
+  }
+
+  /**
+   * MEJORA: Procesar reembolso por fechas eliminadas
+   */
+  processRefundForRemovedDates(refundData: any, amount: number, onConfirm: () => void): void {
+    // Crear un grupo mock para el reembolso
+    const refundGroup = {
+      total: amount,
+      dates: [], // No hay fechas específicas para el reembolso
+      status: 1
+    };
+
+    this.bookingService.processCancellation(
+      refundData,
+      this.bookingData,
+      true, // Es parcial
+      this.user,
+      refundGroup
+    ).subscribe({
+      next: () => {
+        this.snackBar.open(
+          this.translateService.instant('snackbar.booking_detail.refund_processed') + `: ${amount}${this.bookingData.currency}`,
+          this.getCloseActionLabel(),
+          { duration: 4000 }
+        );
+        // Proceder con la actualización de fechas
+        onConfirm();
+      },
+      error: (error) => {
+        console.error('Error procesando reembolso:', error);
+        this.snackBar.open(
+          this.translateService.instant('snackbar.error') + ': ' + (error.message || 'Error desconocido'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+      }
+    });
+  }
+
+  /**
+   * MEJORA: Separar la lógica de actualización de actividad
+   */
+  processActivityUpdate(data: any, index: any): void {
+    this.crudService.post('/admin/bookings/update',
+      {
+        dates: data.course_dates,
+        total: data.total,
+        group_id: this.groupedActivities[index].dates[0].booking_users[0].group_id,
+        booking_id: this.id
+      })
+      .subscribe((response) => {
+        this.getBooking();
+        this.snackBar.open(
+          this.translateService.instant('snackbar.booking_detail.update'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+      });
   }
 
 

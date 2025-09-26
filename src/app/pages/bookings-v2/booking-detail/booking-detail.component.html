@@ -166,6 +166,22 @@
       </ng-container>
     </div>
 
+    <!-- Paso 2: Confirmación de pago offline -->
+    <div *ngIf="step === 2" style="margin: 10px 0;">
+      <p style="margin-bottom: 15px;">
+        {{ "payment_method" | translate }}:
+        <strong>{{ selectedPaymentOptionLabel || resolvePaymentLabel(determinePaymentMethodId()) }}</strong>
+      </p>
+
+      <mat-checkbox [(ngModel)]="isPaid" color="primary">
+        {{ "confirm_payment_received" | translate }}
+      </mat-checkbox>
+
+      <p style="font-size: 12px; color: #666; margin-top: 10px;">
+        {{ "payment_confirmation_notice" | translate }}
+      </p>
+    </div>
+
     <!-- Paso 1: Selección de método de pago -->
     <div *ngIf="step === 1" style="margin: 10px 0;">
       <mat-radio-group [(ngModel)]="paymentMethod" (change)="onPaymentMethodChange($event)">
@@ -196,18 +212,39 @@
 
   </div>
   <div footer class="modal-buttons-container">
-    <button (click)="cancelPaymentStep()"
-            class="modal-action-button secondary-button"
-            mat-raised-button
-            type="button">
-      {{"cancel" | translate }}
-    </button>
-    <button (click)="finalizeBooking()"
-            class="modal-action-button primary-button"
-            color="primary"
-            mat-raised-button
-            type="button">
-      {{ paymentMethod === 3 || paymentMethod === 4 ? 'mails.type4' : 'end_reserve_pay' | translate }}
-    </button>
+    <!-- Botones para Step 1 -->
+    <ng-container *ngIf="step === 1">
+      <button (click)="cancelPaymentStep()"
+              class="modal-action-button secondary-button"
+              mat-raised-button
+              type="button">
+        {{"cancel" | translate }}
+      </button>
+      <button (click)="finalizeBooking()"
+              class="modal-action-button primary-button"
+              color="primary"
+              mat-raised-button
+              type="button">
+        {{ paymentMethod === 3 ? 'end_reserve_pay' : (paymentMethod === 4 ? 'mails.type4' : 'continue') | translate }}
+      </button>
+    </ng-container>
+
+    <!-- Botones para Step 2 -->
+    <ng-container *ngIf="step === 2">
+      <button (click)="step = 1"
+              class="modal-action-button secondary-button"
+              mat-raised-button
+              type="button">
+        {{"back" | translate }}
+      </button>
+      <button (click)="finalizeBooking()"
+              class="modal-action-button primary-button"
+              color="primary"
+              mat-raised-button
+              type="button"
+              [disabled]="!isPaid">
+        {{ "confirm_payment" | translate }}
+      </button>
+    </ng-container>
   </div>
 </vex-flux-modal>
