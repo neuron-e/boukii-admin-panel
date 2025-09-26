@@ -490,7 +490,7 @@
                   <span class="error-text">{{ 'orphaned_booking' | translate }}</span>
                   <button mat-icon-button
                           class="repair-btn"
-                          (click)="showOrphanedBookingActions(data[i])"
+                          (click)="showOrphanedBookingActions(data[i]); $event.stopPropagation()"
                           matTooltip="{{ 'click_to_repair' | translate }}">
                     <mat-icon>healing</mat-icon>
                   </button>

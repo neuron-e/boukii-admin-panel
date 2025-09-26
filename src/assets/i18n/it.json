@@ -1315,7 +1315,13 @@
     "attended": "Ha partecipato",
     "not_attended": "Non ha partecipato",
     "unmarked": "Non contrassegnato"
-  }
+  },
+
+  "orphaned_booking": "Prenotazione Orfana",
+  "orphaned_booking_detected": "Prenotazione Orfana Rilevata",
+  "click_to_repair": "Clicca per riparare",
+  "open_repair_tool": "Visualizza Prenotazione",
+  "ignore_for_now": "Ignora per Ora"
 }
 
 

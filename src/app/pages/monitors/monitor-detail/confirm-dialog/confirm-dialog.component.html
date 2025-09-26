@@ -20,8 +20,14 @@
       <h2 style="color: #f44336; margin: 0;">{{defaults.message}}</h2>
     </div>
 
+    <!-- Mensaje de advertencia para reservas huérfanas -->
+    <div *ngIf="!defaults.isError && defaults.title?.includes('Huérfana')" style="display: flex; align-items: flex-start; margin-bottom: 15px;">
+      <mat-icon style="color: #f44336; margin-right: 10px; font-size: 24px; margin-top: 4px;">warning</mat-icon>
+      <div style="color: #f44336; margin: 0; white-space: pre-line; line-height: 1.4;">{{defaults.message}}</div>
+    </div>
+
     <!-- Mensaje normal -->
-    <h1 *ngIf="!defaults.isError">{{defaults.message}}</h1>
+    <h1 *ngIf="!defaults.isError && !defaults.title?.includes('Huérfana')">{{defaults.message}}</h1>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end">
@@ -34,8 +40,12 @@
 
     <!-- Botones normales de confirmación -->
     <div *ngIf="!defaults.isError && !defaults.hideCancel">
-      <button color="primary" mat-flat-button [mat-dialog-close]="true">{{'confirm' | translate}}</button>
-      <button color="primary" mat-flat-button [mat-dialog-close]="false">{{'no' | translate}}</button>
+      <button color="primary" mat-flat-button [mat-dialog-close]="true">
+        {{ defaults.confirmButtonText || ('confirm' | translate) }}
+      </button>
+      <button color="primary" mat-flat-button [mat-dialog-close]="false">
+        {{ defaults.cancelButtonText || ('no' | translate) }}
+      </button>
     </div>
   </mat-dialog-actions>
 </form>

@@ -486,13 +486,15 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
    * MEJORA: Mostrar acciones para reparar reserva huérfana
    */
   showOrphanedBookingActions(booking: any): void {
+    console.log('🔧 Abriendo modal para reserva huérfana:', booking);
+
     const dialogRef = this.dialog.open(ConfirmModalComponent, {
       width: '600px',
       panelClass: 'orphaned-booking-dialog',
       data: {
         title: this.translateService.instant('orphaned_booking_detected'),
         message: this.createOrphanedBookingMessage(booking),
-        isError: true,
+        isError: false, // CAMBIAR A false para permitir botones de confirmación/cancelación
         hideCancel: false,
         confirmButtonText: this.translateService.instant('open_repair_tool'),
         cancelButtonText: this.translateService.instant('ignore_for_now')
@@ -500,11 +502,45 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     });
 
     dialogRef.afterClosed().subscribe((shouldOpenRepairTool) => {
-      if (shouldOpenRepairTool) {
-        // Navegar a la herramienta de reparación
-        this.router.navigate(['/system-maintenance/orphaned-bookings'], {
-          queryParams: { booking_id: booking.id }
-        });
+      console.log('🔧 Modal cerrado. Respuesta del usuario:', shouldOpenRepairTool);
+
+      if (shouldOpenRepairTool === true) {
+        console.log('🔧 Usuario confirmó - navegando al detalle de reserva:', booking.id);
+
+        // Navegar a la ruta correcta: /bookings/update/:id
+        this.router.navigate(['/bookings/update', booking.id])
+          .then((success) => {
+            console.log('🔧 Navegación exitosa:', success);
+            if (success) {
+              // Mostrar mensaje informativo sobre qué hacer
+              setTimeout(() => {
+                console.log('🔧 Reserva huérfana abierta. Contacte con administrador técnico para reparación.');
+              }, 1000);
+            }
+          })
+          .catch((error) => {
+            console.error('🔧 Error en navegación:', error);
+            // Si falla, mostrar mensaje de contacto con administrador
+            this.showContactAdminMessage(booking);
+          });
+      } else {
+        console.log('🔧 Usuario canceló o cerró el modal');
+      }
+    });
+  }
+
+  /**
+   * Mostrar mensaje de contactar administrador si no se puede navegar
+   */
+  private showContactAdminMessage(booking: any): void {
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      width: '500px',
+      data: {
+        title: 'Reserva Requiere Atención Técnica',
+        message: `La reserva #${booking.id} tiene problemas de integridad que requieren intervención técnica.\n\nPor favor, contacte con el administrador del sistema para resolverlo.\n\nReserva: #${booking.id}\nCliente: ${booking.client_main?.name || 'N/A'}`,
+        isError: true,
+        hideCancel: true,
+        confirmButtonText: 'Entendido'
       }
     });
   }
@@ -525,8 +561,15 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       message += '• No tiene participantes válidos\n';
     }
 
+    // Obtener el nombre del cliente de diferentes fuentes posibles
+    const clientName = booking.client_main?.name ||
+                      booking.client_main?.first_name ||
+                      booking.client?.name ||
+                      booking.client?.first_name ||
+                      'Cliente Desconocido';
+
     message += `\nImporte: ${booking.price_total || 0}€`;
-    message += `\nCliente: ${booking.client_main?.name || 'Desconocido'}`;
+    message += `\nCliente: ${clientName}`;
     message += `\n\n¿Deseas abrir la herramienta de reparación para solucionarlo?`;
 
     return message;

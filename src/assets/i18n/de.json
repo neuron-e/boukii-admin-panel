@@ -1314,7 +1314,13 @@
     "attended": "Hat teilgenommen",
     "not_attended": "Hat nicht teilgenommen",
     "unmarked": "Nicht markiert"
-  }
+  },
+
+  "orphaned_booking": "Verwaiste Buchung",
+  "orphaned_booking_detected": "Verwaiste Buchung Erkannt",
+  "click_to_repair": "Zum Reparieren klicken",
+  "open_repair_tool": "Buchung Ansehen",
+  "ignore_for_now": "Vorerst Ignorieren"
 }
 
 

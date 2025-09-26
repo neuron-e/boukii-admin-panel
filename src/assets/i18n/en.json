@@ -1372,6 +1372,12 @@
     "best_time": "Best Time",
     "add_time": "Add Time",
     "export_csv": "Export CSV"
-  }
+  },
+
+  "orphaned_booking": "Orphaned Booking",
+  "orphaned_booking_detected": "Orphaned Booking Detected",
+  "click_to_repair": "Click to repair",
+  "open_repair_tool": "View Booking",
+  "ignore_for_now": "Ignore for Now"
 }
 

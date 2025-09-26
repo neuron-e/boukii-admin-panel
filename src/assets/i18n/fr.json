@@ -1355,7 +1355,13 @@
     "attended": "A assistÃ©",
     "not_attended": "N'a pas assistÃ©",
     "unmarked": "Non marquÃ©"
-  }
+  },
+
+  "orphaned_booking": "Réservation Orpheline",
+  "orphaned_booking_detected": "Réservation Orpheline Détectée",
+  "click_to_repair": "Cliquer pour réparer",
+  "open_repair_tool": "Voir la Réservation",
+  "ignore_for_now": "Ignorer pour l'Instant"
 }
 
 
