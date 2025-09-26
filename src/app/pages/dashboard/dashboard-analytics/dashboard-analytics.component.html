@@ -1,156 +1,402 @@
 <vex-page-layout>
-
-  <!--<vex-secondary-toolbar current="Home">
-    <vex-breadcrumbs [crumbs]="[{text:'menu.home', icon: ''}]" class="flex"></vex-breadcrumbs>
-    <button class="ml-2" color="primary" mat-icon-button type="button">
-      <mat-icon svgIcon="mat:more_vert"></mat-icon>
-    </button>
-  </vex-secondary-toolbar>-->
-
   <vex-secondary-toolbar current>
     <vex-breadcrumbs [crumbs]="[
-    {icon:'home'},
-    {text:'menu.home', title: true},
-    {text:'list', subtitle: true},
+      {icon:'home'},
+      {text:'menu.home', title: true},
+      {text:'dashboard', subtitle: true}
     ]" class="flex"></vex-breadcrumbs>
+
+    <!-- Refresh button -->
+    <button mat-icon-button (click)="refreshData()" [disabled]="loading" class="ml-auto">
+      <mat-icon [class.animate-spin]="loading">refresh</mat-icon>
+    </button>
+
+    <!-- Last updated -->
+    <span class="text-sm text-secondary ml-2" *ngIf="!loading && dashboardMetrics">
+      {{ 'last_updated' | translate }}: {{ getLastUpdated() }}
+    </span>
   </vex-secondary-toolbar>
 
   <vex-page-layout-content class="fullwidth">
-    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-      <vex-widget-assistant class="sm:col-span-2" style="display: flex;"
-        [date]="date" (dateEvent)="emitDate($event)"></vex-widget-assistant>
-
-      <!--<vex-widget-quick-line-chart
-        [series]="pageViewsSeries"
-        icon="mat:pageview"
-        iconClass="text-primary-600 bg-primary-600/10"
-        label="Page Views"
-        value="92.4k"></vex-widget-quick-line-chart>
-
-      <vex-widget-quick-line-chart
-        [options]="uniqueUsersOptions"
-        [series]="uniqueUsersSeries"
-        icon="mat:group"
-        iconClass="text-orange-600 bg-orange-600/10"
-        label="Unique Users"
-        value="67.2k"></vex-widget-quick-line-chart>-->
-      <div
-        style="width: 100%;float:left; border-radius: 10px;">
-        <div class="card" style="height:100%; padding: 2.5%;">
-          <div style="width: 100%;">
-            <mat-icon svgIcon="mat:check" style="margin:2%; color:#CEE741"
-              *ngIf="getPrivateNoAssigned() === 0 && getColNoAssigned() === 0"></mat-icon>
-            <mat-icon svgIcon="mat:warning" style="margin:2%; color:red"
-              *ngIf="getPrivateNoAssigned() > 0 || getColNoAssigned() > 0"></mat-icon>
-            <p style="text-align: center;font-size: 20px;">{{
-              'courses.title' | translate }}</p>
-          </div>
-          <div style="width: 100%;text-align-last: center;">
-            <mat-icon svgIcon="logo:cursos"
-              style="width:75px; height:75px"></mat-icon>
-            <p
-              style="float: left;width:100%;text-align: center;font-size: 20px;"><b>{{
-                'courses.title' | translate }}</b></p>
-          </div>
-          <div style="width: 100%;margin: 5% 0 0 0;display: inline-flex;">
-            <div
-              style="width: 48%; display:inline-block; vertical-align:top;">
-              <p style="width:100%;text-align: center;">{{
-                'private' | translate }}</p>
-              <p
-                style="width:100%;text-align: center;color:#F24726; font-size: 40px;font-weight: bold;margin: 8% 0 0 0;line-height: 50px;">{{getPrivateNoAssigned()}}</p>
-            </div>
-            <div style="width: 48%;">
-              <p
-                style="width:100%;text-align: center; display:inline-block; vertical-align:top;">{{
-                'colective' | translate }}</p>
-              <p
-                style="width:100%;text-align: center;color:#CEE741; font-size: 40px;font-weight: bold;margin: 8% 0 0 0;line-height: 50px;">{{getColNoAssigned()}}</p>
-            </div>
-          </div>
+    <!-- Loading skeleton -->
+    <div *ngIf="loading" class="p-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div *ngFor="let i of [1,2,3,4]" class="card animate-pulse">
+          <div class="h-32 bg-gray-200 rounded"></div>
         </div>
       </div>
-
-      <div
-        style="width: 100%;float:left;border-radius: 10px;">
-        <div class="card" style="height:100%; padding: 2.5%;">
-          <div style="width: 100%;">
-            <mat-icon svgIcon="mat:warning" style="margin:2%; color:red"
-              *ngIf="getPaidBookings() > 0"></mat-icon>
-            <mat-icon svgIcon="mat:check" style="margin:2%; color:#CEE741"
-              *ngIf="getPaidBookings() === 0"></mat-icon>
-            <p style="text-align: center;font-size: 20px;">{{
-              'bookings' | translate }}</p>
-          </div>
-
-          <div style="width: 100%;text-align-last: center;">
-            <mat-icon svgIcon="logo:reservas"
-              style="width:75px; height:75px"></mat-icon>
-            <p
-              style="float: left;width:100%;text-align: center;font-size: 20px;"><b>{{
-                'no_payed' | translate }}</b></p>
-          </div>
-
-          <div style="width: 100%;margin: 10% 0 0 0;">
-            <div style="width: 100%;float:left; margin: 0 2% 0 2%; height:75px">
-              <p
-                style="float: left;width:100%;text-align: center;color:#F24726; font-size: 40px;font-weight: bold;margin: 8% 0 0 0;line-height: 50px;">{{getPaidBookings()}}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <vex-widget-large-goal-chart
-        [series]="salesSeries"
-        class="sm:col-span-full"
-        total="4,374"></vex-widget-large-goal-chart>
-
-      <vex-widget-quick-value-center
-        [change]="''"
-        [bg]="'#31794B'"
-        [valueColor]="'#29C840'"
-        icon="mat:person"
-        iconClass="text-primary-600 bg-primary-600/10"
-        label="course_private"
-        label_secondary="available_places"
-        [value]="dispoPrivate.toString()"></vex-widget-quick-value-center>
-      <vex-widget-quick-value-center
-        [change]="''"
-        [bg]="'#806B20'"
-        [valueColor]="'#FAC710'"
-        icon="mat:group"
-        iconClass="text-primary-600 bg-primary-600/10"
-        label="course_colective"
-        label_secondary="available_places"
-        [value]="dispoCol.toString()"></vex-widget-quick-value-center>
-      <vex-widget-quick-value-center
-        [change]="''"
-        [bg]="'#2D9BF0'"
-        [valueColor]="'#414BB2'"
-        icon="mat:local_activity"
-        iconClass="text-primary-600 bg-primary-600/10"
-        label="today_bookings"
-        label_secondary="available_places"
-        [value]="bookings.toString()"></vex-widget-quick-value-center>
-      <vex-widget-quick-value-center
-        [change]="''"
-        [bg]="'#A479DF'"
-        [valueColor]="'#652CB3'"
-        icon="mat:block"
-        iconClass="text-primary-600 bg-primary-600/10"
-        label="paid_blocks"
-        label_secondary
-        [value]="blockages.toString()"></vex-widget-quick-value-center>
-
-      <vex-widget-large-chart
-        [series]="userSessionsSeries"
-        class="sm:col-span-2"></vex-widget-large-chart>
-
-      <vex-widget-table
-        [columns]="tableColumns"
-        [data]="bookingList"
-        class="sm:col-span-2"></vex-widget-table>
     </div>
 
+    <!-- Dashboard content -->
+    <div *ngIf="!loading && dashboardMetrics" class="p-6">
+
+      <!-- ROW 1: Bienvenida + Meteo + Quick Stats -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+        <!-- Widget de Meteo y Bienvenida (MANTENER 100% INTACTO) -->
+        <div class="lg:col-span-2">
+          <vex-widget-assistant
+            [date]="date"
+            (dateEvent)="emitDate($event)">
+          </vex-widget-assistant>
+        </div>
+
+        <!-- Quick Stats del día -->
+        <div class="card">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="headline">{{ 'today_summary' | translate }}</h3>
+              <mat-icon class="text-primary">today</mat-icon>
+            </div>
+
+            <div class="space-y-4">
+              <!-- Reservas de hoy -->
+              <div class="flex justify-between items-center">
+                <span class="body-2 text-secondary">{{ 'bookings_today' | translate }}</span>
+                <span class="subheading-2 font-medium text-primary">
+                  {{ dashboardMetrics.quickStats.reservasHoy }}
+                </span>
+              </div>
+
+              <!-- Ingresos de hoy -->
+              <div class="flex justify-between items-center">
+                <span class="body-2 text-secondary">{{ 'revenue_today' | translate }}</span>
+                <span class="subheading-2 font-medium text-green-600">
+                  {{ formatCurrency(dashboardMetrics.quickStats.ingresosHoy) }}
+                </span>
+              </div>
+
+              <!-- Ocupación actual -->
+              <div class="flex justify-between items-center">
+                <span class="body-2 text-secondary">{{ 'occupancy' | translate }}</span>
+                <span class="subheading-2 font-medium text-blue-600">
+                  {{ formatPercentage(occupancy?.total.porcentaje || 0) }}
+                </span>
+              </div>
+
+              <!-- Alertas críticas -->
+              <div class="flex justify-between items-center"
+                   [class.cursor-pointer]="totalAlerts > 0"
+                   (click)="totalAlerts > 0 && navigateToBookings()">
+                <span class="body-2 text-secondary">{{ 'critical_alerts' | translate }}</span>
+                <span class="subheading-2 font-medium"
+                      [class.text-red-600]="totalAlerts > 0"
+                      [class.text-green-600]="totalAlerts === 0">
+                  <mat-icon class="inline-block w-4 h-4 mr-1"
+                           *ngIf="totalAlerts > 0">warning</mat-icon>
+                  {{ totalAlerts }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 2: Métricas Críticas de Negocio -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+
+        <!-- 🚨 Alertas Críticas -->
+        <vex-widget-quick-value-center
+          [value]="totalAlerts.toString()"
+          [bg]="totalAlerts > 0 ? '#fef2f2' : '#f0fdf4'"
+          [valueColor]="totalAlerts > 0 ? '#dc2626' : '#16a34a'"
+          icon="warning"
+          [label]="'critical_alerts'"
+          [label_secondary]="'requires_attention'"
+          (click)="totalAlerts > 0 && navigateToBookings()">
+        </vex-widget-quick-value-center>
+
+        <!-- 💰 Ingresos del Mes -->
+        <vex-widget-quick-value-center
+          [value]="formatCurrency(revenue?.ingresosMes || 0)"
+          [bg]="'#f0fdf4'"
+          [valueColor]="'#059669'"
+          [icon]="getTrendIcon(revenue?.tendencia || 'stable')"
+          [label]="'monthly_revenue'"
+          [label_secondary]="'current_month'"
+          (click)="navigateToAnalytics()">
+        </vex-widget-quick-value-center>
+
+        <!-- 📊 Ocupación Privados -->
+        <vex-widget-quick-value-center
+          [value]="formatPercentage(occupancy?.cursosPrivados.porcentaje || 0)"
+          [bg]="'#eff6ff'"
+          [valueColor]="'#2563eb'"
+          icon="person"
+          [label]="'private_courses'"
+          [label_secondary]="'occupancy_rate'"
+          (click)="navigateToCourses()">
+        </vex-widget-quick-value-center>
+
+        <!-- 📊 Ocupación Colectivos -->
+        <vex-widget-quick-value-center
+          [value]="formatPercentage(occupancy?.cursosColectivos.porcentaje || 0)"
+          [bg]="'#fffbeb'"
+          [valueColor]="'#d97706'"
+          icon="group"
+          [label]="'collective_courses'"
+          [label_secondary]="'occupancy_rate'"
+          (click)="navigateToCourses()">
+        </vex-widget-quick-value-center>
+      </div>
+
+      <!-- ROW 3: Análisis Operativo -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <!-- Gráfico de Tendencias de Reservas -->
+        <div class="card">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="headline">{{ 'booking_trends' | translate }}</h3>
+              <span class="body-2 text-secondary">{{ 'last_30_days' | translate }}</span>
+            </div>
+
+            <vex-chart
+              [options]="trendChartOptions"
+              [series]="revenueChartSeries"
+              class="chart">
+            </vex-chart>
+          </div>
+        </div>
+
+        <!-- KPIs de Rendimiento -->
+        <div class="card">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="headline">{{ 'performance_kpis' | translate }}</h3>
+              <mat-icon class="text-primary">analytics</mat-icon>
+            </div>
+
+            <div class="space-y-6">
+              <!-- Ocupación Total -->
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <span class="body-2">{{ 'total_occupancy' | translate }}</span>
+                  <span class="subheading-2 font-medium">
+                    {{ formatPercentage(occupancy?.total.porcentaje || 0) }}
+                  </span>
+                </div>
+                <mat-progress-bar
+                  mode="determinate"
+                  [value]="occupancy?.total.porcentaje || 0"
+                  class="h-2 rounded">
+                </mat-progress-bar>
+              </div>
+
+              <!-- Cursos Privados -->
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <span class="body-2">{{ 'private_courses' | translate }}</span>
+                  <span class="body-2 text-secondary">
+                    {{ occupancy?.cursosPrivados.ocupados || 0 }} /
+                    {{ (occupancy?.cursosPrivados.ocupados || 0) + (occupancy?.cursosPrivados.disponibles || 0) }}
+                  </span>
+                </div>
+                <mat-progress-bar
+                  mode="determinate"
+                  [value]="occupancy?.cursosPrivados.porcentaje || 0"
+                  color="primary"
+                  class="h-2 rounded">
+                </mat-progress-bar>
+              </div>
+
+              <!-- Cursos Colectivos -->
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <span class="body-2">{{ 'collective_courses' | translate }}</span>
+                  <span class="body-2 text-secondary">
+                    {{ occupancy?.cursosColectivos.ocupados || 0 }} /
+                    {{ (occupancy?.cursosColectivos.ocupados || 0) + (occupancy?.cursosColectivos.disponibles || 0) }}
+                  </span>
+                </div>
+                <mat-progress-bar
+                  mode="determinate"
+                  [value]="occupancy?.cursosColectivos.porcentaje || 0"
+                  color="accent"
+                  class="h-2 rounded">
+                </mat-progress-bar>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 4: Actividades Próximas y Alertas Detalladas -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <!-- Lista de Próximas Actividades -->
+        <div class="card">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="headline">{{ 'upcoming_activities' | translate }}</h3>
+              <button mat-icon-button (click)="viewTodaysCalendar()">
+                <mat-icon>calendar_today</mat-icon>
+              </button>
+            </div>
+
+            <div class="space-y-3" *ngIf="upcomingActivities.length > 0; else noActivities">
+              <div *ngFor="let activity of upcomingActivities"
+                   class="flex items-center p-3 rounded-lg border border-divider hover:bg-hover cursor-pointer transition-colors"
+                   (click)="navigateToBookings()">
+
+                <div class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center mr-3"
+                     [class.bg-green-100]="activity.status === 'confirmed'"
+                     [class.bg-orange-100]="activity.status === 'warning'"
+                     [class.bg-blue-100]="activity.status === 'pending'">
+                  <mat-icon class="text-sm"
+                           [class.text-green-600]="activity.status === 'confirmed'"
+                           [class.text-orange-600]="activity.status === 'warning'"
+                           [class.text-blue-600]="activity.status === 'pending'">
+                    {{ activity.type === 'private' ? 'person' : 'group' }}
+                  </mat-icon>
+                </div>
+
+                <div class="flex-grow min-w-0">
+                  <div class="flex items-center justify-between">
+                    <span class="font-medium truncate">{{ activity.clientName }}</span>
+                    <span class="text-sm text-secondary">{{ activity.time }}</span>
+                  </div>
+                  <div class="text-sm text-secondary truncate">{{ activity.courseName }}</div>
+                  <div class="text-xs" [ngClass]="getStatusColor(activity.status)" *ngIf="activity.monitor">
+                    {{ activity.monitor }}
+                  </div>
+                </div>
+
+                <mat-icon class="text-secondary flex-shrink-0" *ngIf="activity.status === 'warning'">
+                  warning
+                </mat-icon>
+              </div>
+            </div>
+
+            <ng-template #noActivities>
+              <div class="text-center py-8 text-secondary">
+                <mat-icon class="text-6xl mb-4">event_available</mat-icon>
+                <p>{{ 'no_activities_scheduled' | translate }}</p>
+              </div>
+            </ng-template>
+          </div>
+        </div>
+
+        <!-- Panel de Alertas Detalladas -->
+        <div class="card">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="headline">{{ 'system_alerts' | translate }}</h3>
+              <mat-icon class="text-primary">notifications</mat-icon>
+            </div>
+
+            <div class="space-y-3">
+              <!-- Reservas Huérfanas -->
+              <div class="flex items-center justify-between p-3 rounded-lg"
+                   [class.bg-red-50]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
+                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
+                   (click)="criticalAlerts && criticalAlerts.reservasHuerfanas > 0 && navigateToOrphanedBookings()">
+                <div class="flex items-center">
+                  <mat-icon class="mr-3"
+                           [class.text-red-600]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
+                           [class.text-green-600]="!criticalAlerts || criticalAlerts.reservasHuerfanas === 0">
+                    {{ criticalAlerts && criticalAlerts.reservasHuerfanas > 0 ? 'error_outline' : 'check_circle' }}
+                  </mat-icon>
+                  <span class="body-2">{{ 'orphaned_bookings' | translate }}</span>
+                </div>
+                <span class="subheading-2 font-medium"
+                      [class.text-red-600]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0">
+                  {{ criticalAlerts?.reservasHuerfanas || 0 }}
+                </span>
+              </div>
+
+              <!-- Cursos sin Monitor -->
+              <div class="flex items-center justify-between p-3 rounded-lg"
+                   [class.bg-orange-50]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
+                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
+                   (click)="criticalAlerts && criticalAlerts.cursosSinMonitor > 0 && navigateToBookings()">
+                <div class="flex items-center">
+                  <mat-icon class="mr-3"
+                           [class.text-orange-600]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
+                           [class.text-green-600]="!criticalAlerts || criticalAlerts.cursosSinMonitor === 0">
+                    {{ criticalAlerts && criticalAlerts.cursosSinMonitor > 0 ? 'person_off' : 'check_circle' }}
+                  </mat-icon>
+                  <span class="body-2">{{ 'courses_without_monitor' | translate }}</span>
+                </div>
+                <span class="subheading-2 font-medium"
+                      [class.text-orange-600]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0">
+                  {{ criticalAlerts?.cursosSinMonitor || 0 }}
+                </span>
+              </div>
+
+              <!-- Pagos Pendientes -->
+              <div class="flex items-center justify-between p-3 rounded-lg"
+                   [class.bg-yellow-50]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
+                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
+                   (click)="criticalAlerts && criticalAlerts.pagosPendientes > 0 && navigateToBookings()">
+                <div class="flex items-center">
+                  <mat-icon class="mr-3"
+                           [class.text-yellow-600]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
+                           [class.text-green-600]="!criticalAlerts || criticalAlerts.pagosPendientes === 0">
+                    {{ criticalAlerts && criticalAlerts.pagosPendientes > 0 ? 'payment' : 'check_circle' }}
+                  </mat-icon>
+                  <span class="body-2">{{ 'pending_payments' | translate }}</span>
+                </div>
+                <span class="subheading-2 font-medium"
+                      [class.text-yellow-600]="criticalAlerts && criticalAlerts.pagosPendientes > 0">
+                  {{ criticalAlerts?.pagosPendientes || 0 }}
+                </span>
+              </div>
+
+              <!-- Capacidad Crítica -->
+              <div class="flex items-center justify-between p-3 rounded-lg"
+                   [class.bg-blue-50]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
+                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
+                   (click)="criticalAlerts && criticalAlerts.capacidadCritica > 0 && navigateToCourses()">
+                <div class="flex items-center">
+                  <mat-icon class="mr-3"
+                           [class.text-blue-600]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
+                           [class.text-green-600]="!criticalAlerts || criticalAlerts.capacidadCritica === 0">
+                    {{ criticalAlerts && criticalAlerts.capacidadCritica > 0 ? 'trending_up' : 'check_circle' }}
+                  </mat-icon>
+                  <span class="body-2">{{ 'critical_capacity' | translate }}</span>
+                </div>
+                <span class="subheading-2 font-medium"
+                      [class.text-blue-600]="criticalAlerts && criticalAlerts.capacidadCritica > 0">
+                  {{ criticalAlerts?.capacidadCritica || 0 }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 5: Quick Actions -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+        <button mat-raised-button color="primary" class="p-4 h-auto" (click)="createQuickBooking()">
+          <div class="flex flex-col items-center">
+            <mat-icon class="mb-2">add_circle_outline</mat-icon>
+            <span class="text-sm">{{ 'create_booking' | translate }}</span>
+          </div>
+        </button>
+
+        <button mat-raised-button class="p-4 h-auto" (click)="viewTodaysCalendar()">
+          <div class="flex flex-col items-center">
+            <mat-icon class="mb-2">calendar_today</mat-icon>
+            <span class="text-sm">{{ 'view_calendar' | translate }}</span>
+          </div>
+        </button>
+
+        <button mat-raised-button class="p-4 h-auto" (click)="navigateToAnalytics()">
+          <div class="flex flex-col items-center">
+            <mat-icon class="mb-2">analytics</mat-icon>
+            <span class="text-sm">{{ 'analytics' | translate }}</span>
+          </div>
+        </button>
+
+        <button mat-raised-button class="p-4 h-auto" (click)="exportDailyReport()">
+          <div class="flex flex-col items-center">
+            <mat-icon class="mb-2">download</mat-icon>
+            <span class="text-sm">{{ 'export_report' | translate }}</span>
+          </div>
+        </button>
+      </div>
+    </div>
   </vex-page-layout-content>
 </vex-page-layout>

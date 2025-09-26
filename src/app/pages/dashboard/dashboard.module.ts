@@ -8,6 +8,9 @@ import { RouterModule } from '@angular/router';
 import { DashboardRoutingModule } from './dashboard-routing.module';
 import { SecondaryToolbarModule } from 'src/@vex/components/secondary-toolbar/secondary-toolbar.module';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatCardModule } from '@angular/material/card';
 import { WidgetLargeGoalChartModule } from 'src/@vex/components/widgets/widget-large-goal-chart/widget-large-goal-chart.module';
 import { WidgetQuickValueStartModule } from 'src/@vex/components/widgets/widget-quick-value-start/widget-quick-value-start.module';
 import { WidgetQuickValueCenterModule } from 'src/@vex/components/widgets/widget-quick-value-center/widget-quick-value-center.module';
@@ -21,34 +24,43 @@ import { WidgetSummaryChartsModule } from 'src/@vex/components/widgets/widget-su
 import { WidgetSummaryMonitorsModule } from 'src/@vex/components/widgets/widget-summary-monitors/widget-summary-monitors.module';
 import { WidgetSummaryTasksModule } from 'src/@vex/components/widgets/widget-summary-tasks/widget-summary-tasks.module';
 import { ComponentsModule } from 'src/@vex/components/components.module';
-import {TranslateModule} from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
+
+// Importar el nuevo servicio
+import { DashboardService } from '../../services/dashboard.service';
 
 @NgModule({
   declarations: [DashboardAnalyticsComponent],
-    imports: [
-        CommonModule,
-        LayoutModule,
-        PageLayoutModule,
-        BreadcrumbsModule,
-        RouterModule,
-        DashboardRoutingModule,
-        SecondaryToolbarModule,
-        MatIconModule,
-        ChartModule,
-        WidgetQuickLineChartModule,
-        WidgetQuickValueCenterModule,
-        WidgetQuickValueStartModule,
-        WidgetLargeGoalChartModule,
-        WidgetAssistantModule,
-        WidgetLargeChartModule,
-        WidgetTableModule,
-        WidgetSummaryChartsModule,
-        WidgetSummaryModule,
-        WidgetSummaryMonitorsModule,
-        WidgetSummaryTasksModule,
-        ComponentsModule,
-        TranslateModule
-    ]
+  imports: [
+    CommonModule,
+    LayoutModule,
+    PageLayoutModule,
+    BreadcrumbsModule,
+    RouterModule,
+    DashboardRoutingModule,
+    SecondaryToolbarModule,
+    MatIconModule,
+    MatButtonModule,
+    MatProgressBarModule,
+    MatCardModule,
+    ChartModule,
+    WidgetQuickLineChartModule,
+    WidgetQuickValueCenterModule,
+    WidgetQuickValueStartModule,
+    WidgetLargeGoalChartModule,
+    WidgetAssistantModule,
+    WidgetLargeChartModule,
+    WidgetTableModule,
+    WidgetSummaryChartsModule,
+    WidgetSummaryModule,
+    WidgetSummaryMonitorsModule,
+    WidgetSummaryTasksModule,
+    ComponentsModule,
+    TranslateModule
+  ],
+  providers: [
+    DashboardService
+  ]
 })
 export class DashboardModule {
 }

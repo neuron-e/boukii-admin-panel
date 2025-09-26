@@ -1,208 +1,298 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import moment from 'moment';
-import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
-import { defaultChartOptions } from 'src/@vex/utils/default-chart-options';
-import { Order, tableSalesData } from 'src/app/static-data/table-sales-data';
-import { ApiCrudService } from 'src/service/crud.service';
+import { Router } from '@angular/router';
+import * as moment from 'moment';
+import { Subject, takeUntil } from 'rxjs';
+import { TableColumn } from '../../../../@vex/interfaces/table-column.interface';
+import { defaultChartOptions } from '../../../../@vex/utils/default-chart-options';
+import { DashboardService } from '../../../services/dashboard.service';
+import {
+  DashboardMetrics,
+  CriticalAlerts,
+  RevenueMetrics,
+  OccupancyData,
+  BookingActivity
+} from '../../../interfaces/dashboard-metrics.interface';
 
 @Component({
   selector: 'vex-dashboard-analytics',
   templateUrl: './dashboard-analytics.component.html',
   styleUrls: ['./dashboard-analytics.component.scss']
 })
-export class DashboardAnalyticsComponent implements OnInit {
+export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
 
-  tableColumns: TableColumn<any>[] = [
+  // Dashboard data
+  dashboardMetrics: DashboardMetrics | null = null;
+  loading = true;
+  user: any;
+  date = moment();
+
+  // Chart configurations
+  occupancyChartOptions: any;
+  trendChartOptions: any;
+  revenueChartSeries: any[] = [];
+
+  // Table configuration for recent bookings
+  recentBookingsColumns: TableColumn<BookingActivity>[] = [
     {
-      label: 'ID',
-      property: 'id',
+      label: 'time',
+      property: 'time',
       type: 'text'
     },
-
     {
-      label: this.TranslateService.instant('type'),
+      label: 'client',
+      property: 'clientName',
+      type: 'text'
+    },
+    {
+      label: 'course',
+      property: 'courseName',
+      type: 'text'
+    },
+    {
+      label: 'type',
       property: 'type',
-      type: 'booking_users_image'
-    },
-    { label: this.TranslateService.instant('course'), property: 'booking_users', type: 'booking_users' },
-    { label: this.TranslateService.instant('client'), property: 'client_main', type: 'client' },
-
-  ];
-
-  userSessionsSeries: ApexAxisChartSeries = [
-    {
-      name: this.TranslateService.instant('users'),
-      data: [10, 50, 26, 50, 38, 60, 50, 25, 61, 80, 40, 60]
+      type: 'badge'
     },
     {
-      name: this.TranslateService.instant('Sessions'),
-      data: [5, 21, 42, 70, 41, 20, 35, 50, 10, 15, 30, 50]
+      label: 'status',
+      property: 'status',
+      type: 'badge'
     }
   ];
 
-  salesSeries: ApexAxisChartSeries = [
-    {
-      name: this.TranslateService.instant('Sales'),
-      data: [28, 40, 36, 0, 52, 38, 60, 55, 99, 54, 38, 87]
-    }
-  ];
-
-  pageViewsSeries: ApexAxisChartSeries = [
-    {
-      name: this.TranslateService.instant('Page Views'),
-      data: [405, 800, 200, 600, 105, 788, 600, 204]
-    }
-  ];
-
-  uniqueUsersSeries: ApexAxisChartSeries = [
-    {
-      name: this.TranslateService.instant('Unique Users'),
-      data: [356, 806, 600, 754, 432, 854, 555, 1004]
-    }
-  ];
-
-  uniqueUsersOptions = defaultChartOptions({
-    chart: {
-      type: 'area',
-      height: 100
-    },
-    colors: ['#ff9800']
-  });
-
-  user: any;
-  blockages = [];
-  meteo = [];
-  dispoPrivate = 0;
-  dispoCol = 0;
-  bookings = 0;
-  bookingList = [];
-
-  date = moment();
-  constructor(private crudService: ApiCrudService, private TranslateService: TranslateService) {
-    this.user = JSON.parse(localStorage.getItem('boukiiUser'));
+  constructor(
+    private dashboardService: DashboardService,
+    private translateService: TranslateService,
+    private router: Router
+  ) {
+    this.user = JSON.parse(localStorage.getItem('boukiiUser') || '{}');
+    this.initializeChartOptions();
   }
 
   ngOnInit(): void {
-    this.getData();
+    this.loadDashboardData();
+
+    // Auto-refresh every 5 minutes
+    setInterval(() => {
+      this.loadDashboardData();
+    }, 5 * 60 * 1000);
   }
 
-  getData() {
-    this.getBlockages();
-    this.getCourses();
-    this.getBookings();
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  emitDate(event: any) {
+  /**
+   * Carga todos los datos del dashboard
+   */
+  loadDashboardData(): void {
+    this.loading = true;
+
+    this.dashboardService.getDashboardMetrics(this.date)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (metrics) => {
+          this.dashboardMetrics = metrics;
+          this.updateChartData(metrics);
+          this.loading = false;
+        },
+        error: (error) => {
+          console.error('Error loading dashboard metrics:', error);
+          this.loading = false;
+          // Crear datos mínimos para evitar cajas vacías
+          this.dashboardMetrics = {
+            alertas: { reservasHuerfanas: 0, cursosSinMonitor: 0, pagosPendientes: 0, conflictosHorarios: 0, capacidadCritica: 0 },
+            revenue: { ingresosHoy: 0, ingresosSemana: 0, ingresosMes: 0, tendencia: 'stable', comparacionPeriodoAnterior: 0, moneda: 'EUR' },
+            ocupacion: { cursosPrivados: { ocupados: 0, disponibles: 0, porcentaje: 0 }, cursosColectivos: { ocupados: 0, disponibles: 0, porcentaje: 0 }, total: { ocupados: 0, disponibles: 0, porcentaje: 0 } },
+            proximasActividades: { proximasHoras: [], alertasCapacidad: [], monitorPendiente: [] },
+            tendencias: { reservasUltimos30Dias: [0, 0, 0, 0, 0, 0, 0], fechas: ['L', 'M', 'X', 'J', 'V', 'S', 'D'], comparacionPeriodoAnterior: { reservas: 0, ingresos: 0 } },
+            quickStats: { reservasHoy: 0, ingresosHoy: 0, ocupacionActual: 0, alertasCriticas: 0 },
+            lastUpdated: new Date().toISOString()
+          };
+        }
+      });
+  }
+
+  /**
+   * Maneja el cambio de fecha del widget de meteo
+   */
+  emitDate(event: any): void {
     this.date = moment(event);
-    this.getData();
+    this.loadDashboardData();
   }
 
-  getBlockages() {
-    this.crudService.list('/school-colors', 1, 10000, 'desc', 'id', '&school_id=' + this.user.schools[0].id)
-      .subscribe((data) => {
-        this.blockages = data.data.length;
-      })
+  /**
+   * Actualiza los datos de los gráficos
+   */
+  private updateChartData(metrics: DashboardMetrics): void {
+    // Gráfico de tendencias
+    this.revenueChartSeries = [
+      {
+        name: this.translateService.instant('bookings'),
+        data: metrics.tendencias.reservasUltimos30Dias
+      }
+    ];
+
+    // Actualizar opciones de gráficos con nuevos datos
+    this.trendChartOptions = {
+      ...this.trendChartOptions,
+      xaxis: {
+        categories: metrics.tendencias.fechas
+      }
+    };
   }
 
-  getCourses() {
-    this.crudService.list(
-      '/admin/courses',
-      1,
-      10000,
-      'desc',
-      'id',
-      '&school_id=' + this.user.schools[0].id + '&date_start=' + this.date.format('YYYY-MM-DD') + '&course_type=1',
-      '',
-      null,
-      '',
-      ['sport', 'courseDates.courseSubgroups']
-    )
-      .subscribe((data) => {
-        this.dispoCol = data.data.reduce((accumulator, currentObject) => {
-          return accumulator + currentObject.total_available_places;
-        }, 0);
-
-      })
-    this.crudService.list(
-      '/admin/courses',
-      1,
-      10000,
-      'desc',
-      'id',
-      '&school_id=' + this.user.schools[0].id + '&date_start=' + this.date.format('YYYY-MM-DD') + '&course_type=2',
-      '',
-      null,
-      '',
-      ['sport', 'courseDates.courseSubgroups']
-    )
-      .subscribe((data) => {
-        this.dispoPrivate = data.data.reduce((accumulator, currentObject) => {
-          return accumulator + currentObject.total_available_places;
-        }, 0);
-
-      })
-  }
-
-  getBookings() {
-    this.bookingList = [];
-    this.crudService.list('/booking-users', 1, 10000, 'desc', 'id',
-      '&school_id=' + this.user.schools[0].id + '&date=' + this.date.format('YYYY-MM-DD'), '', null, null, ['client'])
-      .subscribe((data) => {
-        this.bookings = data.data.length;
-
-        let bookingIds = new Set();
-        data.data.forEach(item => {
-          if (item.booking_id !== undefined && item.booking_id !== null) {
-            bookingIds.add(item.booking_id);
-          }
-        });
-
-        // Si necesitas el resultado como un array
-        let uniqueBookingIds = Array.from(bookingIds);
-
-        uniqueBookingIds.forEach(element => {
-          this.crudService.get('/bookings/' + element, ['clientMain', 'bookingUsers.course'])
-            .subscribe((bo) => {
-              this.bookingList = this.bookingList.concat(bo.data);
-            })
-        });
-      })
-  }
-
-  getPaidBookings() {
-    return this.bookingList.filter((b) => !b.paid).length;
-  }
-
-  getPrivateNoAssigned() {
-
-    let ret = 0;
-    this.bookingList.forEach(element => {
-
-      element.booking_users.forEach(bu => {
-        if (bu.course.course_type === 2 && bu.monitor_id === null) {
-          ret = ret + 1;
-
-        }
-      });
+  /**
+   * Inicializa las configuraciones de los gráficos
+   */
+  private initializeChartOptions(): void {
+    this.occupancyChartOptions = defaultChartOptions({
+      chart: {
+        type: 'donut',
+        height: 200
+      },
+      colors: ['#4CAF50', '#FF9800'],
+      legend: {
+        show: true,
+        position: 'bottom'
+      }
     });
 
-    return ret;
+    this.trendChartOptions = defaultChartOptions({
+      chart: {
+        type: 'area',
+        height: 300,
+        toolbar: {
+          show: false
+        }
+      },
+      colors: ['#2196F3'],
+      stroke: {
+        curve: 'smooth'
+      },
+      fill: {
+        type: 'gradient',
+        gradient: {
+          shadeIntensity: 1,
+          opacityFrom: 0.7,
+          opacityTo: 0.3
+        }
+      }
+    });
   }
 
-  getColNoAssigned() {
+  // Getters para facilitar el acceso a datos en el template
+  get criticalAlerts(): CriticalAlerts | null {
+    return this.dashboardMetrics?.alertas || null;
+  }
 
-    let ret = 0;
-    this.bookingList.forEach(element => {
+  get revenue(): RevenueMetrics | null {
+    return this.dashboardMetrics?.revenue || null;
+  }
 
-      element.booking_users.forEach(bu => {
-        if (bu.course.course_type === 1 && bu.monitor_id === null) {
-          ret = ret + 1;
+  get occupancy(): OccupancyData | null {
+    return this.dashboardMetrics?.ocupacion || null;
+  }
 
-        }
-      });
+  get upcomingActivities(): BookingActivity[] {
+    return this.dashboardMetrics?.proximasActividades.proximasHoras || [];
+  }
+
+  get totalAlerts(): number {
+    const alerts = this.criticalAlerts;
+    if (!alerts) return 0;
+
+    return alerts.reservasHuerfanas +
+           alerts.cursosSinMonitor +
+           alerts.pagosPendientes +
+           alerts.conflictosHorarios +
+           alerts.capacidadCritica;
+  }
+
+  // Métodos de navegación
+  navigateToBookings(): void {
+    this.router.navigate(['/bookings']);
+  }
+
+  navigateToOrphanedBookings(): void {
+    this.router.navigate(['/bookings'], { queryParams: { filter: 'orphaned' } });
+  }
+
+  navigateToCourses(): void {
+    this.router.navigate(['/courses-v2']);
+  }
+
+  navigateToAnalytics(): void {
+    this.router.navigate(['/analytics-v2']);
+  }
+
+  navigateToClients(): void {
+    this.router.navigate(['/clients']);
+  }
+
+  // Métodos de utilidad para el template
+  getTrendIcon(trend: string): string {
+    switch (trend) {
+      case 'up': return 'trending_up';
+      case 'down': return 'trending_down';
+      default: return 'trending_flat';
+    }
+  }
+
+  getTrendColor(trend: string): string {
+    switch (trend) {
+      case 'up': return 'text-green-600';
+      case 'down': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  }
+
+  getStatusColor(status: string): string {
+    switch (status) {
+      case 'confirmed': return 'text-green-600';
+      case 'warning': return 'text-orange-600';
+      case 'pending': return 'text-blue-600';
+      default: return 'text-gray-600';
+    }
+  }
+
+  formatCurrency(amount: number): string {
+    const currency = this.user.schools?.[0]?.currency || 'EUR';
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: currency
+    }).format(amount);
+  }
+
+  formatPercentage(value: number): string {
+    return `${value}%`;
+  }
+
+  getLastUpdated(): string {
+    if (!this.dashboardMetrics?.lastUpdated) return '';
+    return moment(this.dashboardMetrics.lastUpdated).format('HH:mm');
+  }
+
+  // Quick actions
+  createQuickBooking(): void {
+    this.router.navigate(['/bookings/create']);
+  }
+
+  viewTodaysCalendar(): void {
+    this.router.navigate(['/calendar'], {
+      queryParams: { date: this.date.format('YYYY-MM-DD') }
     });
+  }
 
-    return ret;
+  exportDailyReport(): void {
+    // TODO: Implementar exportación de reporte diario
+    console.log('Exportar reporte del día:', this.date.format('YYYY-MM-DD'));
+  }
+
+  refreshData(): void {
+    this.loadDashboardData();
   }
 }

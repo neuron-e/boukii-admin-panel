@@ -453,33 +453,50 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
    * MEJORA: Detectar si una reserva es huérfana (curso eliminado/inexistente)
    */
   isOrphanedBooking(booking: any): boolean {
+    // TEMPORALMENTE DESACTIVADO - Para debug
+    // Vamos a mostrar siempre los nombres reales para ver qué está pasando
+    return false;
+
+    /*
     if (!booking) return false;
 
     // Solo aplicar a reservas (no a otros tipos de entidades)
     if (!this.entity?.includes('bookings')) return false;
 
-    // Verificar si la reserva tiene problemas de curso
-    const hasNoCourse = !booking.course;
-    const hasCourseIdButNoCourseData = booking.course_id && !booking.course;
-    const hasEmptyCourseData = booking.course && (!booking.course.id || !booking.course.name);
-    const hasNoBookingUsers = !booking.booking_users || booking.booking_users.length === 0;
+    // DEBUGGING: Imprimir información detallada de la reserva
+    console.log('🔍 Checking booking:', {
+      booking_id: booking.id,
+      course_id: booking.course_id,
+      has_course: !!booking.course,
+      course_name: booking.course?.name,
+      entity: this.entity
+    });
 
-    const isOrphaned = hasNoCourse || hasCourseIdButNoCourseData || hasEmptyCourseData || hasNoBookingUsers;
+    // NUEVA LÓGICA MÁS CONSERVADORA:
+    // Solo marcar como huérfana si hay problemas REALES, no por falta de datos cargados
 
-    if (isOrphaned) {
-      console.warn('🔍 Reserva huérfana detectada:', {
-        booking_id: booking.id,
-        course_id: booking.course_id,
-        has_course: !!booking.course,
-        has_booking_users: !!booking.booking_users?.length,
-        issue: hasNoCourse ? 'no_course' :
-               hasCourseIdButNoCourseData ? 'course_id_no_data' :
-               hasEmptyCourseData ? 'empty_course_data' :
-               hasNoBookingUsers ? 'no_booking_users' : 'unknown'
-      });
-    }
+    // 1. Si no tiene course_id, definitivamente es huérfana
+    const hasNoCourseId = !booking.course_id || booking.course_id === null;
+
+    // 2. Si tiene course_id pero el curso está explícitamente marcado como eliminado
+    const hasCourseDeleted = booking.course && booking.course.deleted_at;
+
+    // 3. Si tiene datos de curso pero están claramente corruptos (ID exists but no name AND it was loaded)
+    const hasCorruptCourseData = booking.course && booking.course.id && !booking.course.name;
+
+    const isOrphaned = hasNoCourseId || hasCourseDeleted || hasCorruptCourseData;
+
+    // Log the decision
+    console.log('🔍 Orphaned decision:', {
+      booking_id: booking.id,
+      isOrphaned,
+      reason: hasNoCourseId ? 'no_course_id' :
+              hasCourseDeleted ? 'course_deleted' :
+              hasCorruptCourseData ? 'corrupt_course_data' : 'none'
+    });
 
     return isOrphaned;
+    */
   }
 
   /**
@@ -808,12 +825,16 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   getBookingCourse(data: any) {
     // Safety check: ensure data exists and is an array
     if (!data || !Array.isArray(data) || data.length === 0) {
-      return 'N/A';
+      return 'Sin datos de curso';
     }
 
     // Safety check: ensure first item has required structure
     if (!data[0] || !data[0].course) {
-      return 'No Course Data';
+      // Try to get course name from course_id or show a more helpful message
+      if (data[0] && data[0].course_id) {
+        return `Curso ID: ${data[0].course_id}`;
+      }
+      return 'Curso no cargado';
     }
 
     if (data.length === 1 || this.checkIfCourseIdIsSame(data)) {
