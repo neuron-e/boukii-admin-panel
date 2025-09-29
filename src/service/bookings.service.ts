@@ -324,7 +324,7 @@ export class BookingService {
     }
 
     // Verificar precio total vs vouchers
-    const priceTotal = typeof data.price_total === 'number' ? data.price_total : parseFloat(data.price_total?.toString() ?? '0');
+    const priceTotal = typeof data.price_total === 'number' ? data.price_total : parseFloat((data.price_total as any)?.toString() ?? '0');
     const vouchersTotal = Array.isArray(data.vouchers) ?
       data.vouchers.reduce((acc, item) => {
         const value = item?.bonus?.reducePrice;
