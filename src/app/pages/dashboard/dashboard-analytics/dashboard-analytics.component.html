@@ -229,8 +229,8 @@
           <div class="p-6">
             <div class="flex items-center justify-between mb-4">
               <h3 class="headline">{{ 'upcoming_activities' | translate }}</h3>
-              <button mat-icon-button (click)="viewTodaysCalendar()">
-                <mat-icon>calendar_today</mat-icon>
+              <button mat-icon-button (click)="navigateToPlanner()">
+                <mat-icon>schedule</mat-icon>
               </button>
             </div>
 
@@ -376,10 +376,10 @@
           </div>
         </button>
 
-        <button mat-raised-button class="p-4 h-auto" (click)="viewTodaysCalendar()">
+        <button mat-raised-button class="p-4 h-auto" (click)="navigateToPlanner()">
           <div class="flex flex-col items-center">
-            <mat-icon class="mb-2">calendar_today</mat-icon>
-            <span class="text-sm">{{ 'view_calendar' | translate }}</span>
+            <mat-icon class="mb-2">schedule</mat-icon>
+            <span class="text-sm">{{ 'go_to_planner' | translate }}</span>
           </div>
         </button>
 

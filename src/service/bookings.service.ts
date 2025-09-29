@@ -281,6 +281,7 @@ export class BookingService {
     return cart;
   }
   resetBookingData() {
+    console.log('🔄 Reseteando BookingData para nueva reserva');
     this.bookingDataSubject.next({
       school_id: 0,
       client_main_id: 0,
@@ -309,6 +310,44 @@ export class BookingService {
       basket: null,  // Reset de reduction
       cart:  null
     });
+  }
+
+  /**
+   * MEJORA CRÍTICA: Método para verificar si hay datos problemáticos en el estado actual
+   */
+  validateBookingDataIntegrity(): { isValid: boolean, issues: string[] } {
+    const data = this.getBookingData();
+    const issues: string[] = [];
+
+    if (!data) {
+      return { isValid: true, issues: [] };
+    }
+
+    // Verificar precio total vs vouchers
+    const priceTotal = typeof data.price_total === 'number' ? data.price_total : parseFloat(data.price_total?.toString() ?? '0');
+    const vouchersTotal = Array.isArray(data.vouchers) ?
+      data.vouchers.reduce((acc, item) => {
+        const value = item?.bonus?.reducePrice;
+        const parsed = typeof value === 'number' ? value : parseFloat(value ?? '0');
+        return acc + (isNaN(parsed) ? 0 : parsed);
+      }, 0) : 0;
+
+    if (priceTotal === 0 && vouchersTotal > 0) {
+      issues.push(`Precio total 0€ con bonos aplicados por ${vouchersTotal}€`);
+    }
+
+    if (priceTotal < 0) {
+      issues.push(`Precio total negativo: ${priceTotal}€`);
+    }
+
+    if (vouchersTotal < 0) {
+      issues.push(`Total de bonos negativo: ${vouchersTotal}€`);
+    }
+
+    return {
+      isValid: issues.length === 0,
+      issues: issues
+    };
   }
 
   private createBookingLog(logData: BookingLog): Observable<any> {

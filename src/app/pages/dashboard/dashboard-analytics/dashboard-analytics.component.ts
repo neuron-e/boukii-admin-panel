@@ -226,7 +226,7 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
   }
 
   navigateToAnalytics(): void {
-    this.router.navigate(['/analytics-v2']);
+    this.router.navigate(['/stats']);
   }
 
   navigateToClients(): void {
@@ -281,15 +281,20 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
     this.router.navigate(['/bookings/create']);
   }
 
-  viewTodaysCalendar(): void {
-    this.router.navigate(['/calendar'], {
+  navigateToPlanner(): void {
+    this.router.navigate(['/timeline'], {
       queryParams: { date: this.date.format('YYYY-MM-DD') }
     });
   }
 
   exportDailyReport(): void {
-    // TODO: Implementar exportación de reporte diario
-    console.log('Exportar reporte del día:', this.date.format('YYYY-MM-DD'));
+    // Navegar a analíticas con parámetros de exportación
+    this.router.navigate(['/stats'], {
+      queryParams: {
+        export: 'daily',
+        date: this.date.format('YYYY-MM-DD')
+      }
+    });
   }
 
   refreshData(): void {

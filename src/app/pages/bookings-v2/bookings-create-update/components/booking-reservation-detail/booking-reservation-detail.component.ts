@@ -41,7 +41,13 @@ export class BookingReservationDetailComponent implements OnInit {
 
   ngOnInit(): void {
     this.bookingData = this.bookingService.getBookingData() || this.initializeBookingData();
-    this.recalculateBonusPrice();
+
+    // MEJORA CRÍTICA: Solo recalcular bonos si ya existen y hay cambios de precio
+    // Evitar aplicación automática en inicialización
+    if (this.bookingData.vouchers && this.bookingData.vouchers.length > 0) {
+      this.recalculateBonusPrice();
+    }
+
     this.updateBookingData();
   }
 
@@ -101,33 +107,60 @@ export class BookingReservationDetailComponent implements OnInit {
   }
 
   recalculateBonusPrice() {
+    // MEJORA CRÍTICA: Solo proceder si realmente hay bonos válidos
+    if (!this.bookingData.vouchers || this.bookingData.vouchers.length === 0) {
+      return;
+    }
+
+    // Validar que el price_total es válido antes de proceder
+    if (!this.bookingData.price_total || isNaN(this.bookingData.price_total) || this.bookingData.price_total <= 0) {
+      console.warn('⚠️ Price total inválido, evitando recálculo de bonos');
+      return;
+    }
+
     let remainingPrice = this.bookingData.price_total - this.calculateTotalVoucherPrice();
 
-    if (remainingPrice !== 0) {
-      this.bookingData.vouchers.forEach(voucher => {
-        const availableBonus = voucher.bonus.remaining_balance - voucher.bonus.reducePrice;
-
-        if (remainingPrice > 0) {
-          if (availableBonus >= remainingPrice) {
-            voucher.bonus.reducePrice += remainingPrice;
-            remainingPrice = 0;
-          } else {
-            voucher.bonus.reducePrice += availableBonus;
-            remainingPrice -= availableBonus;
-          }
-        } else {
-          const adjustedReducePrice = voucher.bonus.reducePrice + remainingPrice;
-
-          if (adjustedReducePrice >= 0) {
-            voucher.bonus.reducePrice = adjustedReducePrice;
-            remainingPrice = 0;
-          } else {
-            remainingPrice -= voucher.bonus.reducePrice; // Reduce remainingPrice solo por lo que hay en reducePrice.
-            voucher.bonus.reducePrice = 0; // Aseguramos que nunca sea negativo.
-          }
-        }
-      });
+    // MEJORA CRÍTICA: Solo proceder si hay una diferencia significativa
+    if (Math.abs(remainingPrice) < 0.01) {
+      return;
     }
+
+    console.log('🔄 Recalculando precios de bonos', {
+      priceTotal: this.bookingData.price_total,
+      currentVoucherTotal: this.calculateTotalVoucherPrice(),
+      remainingPrice: remainingPrice,
+      vouchersCount: this.bookingData.vouchers.length
+    });
+
+    this.bookingData.vouchers.forEach((voucher, index) => {
+      if (!voucher.bonus || !voucher.bonus.remaining_balance) {
+        console.warn(`⚠️ Bono ${index} sin datos válidos, saltando`);
+        return;
+      }
+
+      const availableBonus = voucher.bonus.remaining_balance - (voucher.bonus.reducePrice || 0);
+
+      if (remainingPrice > 0) {
+        if (availableBonus >= remainingPrice) {
+          voucher.bonus.reducePrice = (voucher.bonus.reducePrice || 0) + remainingPrice;
+          remainingPrice = 0;
+        } else if (availableBonus > 0) {
+          voucher.bonus.reducePrice = (voucher.bonus.reducePrice || 0) + availableBonus;
+          remainingPrice -= availableBonus;
+        }
+      } else if (remainingPrice < 0) {
+        const currentReducePrice = voucher.bonus.reducePrice || 0;
+        const adjustedReducePrice = currentReducePrice + remainingPrice;
+
+        if (adjustedReducePrice >= 0) {
+          voucher.bonus.reducePrice = adjustedReducePrice;
+          remainingPrice = 0;
+        } else {
+          remainingPrice -= currentReducePrice;
+          voucher.bonus.reducePrice = 0;
+        }
+      }
+    });
 
     this.updateBookingData();
   }

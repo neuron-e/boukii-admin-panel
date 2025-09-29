@@ -153,6 +153,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // MEJORA CRÍTICA: Verificar integridad de datos al iniciar
+    const integrity = this.bookingService.validateBookingDataIntegrity();
+    if (!integrity.isValid) {
+      console.warn('⚠️ Datos problemáticos detectados al inicializar:', integrity.issues);
+      // Limpiar datos problemáticos
+      this.bookingService.resetBookingData();
+    }
+
     this.loadDraftIfExists();
   }
 
@@ -306,6 +314,18 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (data.total) this.total = data.total;
     if (data.subtotal) this.subtotal = data.subtotal;
     if (data.normalizedDates) this.normalizedDates = data.normalizedDates;
+
+    // MEJORA CRÍTICA: Limpiar datos de bookingData que pueden causar bonos automáticos
+    const currentBookingData = this.bookingService.getBookingData();
+    if (currentBookingData) {
+      // Resetear vouchers para evitar aplicación automática desde borradores
+      currentBookingData.vouchers = [];
+      currentBookingData.price_total = 0;
+      currentBookingData.paid_total = 0;
+      currentBookingData.paid = false;
+      this.bookingService.setBookingData(currentBookingData);
+      console.log('🧹 BookingData limpiado al restaurar borrador para evitar bonos automáticos');
+    }
   }
 
   /**
@@ -1026,6 +1046,29 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
     const vouchersTotal = this.calculateTotalVoucherPrice();
     const safeVouchersTotal = isNaN(vouchersTotal) ? 0 : vouchersTotal;
+
+    // MEJORA CRÍTICA: Detectar y prevenir reservas con problemas de precios/bonos
+    if (safePriceTotal === 0 && safeVouchersTotal > 0) {
+      console.error('🚨 PROBLEMA DETECTADO: Reserva con precio 0€ pero bonos aplicados', {
+        priceTotal: safePriceTotal,
+        vouchersTotal: safeVouchersTotal,
+        vouchers: bookingData.vouchers
+      });
+
+      this.snackBar.open(
+        'Error: Detectado problema con los precios y bonos. Por favor, revisa la reserva antes de confirmar.',
+        this.translateService.instant('close'),
+        {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        }
+      );
+
+      // Limpiar bonos automáticos problemáticos y detener proceso
+      bookingData.vouchers = [];
+      this.bookingService.setBookingData(bookingData);
+      return;
+    }
     const outstanding = Math.max(0, safePriceTotal - safeVouchersTotal);
 
     bookingData.paid = false;
