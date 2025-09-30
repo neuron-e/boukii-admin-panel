@@ -651,24 +651,34 @@ export class CoursesCreateUpdateComponent implements OnInit {
       if (this.courses.courseFormGroup.controls['course_type'].value === 2) {
         const settings = JSON.parse(this.user.schools[0].settings);
         let durations = this.courses.getFilteredDuration(settings);
+
+        // Calcular el número máximo de participantes que tiene cualquier duración configurada
+        const maxParticipantsFromPriceRange = settings.prices_range.prices.reduce((max, p) => {
+          const participantKeys = Object.keys(p)
+            .filter(key => key !== 'intervalo' && p[key] !== null && p[key] !== undefined && p[key] !== '')
+            .map(key => parseInt(key, 10))
+            .filter(num => !isNaN(num));
+
+          const maxInThisPrice = participantKeys.length > 0 ? Math.max(...participantKeys) : 0;
+          return Math.max(max, maxInThisPrice);
+        }, 1);
+
+        // Usar el máximo entre el configurado en el form y el que se deduce del price_range
+        const maxParticipants = Math.max(
+          this.courses.courseFormGroup.controls["max_participants"].value || 1,
+          maxParticipantsFromPriceRange
+        );
+
         let Range = this.generarIntervalos(
-          this.courses.courseFormGroup.controls["max_participants"].value,
+          maxParticipants,
           durations.length,
           durations
         );
 
-        const priceRanges = settings.prices_range.prices
-          .filter(p => {
-            // Solo incluir intervalos que tengan al menos un precio válido
-            const hasValidPrice = Object.keys(p).some(key =>
-              key !== 'intervalo' && p[key] !== null && p[key] !== undefined && p[key] !== ''
-            );
-            return hasValidPrice;
-          })
-          .map(p => ({
-            ...p,
-            intervalo: p.intervalo.replace(/^(\d+)h$/, "$1h 0min") // Convierte "1h" en "1h0min" para que coincida con durations
-          }));
+        const priceRanges = settings.prices_range.prices.map(p => ({
+          ...p,
+          intervalo: p.intervalo.replace(/^(\d+)h$/, "$1h 0min") // Convierte "1h" en "1h0min" para que coincida con durations
+        }));
 
         // Asignar los precios a los intervalos correctos
         Range = Range.map(intervalo => {

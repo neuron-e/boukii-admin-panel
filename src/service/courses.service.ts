@@ -357,30 +357,23 @@ export class CoursesService {
   getFilteredDuration(userSettings?: any): string[] {
     // Si se proporcionan settings del usuario y tienen price_range configurado
     if (userSettings?.prices_range?.prices) {
-      const availableDurations = userSettings.prices_range.prices
-        .filter((p: any) => {
-          // Solo incluir duraciones que tengan al menos un precio válido
-          const hasValidPrice = Object.keys(p).some(key =>
-            key !== 'intervalo' && p[key] !== null && p[key] !== undefined && p[key] !== ''
-          );
-          return hasValidPrice;
-        })
-        .map((p: any) => {
-          // Normalizar formato: convertir "1h" a "1h 0min" para consistencia
-          return p.intervalo.replace(/^(\d+)h$/, "$1h 0min");
-        });
+      // Devolver TODAS las duraciones del price_range para mostrar tabla completa
+      const allDurations = userSettings.prices_range.prices.map((p: any) => {
+        // Normalizar formato: convertir "1h" a "1h 0min" para consistencia
+        return p.intervalo.replace(/^(\d+)h$/, "$1h 0min");
+      });
 
       // Si hay form y duration seleccionada, filtrar a partir de esa duración
       if (this.courseFormGroup?.controls['duration']?.value) {
         const selectedDuration = this.courseFormGroup.controls['duration'].value;
-        const selectedIndex = availableDurations.indexOf(selectedDuration);
+        const selectedIndex = allDurations.indexOf(selectedDuration);
 
         if (selectedIndex !== -1) {
-          return availableDurations.slice(selectedIndex);
+          return allDurations.slice(selectedIndex);
         }
       }
 
-      return availableDurations;
+      return allDurations;
     }
 
     // Fallback al comportamiento original
