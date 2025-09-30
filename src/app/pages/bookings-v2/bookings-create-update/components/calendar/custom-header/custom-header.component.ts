@@ -73,12 +73,16 @@ export class CustomHeader implements OnChanges, DoCheck {
       -1
     );
     this.calendar.activeDate = newDate;
-    this.calendarService.notifyMonthChanged(this.getLastDayOfMonth(newDate));
+    this.calendarService.notifyMonthChanged(newDate);
   }
 
   nextClicked() {
-    const newDate = this.calendar.activeDate;
-    this.calendarService.notifyMonthChanged(this.getFirstDayOfMonth(newDate));
+    const newDate = this.dateAdapter.addCalendarMonths(
+      this.calendar.activeDate,
+      1
+    );
+    this.calendar.activeDate = newDate;
+    this.calendarService.notifyMonthChanged(newDate);
   }
 
   setLocale(lang: string) {

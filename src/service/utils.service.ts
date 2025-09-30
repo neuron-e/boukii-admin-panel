@@ -286,15 +286,31 @@ export class UtilsService {
 
 // Método auxiliar para convertir duración en minutos
   parseDurationToMinutes(duration: string): number {
-    const regex = /(\d+)h(?:\s*(\d+)m)?/; // Captura '1h', '1h 30m', '2h', etc.
-    const matches = duration.match(regex);
+    if (!duration) return 0;
 
-    if (!matches) return 0;
+    let totalMinutes = 0;
 
-    const hours = parseInt(matches[1], 10) || 0;
-    const minutes = parseInt(matches[2] || '0', 10);
+    // Buscar horas (acepta 'h' o 'H')
+    const hoursMatch = duration.match(/(\d+)\s*h/i);
+    if (hoursMatch) {
+      totalMinutes += parseInt(hoursMatch[1], 10) * 60;
+    }
 
-    return (hours * 60) + minutes;
+    // Buscar minutos (acepta 'm', 'min', 'M', 'MIN')
+    const minutesMatch = duration.match(/(\d+)\s*(?:m(?:in)?)/i);
+    if (minutesMatch) {
+      totalMinutes += parseInt(minutesMatch[1], 10);
+    }
+
+    // Si no se encuentra formato de horas/minutos, intenta solo números (asume minutos)
+    if (totalMinutes === 0) {
+      const numberMatch = duration.match(/^(\d+)$/);
+      if (numberMatch) {
+        totalMinutes = parseInt(numberMatch[1], 10);
+      }
+    }
+
+    return totalMinutes;
   }
 
 
@@ -403,6 +419,7 @@ export class UtilsService {
 
         // Verificar que la duración tiene precio para el número actual de utilizadores
         const priceForCurrentPax = priceRange[currentUtilizers.toString()];
+
         if (priceForCurrentPax && !isNaN(parseFloat(priceForCurrentPax))) {
           // Verificar que la duración no está ocupada
           const durationMinutes = this.parseDurationToMinutes(duration);
@@ -419,6 +436,9 @@ export class UtilsService {
       // Si hay duraciones válidas basadas en price_range, usarlas
       if (validDurations.length > 0) {
         return validDurations.sort((a, b) => this.parseDurationToMinutes(a) - this.parseDurationToMinutes(b));
+      } else {
+        // IMPORTANTE: Retornar array vacío para cursos flex sin duraciones válidas
+        return [];
       }
     }
 
