@@ -139,7 +139,7 @@ export class ChronoService {
       });
       
       this.eventSource.onopen = () => {
-        console.log('✓ SSE conectado');
+        // SSE conectado
         this.reconnectAttempts = 0;
         this.updateState({ 
           isConnected: true, 
@@ -174,7 +174,7 @@ export class ChronoService {
             this.connectSSE(courseId, courseDateId);
           }, this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1));
         } else {
-          console.log('Max SSE reconnect attempts reached, falling back to polling');
+          // Max SSE reconnect attempts reached, falling back to polling
           this.fallbackToPolling(courseId, courseDateId);
         }
       };

@@ -374,14 +374,18 @@ export class AnalyticsService {
     const events = [...this.eventQueue];
     this.eventQueue = [];
 
-    this.crudService.post('/admin/analytics/events', { events }).subscribe({
-      next: () => console.log(`📊 ${events.length} eventos enviados a analytics`),
-      error: (error) => {
-        console.error('Error enviando eventos:', error);
-        // Re-agregar eventos a la cola en caso de error
-        this.eventQueue.unshift(...events);
-      }
-    });
+    // DESACTIVADO: El endpoint /admin/analytics/events no existe (404)
+    // TODO: Confirmar endpoint correcto para analytics events o crear en backend
+    // Analytics: eventos no enviados - endpoint no disponible
+
+    // this.crudService.post('/admin/analytics/events', { events }).subscribe({
+    //   next: () => {}, // Eventos enviados correctamente
+    //   error: (error) => {
+    //     console.error('Error enviando eventos:', error);
+    //     // Re-agregar eventos a la cola en caso de error
+    //     this.eventQueue.unshift(...events);
+    //   }
+    // });
   }
 
   private analyzeEventImmediately(event: AnalyticsEvent): void {

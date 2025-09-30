@@ -15,8 +15,6 @@ export class CoursesService {
 
   settcourseFormGroup(data: any, isPreview = false) {
     this.resetcourseFormGroup()
-    console.log('settcourseFormGroup called with data:', data);
-    console.log('booking_users_active from data:', data.booking_users_active);
     // Helper to normalize potential JSON-stringified arrays
     const toArray = (val: any): any[] => {
       try {
@@ -41,7 +39,6 @@ export class CoursesService {
       return u;
     });
     (data as any).booking_users = normalizedBookingUsers;
-    console.log('booking_users set to:', (data as any).booking_users);
     // Normalize course dates for detail/preview
     if (!isPreview) {
       if (data.course_type == 1) {
