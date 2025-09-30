@@ -657,7 +657,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
           durations
         );
 
-        const settings = JSON.parse(this.user.schools[0].settings);
         const priceRanges = settings.prices_range.prices.map(p => ({
           ...p,
           intervalo: p.intervalo.replace(/^(\d+)h$/, "$1h 0min") // Convierte "1h" en "1h0min" para que coincida con durations
