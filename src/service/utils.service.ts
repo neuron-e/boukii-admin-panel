@@ -360,14 +360,6 @@ export class UtilsService {
     utilizers: any[] = [],
     interval: string = '15min',
   ) {
-    console.log('🔍 generateCourseDurations called with:', {
-      courseName: course?.name,
-      isFlexible: course?.is_flexible,
-      startTime,
-      endTime,
-      utilizersCount: utilizers?.length,
-      priceRange: course?.price_range
-    });
     const timeToMinutes = (time) => {
       const [hours, minutes] = time.split(':').map(Number);
       return hours * 60 + minutes;
@@ -418,7 +410,6 @@ export class UtilsService {
     const currentUtilizers = utilizers?.length || 1;
 
     if (course?.is_flexible && Array.isArray(priceRangeCourse) && priceRangeCourse.length > 0) {
-      console.log('🔍 Processing flexible course with price_range:', priceRangeCourse);
       const validDurations: string[] = [];
 
       // Solo incluir duraciones que tengan precio para el número exacto de utilizadores
@@ -428,7 +419,6 @@ export class UtilsService {
 
         // Verificar que la duración tiene precio para el número actual de utilizadores
         const priceForCurrentPax = priceRange[currentUtilizers.toString()];
-        console.log(`🔍 Checking duration "${duration}" for ${currentUtilizers} pax: price = ${priceForCurrentPax}`);
 
         if (priceForCurrentPax && !isNaN(parseFloat(priceForCurrentPax))) {
           // Verificar que la duración no está ocupada
@@ -438,22 +428,17 @@ export class UtilsService {
             if (endTimeMinutes <= endMinutes &&
                 !this.isTimeOccupied(startMinutes, endTimeMinutes, occupiedIntervals)) {
               validDurations.push(duration);
-              console.log(`✅ Added valid duration: ${duration}`);
             } else {
-              console.log(`❌ Duration ${duration} is occupied or exceeds window`);
             }
           }
         } else {
-          console.log(`❌ No valid price for ${currentUtilizers} pax in duration ${duration}`);
         }
       });
 
       // Si hay duraciones válidas basadas en price_range, usarlas
       if (validDurations.length > 0) {
-        console.log('✅ Returning flexible course durations:', validDurations);
         return validDurations.sort((a, b) => this.parseDurationToMinutes(a) - this.parseDurationToMinutes(b));
       } else {
-        console.log('❌ No valid durations for flexible course - returning empty array');
         // IMPORTANTE: Retornar array vacío para cursos flex sin duraciones válidas
         return [];
       }
@@ -489,7 +474,6 @@ export class UtilsService {
       return Array.from(set.values());
     }
 
-    console.log('📤 Returning fallback durations:', durations);
     return durations;
   }
 

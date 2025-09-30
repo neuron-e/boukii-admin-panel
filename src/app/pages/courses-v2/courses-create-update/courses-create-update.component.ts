@@ -649,7 +649,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
         this.ModalFlux -= add
       }
       if (this.courses.courseFormGroup.controls['course_type'].value === 2) {
-        let durations = this.courses.getFilteredDuration();
+        const settings = JSON.parse(this.user.schools[0].settings);
+        let durations = this.courses.getFilteredDuration(settings);
         let Range = this.generarIntervalos(
           this.courses.courseFormGroup.controls["max_participants"].value,
           durations.length,
@@ -954,6 +955,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   getNumberArray = (num: number): any[] => ['intervalo', ...Array.from({ length: num }, (_, i) => `${i + 1}`)];
+
+  getFilteredDurationsForTable(): string[] {
+    const settings = JSON.parse(this.user.schools[0].settings);
+    return this.courses.getFilteredDuration(settings);
+  }
 
   generarIntervalos = (personas: number, intervalo: number, duracion: string[]): any[] => {
     const resultado = [];

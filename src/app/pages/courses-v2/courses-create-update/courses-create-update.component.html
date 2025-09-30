@@ -768,7 +768,7 @@
       </ng-container>
       <ng-container *ngIf="courses.courseFormGroup.controls['course_type'].value===2">
         <div class="table-container" style="overflow: auto;max-height: 100vh;">
-          <table #scrollContainer [dataSource]="courses.getFilteredDuration()" mat-table class="mat-elevation-z8">
+          <table #scrollContainer [dataSource]="getFilteredDurationsForTable()" mat-table class="mat-elevation-z8">
             <ng-container matColumnDef="intervalo">
               <th *matHeaderCellDef mat-header-cell>
                 {{'interval'|translate}}

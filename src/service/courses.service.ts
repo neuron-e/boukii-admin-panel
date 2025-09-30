@@ -357,7 +357,28 @@ export class CoursesService {
     //'6h 15min', '6h 30min', '6h 45min', '7h', '7h 15min', '7h 30min', '7h 45min'
   ];
 
-  getFilteredDuration(): string[] {
+  getFilteredDuration(userSettings?: any): string[] {
+    // Si se proporcionan settings del usuario y tienen price_range configurado
+    if (userSettings?.prices_range?.prices) {
+      const availableDurations = userSettings.prices_range.prices.map((p: any) => {
+        // Normalizar formato: convertir "1h" a "1h 0min" para consistencia
+        return p.intervalo.replace(/^(\d+)h$/, "$1h 0min");
+      });
+
+      // Si hay form y duration seleccionada, filtrar a partir de esa duración
+      if (this.courseFormGroup?.controls['duration']?.value) {
+        const selectedDuration = this.courseFormGroup.controls['duration'].value;
+        const selectedIndex = availableDurations.indexOf(selectedDuration);
+
+        if (selectedIndex !== -1) {
+          return availableDurations.slice(selectedIndex);
+        }
+      }
+
+      return availableDurations;
+    }
+
+    // Fallback al comportamiento original
     if (!this.courseFormGroup || !this.courseFormGroup.controls['duration']) {
       return this.duration; // Devuelve todas las duraciones como fallback
     }
@@ -379,7 +400,7 @@ export class CoursesService {
     {
       date: this.nowDate.toISOString(),
       hour_start: this.hours[0],
-      duration: this.getFilteredDuration()[0],
+      duration: this.duration[4], // Usar '1h 0min' como default fijo
       date_end: this.nowDate.toISOString(),
       hour_end: this.hours[1],
       course_groups: [],
