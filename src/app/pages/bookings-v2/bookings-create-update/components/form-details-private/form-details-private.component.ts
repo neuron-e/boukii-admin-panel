@@ -74,6 +74,15 @@ export class FormDetailsPrivateComponent implements OnInit {
       this.possibleHours = this.utilService.generateCourseHours(courseDate.hour_start, courseDate.hour_end, this.course.minDuration, '5min');
       this.possibleDurations = this.utilService.generateCourseDurations(courseDate.hour_start, courseDate.hour_end,
         this.course, this.activitiesBooked, formatDate, this.utilizers);
+
+      // DEBUG: Log para rastrear las duraciones generadas
+      console.log('🔍 COMPONENT DEBUG - Course info:', {
+        courseName: this.course?.name,
+        isFlexible: this.course?.is_flexible,
+        priceRange: this.course?.price_range,
+        utilizers: this.utilizers?.length,
+        possibleDurations: this.possibleDurations
+      });
     } else {
       console.warn('No courseDate found for date:', formatDate);
       this.possibleHours = [];
