@@ -389,7 +389,40 @@ export class UtilsService {
       end: timeToMinutes(dateObj.endHour)
     }));
 
-    // 📌 Calcular intervalos de duración excluyendo los ocupados
+    // 📌 Para cursos flexibles con price_range, filtrar SOLO por precios configurados
+    const priceRangeCourse = typeof course?.price_range === 'string' ? JSON.parse(course.price_range) : course?.price_range;
+    const currentUtilizers = utilizers?.length || 1;
+
+    if (course?.is_flexible && Array.isArray(priceRangeCourse) && priceRangeCourse.length > 0) {
+      const validDurations: string[] = [];
+
+      // Solo incluir duraciones que tengan precio para el número exacto de utilizadores
+      priceRangeCourse.forEach((priceRange: any) => {
+        const duration = priceRange?.intervalo;
+        if (!duration) return;
+
+        // Verificar que la duración tiene precio para el número actual de utilizadores
+        const priceForCurrentPax = priceRange[currentUtilizers.toString()];
+        if (priceForCurrentPax && !isNaN(parseFloat(priceForCurrentPax))) {
+          // Verificar que la duración no está ocupada
+          const durationMinutes = this.parseDurationToMinutes(duration);
+          if (durationMinutes > 0) {
+            const endTimeMinutes = startMinutes + durationMinutes;
+            if (endTimeMinutes <= endMinutes &&
+                !this.isTimeOccupied(startMinutes, endTimeMinutes, occupiedIntervals)) {
+              validDurations.push(duration);
+            }
+          }
+        }
+      });
+
+      // Si hay duraciones válidas basadas en price_range, usarlas
+      if (validDurations.length > 0) {
+        return validDurations.sort((a, b) => this.parseDurationToMinutes(a) - this.parseDurationToMinutes(b));
+      }
+    }
+
+    // 📌 Fallback: Si no es flexible o no hay price_range válido, usar lógica original
     const durations = [];
     for (let minutes = startMinutes + intervalTotalMinutes; minutes <= endMinutes; minutes += 5) {
       if (!this.isTimeOccupied(minutes, minutes + intervalTotalMinutes, occupiedIntervals)) {
@@ -397,32 +430,8 @@ export class UtilsService {
       }
     }
 
-    // Filtrar duraciones con `price_range` si existe
-    const tableDurations: string[] = [];
-    const tablePaxes: string[] = [];
-
-    const priceRangeCourse = typeof course?.price_range === 'string' ? JSON.parse(course.price_range) : course?.price_range;
-    if (Array.isArray(priceRangeCourse) && priceRangeCourse.length > 0) {
-      durations.forEach(element => {
-        const priceRange = priceRangeCourse ? priceRangeCourse.find((p: any) => p?.intervalo === element) : null;
-        if (priceRange && priceRange.intervalo === element) {
-          const values = this.extractValues(priceRange);
-          if (values[0] && (+values[0].key) <= (course?.max_participants ?? Number.MAX_SAFE_INTEGER)) {
-            tableDurations.push(values[0].interval);
-
-            values.forEach(v => {
-              const pax = v.key;
-              if ((pax && tablePaxes.length === 0) || (pax && tablePaxes.length > 0 && !tablePaxes.includes(pax))) {
-                tablePaxes.push(v.key);
-              }
-            });
-          }
-        }
-      });
-    }
-
-    // Fallback: si no hay price_range o no hay duraciones válidas, usar una lista segura
-    if (tableDurations.length === 0) {
+    // Para cursos no flexibles, usar duración fija si está disponible
+    if (!course?.is_flexible) {
       const totalWindow = endMinutes - startMinutes;
       const raw = course?.duration ?? course?.minDuration ?? '';
       let fallbackMinutes = 0;
@@ -443,7 +452,7 @@ export class UtilsService {
       return Array.from(set.values());
     }
 
-    return tableDurations;
+    return durations;
   }
 
    isTimeOccupied(startTime: number, endTime: number, occupiedIntervals: { start: number, end: number }[]) {

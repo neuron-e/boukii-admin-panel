@@ -520,8 +520,21 @@ export class StepFourComponent implements OnDestroy {
     this.courses = this.courses
       .map(course => {
         const dates = Array.isArray(course?.course_dates) ? course.course_dates : [];
-        // Filtrar fechas por capacidad del nivel
-        const filteredDates = dates.filter((d: any) => hasCapacityForLevel(d));
+
+        // Filtrar fechas por capacidad del nivel Y fechas futuras
+        const filteredDates = dates.filter((d: any) => {
+          // Verificar capacidad para el nivel
+          if (!hasCapacityForLevel(d)) return false;
+
+          // Para cursos no flexibles (FIX), filtrar fechas pasadas individualmente
+          if (!course.is_flexible) {
+            const courseDateMoment = moment(d.date, "YYYY-MM-DD");
+            return courseDateMoment.isSameOrAfter(moment(), "day");
+          }
+
+          // Para cursos flexibles, mantener todas las fechas con capacidad
+          return true;
+        });
 
         return {
           ...course,
@@ -529,18 +542,8 @@ export class StepFourComponent implements OnDestroy {
         };
       })
       .filter(course => {
-        // Excluir cursos sin fechas con capacidad
-        if (!Array.isArray(course.course_dates) || course.course_dates.length === 0) return false;
-
-        if (!course.is_flexible) {
-          // Filtrar si tienen alguna fecha pasada
-          const hasPastDate = course.course_dates.some(d => {
-            const courseDateMoment = moment(d.date, "YYYY-MM-DD");
-            return courseDateMoment.isBefore(moment(), "day");
-          });
-          return !hasPastDate;
-        }
-        return true;
+        // Excluir cursos sin fechas con capacidad disponibles
+        return Array.isArray(course.course_dates) && course.course_dates.length > 0;
       });
   }
 
@@ -744,7 +747,13 @@ export class StepFourComponent implements OnDestroy {
   }
 
   private processAvailabilityResponse(courses: any[], sportLevel: any): void {
-    const filteredCourses = this.filterConflictingCourses(courses || []);
+    let filteredCourses = this.filterConflictingCourses(courses || []);
+
+    // Para cursos privados, filtrar por disponibilidad de price_range
+    if (this.courseTypeId === 2) {
+      filteredCourses = this.filterPrivateFlexCoursesByPaxCapacity(filteredCourses);
+    }
+
     this.courses = filteredCourses;
 
     if (this.courseTypeId === 1) {
@@ -758,6 +767,37 @@ export class StepFourComponent implements OnDestroy {
     this.provideCourseLoadingFeedback(this.cursesInSelectedDate.length, sportLevel?.name);
     this.feedback.setLoading('courses', false);
     this.isLoading = false;
+  }
+
+  /**
+   * Filtrar cursos privados flexibles que no tengan precios configurados para el número actual de utilizadores
+   */
+  private filterPrivateFlexCoursesByPaxCapacity(courses: any[]): any[] {
+    const currentUtilizers = this.utilizers?.length || 1;
+
+    return courses.filter(course => {
+      // Si no es flexible, mantenerlo (cursos privados fijos)
+      if (!course?.is_flexible) {
+        return true;
+      }
+
+      // Si no tiene price_range, mantenerlo con el precio base
+      const priceRangeCourse = typeof course?.price_range === 'string'
+        ? JSON.parse(course.price_range)
+        : course?.price_range;
+
+      if (!Array.isArray(priceRangeCourse) || priceRangeCourse.length === 0) {
+        return true;
+      }
+
+      // Verificar si existe al menos una duración con precio para el número actual de utilizadores
+      const hasValidPrice = priceRangeCourse.some((priceRange: any) => {
+        const priceForCurrentPax = priceRange[currentUtilizers.toString()];
+        return priceForCurrentPax && !isNaN(parseFloat(priceForCurrentPax));
+      });
+
+      return hasValidPrice;
+    });
   }
 
   private filterConflictingCourses(courses: any[]): any[] {
