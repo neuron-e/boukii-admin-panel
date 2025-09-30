@@ -366,37 +366,6 @@
         </div>
       </div>
 
-      <!-- ROW 5: Quick Actions -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-        <button mat-raised-button color="primary" class="p-4 h-auto" (click)="createQuickBooking()">
-          <div class="flex flex-col items-center">
-            <mat-icon class="mb-2">add_circle_outline</mat-icon>
-            <span class="text-sm">{{ 'create_booking' | translate }}</span>
-          </div>
-        </button>
-
-        <button mat-raised-button class="p-4 h-auto" (click)="navigateToPlanner()">
-          <div class="flex flex-col items-center">
-            <mat-icon class="mb-2">schedule</mat-icon>
-            <span class="text-sm">{{ 'go_to_planner' | translate }}</span>
-          </div>
-        </button>
-
-        <button mat-raised-button class="p-4 h-auto" (click)="navigateToAnalytics()">
-          <div class="flex flex-col items-center">
-            <mat-icon class="mb-2">analytics</mat-icon>
-            <span class="text-sm">{{ 'analytics' | translate }}</span>
-          </div>
-        </button>
-
-        <button mat-raised-button class="p-4 h-auto" (click)="exportDailyReport()">
-          <div class="flex flex-col items-center">
-            <mat-icon class="mb-2">download</mat-icon>
-            <span class="text-sm">{{ 'export_report' | translate }}</span>
-          </div>
-        </button>
-      </div>
     </div>
   </vex-page-layout-content>
 </vex-page-layout>

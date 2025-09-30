@@ -1319,5 +1319,19 @@
   "critical_alerts": "Avvisi Critici",
   "requires_attention": "Richiede attenzione",
   "go_to_planner": "Vai al Pianificatore",
-  "quick_actions": "Azioni Rapide"
+  "quick_actions": "Azioni Rapide",
+  "monthly_revenue": "Ricavi Mensili",
+  "current_month": "Mese corrente",
+  "private_courses": "Corsi Privati",
+  "collective_courses": "Corsi Collettivi",
+  "booking_trends": "Tendenze Prenotazioni",
+  "last_30_days": "Ultimi 30 giorni",
+  "performance_kpis": "KPI Prestazioni",
+  "total_occupancy": "Occupazione Totale",
+  "upcoming_activities": "Attività in Arrivo",
+  "no_activities_scheduled": "Nessuna attività programmata",
+  "system_alerts": "Avvisi Sistema",
+  "orphaned_bookings": "Prenotazioni Orfane",
+  "courses_without_monitor": "Corsi senza Istruttore",
+  "critical_capacity": "Capacità Critica"
 }

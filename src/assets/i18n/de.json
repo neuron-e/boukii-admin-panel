@@ -1317,5 +1317,19 @@
   "critical_alerts": "Kritische Warnungen",
   "requires_attention": "Benötigt Aufmerksamkeit",
   "go_to_planner": "Zum Planer gehen",
-  "quick_actions": "Schnellaktionen"
+  "quick_actions": "Schnellaktionen",
+  "monthly_revenue": "Monatlicher Umsatz",
+  "current_month": "Aktueller Monat",
+  "private_courses": "Privatkurse",
+  "collective_courses": "Gruppenkurse",
+  "booking_trends": "Buchungstrends",
+  "last_30_days": "Letzte 30 Tage",
+  "performance_kpis": "Leistungskennzahlen",
+  "total_occupancy": "Gesamtbelegung",
+  "upcoming_activities": "Bevorstehende Aktivitäten",
+  "no_activities_scheduled": "Keine Aktivitäten geplant",
+  "system_alerts": "Systemwarnungen",
+  "orphaned_bookings": "Verwaiste Buchungen",
+  "courses_without_monitor": "Kurse ohne Monitor",
+  "critical_capacity": "Kritische Kapazität"
 }
