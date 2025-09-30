@@ -656,7 +656,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         });
 
         if (interval) {
-          total += parseFloat(interval[selectedUtilizers]); // Precio por utilizador para cada fecha
+          // Intentar acceso con número y string para compatibilidad
+          const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
+          total += priceForPax; // Precio por utilizador para cada fecha
         }
 
         // Suma el precio total de los extras para cada utilizador en esta fecha

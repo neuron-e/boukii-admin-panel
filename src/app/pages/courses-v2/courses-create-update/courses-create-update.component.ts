@@ -657,10 +657,18 @@ export class CoursesCreateUpdateComponent implements OnInit {
           durations
         );
 
-        const priceRanges = settings.prices_range.prices.map(p => ({
-          ...p,
-          intervalo: p.intervalo.replace(/^(\d+)h$/, "$1h 0min") // Convierte "1h" en "1h0min" para que coincida con durations
-        }));
+        const priceRanges = settings.prices_range.prices
+          .filter(p => {
+            // Solo incluir intervalos que tengan al menos un precio válido
+            const hasValidPrice = Object.keys(p).some(key =>
+              key !== 'intervalo' && p[key] !== null && p[key] !== undefined && p[key] !== ''
+            );
+            return hasValidPrice;
+          })
+          .map(p => ({
+            ...p,
+            intervalo: p.intervalo.replace(/^(\d+)h$/, "$1h 0min") // Convierte "1h" en "1h0min" para que coincida con durations
+          }));
 
         // Asignar los precios a los intervalos correctos
         Range = Range.map(intervalo => {
