@@ -372,6 +372,62 @@ export class BookingDetailV2Component implements OnInit {
     }, {}));
     groupedActivities.forEach((groupedActivity: any) => {
       groupedActivity.total = this.bookingService.calculateActivityPrice(groupedActivity);
+
+      console.log('🔍 BOOKING DETAIL DEBUG - Processing activity:', {
+        courseName: groupedActivity.course?.name,
+        isFlexible: groupedActivity.course?.is_flexible,
+        utilizersCount: groupedActivity.utilizers?.length,
+        datesCount: groupedActivity.dates?.length,
+        priceRange: groupedActivity.course?.price_range
+      });
+
+      // MEJORA CRÍTICA: Calcular precio individual para cada fecha
+      if (groupedActivity.course?.is_flexible && groupedActivity.utilizers?.length) {
+        groupedActivity.dates.forEach((date: any, index: number) => {
+          const duration = date.duration;
+          const selectedUtilizers = groupedActivity.utilizers.length;
+
+          console.log(`🔍 BOOKING DETAIL DEBUG - Date ${index}:`, {
+            date: date.date,
+            duration,
+            selectedUtilizers,
+            beforePrice: date.price
+          });
+
+          // Encuentra el intervalo de duración que se aplica
+          const interval = groupedActivity.course.price_range?.find(range => {
+            return range.intervalo === duration;
+          });
+
+          if (interval) {
+            // Intentar acceso con número y string para compatibilidad
+            const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
+            date.price = priceForPax.toString();
+            date.currency = groupedActivity.course.currency || 'CHF';
+
+            console.log(`🔍 BOOKING DETAIL DEBUG - Price calculated:`, {
+              priceForPax,
+              datePrice: date.price,
+              currency: date.currency
+            });
+          } else {
+            console.log(`🔍 BOOKING DETAIL DEBUG - No interval found for duration:`, duration);
+            date.price = '0';
+            date.currency = groupedActivity.course.currency || 'CHF';
+          }
+        });
+      } else if (!groupedActivity.course?.is_flexible) {
+        // Para cursos no flexibles, usar el precio base
+        groupedActivity.dates.forEach((date: any) => {
+          date.price = groupedActivity.course?.price || '0';
+          date.currency = groupedActivity.course?.currency || 'CHF';
+
+          console.log('🔍 BOOKING DETAIL DEBUG - Fixed price assigned:', {
+            datePrice: date.price,
+            currency: date.currency
+          });
+        });
+      }
     });
 
     return groupedActivities;

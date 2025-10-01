@@ -373,8 +373,38 @@ export class StepFourComponent implements OnDestroy {
   }
 
   selectSubGroup(group: any): void {
+    console.log('SUBGROUP DEBUG: Selecting subgroup:', group);
+    console.log('SUBGROUP DEBUG: Group capacity info:', group.capacity_info);
+
     this.selectedSubGroup = group;
-    this.stepForm.get('selectedSubGroup').setValue(group);
+    this.stepForm.get('selectedSubGroup')?.setValue(group);
+
+    console.log('SUBGROUP DEBUG: Form value after selection:', this.stepForm.get('selectedSubGroup')?.value);
+    console.log('SUBGROUP DEBUG: Form valid after selection:', this.stepForm.valid);
+
+    // Verificar que el formulario se actualizó correctamente
+    if (this.stepForm.get('selectedSubGroup')?.value) {
+      console.log('SUBGROUP DEBUG: ✅ Subgroup successfully selected');
+
+      // Feedback de éxito
+      this.feedback?.success(`Grupo seleccionado: ${group.capacity_info?.available_slots || 'N/A'} plazas disponibles`, {
+        duration: 2000
+      });
+
+      // Track analytics
+      this.analytics?.trackEvent({
+        category: 'booking',
+        action: 'subgroup_selected',
+        label: 'course_subgroup',
+        metadata: {
+          subgroup_id: group.id,
+          available_slots: group.capacity_info?.available_slots,
+          capacity_percentage: group.capacity_info?.capacity_percentage
+        }
+      });
+    } else {
+      console.log('SUBGROUP DEBUG: ❌ Failed to set subgroup value');
+    }
   }
 
   updateTabs(): void {
@@ -767,6 +797,69 @@ export class StepFourComponent implements OnDestroy {
     this.provideCourseLoadingFeedback(this.cursesInSelectedDate.length, sportLevel?.name);
     this.feedback.setLoading('courses', false);
     this.isLoading = false;
+  }
+
+  /**
+   * DEBUG: Método simple para verificar
+   */
+  debugPrice(course: any): number {
+    console.log('🔍 DEBUG SIMPLE - Course Name:', course?.name, 'Original minPrice:', course?.minPrice);
+    return course?.minPrice || 0;
+  }
+
+  /**
+   * MEJORA CRÍTICA: Calcular precio correcto para cursos privados flexibles
+   */
+  getCorrectPriceForPrivateFlex(course: any): number {
+    console.log('🔍 getCorrectPriceForPrivateFlex DEBUG:', {
+      courseName: course?.name,
+      isFlexible: course?.is_flexible,
+      courseType: course?.course_type,
+      currentUtilizers: this.utilizers?.length || 1,
+      priceRange: course?.price_range,
+      fallbackPrice: course?.price,
+      fallbackMinPrice: course?.minPrice
+    });
+
+    if (!course?.is_flexible || course?.course_type !== 2) {
+      const fallback = course?.price || course?.minPrice || 0;
+      console.log('🔍 Not flexible private course, returning fallback:', fallback);
+      return fallback;
+    }
+
+    const currentUtilizers = this.utilizers?.length || 1;
+    const priceRangeCourse = typeof course?.price_range === 'string'
+      ? JSON.parse(course.price_range)
+      : course?.price_range;
+
+    console.log('🔍 Parsed priceRangeCourse:', priceRangeCourse);
+
+    if (!Array.isArray(priceRangeCourse) || priceRangeCourse.length === 0) {
+      const fallback = course?.price || course?.minPrice || 0;
+      console.log('🔍 Invalid price range, returning fallback:', fallback);
+      return fallback;
+    }
+
+    // Buscar el precio mínimo para el número actual de participantes
+    let minPrice = Infinity;
+
+    priceRangeCourse.forEach((priceRange: any, index: number) => {
+      console.log(`🔍 Processing price range ${index}:`, priceRange);
+      const priceForCurrentPax = priceRange[currentUtilizers.toString()];
+      console.log(`🔍 Price for ${currentUtilizers} participants:`, priceForCurrentPax);
+
+      if (priceForCurrentPax && !isNaN(parseFloat(priceForCurrentPax))) {
+        const price = parseFloat(priceForCurrentPax);
+        console.log(`🔍 Parsed price: ${price}, current minPrice: ${minPrice}`);
+        if (price < minPrice) {
+          minPrice = price;
+        }
+      }
+    });
+
+    const finalPrice = minPrice === Infinity ? (course?.price || course?.minPrice || 0) : minPrice;
+    console.log('🔍 Final calculated price:', finalPrice);
+    return finalPrice;
   }
 
   /**

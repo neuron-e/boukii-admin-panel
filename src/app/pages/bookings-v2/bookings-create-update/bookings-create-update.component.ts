@@ -861,7 +861,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         });
 
         if (interval) {
-          total += parseFloat(interval[selectedUtilizers]);
+          // Intentar acceso con número y string para compatibilidad
+          const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
+          total += priceForPax;
         }
 
 /*        date.utilizers.forEach(utilizer => {
@@ -936,9 +938,40 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
   }
 
-  // Filtra las fechas seleccionadas
+  // Filtra las fechas seleccionadas y calcula el precio individual para cada fecha
   getSelectedDates(dates: any) {
-    return dates.filter((date: any) => date.selected);
+    const selectedDates = dates.filter((date: any) => date.selected);
+
+    // MEJORA CRÍTICA: Calcular precio individual para cada fecha en cursos flexibles
+    if (this.course?.is_flexible && this.utilizers?.length) {
+      selectedDates.forEach((date: any) => {
+        const duration = date.duration;
+        const selectedUtilizers = this.utilizers.length;
+
+        // Encuentra el intervalo de duración que se aplica
+        const interval = this.course.price_range?.find(range => {
+          return range.intervalo === duration;
+        });
+
+        if (interval) {
+          // Intentar acceso con número y string para compatibilidad
+          const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
+          date.price = priceForPax.toString();
+          date.currency = this.course.currency || 'CHF';
+        } else {
+          date.price = '0';
+          date.currency = this.course.currency || 'CHF';
+        }
+      });
+    } else if (!this.course?.is_flexible) {
+      // Para cursos no flexibles, usar el precio base
+      selectedDates.forEach((date: any) => {
+        date.price = this.course?.price || '0';
+        date.currency = this.course?.currency || 'CHF';
+      });
+    }
+
+    return selectedDates;
   }
 
   openBookingDialog() {
@@ -967,10 +1000,22 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   sumActivityTotal(): number {
-    return this.normalizedDates.reduce((acc, item) => {
+    console.log('🔍 sumActivityTotal DEBUG - normalizedDates:', this.normalizedDates);
+
+    const total = this.normalizedDates.reduce((acc, item, index) => {
+      console.log(`🔍 Processing activity ${index}:`, {
+        itemName: item.course?.name,
+        originalTotal: item.total,
+        totalAfterRegex: item.total.replace(/[^\d.-]/g, ''),
+        parsedValue: parseFloat(item.total.replace(/[^\d.-]/g, ''))
+      });
+
       const numericValue = parseFloat(item.total.replace(/[^\d.-]/g, '')); // Eliminar cualquier cosa que no sea un nÃºmero o signo
       return acc + numericValue;
     }, 0);
+
+    console.log('🔍 sumActivityTotal final result:', total);
+    return total;
   }
 
   forceChange(newStep: any) {
@@ -1033,6 +1078,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (!bookingData) {
       return;
     }
+
+    console.log('🔍 finalizeBooking DEBUG - bookingData antes de setCart:', {
+      price_total: bookingData.price_total,
+      normalizedDates: this.normalizedDates
+    });
 
     bookingData.cart = this.bookingService.setCart(this.normalizedDates, bookingData);
 

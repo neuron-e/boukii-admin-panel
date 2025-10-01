@@ -26,6 +26,9 @@ export class UtilsService {
   }
 
   getSportLevels(id: any, allLevels:any) {
+    if (!allLevels || !Array.isArray(allLevels)) {
+      return [];
+    }
     return allLevels.filter((a) => a.sport_id === id)
   }
 

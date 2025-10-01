@@ -159,8 +159,6 @@ export class FormDetailsPrivateComponent implements OnInit {
       }
     }
 
-    let price = parseFloat(this.course.price);
-
     // Check if this is the first date entry and we have externalData
     const isFirstDate = this.courseDates.length === 0;
     const initialStartHour = initialData ? initialData.startHour :
@@ -171,6 +169,27 @@ export class FormDetailsPrivateComponent implements OnInit {
     const defaultDuration = initialData ? initialData.duration :
       (!this.course.is_flexible ? this.course.duration :
         (this.possibleDurations && this.possibleDurations.length > 0 ? this.possibleDurations[0] : null));
+
+    // MEJORA CRÍTICA: Calcular precio correcto para cursos flexibles
+    let price;
+    console.log('🔍 PRECIO DEBUG - Datos de entrada:', {
+      isFlexible: this.course.is_flexible,
+      defaultDuration,
+      utilizersLength: this.utilizers?.length,
+      coursePrice: this.course.price,
+      priceRange: this.course.price_range
+    });
+
+    if (this.course.is_flexible && defaultDuration && this.utilizers?.length) {
+      // Para cursos flexibles, calcular precio basado en duración y número de participantes
+      const tempDate = { duration: defaultDuration };
+      price = this.calculatePrice(tempDate);
+      console.log('🔍 PRECIO DEBUG - Precio calculado para flexible:', price);
+    } else {
+      // Para cursos no flexibles, usar precio base
+      price = parseFloat(this.course.price);
+      console.log('🔍 PRECIO DEBUG - Precio fijo para no flexible:', price);
+    }
 
     const courseDateGroup = this.fb.group({
       selected: [initialData ? initialData.selected : true],
@@ -246,10 +265,26 @@ export class FormDetailsPrivateComponent implements OnInit {
           const isAvailable = response.success; // Ajusta según la respuesta real de tu API
           resolve(isAvailable); // Resolvemos la promesa con el valor de disponibilidad
         }, (error) => {
-          this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
-            moment(error.error.data[0].date).format('YYYY-MM-DD') +
-            ' | ' + error.error.data[0].hour_start + ' - ' +
-            error.error.data[0].hour_end, 'OK', { duration: 3000 })
+          console.log('🔍 checkbooking ERROR:', error);
+
+          // Verificar si hay datos de solapamiento en el error
+          if (error?.error?.data && Array.isArray(error.error.data) && error.error.data.length > 0) {
+            const conflictData = error.error.data[0];
+            this.snackbar.open(
+              this.translateService.instant('snackbar.booking.overlap') +
+              moment(conflictData.date).format('YYYY-MM-DD') +
+              ' | ' + conflictData.hour_start + ' - ' + conflictData.hour_end,
+              'OK',
+              { duration: 3000 }
+            );
+          } else {
+            // Error genérico sin datos específicos
+            this.snackbar.open(
+              this.translateService.instant('snackbar.booking.overlap'),
+              'OK',
+              { duration: 3000 }
+            );
+          }
           resolve(false); // En caso de error, rechazamos la promesa
         });
     });
@@ -383,6 +418,13 @@ export class FormDetailsPrivateComponent implements OnInit {
   }
 
   private calculatePrice(date) {
+    console.log('🔍 calculatePrice DEBUG - Entrada:', {
+      date,
+      courseIsFlexible: this.course.is_flexible,
+      utilizersLength: this.utilizers.length,
+      priceRange: this.course.price_range
+    });
+
     let total = 0;
 
     if (this.course.is_flexible) {
@@ -391,14 +433,24 @@ export class FormDetailsPrivateComponent implements OnInit {
       const duration = date.duration; // Duración de cada fecha
       const selectedUtilizers = this.utilizers.length; // Número de utilizadores
 
+      console.log('🔍 calculatePrice DEBUG - Busqueda:', {
+        duration,
+        selectedUtilizers,
+        availableIntervals: this.course.price_range?.map(r => r.intervalo)
+      });
+
       // Encuentra el intervalo de duración que se aplica
       const interval = this.course.price_range.find(range => {
         return range.intervalo === duration; // Comparar con la duración de la fecha
       });
 
+      console.log('🔍 calculatePrice DEBUG - Interval encontrado:', interval);
+
       if (interval) {
-        const val = parseFloat(interval[selectedUtilizers]);
-        total += isNaN(val) ? 0 : val; // Precio por utilizador para cada fecha
+        // Intentar acceso con número y string para compatibilidad
+        const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
+        total += priceForPax; // Precio por utilizador para cada fecha
+        console.log('🔍 calculatePrice DEBUG - Precio calculado:', priceForPax);
       } else {
         // Fallback: sin price_range válido, usar precio base del curso por nº de utilizadores
         const base = parseFloat(this.course?.price ?? '0');

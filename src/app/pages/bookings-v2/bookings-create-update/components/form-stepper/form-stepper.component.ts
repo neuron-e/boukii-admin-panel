@@ -101,7 +101,27 @@ export class BookingFormStepper implements OnChanges {
       }
     }
 
-
+    // MEJORA CRÍTICA: Saltar pantalla de detalles si es colectivo fijo sin extras
+    if (step === 4) { // Completando step 4 (selección de curso)
+      const courseData = formGroup.get('course')?.value;
+      if (courseData && courseData.course_type === 1 && !courseData.is_flexible) {
+        // Es un curso colectivo fijo, verificar si tiene extras
+        const hasExtras = courseData.course_extras && courseData.course_extras.length > 0;
+        if (!hasExtras) {
+          // No tiene extras, saltar el step 5 (detalles) y crear un formulario vacío
+          const emptyDetailsForm = this.fb.group({
+            course: [courseData],
+            course_dates: this.fb.array([])
+          });
+          this.stepperForm.setControl('step5', emptyDetailsForm);
+          // Saltar directo al step 6 (observaciones)
+          this.currentStep = 5;
+          this.changedCurrentStep.emit(this.currentStep);
+          this.changedFormData.emit(this.stepperForm);
+          return;
+        }
+      }
+    }
 
     this.nextStep();
     this.changedFormData.emit(this.stepperForm);

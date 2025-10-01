@@ -168,11 +168,11 @@
               <span class="hour">{{ date.startHour}}h - {{ date.endHour }}h
               </span>
               <span class="price" *ngIf="date.price">
-                <!-- Mostrar el precio original tachado -->
+                <!-- Mostrar el precio original tachado si hay descuento -->
                 <span *ngIf="isDiscounted(date, i)" class="original-price">
                   {{ parseFloat(date.price)| number:'0.2-2' }} {{ date.currency }}
                 </span>
-                <!-- Mostrar el precio con descuento -->
+                <!-- Mostrar el precio con o sin descuento -->
                 <span class="discounted-price">
                   {{ calculateDiscountedPrice(date, i)| number:'0.2-2' }} {{
                   date.currency }}

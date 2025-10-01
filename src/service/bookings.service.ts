@@ -82,6 +82,7 @@ export class BookingService {
   calculatePendingPrice(): number {
     const data = this.getBookingData();
     if (!data) {
+      console.warn('🔍 calculatePendingPrice: No booking data found');
       return 0;
     }
 
@@ -95,6 +96,13 @@ export class BookingService {
     const priceTotal = typeof (data as any).price_total === 'number'
       ? (data as any).price_total
       : parseFloat((data as any).price_total ?? '0');
+
+    console.log('🔍 calculatePendingPrice DEBUG:', {
+      priceTotal,
+      totalVouchers,
+      pending: priceTotal - totalVouchers,
+      bookingData: data
+    });
 
     const pending = priceTotal - totalVouchers;
     return pending > 0 ? pending : 0;

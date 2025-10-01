@@ -93,7 +93,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Discount system properties
   enableMultiDateDiscounts = false;
-  discountsByDates: any[];
+  discountsByDates: any[] = [];
+
+  // Flag to prevent sync during bulk schedule application
+  private _applyingBulkSchedule = false;
 
   // Date selection method properties (global fallback)
   selectedDateMethod: 'consecutive' | 'weekly' | 'manual' = 'consecutive';
@@ -158,6 +161,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private upsertSingleIntervalDates(dates: CourseDate[]): CourseDate[] {
+    console.log('🔥 UPSERT_DEBUG: upsertSingleIntervalDates llamado durante aplicación masiva!', {
+      applyingBulkSchedule: this._applyingBulkSchedule,
+      incomingDatesCount: dates?.length || 0,
+      incomingDates: dates,
+      stackTrace: new Error().stack
+    });
+
+    // PROTECCIÓN: No ejecutar durante aplicación de horario masivo
+    if (this._applyingBulkSchedule) {
+      console.log('🔥 UPSERT_DEBUG: SALTANDO upsert porque se está aplicando horario masivo');
+      return dates; // Retornar las fechas tal como vinieron
+    }
+
     const targetInterval = this.ensureSingleIntervalForNonFlexible();
 
     if (!targetInterval) {
@@ -652,22 +668,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
         const settings = JSON.parse(this.user.schools[0].settings);
         let durations = this.courses.getFilteredDuration(settings);
 
-        // Calcular el número máximo de participantes que tiene cualquier duración configurada
-        const maxParticipantsFromPriceRange = settings.prices_range.prices.reduce((max, p) => {
-          const participantKeys = Object.keys(p)
-            .filter(key => key !== 'intervalo' && p[key] !== null && p[key] !== undefined && p[key] !== '')
-            .map(key => parseInt(key, 10))
-            .filter(num => !isNaN(num));
-
-          const maxInThisPrice = participantKeys.length > 0 ? Math.max(...participantKeys) : 0;
-          return Math.max(max, maxInThisPrice);
-        }, 1);
-
-        // Usar el máximo entre el configurado en el form y el que se deduce del price_range
-        const maxParticipants = Math.max(
-          this.courses.courseFormGroup.controls["max_participants"].value || 1,
-          maxParticipantsFromPriceRange
-        );
+        // Usar directamente el max_participants configurado en el formulario
+        const maxParticipants = this.courses.courseFormGroup.controls["max_participants"].value || 6;
 
         let Range = this.generarIntervalos(
           maxParticipants,
@@ -1099,22 +1101,47 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
 
   onMultipleIntervalsChange() {
+    console.log('🔍 INTERVAL_DEBUG: onMultipleIntervalsChange llamado', {
+      useMultipleIntervals: this.useMultipleIntervals,
+      currentIntervalsCount: this.intervals?.length || 0,
+      intervals: this.intervals
+    });
+
     if (this.useMultipleIntervals) {
       // Si no hay intervalos, inicializar con uno vacío
-      if (this.intervals.length === 0) {
+      if (!this.intervals || this.intervals.length === 0) {
+        console.log('🔍 INTERVAL_DEBUG: No hay intervalos, creando uno nuevo');
         this.addIntervalUI(0);
+      } else {
+        console.log('🔍 INTERVAL_DEBUG: Ya hay intervalos, no se crea ninguno nuevo');
       }
+      // Si ya hay intervalos, no hacer nada para evitar duplicados
     } else {
+      console.log('🔍 INTERVAL_DEBUG: Desactivando múltiples intervalos, reseteando a uno solo');
       // Si se desactiva, mantener el array de course_dates normal y vaciar los intervalos
       this.resetToSingleInterval();
     }
 
     // Sincronizar con course_dates
     this.syncIntervalsToCourseFormGroup();
+
+    console.log('🔍 INTERVAL_DEBUG: Estado final después de onMultipleIntervalsChange', {
+      intervalsCount: this.intervals?.length || 0,
+      intervals: this.intervals
+    });
+
+    // Invalidar cache para forzar recalculo en próximo render
+    this.invalidateDisplayIntervalsCache();
   }
 
   // Añadir un nuevo intervalo
   addIntervalUI(i:number) {
+    console.log('🔍 INTERVAL_DEBUG: addIntervalUI llamado', {
+      index: i,
+      currentIntervalsCount: this.intervals?.length || 0,
+      existingIntervals: this.intervals
+    });
+
     const today = new Date();
     const nextWeek = new Date(today);
     nextWeek.setDate(today.getDate() + 7);
@@ -1142,10 +1169,22 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     this.intervals.push(newInterval);
 
+    console.log('🔍 INTERVAL_DEBUG: Intervalo agregado', {
+      newInterval: newInterval,
+      totalIntervals: this.intervals.length,
+      allIntervals: this.intervals
+    });
+
     // Añadir una fecha inicial al nuevo intervalo
     const intervalIndex = this.intervals.length - 1;
     this.addCourseDateToInterval(intervalIndex);
 
+    console.log('🔍 INTERVAL_DEBUG: addIntervalUI completado', {
+      finalIntervalsCount: this.intervals.length
+    });
+
+    // Invalidar cache para forzar recalculo en próximo render
+    this.invalidateDisplayIntervalsCache();
   }
 
   // Eliminar un intervalo
@@ -1153,6 +1192,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
     if (index >= 0 && index < this.intervals.length) {
       this.intervals.splice(index, 1);
       this.syncIntervalsToCourseFormGroup();
+      // Invalidar cache para forzar recalculo en próximo render
+      this.invalidateDisplayIntervalsCache();
     }
   }
 
@@ -1381,10 +1422,41 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Sincronizar datos de intervalos con el FormGroup del curso
   syncIntervalsToCourseFormGroup(): boolean {
-    if (!this.courses.courseFormGroup) return false;
+    console.log('🔍 SYNC_DEBUG: ========== INICIANDO SYNC ==========');
+
+    if (!this.courses.courseFormGroup) {
+      console.log('🔍 SYNC_DEBUG: No hay courseFormGroup, abortando');
+      return false;
+    }
+
+    // Skip sync during bulk schedule application to prevent duplicates
+    if (this._applyingBulkSchedule) {
+      console.log('🔍 SYNC_DEBUG: Saltando sync porque se está aplicando horario masivo');
+      return true;
+    }
+
+    console.log('🔍 SYNC_DEBUG: Estado ANTES del sync:', {
+      intervalsCount: this.intervals?.length || 0,
+      currentFormDatesCount: this.courses.courseFormGroup.get('course_dates')?.value?.length || 0,
+      intervals: this.intervals?.map(i => ({
+        id: i.id,
+        datesCount: i.dates?.length || 0,
+        dates: i.dates
+      }))
+    });
 
     const previousCourseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value);
+
+    console.log('🔍 SYNC_DEBUG: Generando fechas desde intervalos...');
     const generatedCourseDates = this.generateCourseDatesFromIntervals(this.intervals);
+
+    console.log('🔍 SYNC_DEBUG: Fechas generadas:', {
+      generatedCount: generatedCourseDates.length,
+      previousCount: previousCourseDates?.length || 0,
+      generatedDates: generatedCourseDates,
+      previousDates: previousCourseDates
+    });
+
     const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(generatedCourseDates)
     );
@@ -1396,8 +1468,15 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     if (generatedCourseDates.length > 0) {
+      console.log('🔍 SYNC_DEBUG: Aplicando patchValue con fechas generadas...');
+
       this.courses.courseFormGroup.patchValue({
         course_dates: generatedCourseDates
+      });
+
+      console.log('🔍 SYNC_DEBUG: DESPUÉS del patchValue:', {
+        formDatesCount: this.courses.courseFormGroup.get('course_dates')?.value?.length || 0,
+        formDates: this.courses.courseFormGroup.get('course_dates')?.value
       });
 
       setTimeout(() => {
@@ -1407,6 +1486,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     this.saveIntervalSettings();
+
+    console.log('🔍 SYNC_DEBUG: ========== FIN SYNC ==========');
     return true;
   }
 
@@ -2508,6 +2589,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   applyBulkScheduleToInterval(intervalIndex: number, startTime: string, duration: string): boolean {
+    console.log('🔍 BULK_SCHEDULE_TO_INTERVAL_DEBUG: Iniciando aplicación a intervalo específico', {
+      intervalIndex,
+      startTime,
+      duration,
+      applyingBulkSchedule: this._applyingBulkSchedule
+    });
+
     this.ensureSingleIntervalForNonFlexible();
 
     if (!startTime || !duration) {
@@ -2536,7 +2624,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }));
 
     if (this.isSingleIntervalMode && intervalIndex === 0) {
-      this.upsertSingleIntervalDates(updatedIntervalDates);
+      console.log('🔍 DIRECT_INTERVAL_UPDATE: Actualizando directamente el intervalo:', {
+        intervalIndex,
+        originalDatesCount: interval.dates.length,
+        updatedDatesCount: updatedIntervalDates.length
+      });
+
+      // ACTUALIZACIÓN DIRECTA: Reemplazar las fechas del intervalo directamente
+      interval.dates = updatedIntervalDates;
+
+      console.log('🔍 DIRECT_INTERVAL_UPDATE: Fechas actualizadas directamente:', {
+        newDatesCount: interval.dates.length,
+        sampleDate: interval.dates[0]
+      });
 
       const generatedCourseDates = this.generateCourseDatesFromIntervals(this.intervals);
       const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
@@ -2617,15 +2717,25 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   applyBulkScheduleToIntervalInline(intervalIndex: number): void {
+    console.log('🔍 BULK_SCHEDULE_INLINE_DEBUG: Iniciando aplicación de horarios masivos inline');
+
+    // Activar flag para prevenir interferencias durante la aplicación
+    this._applyingBulkSchedule = true;
+
     const startTime = this.getIntervalScheduleStartTime(intervalIndex);
     const duration = this.getIntervalScheduleDuration(intervalIndex);
 
     if (!startTime || !duration) {
       this.showErrorMessage('Por favor, selecciona la hora de inicio y duración');
+      this._applyingBulkSchedule = false; // Resetear flag antes de salir
       return;
     }
 
-    this.applyBulkScheduleToInterval(intervalIndex, startTime, duration);
+    const success = this.applyBulkScheduleToInterval(intervalIndex, startTime, duration);
+
+    // Resetear flag al final de la operación
+    this._applyingBulkSchedule = false;
+    console.log('🔍 BULK_SCHEDULE_INLINE_DEBUG: Aplicación de horario masivo inline completada:', { success });
   }
 
   // Variables para los selectores de horario masivo para fechas individuales
@@ -2634,39 +2744,117 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Métodos para aplicar horario masivo a fechas individuales
   applyBulkScheduleToIndividualDates(): void {
+    console.log('🔍 BULK_SCHEDULE_DEBUG: Iniciando aplicación de horarios masivos');
+
+    // Activar flag para prevenir sync durante la aplicación
+    this._applyingBulkSchedule = true;
+
     const startTime = this.getIndividualScheduleStartTime();
     const duration = this.getIndividualScheduleDuration();
 
+    console.log('🔍 BULK_SCHEDULE_DEBUG: Valores seleccionados:', { startTime, duration });
+
     if (!startTime || !duration) {
       this.showErrorMessage('Por favor, selecciona la hora de inicio y duración');
+      this._applyingBulkSchedule = false;
       return;
     }
 
-    if (!this.courses.courseFormGroup.controls['course_dates'].value || this.courses.courseFormGroup.controls['course_dates'].value.length === 0) {
-      this.showErrorMessage('No hay fechas disponibles para actualizar');
-      return;
-    }
-
-    const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
-    const updatedCourseDates = courseDates.map((date: any) => ({
-      ...date,
-      hour_start: startTime,
-      duration: duration,
-      hour_end: this.courses.addMinutesToTime(startTime, duration)
-    }));
-
-    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
-      this.convertToCourseDateInfos(updatedCourseDates)
-    );
-
-    if (validationErrors.length > 0) {
-      this.showValidationSummary(validationErrors);
-      return;
-    }
-
-    this.courses.courseFormGroup.patchValue({ course_dates: updatedCourseDates });
+    // NUEVO ENFOQUE: Actualizar directamente las fechas en los intervalos
+    // en lugar de usar patchValue que puede estar causando duplicaciones
+    this.updateIntervalDatesDirectly(startTime, duration);
 
     this.snackBar.open(`Horario aplicado exitosamente a todas las fechas`, 'OK', { duration: 3000 });
+
+    // Resetear flag al final de la operación exitosa
+    this._applyingBulkSchedule = false;
+    console.log('🔍 BULK_SCHEDULE_DEBUG: Aplicación de horario masivo completada exitosamente');
+  }
+
+  // NUEVA FUNCIÓN: Actualizar fechas directamente en los intervalos
+  private updateIntervalDatesDirectly(startTime: string, duration: string): void {
+    console.log('🔍 DIRECT_UPDATE_DEBUG: ========== INICIANDO ACTUALIZACIÓN DIRECTA ==========');
+
+    console.log('🔍 DIRECT_UPDATE_DEBUG: Estado ANTES de actualizar:', {
+      intervalsCount: this.intervals?.length || 0,
+      intervals: this.intervals?.map(i => ({
+        id: i.id,
+        datesCount: i.dates?.length || 0,
+        dates: i.dates
+      }))
+    });
+
+    if (!this.intervals || this.intervals.length === 0) {
+      console.log('🔍 DIRECT_UPDATE_DEBUG: No hay intervalos para actualizar');
+      return;
+    }
+
+    let totalUpdated = 0;
+    let totalDatesBefore = 0;
+
+    this.intervals.forEach((interval: any, intervalIndex: number) => {
+      if (!interval.dates || !Array.isArray(interval.dates)) {
+        console.log(`🔍 DIRECT_UPDATE_DEBUG: Intervalo ${intervalIndex} no tiene fechas válidas`);
+        return;
+      }
+
+      const datesBefore = interval.dates.length;
+      totalDatesBefore += datesBefore;
+
+      console.log(`🔍 DIRECT_UPDATE_DEBUG: ANTES de actualizar intervalo ${intervalIndex}:`, {
+        datesCount: datesBefore,
+        dates: [...interval.dates] // copia para comparar después
+      });
+
+      interval.dates.forEach((date: any, dateIndex: number) => {
+        const oldHourStart = date.hour_start;
+        const oldDuration = date.duration;
+
+        // Actualizar directamente los valores
+        date.hour_start = startTime;
+        date.duration = duration;
+        date.hour_end = this.courses.addMinutesToTime(startTime, duration);
+
+        console.log(`🔍 DIRECT_UPDATE_DEBUG: Fecha ${dateIndex} actualizada:`, {
+          date: date.date,
+          from: { hour_start: oldHourStart, duration: oldDuration },
+          to: { hour_start: startTime, duration: duration }
+        });
+
+        totalUpdated++;
+      });
+
+      console.log(`🔍 DIRECT_UPDATE_DEBUG: DESPUÉS de actualizar intervalo ${intervalIndex}:`, {
+        datesCount: interval.dates.length,
+        dates: [...interval.dates]
+      });
+    });
+
+    console.log('🔍 DIRECT_UPDATE_DEBUG: RESUMEN de actualización directa:', {
+      totalDatesBefore: totalDatesBefore,
+      totalUpdated: totalUpdated,
+      intervalsAfterUpdate: this.intervals?.map(i => ({
+        id: i.id,
+        datesCount: i.dates?.length || 0
+      }))
+    });
+
+    console.log('🔍 DIRECT_UPDATE_DEBUG: Verificando estado FINAL de intervalos antes de sync:');
+    this.intervals.forEach((interval: any, intervalIndex: number) => {
+      console.log(`🔍 DIRECT_UPDATE_DEBUG: Intervalo ${intervalIndex} final:`, {
+        id: interval.id,
+        datesCount: interval.dates?.length || 0,
+        uniqueDatesCount: new Set(interval.dates?.map((d: any) => d.date) || []).size,
+        dates: interval.dates
+      });
+    });
+
+    console.log('🔍 DIRECT_UPDATE_DEBUG: Llamando a syncIntervalsToCourseFormGroup...');
+
+    // Restaurar sync
+    this.syncIntervalsToCourseFormGroup();
+
+    console.log('🔍 DIRECT_UPDATE_DEBUG: ========== FIN ACTUALIZACIÓN DIRECTA ==========');
   }
 
   // Métodos para manejar los selectores inline de horario para fechas individuales
@@ -2687,7 +2875,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   createDefaultInterval(): any {
-    // Create a default interval when none exists for single interval mode
+    console.log('🔍 CREATE_DEFAULT_INTERVAL_DEBUG: createDefaultInterval llamado', {
+      currentIntervalsCount: this.intervals?.length || 0,
+      hasIntervals: !!this.intervals && this.intervals.length > 0
+    });
+
+    // Solo crear un nuevo intervalo si realmente no hay ninguno
     if (!this.intervals || this.intervals.length === 0) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -2717,33 +2910,68 @@ export class CoursesCreateUpdateComponent implements OnInit {
         scheduleDuration: this.courses.duration?.[0] || ''
       };
 
-      // Initialize intervals array if it doesn't exist
-      if (!this.intervals) {
-        this.intervals = [defaultInterval];
-      }
+      console.log('🔍 CREATE_DEFAULT_INTERVAL_DEBUG: Nuevo intervalo creado:', defaultInterval);
 
+      // CRÍTICO: No agregar automáticamente al array aquí,
+      // dejar que el llamador (getDisplayIntervals) lo maneje
       return defaultInterval;
     }
 
+    console.log('🔍 CREATE_DEFAULT_INTERVAL_DEBUG: Ya existen intervalos, retornando el primero');
     return this.intervals[0];
   }
 
+  // Cached display intervals to avoid recreating on every render
+  private _displayIntervals: any[] = [];
+  private _lastIntervalState: any = null;
+
   getDisplayIntervals(): any[] {
-    // Ensure intervals array exists
-    if (!this.intervals || this.intervals.length === 0) {
-      this.createDefaultInterval();
+    // Create a state signature to detect changes
+    const currentState = {
+      intervalsCount: this.intervals?.length || 0,
+      useMultipleIntervals: this.useMultipleIntervals,
+      intervalsHash: this.intervals?.map(i => i.id).join(',') || ''
+    };
+
+    // Only recalculate if state has changed
+    if (JSON.stringify(currentState) !== JSON.stringify(this._lastIntervalState)) {
+      console.log('🔍 DISPLAY_INTERVALS_DEBUG: Estado cambió, recalculando intervalos', {
+        previousState: this._lastIntervalState,
+        currentState: currentState,
+        intervals: this.intervals
+      });
+
+      // Ensure intervals array exists, but don't create new ones unnecessarily
+      if (!this.intervals || this.intervals.length === 0) {
+        console.log('🔍 DISPLAY_INTERVALS_DEBUG: No hay intervalos, inicializando');
+        this.intervals = [];
+        const defaultInterval = this.createDefaultInterval();
+        this.intervals.push(defaultInterval);
+        console.log('🔍 DISPLAY_INTERVALS_DEBUG: Intervalo por defecto agregado');
+      }
+
+      if (this.useMultipleIntervals) {
+        this._displayIntervals = [...this.intervals];
+        console.log('🔍 DISPLAY_INTERVALS_DEBUG: Modo múltiples intervalos, mostrando', this._displayIntervals.length);
+      } else {
+        // For single interval mode, ensure we don't have more than one interval
+        if (this.intervals.length > 1) {
+          console.log('🔍 DISPLAY_INTERVALS_DEBUG: Reduciendo a un solo intervalo en modo simple');
+          this.intervals = [this.intervals[0]];
+        }
+        this._displayIntervals = [...this.intervals.slice(0, 1)];
+        console.log('🔍 DISPLAY_INTERVALS_DEBUG: Modo intervalo único, mostrando', this._displayIntervals.length);
+      }
+
+      this._lastIntervalState = currentState;
     }
 
-    if (this.useMultipleIntervals) {
-      return this.intervals;
-    } else {
-      // For single interval mode, always return only the first interval
-      // Also ensure we don't have more than one interval in single mode
-      if (this.intervals.length > 1) {
-        console.log('Fixing duplicate intervals in single mode:', this.intervals.length);
-        this.intervals = [this.intervals[0]];
-      }
-      return this.intervals.slice(0, 1);
-    }
+    return this._displayIntervals;
+  }
+
+  // Helper method to invalidate display intervals cache when intervals change
+  private invalidateDisplayIntervalsCache(): void {
+    this._lastIntervalState = null;
+    console.log('🔍 DISPLAY_INTERVALS_DEBUG: Cache invalidado');
   }
 }

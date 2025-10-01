@@ -273,6 +273,14 @@
   "course_price": "Precio del curso",
   "max_pax": "Participantes max.",
   "participants": "Participantes",
+  "available_groups": "Grupos disponibles",
+  "checking_capacity": "Verificando capacidad",
+  "slots_available": "plazas disponibles",
+  "need": "necesitas",
+  "unlimited_capacity": "Capacidad ilimitada",
+  "course_full": "Curso completo",
+  "no_available_groups": "No hay grupos disponibles",
+  "no_groups_for_level_date": "No hay grupos disponibles para este nivel en esta fecha",
   "colective": "Colectivo",
   "private": "Privado",
   "groups": "Grupos",
@@ -1461,5 +1469,12 @@
   "view_calendar": "Ver Calendario",
   "export_report": "Exportar Reporte",
   "go_to_planner": "Ir al Planificador",
-  "quick_actions": "Acciones Rápidas"
+  "quick_actions": "Acciones Rápidas",
+  "mon": "Lun",
+  "tue": "Mar",
+  "wed": "Mié",
+  "thu": "Jue",
+  "fri": "Vie",
+  "sat": "Sáb",
+  "sun": "Dom"
 }

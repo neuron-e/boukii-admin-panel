@@ -67,7 +67,7 @@
                 {{ sportLevel?.league }} {{ sportLevel?.name }}
               </div>
               <span class="coursePrice">
-                {{ item.minPrice }} {{ item.currency }}
+                {{ getCorrectPriceForPrivateFlex(item) }} {{ item.currency }}
               </span>
             </h4>
 
@@ -116,10 +116,12 @@
             <div class="subGroups-container" *ngIf="!isCapacityLoading && selectedSubGroups.length > 0">
               <h4>{{ 'available_groups' | translate }}</h4>
               <mat-radio-group formControlName="selectedSubGroup">
-                <div
-                  class="subGroup enhanced"
+                <mat-radio-button
                   *ngFor="let group of selectedSubGroups"
-                  (click)="selectSubGroup(group)"
+                  [value]="group"
+                  [disabled]="!group.capacity_info?.has_capacity"
+                  (change)="selectSubGroup(group)"
+                  class="subGroup enhanced"
                   [ngClass]="{
                     'has-capacity': group.capacity_info?.has_capacity,
                     'no-capacity': !group.capacity_info?.has_capacity,
@@ -127,7 +129,6 @@
                     'unlimited': group.capacity_info?.is_unlimited
                   }"
                 >
-                  <mat-radio-button [value]="group" [disabled]="!group.capacity_info?.has_capacity">
                     <div class="group-header">
                       <div
                         [style.background]="sportLevel?.color"
@@ -189,8 +190,7 @@
                       <mat-icon>warning</mat-icon>
                       <span>{{ 'course_full' | translate }}</span>
                     </div>
-                  </mat-radio-button>
-                </div>
+                </mat-radio-button>
               </mat-radio-group>
             </div>
 

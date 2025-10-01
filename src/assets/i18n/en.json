@@ -222,6 +222,14 @@
   "course_price": "Course price",
   "max_pax": "Participants max.",
   "participants": "Participants",
+  "available_groups": "Available groups",
+  "checking_capacity": "Checking capacity",
+  "slots_available": "slots available",
+  "need": "need",
+  "unlimited_capacity": "Unlimited capacity",
+  "course_full": "Course full",
+  "no_available_groups": "No available groups",
+  "no_groups_for_level_date": "No groups available for this level on this date",
   "colective": "Collective",
   "private": "Private",
   "groups": "Groups",
@@ -1378,5 +1386,12 @@
   "view_calendar": "View Calendar",
   "export_report": "Export Report",
   "go_to_planner": "Go to Planner",
-  "quick_actions": "Quick Actions"
+  "quick_actions": "Quick Actions",
+  "mon": "Mon",
+  "tue": "Tue",
+  "wed": "Wed",
+  "thu": "Thu",
+  "fri": "Fri",
+  "sat": "Sat",
+  "sun": "Sun"
 }

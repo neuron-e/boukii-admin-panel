@@ -33,13 +33,24 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
               private snackbar: MatSnackBar) {
   }
   ngOnInit(): void {
+    console.log('FLEX DATES DEBUG: Component initializing');
+    console.log('FLEX DATES DEBUG: Course:', this.course);
+    console.log('FLEX DATES DEBUG: Sport level:', this.sportLevel);
+    console.log('FLEX DATES DEBUG: Utilizer:', this.utilizer);
+
     this.posibleExtras = this.course.course_extras;
     if (this.isCoursExtrasOld) {
       this.posibleExtras = this.filterExtrasByName(this.posibleExtras);
     }
+
+    console.log('FLEX DATES DEBUG: Possible extras:', this.posibleExtras?.length);
+
     this.initializeForm();
     // Inicializa los precios a cero
-    this.totalExtraPrice = new Array(this.course.course_dates.length).fill(0);
+    this.totalExtraPrice = new Array(this.course.course_dates?.length || 0).fill(0);
+
+    console.log('FLEX DATES DEBUG: Component initialization complete');
+    console.log('FLEX DATES DEBUG: Form controls count:', this.courseDatesArray?.controls?.length);
   }
   private filterExtrasByName(extras: any[]): any[] {
     const uniqueExtras: { [key: string]: any } = {};
@@ -52,6 +63,10 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
     });
   }
   initializeForm() {
+    console.log('FLEX DATES DEBUG: Initializing form for course:', this.course?.name);
+    console.log('FLEX DATES DEBUG: Course dates available:', this.course?.course_dates?.length);
+    console.log('FLEX DATES DEBUG: Sport level:', this.sportLevel);
+
     // Obtener el FormArray existente
     const existingCourseDatesArray = this.stepForm.get('course_dates') as FormArray;
     // Si no existe el FormArray, lo inicializamos
@@ -71,20 +86,36 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
           // Comprobar capacidad por nivel (subgrupo con hueco) y autoasignar monitor
           const monitor = this.findMonitor(date);
           const hasCapacity = !!monitor;
-          // Si es una fecha en el futuro o es hoy y cumple con la hora, aÃ±adimos el grupo
-          if ((isInFuture || isValidToday) && hasCapacity) {
+          // MEJORA CRÍTICA: Ser más permisivo con las fechas - mostrar todas las fechas válidas
+          console.log(`FLEX DATES DEBUG: Date ${index} - isToday: ${isToday}, isInFuture: ${isInFuture}, isValidToday: ${isValidToday}, hasCapacity: ${hasCapacity}`);
+
+          // Si es una fecha en el futuro o es hoy y cumple con la hora, añadimos el grupo
+          if (isInFuture || isValidToday) {
             // Si hay datos iniciales, usamos esos datos para restaurar los valores seleccionados
             const initialSelected = this.initialData?.[index]?.selected || false;
             const initialExtras = this.initialData?.[index]?.extras || [];
-            return this.createCourseDateGroup(date, initialSelected, initialExtras);
+            const dateGroup = this.createCourseDateGroup(date, initialSelected, initialExtras);
+
+            // Si no hay capacidad, agregar información pero mantener el control habilitado
+            if (!hasCapacity) {
+              dateGroup.get('monitor')?.setValue(null);
+              console.log(`FLEX DATES DEBUG: Date ${index} has no capacity but control stays enabled`);
+            }
+
+            return dateGroup;
           } else {
-            // Si la fecha no es vÃ¡lida (pasada o hoy pero la hora es menor a la actual), devolvemos null
+            // Si la fecha no es válida (pasada o hoy pero la hora es menor a la actual), devolvemos null
+            console.log(`FLEX DATES DEBUG: Date ${index} excluded - not valid date`);
             return null;
           }
-        }).filter(group => group !== null), // Filtrar los null (fechas no vÃ¡lidas)
-        this.atLeastOneSelectedValidator  // ValidaciÃ³n personalizada
+        }).filter(group => group !== null), // Filtrar los null (fechas no válidas)
+        this.atLeastOneSelectedValidator  // Validación personalizada
       );
-      // AÃ±adir el FormArray al formulario del padre
+
+      console.log('FLEX DATES DEBUG: Final dates array length:', courseDatesArray.controls.length);
+      console.log('FLEX DATES DEBUG: Dates array controls:', courseDatesArray.controls);
+
+      // Añadir el FormArray al formulario del padre
       this.stepForm.addControl('course_dates', courseDatesArray);
     }
   }
@@ -201,41 +232,88 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
     });
   }
   findMonitor(courseDate: any): any {
+    console.log('FLEX DATES DEBUG: Finding monitor for date:', courseDate.date);
+    console.log('FLEX DATES DEBUG: Available groups:', courseDate.course_groups?.length);
+    console.log('FLEX DATES DEBUG: Looking for sport level ID:', this.sportLevel?.id);
+
     // Filtra los grupos que coinciden con el `degree_id` de this.sportLevel
-    const matchingGroup = courseDate.course_groups.find(group => group.degree_id === this.sportLevel.id);
+    const matchingGroup = courseDate.course_groups?.find(group => group.degree_id === this.sportLevel?.id);
+
+    console.log('FLEX DATES DEBUG: Matching group found:', !!matchingGroup);
+
     if (matchingGroup) {
-      // Busca el subgrupo que tiene menos participantes que el mÃ¡ximo permitido
-const availableSubgroup = matchingGroup.course_subgroups.find(
-  (subgroup) => ((subgroup.booking_users || []).length) < subgroup.max_participants
-);
+      console.log('FLEX DATES DEBUG: Subgroups in matching group:', matchingGroup.course_subgroups?.length);
+
+      // Busca el subgrupo que tiene menos participantes que el máximo permitido
+      const availableSubgroup = matchingGroup.course_subgroups?.find(
+        (subgroup) => ((subgroup.booking_users || []).length) < subgroup.max_participants
+      );
+
+      console.log('FLEX DATES DEBUG: Available subgroup found:', !!availableSubgroup);
+      console.log('FLEX DATES DEBUG: Monitor found:', !!availableSubgroup?.monitor);
+
       // Retorna el monitor si lo encuentra
       return availableSubgroup?.monitor || null;
     }
-    // Si no encuentra ningÃºn grupo o subgrupo adecuado, retorna null
+
+    console.log('FLEX DATES DEBUG: No matching group found for sport level');
+    // Si no encuentra ningún grupo o subgrupo adecuado, retorna null
     return null;
   }
   onDateSelect(event: any, index: number) {
     const isChecked = event.checked;
     const courseDateGroup = this.courseDatesArray.at(index) as FormGroup;
     const extrasControl = courseDateGroup.get('extras');
+
+    console.log('FLEX DATES DEBUG: Date selection changed:', {
+      index,
+      isChecked,
+      dateValue: courseDateGroup.get('date')?.value,
+      currentFormValid: this.stepForm.valid
+    });
+
     if (isChecked) {
+      console.log('FLEX DATES DEBUG: Checking availability for date index:', index);
+
       // Llamamos a checkAval para verificar la disponibilidad de la fecha seleccionada
       this.checkAval(index).then((isAvailable) => {
+        console.log('FLEX DATES DEBUG: Availability check result:', isAvailable);
+
         if (isAvailable) {
-          extrasControl.enable();
+          extrasControl?.enable();
+          console.log('FLEX DATES DEBUG: Date enabled and extras control enabled');
+
+          // Feedback positivo
+          if (this.snackbar) {
+            this.snackbar.open('Fecha seleccionada correctamente', 'OK', { duration: 2000 });
+          }
         } else {
           // Si no hay disponibilidad, deshabilitamos la fecha de nuevo
+          console.log('FLEX DATES DEBUG: Date not available, reverting selection');
+
           // Usamos setTimeout para evitar conflictos con el evento del checkbox
           setTimeout(() => {
-            courseDateGroup.get('selected').setValue(false, { emitEvent: false });
+            courseDateGroup.get('selected')?.setValue(false, { emitEvent: false });
           }, 0);
-          extrasControl.disable();
-          extrasControl.setValue([]); // Limpia los extras seleccionados
+          extrasControl?.disable();
+          extrasControl?.setValue([]); // Limpia los extras seleccionados
+        }
+
+        // Actualizar validación del formulario
+        this.stepForm.updateValueAndValidity();
+      }).catch((error) => {
+        console.error('FLEX DATES DEBUG: Error checking availability:', error);
+        // En caso de error, permitir la selección pero mostrar advertencia
+        extrasControl?.enable();
+        if (this.snackbar) {
+          this.snackbar.open('No se pudo verificar la disponibilidad, pero se permite la selección', 'OK', { duration: 3000 });
         }
       });
     } else {
-      extrasControl.disable();
-      extrasControl.setValue([]);
+      console.log('FLEX DATES DEBUG: Date unselected, disabling extras');
+      extrasControl?.disable();
+      extrasControl?.setValue([]);
+      this.stepForm.updateValueAndValidity();
     }
   }
   // Calcula el total de extras seleccionados para una fecha especÃ­fica
