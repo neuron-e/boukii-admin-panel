@@ -32,14 +32,8 @@ export class BookingDescriptionCard {
   @Input() course: any;
   @Input()
   set dates(value: any[]) {
-    this._dates = value || [];
+    this._dates = [...(value || [])]; // Crear nueva referencia
     this.extractUniqueMonitors();
-    // Forzar detección de cambios
-    setTimeout(() => {
-      if (this.cdr) {
-        this.cdr.detectChanges();
-      }
-    }, 0);
   }
 
   public _dates: any[] = [];
@@ -57,7 +51,6 @@ export class BookingDescriptionCard {
   @Input() isDetail = false;
   @Input() index: number = 1;
   uniqueMonitors: any[] = []; // Monitores únicos
-
 
   constructor(
     protected langService: LangService,
