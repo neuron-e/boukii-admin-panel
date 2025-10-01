@@ -130,7 +130,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
   private ensureSingleIntervalForNonFlexible(): any | null {
     this.intervals = Array.isArray(this.intervals) ? this.intervals : [];
 
-    if (this.isSingleIntervalMode) {
+    // Force using a single interval whenever the multiple interval toggle is off.
+    const shouldEnforceSingleInterval = !this.useMultipleIntervals || this.isSingleIntervalMode;
+
+    if (shouldEnforceSingleInterval) {
       if (this.intervals.length === 0) {
         const defaultInterval = this.createDefaultInterval();
         this.intervals = [defaultInterval];
@@ -689,6 +692,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
         });
 
         this.courses.courseFormGroup.patchValue({ price_range: Range });
+        console.log('🔍 PRICE_RANGE SET DEBUG - Range asignado:', Range);
+        console.log('🔍 PRICE_RANGE SET DEBUG - FormGroup value after patch:', this.courses.courseFormGroup.controls['price_range'].value);
       }
     }
     else if (this.ModalFlux === 4) {
@@ -934,6 +939,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
     courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value)
     courseFormGroup.course_type === 1 ? courseFormGroup.settings : courseFormGroup.settings = this.courses.courseFormGroup.controls['settings'].value
+
+    // DEBUG: Verificar que price_range esté incluido
+    console.log('🔍 COURSE SAVE DEBUG - price_range antes del envío:', courseFormGroup.price_range);
+    console.log('🔍 COURSE SAVE DEBUG - course_type:', courseFormGroup.course_type);
+    console.log('🔍 COURSE SAVE DEBUG - FormGroup controls price_range value:', this.courses.courseFormGroup.controls['price_range'].value);
+    console.log('🔍 COURSE SAVE DEBUG - FormGroup full value:', this.courses.courseFormGroup.value);
+
+    // FIXED: Asegurar que price_range se incluya en el payload del curso
+    if (this.courses.courseFormGroup.controls['price_range'].value) {
+      courseFormGroup.price_range = this.courses.courseFormGroup.controls['price_range'].value;
+      console.log('🔍 COURSE SAVE DEBUG - price_range asignado explícitamente:', courseFormGroup.price_range);
+    }
+
     if (this.mode === "create") {
       this.crudService.create('/admin/courses', courseFormGroup)
         .pipe(
@@ -1714,11 +1732,20 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Resetear a un solo intervalo
   resetToSingleInterval() {
-    // Mantener solo el primer intervalo si existe, o crear uno por defecto
+    console.log('🔍 RESET_INTERVAL_DEBUG: Reseteando a un solo intervalo. Estado inicial:', {
+      intervalsCount: this.intervals?.length || 0,
+      intervals: this.intervals
+    });
+
+    // FIXED: Mantener solo el primer intervalo si existe, o crear uno por defecto
     if (this.intervals && this.intervals.length > 0) {
-      this.intervals = [this.intervals[0]];
+      // Preservar las fechas del primer intervalo y descartar el resto
+      const firstInterval = { ...this.intervals[0] };
+      this.intervals = [firstInterval];
+      console.log('🔍 RESET_INTERVAL_DEBUG: Mantenido primer intervalo:', firstInterval);
     } else {
       this.intervals = [this.createDefaultInterval()];
+      console.log('🔍 RESET_INTERVAL_DEBUG: Creado intervalo por defecto');
     }
 
     // Asegurarnos de que course_dates tiene al menos una fecha
@@ -1728,6 +1755,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
         course_dates: [{ ...this.courses.default_course_dates }]
       });
     }
+
+    console.log('🔍 RESET_INTERVAL_DEBUG: Estado final:', {
+      intervalsCount: this.intervals?.length || 0,
+      intervals: this.intervals
+    });
+
+    // Forzar invalidación del cache de display intervals
+    this.invalidateDisplayIntervalsCache();
   }
 
   // Métodos de generación de fechas por intervalo
@@ -2954,13 +2989,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
         this._displayIntervals = [...this.intervals];
         console.log('🔍 DISPLAY_INTERVALS_DEBUG: Modo múltiples intervalos, mostrando', this._displayIntervals.length);
       } else {
-        // For single interval mode, ensure we don't have more than one interval
-        if (this.intervals.length > 1) {
-          console.log('🔍 DISPLAY_INTERVALS_DEBUG: Reduciendo a un solo intervalo en modo simple');
-          this.intervals = [this.intervals[0]];
-        }
-        this._displayIntervals = [...this.intervals.slice(0, 1)];
-        console.log('🔍 DISPLAY_INTERVALS_DEBUG: Modo intervalo único, mostrando', this._displayIntervals.length);
+        // FIXED: En modo intervalo único, solo mostrar el primer intervalo SIN modificar this.intervals
+        this._displayIntervals = this.intervals.length > 0 ? [this.intervals[0]] : [];
+        console.log('🔍 DISPLAY_INTERVALS_DEBUG: Modo intervalo único, mostrando', this._displayIntervals.length, 'de', this.intervals.length, 'total');
       }
 
       this._lastIntervalState = currentState;
@@ -2975,3 +3006,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
     console.log('🔍 DISPLAY_INTERVALS_DEBUG: Cache invalidado');
   }
 }
+
+
+
+
+
+
+
+
+
+
+

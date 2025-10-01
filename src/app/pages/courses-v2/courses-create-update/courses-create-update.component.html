@@ -412,7 +412,7 @@
           </div>
         </div>
 
-        <ng-container *ngIf="!useMultipleIntervals && !isSingleIntervalMode">
+        <ng-container *ngIf="!useMultipleIntervals && !isSingleIntervalMode && courses.courseFormGroup.controls['course_type'].value !== 1">
           <!-- Mantener el código existente para fechas individuales -->
           <div *ngFor="let item of courses.courseFormGroup.controls['course_dates'].value; index as i">
             <div
@@ -1091,3 +1091,4 @@
     </div>
   </div>
 </vex-flux-modal>
+
