@@ -160,23 +160,15 @@
         <img src="assets/img/icons/edit-grey.svg" style="float: right" class="icon24" (click)="sendEditForm(4)"
           *ngIf="!summaryMode && isDetail" />
       </div>
-      <ng-container *ngIf="dates && dates.length">
+      <ng-container *ngIf="_dates && _dates.length">
         <div *ngIf="!summaryMode; else summaryDates">
-          <div *ngFor="let date of dates; let i = index" class="dateRow">
+          <div *ngFor="let date of _dates; let i = index" class="dateRow">
             <div>
               <span class="date">{{ formatDate(date?.date) }} </span>
               <span class="hour">{{ date.startHour}}h - {{ date.endHour }}h
               </span>
-              <span class="price" *ngIf="date.price">
-                <!-- Mostrar el precio original tachado si hay descuento -->
-                <span *ngIf="isDiscounted(date, i)" class="original-price">
-                  {{ parseFloat(date.price)| number:'0.2-2' }} {{ date.currency }}
-                </span>
-                <!-- Mostrar el precio con o sin descuento -->
-                <span class="discounted-price">
-                  {{ calculateDiscountedPrice(date, i)| number:'0.2-2' }} {{
-                  date.currency }}
-                </span>
+              <span class="price">
+                DIRECT DEBUG: {{date.price}} {{date.currency}}
               </span>
             </div>
             <div class="monitorRow" *ngIf="course && course.course_type!==1">
@@ -232,11 +224,17 @@
         <ng-template #summaryDates>
           <div class="dateRow">
             <div>
-              <span class="date">{{ formatDate(dates[0]?.date) }}</span>
-              <span class="hour">{{ dates[0]?.startHour }}h - {{ dates[0]?.endHour
+              <span class="date">{{ formatDate(_dates[0]?.date) }}</span>
+              <span class="hour">{{ _dates[0]?.startHour }}h - {{ _dates[0]?.endHour
                 }}h </span>
 
-              <div *ngIf="dates.length > 1" style="margin-left: auto;background-color: #DEE6EA;border-radius: 3px;
+              <span class="price" *ngIf="_dates[0]?.price && parseFloat(_dates[0]?.price) > 0">
+                <span class="discounted-price">
+                  {{ parseFloat(_dates[0]?.price) | number:'0.2-2' }} {{ _dates[0]?.currency }}
+                </span>
+              </span>
+
+              <div *ngIf="_dates.length > 1" style="margin-left: auto;background-color: #DEE6EA;border-radius: 3px;
             height: 28px;
             width: 28px;
             text-align: -webkit-center;">
@@ -247,14 +245,14 @@
              font-weight: 600;
              line-height: 28px;
              word-wrap: break-word">
-                  +{{ dates.length - 1 }}
+                  +{{ _dates.length - 1 }}
                 </p>
               </div>
             </div>
           </div>
         </ng-template>
       </ng-container>
-      <ng-container *ngIf="!dates || !dates.length">
+      <ng-container *ngIf="!_dates || !_dates.length">
         <div class="dateSkeletonsWrapper">
           <div class="skeleton small"></div>
           <div class="skeleton medium"></div>

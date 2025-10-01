@@ -43,7 +43,11 @@ export class BookingDescriptionCard {
   @Input() course: any;
   @Input()
   set dates(value: any[]) {
+    console.log('🔍 CARD COMPONENT DEBUG - Dates setter called with value:', value);
     this._dates = value || [];
+    if (this._dates.length > 0) {
+      console.log('🔍 CARD COMPONENT DEBUG - First date in setter:', this._dates[0]);
+    }
     this.extractUniqueMonitors();
   }
 

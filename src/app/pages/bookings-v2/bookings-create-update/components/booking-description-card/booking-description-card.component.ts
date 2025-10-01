@@ -34,13 +34,21 @@ export class BookingDescriptionCard {
   set dates(value: any[]) {
     this._dates = value || [];
     this.extractUniqueMonitors();
+    // Forzar detección de cambios
+    setTimeout(() => {
+      if (this.cdr) {
+        this.cdr.detectChanges();
+      }
+    }, 0);
   }
+
+  public _dates: any[] = [];
 
   get dates(): any[] {
     return this._dates;
   }
 
-  private _dates: any[] = [];
+
   @Input() monitors: any;
   @Input() clientObs: any;
   @Input() schoolObs: any;
@@ -70,7 +78,7 @@ export class BookingDescriptionCard {
   }
 
   calculateDiscountedPrice(date: any, index: number): number {
-    let price = parseFloat(date.price); // Asegúrate de convertir el precio a número
+    let price = parseFloat(date.price) || 0;
 
     if (this.course && this.course.discounts && !Array.isArray(this.course.discounts)) {
       const discounts = [];

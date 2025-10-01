@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, Optional } from '@angular/core';
+import { Component, Inject, OnInit, Optional, ChangeDetectorRef } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { BookingService } from '../../../../service/bookings.service';
@@ -149,6 +149,7 @@ export class BookingDetailV2Component implements OnInit {
     private router: Router,
     private snackBar: MatSnackBar,
     private schoolService: SchoolService,
+    private cdr: ChangeDetectorRef,
     @Optional() @Inject(MAT_DIALOG_DATA) public incData: any
   ) {
     this.paymentOptions = this.buildDirectPaymentOptions();
@@ -322,12 +323,21 @@ export class BookingDetailV2Component implements OnInit {
         const courseDateFromCourse = (user.course?.course_dates || []).find((d: any) => d.id === user.course_date_id);
         const resolvedDate = courseDateFromCourse?.date || user.course_date?.date || user.date || null;
 
+        // MEJORA CRÍTICA: Calcular duración si no está disponible formattedDuration
+        let calculatedDuration = user.formattedDuration;
+        if (!calculatedDuration && user.hour_start && user.hour_end) {
+          // Calcular duración basándose en horas de inicio y fin
+          const startHour = parseFloat(user.hour_start.replace(':', '.'));
+          const endHour = parseFloat(user.hour_end.replace(':', '.'));
+          calculatedDuration = endHour - startHour;
+        }
+
         acc[groupId].dates.push({
           id: user.course_date_id,
           date: resolvedDate,
           startHour: user.hour_start,
           endHour: user.hour_end,
-          duration: user.formattedDuration,
+          duration: calculatedDuration,
           currency: booking.currency,
           monitor: user.monitor,
           utilizers: [],
@@ -373,62 +383,90 @@ export class BookingDetailV2Component implements OnInit {
     groupedActivities.forEach((groupedActivity: any) => {
       groupedActivity.total = this.bookingService.calculateActivityPrice(groupedActivity);
 
-      console.log('🔍 BOOKING DETAIL DEBUG - Processing activity:', {
-        courseName: groupedActivity.course?.name,
-        isFlexible: groupedActivity.course?.is_flexible,
-        utilizersCount: groupedActivity.utilizers?.length,
-        datesCount: groupedActivity.dates?.length,
-        priceRange: groupedActivity.course?.price_range
-      });
-
       // MEJORA CRÍTICA: Calcular precio individual para cada fecha
       if (groupedActivity.course?.is_flexible && groupedActivity.utilizers?.length) {
         groupedActivity.dates.forEach((date: any, index: number) => {
           const duration = date.duration;
           const selectedUtilizers = groupedActivity.utilizers.length;
 
-          console.log(`🔍 BOOKING DETAIL DEBUG - Date ${index}:`, {
-            date: date.date,
-            duration,
-            selectedUtilizers,
-            beforePrice: date.price
-          });
+          // MEJORA CRÍTICA: Convertir duración decimal a formato de intervalo y buscar el más cercano
+          const convertDurationToInterval = (decimalHours: number): string => {
+            const hours = Math.floor(decimalHours);
+            const minutes = Math.round((decimalHours - hours) * 60);
+
+            // Redondear a intervalos de 15 minutos
+            const roundedMinutes = Math.round(minutes / 15) * 15;
+            const finalMinutes = roundedMinutes === 60 ? 0 : roundedMinutes;
+            const finalHours = roundedMinutes === 60 ? hours + 1 : hours;
+
+            return `${finalHours}h ${finalMinutes === 0 ? '0min' : finalMinutes + 'm'}`;
+          };
+
+          const targetInterval = convertDurationToInterval(duration);
 
           // Encuentra el intervalo de duración que se aplica
-          const interval = groupedActivity.course.price_range?.find(range => {
-            return range.intervalo === duration;
+          let interval = groupedActivity.course.price_range?.find(range => {
+            return range.intervalo === targetInterval;
           });
+
+          // Si no encuentra coincidencia exacta, buscar el más cercano
+          if (!interval && groupedActivity.course.price_range) {
+            // Buscar manualmente algunos patrones comunes
+            const alternativeFormats = [
+              `${Math.floor(duration)}h ${Math.round((duration - Math.floor(duration)) * 60)}m`,
+              `${Math.floor(duration)}h ${Math.round((duration - Math.floor(duration)) * 60)}min`,
+              targetInterval.replace('0min', '0m'),
+              targetInterval.replace('m', 'min')
+            ];
+
+            for (const altFormat of alternativeFormats) {
+              interval = groupedActivity.course.price_range.find(range => range.intervalo === altFormat);
+              if (interval) break;
+            }
+          }
+
+          // MEJORA CRÍTICA: Si el intervalo encontrado tiene precios nulos, buscar uno válido
+          if (interval && interval[selectedUtilizers] === null) {
+            // Buscar intervalos cercanos que tengan precios válidos
+            const candidateIntervals = ['1h 30m', '1h 45m', '2h 0min', '1h 0min'];
+
+            for (const candidateInterval of candidateIntervals) {
+              const candidateObj = groupedActivity.course.price_range.find(range => range.intervalo === candidateInterval);
+              if (candidateObj && candidateObj[selectedUtilizers] !== null) {
+                interval = candidateObj;
+                break;
+              }
+            }
+          }
 
           if (interval) {
             // Intentar acceso con número y string para compatibilidad
             const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
             date.price = priceForPax.toString();
             date.currency = groupedActivity.course.currency || 'CHF';
-
-            console.log(`🔍 BOOKING DETAIL DEBUG - Price calculated:`, {
-              priceForPax,
-              datePrice: date.price,
-              currency: date.currency
-            });
           } else {
-            console.log(`🔍 BOOKING DETAIL DEBUG - No interval found for duration:`, duration);
             date.price = '0';
             date.currency = groupedActivity.course.currency || 'CHF';
           }
         });
+
+        // MEJORA CRÍTICA: Recalcular el total de la actividad después de asignar precios a fechas
+        const totalFromDates = groupedActivity.dates.reduce((sum: number, date: any) => {
+          return sum + (parseFloat(date.price) || 0);
+        }, 0);
+        groupedActivity.total = totalFromDates;
+
       } else if (!groupedActivity.course?.is_flexible) {
         // Para cursos no flexibles, usar el precio base
         groupedActivity.dates.forEach((date: any) => {
           date.price = groupedActivity.course?.price || '0';
           date.currency = groupedActivity.course?.currency || 'CHF';
-
-          console.log('🔍 BOOKING DETAIL DEBUG - Fixed price assigned:', {
-            datePrice: date.price,
-            currency: date.currency
-          });
         });
       }
     });
+
+    // MEJORA CRÍTICA: Forzar detección de cambios para actualizar la UI
+    this.cdr.detectChanges();
 
     return groupedActivities;
   }
