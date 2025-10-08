@@ -82,6 +82,12 @@ export class CoursesService {
       discounts,
       course_extras,
       booking_users: (data as any).booking_users,
+      // Extract interval configuration from settings
+      useMultipleIntervals: settingsObj.useMultipleIntervals || false,
+      intervals: settingsObj.intervals || [],
+      intervals_config_mode: settingsObj.intervals_config_mode || 'unified',
+      mustBeConsecutive: settingsObj.mustBeConsecutive || false,
+      mustStartFromFirst: settingsObj.mustStartFromFirst || false,
     })
 
     // If booking_users is still empty, try to harvest from embedded subgroups across all dates
@@ -259,6 +265,7 @@ export class CoursesService {
       id: [null, Validators.required],
       sport_id: [null, Validators.required],
       is_flexible: [false, Validators.required],
+      intervals_config_mode: ['unified', Validators.required],
       created_at: [new Date()],
       user: [this.user.username + " (" + this.user.first_name + " " + this.user.last_name + ")"],
       user_id: [this.user.id],
@@ -315,6 +322,11 @@ export class CoursesService {
         periods: [],
         groups: [{ ...this.default_activity_groups }]
       },
+      // Interval configuration controls (extracted from settings for easier access)
+      useMultipleIntervals: [false],
+      intervals: [[]],
+      mustBeConsecutive: [false],
+      mustStartFromFirst: [false],
     });
   }
 

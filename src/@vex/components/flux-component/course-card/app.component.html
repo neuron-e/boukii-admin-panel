@@ -407,6 +407,43 @@
           </span>
               </div>
             </ng-container>
+
+            <!-- Configuración del intervalo (solo si hay configuración de intervalos) -->
+            <div *ngIf="courseFormGroup.controls['intervals']?.value?.length > 0 && courseFormGroup.controls['intervals_config_mode']?.value === 'independent'"
+                 style="margin-top: 16px; padding: 12px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+              <ng-container *ngFor="let interval of courseFormGroup.controls['intervals']?.value">
+                <div *ngIf="interval.id == intervalId">
+                  <h6 style="margin: 0 0 8px 0; color: #856404; font-size: 13px; font-weight: 600;">
+                    <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">settings</mat-icon>
+                    {{ 'interval_specific_config' | translate }}
+                  </h6>
+
+                  <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span *ngIf="interval.mustBeConsecutive" style="color: #31C044; font-weight: 500;">✓</span>
+                      <span *ngIf="!interval.mustBeConsecutive" style="color: #C7D0D3; font-weight: 500;">✗</span>
+                      <span>{{ 'dates_must_be_consecutive' | translate }}</span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span *ngIf="interval.mustStartFromFirst" style="color: #31C044; font-weight: 500;">✓</span>
+                      <span *ngIf="!interval.mustStartFromFirst" style="color: #C7D0D3; font-weight: 500;">✗</span>
+                      <span>{{ 'must_start_from_first_day' | translate }}</span>
+                    </div>
+
+                    <div *ngIf="interval.reservableStartDate && interval.reservableEndDate"
+                         style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #ffeaa7;">
+                      <strong>{{ 'interval_bookable_dates' | translate }}:</strong>
+                      <div style="margin-top: 4px;">
+                        {{ interval.reservableStartDate | date:'dd/MM/yyyy' }}
+                        {{ 'to' | translate }}
+                        {{ interval.reservableEndDate | date:'dd/MM/yyyy' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </ng-container>
+            </div>
           </div>
         </div>
       </div>
@@ -556,6 +593,7 @@
           </div>
         </div>
         <vex-course-detail-nivel [courseFormGroup]="courseFormGroup"
+                                 [hideTimingButton]="true"
                                  style="width: 100%;"></vex-course-detail-nivel>
       </div>
     </div>

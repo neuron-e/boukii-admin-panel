@@ -50,7 +50,7 @@
              style="margin-bottom: 16px; border: 1px solid var(--color-grey2); border-radius: 8px; background-color: white; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
           <!-- Subgroup Header -->
-          <div style="padding: 16px; background-color: var(--color-grey5); border-bottom: 1px solid var(--color-grey2);">
+          <div (click)="toggleSubgroup(item.id, i)" style="padding: 16px; background-color: var(--color-grey5); border-bottom: 1px solid var(--color-grey2); cursor: pointer;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <h4 style="margin: 0; font-weight: 600; color: var(--color-dark1); font-size: 16px;">
@@ -62,8 +62,9 @@
                   {{ getSubgroupCapacity(getCourseDates(), item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0)) }}
                 </span>
               </div>
-              <div style="display: flex; gap: 8px;">
+              <div style="display: flex; gap: 8px; align-items: center;">
                 <button mat-icon-button color="primary"
+                        *ngIf="!hideTimingButton"
                         (click)="onTimingClick(ix, item); $event.stopPropagation()"
                         [matTooltip]="'timing.view_times' | translate"
                         [attr.aria-label]="'timing.view_times' | translate"
@@ -71,18 +72,21 @@
                   <mat-icon style="font-size: 18px;">schedule</mat-icon>
                 </button>
                 <button
-                  (click)="changeMonitor.emit({date: getCourseDates(), subgroup: ix})"
+                  (click)="changeMonitor.emit({date: getCourseDates(), subgroup: ix}); $event.stopPropagation()"
                   *ngIf="checkbox && selectedSubgroup.id != ix.id"
                   style="height: 36px; padding: 0 16px; border-radius: 18px;"
                   color="primary" mat-raised-button type="button">
                   {{'add' | translate }}
                 </button>
+                <mat-icon class="icon24" style="color: var(--color-dark2);">
+                  {{ isSubgroupCollapsed(item.id, i) ? 'keyboard_arrow_down' : 'keyboard_arrow_up' }}
+                </mat-icon>
               </div>
             </div>
           </div>
 
           <!-- Date-based Content -->
-          <div style="padding: 16px;">
+          <div *ngIf="!isSubgroupCollapsed(item.id, i)" style="padding: 16px;">
             <ng-container *ngIf="getCourseDates()?.length; else noMonitors">
               <ng-container *ngFor="let course_date of getCourseDates(); let dateIndex = index">
                 <ng-container *ngIf="find(course_date.course_groups || [],'degree_id',item.id)?.course_subgroups?.[i] as subG">

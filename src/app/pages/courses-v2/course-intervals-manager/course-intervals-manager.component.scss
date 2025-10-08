@@ -1,0 +1,281 @@
+.intervals-manager {
+  padding: 16px;
+
+  .header {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h3 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .mode-badge {
+        font-size: 12px;
+        padding: 4px 12px;
+        border-radius: 16px;
+        background: #e3f2fd;
+        color: #1976d2;
+        font-weight: 500;
+
+        &.independent {
+          background: #f3e5f5;
+          color: #7b1fa2;
+        }
+      }
+    }
+  }
+
+  .info-card {
+    margin-bottom: 16px;
+    background: #e3f2fd;
+
+    &.independent {
+      background: #f3e5f5;
+    }
+
+    mat-card-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      mat-icon {
+        color: #1976d2;
+      }
+
+      p {
+        margin: 0;
+        color: #424242;
+      }
+    }
+
+    &.independent {
+      mat-card-content mat-icon {
+        color: #7b1fa2;
+      }
+    }
+  }
+
+  .loading-container {
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .intervals-list {
+    .interval-card {
+      margin-bottom: 12px;
+      cursor: move;
+      transition: all 0.3s ease;
+
+      &:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      }
+
+      .interval-card-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .interval-info-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .drag-handle {
+        cursor: move;
+        color: #9e9e9e;
+        margin-bottom: 8px;
+
+        mat-icon {
+          font-size: 20px;
+        }
+      }
+
+      .interval-info {
+        h4 {
+          margin: 0 0 8px 0;
+          color: #424242;
+          font-size: 18px;
+        }
+
+        .dates {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #757575;
+          font-size: 14px;
+          margin: 0 0 12px 0;
+
+          mat-icon {
+            font-size: 18px;
+            height: 18px;
+            width: 18px;
+          }
+        }
+
+        .config-badges {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 12px;
+
+          .badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: #e0e0e0;
+            color: #616161;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+
+            &.custom {
+              background: #fff3e0;
+              color: #e65100;
+            }
+
+            &.method {
+              background: #e8eaf6;
+              color: #3f51b5;
+
+              mat-icon {
+                font-size: 14px;
+                height: 14px;
+                width: 14px;
+              }
+            }
+
+            &.booking {
+              background: #e8f5e9;
+              color: #2e7d32;
+            }
+          }
+        }
+
+        .dates-count {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: #9e9e9e;
+          font-size: 13px;
+          margin: 0;
+
+          mat-icon {
+            font-size: 16px;
+            height: 16px;
+            width: 16px;
+          }
+        }
+      }
+
+      .actions {
+        display: flex;
+        gap: 4px;
+      }
+    }
+  }
+
+  .empty-state {
+    padding: 40px;
+    text-align: center;
+
+    .empty-state-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    mat-card-content {
+      mat-icon {
+        font-size: 64px;
+        height: 64px;
+        width: 64px;
+        color: #bdbdbd;
+        margin-bottom: 16px;
+      }
+
+      h4 {
+        color: #757575;
+        margin: 0 0 8px 0;
+      }
+
+      p {
+        color: #9e9e9e;
+        margin: 0 0 16px 0;
+      }
+    }
+  }
+
+  .interval-form-card {
+    margin-top: 16px;
+    border: 2px solid #1976d2;
+
+    mat-card-header {
+      background: #f5f5f5;
+      padding: 16px;
+      margin: -16px -16px 16px -16px;
+
+      mat-card-title {
+        margin: 0;
+        font-size: 18px;
+        color: #1976d2;
+      }
+    }
+
+    .custom-config {
+      padding: 16px;
+      background: #fafafa;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+
+    .weekly-pattern {
+      label {
+        display: block;
+        margin-bottom: 12px;
+        font-weight: 500;
+        color: #616161;
+      }
+
+      .days-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 8px;
+
+        mat-checkbox {
+          margin: 4px 0;
+        }
+      }
+    }
+
+    .interval-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      .dates-row {
+        display: flex;
+        gap: 16px;
+
+        mat-form-field {
+          flex: 1;
+        }
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        align-items: center;
+      }
+    }
+  }
+}

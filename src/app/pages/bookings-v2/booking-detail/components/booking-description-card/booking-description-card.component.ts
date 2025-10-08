@@ -7,6 +7,7 @@ import { FormDetailsPrivateComponent } from '../form-details-private/form-detail
 import { FormDetailsColectiveFlexComponent } from '../form-details-colective-flex/form-details-colective-flex.component';
 import { FormDetailsColectiveFixComponent } from '../form-details-colective-fix/form-details-colective-fix.component';
 import { StepObservationsComponent } from '../step-observations/step-observations.component';
+import { BookingDatesEditUnifiedComponent } from '../booking-dates-edit-unified/booking-dates-edit-unified.component';
 import {TranslateService} from '@ngx-translate/core';
 import {BookingService} from '../../../../../../service/bookings.service';
 import {ApiCrudService} from '../../../../../../service/crud.service';
@@ -97,19 +98,26 @@ export class BookingDescriptionCard {
   }
 
   calculateDiscountedPrice(date: any, index: number): number {
-    let price = this.bookingService.calculateDatePrice(this.course, date, true); // Asegúrate de convertir el precio a número
+    let price = this.bookingService.calculateDatePrice(this.course, date, true);
 
-    if (this.course && this.course.discounts && !Array.isArray(this.course.discounts)) {
-      const discounts = [];
-      try {
-        const discounts = JSON.parse(this.course.discounts);
-        console.log("Discounts parseado correctamente:", discounts);
-      } catch (error) {
-        console.error("Error al parsear discounts:", error);
+    if (this.course && this.course.discounts) {
+      let parsedDiscounts: any[] = [];
+
+      if (Array.isArray(this.course.discounts)) {
+        parsedDiscounts = this.course.discounts;
+      } else {
+        try {
+          const parsed = JSON.parse(this.course.discounts);
+          if (Array.isArray(parsed)) {
+            parsedDiscounts = parsed;
+          }
+        } catch (error) {
+          console.error("Error al parsear discounts:", error);
+        }
       }
 
-      discounts.forEach(discount => {
-        if (discount.date === index + 1) { // Index + 1 porque los índices en arrays comienzan en 0
+      parsedDiscounts.forEach(discount => {
+        if (discount.date === index + 1 && discount.percentage) {
           price -= (price * (discount.percentage / 100));
         }
       });
@@ -157,15 +165,56 @@ export class BookingDescriptionCard {
   }
 
   sendEditForm(dates: any, course: any, utilizers: any = []) {
-    if (course.course_type == 2) {
-      this.openPrivateDatesForm(dates, course, utilizers);
-    } else if (course.course_type == 1) {
-      if (course.is_flexible) {
-        this.openCollectiveFlexDatesForm(dates, course, utilizers)
-      } else {
-        this.openCollectiveFixDatesForm(dates, course, utilizers)
+    // Usar el componente unificado para todos los tipos de curso
+    this.openUnifiedDatesEditForm(dates, course, utilizers);
+  }
+
+  private openUnifiedDatesEditForm(dates: any, course: any, utilizers: any = []) {
+    const dialogRef = this.dialog.open(BookingDatesEditUnifiedComponent, {
+      width: '800px',
+      maxHeight: '90vh',
+      panelClass: 'customBookingDialog',
+      data: {
+        course: course,
+        utilizers: utilizers,
+        sportLevel: this.sportLevel,
+        initialData: dates,
+        groupedActivities: this.groupedActivities
       }
-    }
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        console.log('📌 Edit Result:', result);
+
+        // Actualizar las fechas
+        this.dates = result.course_dates || dates;
+
+        // Calcular el nuevo total
+        if (result.course_dates) {
+          this.total = result.course_dates.reduce((acc: number, date: any) => {
+            let datePrice = parseFloat(date.price || 0);
+
+            // Sumar extras si existen
+            if (date.extras && date.extras.length > 0) {
+              const extrasPrice = date.extras.reduce((sum: number, extra: any) =>
+                sum + parseFloat(extra.price || 0), 0);
+              datePrice += extrasPrice;
+            }
+
+            return acc + datePrice;
+          }, 0).toFixed(2);
+        }
+
+        result.total = this.total;
+        result.priceChange = result.priceChange; // Incluir información de cambio de precio
+
+        // Emitir el evento de edición
+        this.editActivity.emit(result);
+      } else {
+        this.editActivity.emit(result);
+      }
+    });
   }
 
 

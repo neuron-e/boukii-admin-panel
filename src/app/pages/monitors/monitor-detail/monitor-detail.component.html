@@ -217,7 +217,7 @@
 
                 <div @fadeInRight>
                   <p class="m-0 caption text-hint">{{'city' | translate}}</p>
-                  <p class="m-0 body-1">{{getProvince(defaults.province)}}
+                  <p class="m-0 body-1">{{defaults.city}}
                   </p>
                 </div>
               </div>
@@ -231,7 +231,7 @@
                 <div @fadeInRight>
                   <p class="m-0 caption text-hint">{{'province' | translate
                     }}</p>
-                  <p class="m-0 body-1">{{getCountry(defaults.country)}}
+                  <p class="m-0 body-1">{{getProvince(defaults.province)}}
                   </p>
                 </div>
               </div>
@@ -275,6 +275,32 @@
                 <div @fadeInRight>
                   <p class="m-0 caption text-hint">AVS</p>
                   <p class="m-0 body-1"> {{ defaults.avs}}</p>
+                </div>
+
+              </div>
+
+              <div class="py-3 flex items-center">
+                <div @scaleIn
+                  class="w-10 h-10 rounded-full bg-primary-600/10 text-primary-600 ltr:mr-3 rtl:ml-3 flex items-center justify-center">
+                  <mat-icon class="icon-sm" svgIcon="logo:task"></mat-icon>
+                </div>
+
+                <div @fadeInRight>
+                  <p class="m-0 caption text-hint">IBAN</p>
+                  <p class="m-0 body-1"> {{ defaults.bank_details}}</p>
+                </div>
+
+              </div>
+
+              <div class="py-3 flex items-center">
+                <div @scaleIn
+                  class="w-10 h-10 rounded-full bg-primary-600/10 text-primary-600 ltr:mr-3 rtl:ml-3 flex items-center justify-center">
+                  <mat-icon class="icon-sm" svgIcon="logo:task"></mat-icon>
+                </div>
+
+                <div @fadeInRight>
+                  <p class="m-0 caption text-hint">{{'nationality' | translate}}</p>
+                  <p class="m-0 body-1"> {{ getCountry(defaults.world_country)}}</p>
                 </div>
 
               </div>

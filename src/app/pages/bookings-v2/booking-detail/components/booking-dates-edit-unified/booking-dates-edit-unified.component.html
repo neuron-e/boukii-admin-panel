@@ -1,0 +1,188 @@
+<div class="booking-edit-dialog">
+  <!-- Header -->
+  <h3 class="dialog-title">
+    {{ "bookings_page.crumbs.details" | translate }}
+    <span class="close-button" (click)="cancel()">
+      <img src="assets/img/icons/close-black.svg" class="btn-close" alt="Close">
+    </span>
+  </h3>
+
+  <!-- Course Type Info Badge -->
+  <div class="course-type-badge" [ngClass]="{
+    'type-collective': isCollective,
+    'type-private': isPrivate,
+    'type-flex': isFlex,
+    'type-fix': isFix
+  }">
+    <mat-icon>info</mat-icon>
+    <span>
+      {{ (isCollective ? 'collective' : 'private') | translate }}
+      {{ (isFlex ? 'flex' : 'fix') | translate }}
+    </span>
+  </div>
+
+  <!-- Warnings Section -->
+  <div class="warnings-section" *ngIf="warnings.length > 0">
+    <mat-icon class="warning-icon">warning</mat-icon>
+    <div class="warnings-list">
+      <div *ngFor="let warning of warnings" class="warning-item">
+        {{ warning }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Errors Section -->
+  <div class="errors-section" *ngIf="errors.length > 0">
+    <mat-icon class="error-icon">error</mat-icon>
+    <div class="errors-list">
+      <div *ngFor="let error of errors" class="error-item">
+        {{ error }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Price Change Summary -->
+  <div class="price-change-summary" *ngIf="priceChange">
+    <div class="price-change-header">
+      <mat-icon [ngClass]="{
+        'price-increase': priceChange.type === 'add',
+        'price-decrease': priceChange.type === 'remove'
+      }">
+        {{ priceChange.type === 'add' ? 'trending_up' : 'trending_down' }}
+      </mat-icon>
+      <span class="price-change-title">
+        {{ (priceChange.type === 'add' ? 'price_increase' : 'partial_cancellation') | translate }}
+      </span>
+    </div>
+    <div class="price-change-details">
+      <div class="price-row">
+        <span>{{ "original_price" | translate }}:</span>
+        <span>{{ priceChange.oldPrice | number:'1.2-2' }} {{ course.currency }}</span>
+      </div>
+      <div class="price-row">
+        <span>{{ "new_price" | translate }}:</span>
+        <span>{{ priceChange.newPrice | number:'1.2-2' }} {{ course.currency }}</span>
+      </div>
+      <div class="price-row difference" [ngClass]="{
+        'positive': priceChange.type === 'add',
+        'negative': priceChange.type === 'remove'
+      }">
+        <span>{{ "difference" | translate }}:</span>
+        <span>
+          {{ priceChange.type === 'add' ? '+' : '-' }}
+          {{ priceChange.difference | number:'1.2-2' }} {{ course.currency }}
+        </span>
+      </div>
+    </div>
+    <div class="affected-dates">
+      <div class="affected-dates-title">{{ "affected_dates" | translate }}:</div>
+      <div class="affected-dates-list">
+        <div *ngFor="let affected of priceChange.affectedDates" class="affected-date-item">
+          <mat-icon [class]="affected.action === 'add' ? 'add-icon' : 'remove-icon'">
+            {{ affected.action === 'add' ? 'add_circle' : 'remove_circle' }}
+          </mat-icon>
+          <span>{{ formatDate(affected.date) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Content -->
+  <form class="edit-form-wrapper" [formGroup]="stepForm" *ngIf="!(isFix && isCollective)">
+
+    <!-- FLEX COURSES (Collective or Private) -->
+    <div *ngIf="isFlex" formArrayName="course_dates" class="dates-list">
+      <div *ngFor="let courseDate of courseDatesArray.controls; let i = index"
+           [formGroupName]="i"
+           class="date-row"
+           [class.date-selected]="isSelected(i)">
+
+        <div class="date-checkbox">
+          <mat-checkbox formControlName="selected" (change)="onDateSelect($event, i)"></mat-checkbox>
+        </div>
+
+        <div class="date-content">
+          <div class="date-main-info">
+            <span class="date-label">{{ formatDate(courseDatesArray.at(i).get('date')?.value) }}</span>
+            <span class="time-label">
+              {{ courseDatesArray.at(i).get('startHour')?.value }}h -
+              {{ courseDatesArray.at(i).get('endHour')?.value }}h
+            </span>
+            <span class="price-label">
+              {{ courseDatesArray.at(i).get('price')?.value | number:'1.2-2' }}
+              {{ course.currency }}
+            </span>
+          </div>
+
+          <!-- Participants (for flex courses) -->
+          <div class="date-participants" *ngIf="utilizers.length > 0">
+            <mat-form-field appearance="outline" class="participants-field">
+              <mat-label>{{ "participants" | translate }}</mat-label>
+              <input matInput disabled [value]="utilizers.map(u => u.first_name + ' ' + u.last_name).join(', ')">
+              <mat-icon matPrefix>people</mat-icon>
+            </mat-form-field>
+          </div>
+
+          <!-- Extras -->
+          <div class="date-extras" *ngIf="posibleExtras.length > 0">
+            <mat-form-field appearance="outline" class="extras-field">
+              <mat-label>{{ "extras" | translate }}</mat-label>
+              <mat-select multiple formControlName="extras" (selectionChange)="onExtraChange(i)">
+                <mat-option *ngFor="let extra of posibleExtras" [value]="extra">
+                  <span class="extra-name">{{ extra.name }} - {{ extra.description }}</span>
+                  <span class="extra-price">{{ extra.price | number:'1.2-2' }} {{ course.currency }}</span>
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <span class="extras-total-price">
+              {{ isSelected(i) ? (totalExtraPrice[i] | number:'1.2-2') : '0.00' }} {{ course.currency }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRIVATE FIX COURSES -->
+    <div *ngIf="isFix && isPrivate" class="private-fix-form">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>{{ "date" | translate }}</mat-label>
+        <input matInput [matDatepicker]="picker" formControlName="date">
+        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+        <mat-icon matPrefix>calendar_today</mat-icon>
+      </mat-form-field>
+
+      <div class="time-fields">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ "start_time" | translate }}</mat-label>
+          <input matInput type="time" formControlName="startHour">
+          <mat-icon matPrefix>access_time</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ "end_time" | translate }}</mat-label>
+          <input matInput type="time" formControlName="endHour">
+          <mat-icon matPrefix>access_time</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <div class="info-message">
+        <mat-icon>info</mat-icon>
+        <span>{{ "private_fix_edit_info" | translate }}</span>
+      </div>
+    </div>
+  </form>
+
+  <!-- Footer Actions -->
+  <div class="dialog-actions">
+    <button mat-stroked-button type="button" (click)="cancel()" class="cancel-button">
+      {{ "cancel" | translate }}
+    </button>
+    <button mat-flat-button color="primary" type="button"
+            (click)="submitForm()"
+            [disabled]="!isFormValid()"
+            class="confirm-button">
+      {{ "confirm" | translate }}
+    </button>
+  </div>
+</div>

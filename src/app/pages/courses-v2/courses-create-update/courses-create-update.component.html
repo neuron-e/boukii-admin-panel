@@ -64,6 +64,19 @@
         <mat-checkbox [disabled]="mode!=='update'" formControlName="is_flexible" (change)="setModalProgress()">
           {{'flexidates' | translate }}
         </mat-checkbox>
+
+        <!-- Intervals Manager Component -->
+        <vex-course-intervals-manager
+          *ngIf="courses.courseFormGroup.controls['is_flexible'].value && id"
+          [courseId]="id"
+          [configMode]="courses.courseFormGroup.controls['intervals_config_mode'].value"
+          [courseStartDate]="courses.courseFormGroup.controls['date_start'].value"
+          [courseEndDate]="courses.courseFormGroup.controls['date_end'].value"
+          [isFlexible]="courses.courseFormGroup.controls['is_flexible'].value"
+          (intervalsChanged)="onIntervalsChanged($event)"
+          style="display: block; margin-top: 16px; margin-bottom: 16px;">
+        </vex-course-intervals-manager>
+
         <vex-flux-upload-img [imagePreviewUrl]="courses.courseFormGroup.controls['image'].value"
                              (upload)="courses.courseFormGroup.patchValue({image:$event})" [edit]="true" [width]="320"
                              [height]="150" style="margin-top: 10px;"></vex-flux-upload-img>
@@ -144,12 +157,34 @@
         <div style="margin-left: 24px; margin-top: 8px; font-size: 12px; color: #6c757d;">
           {{'multiple_intervals_help' | translate}}
         </div>
+
+        <!-- Intervals Configuration Mode Toggle (solo visible si hay múltiples intervalos activos) -->
+        <div *ngIf="useMultipleIntervals" style="margin-top: 16px; margin-left: 24px; padding: 16px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px;">
+          <mat-slide-toggle
+            [ngModel]="courses.courseFormGroup.controls['intervals_config_mode'].value === 'independent'"
+            [ngModelOptions]="{standalone: true}"
+            (change)="onIntervalsConfigModeChange($event.checked)"
+            color="primary">
+            <span style="font-weight: 500; color: #495057;">
+              {{ (courses.courseFormGroup.controls['intervals_config_mode'].value === 'independent'
+                 ? 'independent_mode_label'
+                 : 'unified_mode_label') | translate }}
+            </span>
+          </mat-slide-toggle>
+          <p style="font-size: 12px; color: #6c757d; margin-top: 8px; margin-bottom: 0; margin-left: 0;">
+            <mat-icon style="font-size: 14px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
+            {{ (courses.courseFormGroup.controls['intervals_config_mode'].value === 'independent'
+               ? 'independent_mode_description'
+               : 'unified_mode_description') | translate }}
+          </p>
+        </div>
       </div>
 
       <ng-container *ngIf="courses.courseFormGroup.controls['course_type'].value===1">
         <!-- INTERVALOS DE FECHAS -->
-        <!-- Configuración global de intervalos (siempre visible) -->
-        <div class="global-interval-settings mb-4 p-3 border rounded bg-light" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
+        <!-- Configuración global de intervalos (solo visible en modo unificado) -->
+        <div *ngIf="!useMultipleIntervals || courses.courseFormGroup.controls['intervals_config_mode'].value !== 'independent'"
+             class="global-interval-settings mb-4 p-3 border rounded bg-light" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
           <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
             <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">settings</mat-icon>
             {{'global_interval_settings' | translate}}
@@ -183,9 +218,35 @@
             </div>
           </div>
 
-          <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px;">
+          <!-- Info sobre fechas reservables globales -->
+          <div style="padding: 16px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px; margin-top: 16px;">
+            <h6 style="margin: 0 0 8px 0; color: #495057; font-size: 13px; font-weight: 600;">
+              <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px; color: #17a2b8;">event_available</mat-icon>
+              {{ 'global_bookable_dates' | translate }}
+            </h6>
+            <p style="font-size: 12px; color: #6c757d; margin: 0;">
+              {{ 'global_bookable_dates_info' | translate }}
+              <strong>{{ courses.courseFormGroup.get('date_start_res').value | date:'dd/MM/yyyy' }}</strong>
+              {{ 'to' | translate }}
+              <strong>{{ courses.courseFormGroup.get('date_end_res').value | date:'dd/MM/yyyy' }}</strong>
+            </p>
+            <p style="font-size: 11px; color: #6c757d; margin: 8px 0 0 0; font-style: italic;">
+              {{ 'change_dates_above' | translate }}
+            </p>
+          </div>
+
+          <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px; margin-top: 16px;">
             <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">lightbulb</mat-icon>
             {{'interval_global_settings_info' | translate}}
+          </div>
+
+          <!-- Botón para aplicar configuración global a todos los intervalos -->
+          <div *ngIf="useMultipleIntervals && intervals && intervals.length > 1" style="margin-top: 12px;">
+            <button mat-raised-button color="primary" (click)="applyGlobalConfigToAllIntervals()"
+                    style="width: 100%;">
+              <mat-icon style="margin-right: 8px;">sync</mat-icon>
+              {{ 'apply_to_all_intervals' | translate }}
+            </button>
           </div>
         </div>
         <!-- Contenedor de intervalos (siempre visible) -->
@@ -226,6 +287,54 @@
                          [min]="interval.startDate"
                          style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;">
                 </div>
+              </div>
+            </div>
+
+            <!-- Configuración específica del intervalo (solo en modo independiente) -->
+            <div *ngIf="useMultipleIntervals && courses.courseFormGroup.controls['intervals_config_mode'].value === 'independent'" style="padding: 16px; background: #fff3cd; border-top: 1px solid #DEE6EA; border-left: 4px solid #ffc107;">
+              <h6 style="margin: 0 0 12px 0; color: #495057; font-size: 14px; font-weight: 600;">
+                <mat-icon style="vertical-align: middle; margin-right: 4px; color: #ffc107;">tune</mat-icon>
+                {{ 'interval_specific_config' | translate }}
+              </h6>
+
+              <!-- Fechas reservables específicas para este intervalo -->
+              <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 12px; color: #6c757d; margin-bottom: 8px; font-weight: 500;">
+                  {{ 'interval_bookable_dates' | translate }}
+                </label>
+                <div style="display: flex; gap: 12px;">
+                  <div style="flex: 1;">
+                    <label style="display: block; font-size: 11px; color: #6c757d; margin-bottom: 4px;">{{ 'bookable_from' | translate }}</label>
+                    <input type="date"
+                           [(ngModel)]="interval.reservableStartDate"
+                           [ngModelOptions]="{standalone: true}"
+                           style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;">
+                  </div>
+                  <div style="flex: 1;">
+                    <label style="display: block; font-size: 11px; color: #6c757d; margin-bottom: 4px;">{{ 'bookable_until' | translate }}</label>
+                    <input type="date"
+                           [(ngModel)]="interval.reservableEndDate"
+                           [ngModelOptions]="{standalone: true}"
+                           [min]="interval.reservableStartDate"
+                           style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Opciones específicas del intervalo -->
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <mat-checkbox [(ngModel)]="interval.mustBeConsecutive" [ngModelOptions]="{standalone: true}">
+                  <span style="font-size: 13px; font-weight: 500;">{{ 'dates_must_be_consecutive' | translate }}</span>
+                </mat-checkbox>
+
+                <mat-checkbox [(ngModel)]="interval.mustStartFromFirst" [ngModelOptions]="{standalone: true}">
+                  <span style="font-size: 13px; font-weight: 500;">{{ 'must_start_from_first_day' | translate }}</span>
+                </mat-checkbox>
+              </div>
+
+              <div style="margin-top: 8px; padding: 8px; background: #fff; border-radius: 4px; font-size: 11px; color: #6c757d;">
+                <mat-icon style="font-size: 14px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
+                {{ 'interval_config_overrides_global' | translate }}
               </div>
             </div>
 

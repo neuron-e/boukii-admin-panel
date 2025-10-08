@@ -348,27 +348,26 @@ export class CoursesCreateUpdateComponent implements OnInit {
               this.mustStartFromFirst = settings.mustStartFromFirst || false;
             }
 
-            // Restore interval configuration if available
-            if (settings.intervalConfiguration) {
-              this.useMultipleIntervals = settings.intervalConfiguration.useMultipleIntervals || false;
-              if (settings.intervalConfiguration.intervals) {
-                this.intervals = settings.intervalConfiguration.intervals.map(interval => ({
-                  ...interval,
-                  // Ensure weeklyPattern exists
-                  weeklyPattern: interval.weeklyPattern || {
-                    monday: false,
-                    tuesday: false,
-                    wednesday: false,
-                    thursday: false,
-                    friday: false,
-                    saturday: false,
-                    sunday: false
-                  },
-                  // Ensure schedule fields exist
-                  scheduleStartTime: interval.scheduleStartTime || this.courses.hours?.[0] || '',
-                  scheduleDuration: interval.scheduleDuration || this.courses.duration?.[0] || ''
-                }));
-              }
+            // Restore interval configuration if available (from new or old format)
+            const intervalsSource = settings.intervals || settings.intervalConfiguration?.intervals;
+            if (intervalsSource && Array.isArray(intervalsSource)) {
+              this.useMultipleIntervals = settings.useMultipleIntervals || settings.intervalConfiguration?.useMultipleIntervals || false;
+              this.intervals = intervalsSource.map(interval => ({
+                ...interval,
+                // Ensure weeklyPattern exists
+                weeklyPattern: interval.weeklyPattern || {
+                  monday: false,
+                  tuesday: false,
+                  wednesday: false,
+                  thursday: false,
+                  friday: false,
+                  saturday: false,
+                  sunday: false
+                },
+                // Ensure schedule fields exist
+                scheduleStartTime: interval.scheduleStartTime || this.courses.hours?.[0] || '',
+                scheduleDuration: interval.scheduleDuration || this.courses.duration?.[0] || ''
+              }));
             }
           } catch (error) {
             console.error("Error parsing settings:", error);
@@ -1525,9 +1524,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     const updatedSettings = {
       ...currentSettings,
+      useMultipleIntervals: this.useMultipleIntervals,
       multipleIntervals: this.useMultipleIntervals,
       mustBeConsecutive: this.mustBeConsecutive,
       mustStartFromFirst: this.mustStartFromFirst,
+      intervals_config_mode: this.courses.courseFormGroup.get('intervals_config_mode')?.value || 'unified',
+      intervals: this.intervals,
       intervalConfiguration: {
         intervals: this.intervals,
         useMultipleIntervals: this.useMultipleIntervals
@@ -1999,15 +2001,33 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
           // Agrupar por interval_id
           courseDates.forEach(date => {
-            const intervalId = date.interval_id || 'default';
+            const intervalId = String(date.interval_id || 'default');
 
             if (!intervalMap[intervalId]) {
-              const matchingInterval = settings.intervals?.find(i => i.id === intervalId);
+              const matchingInterval = settings.intervals?.find(i => String(i.id) === intervalId);
 
               intervalMap[intervalId] = {
                 id: intervalId,
                 name: date.interval_name || matchingInterval?.name || 'Intervalo',
                 order: matchingInterval?.order || 0,
+                // PRESERVE configuration properties from settings
+                mustBeConsecutive: matchingInterval?.mustBeConsecutive ?? false,
+                mustStartFromFirst: matchingInterval?.mustStartFromFirst ?? false,
+                reservableStartDate: matchingInterval?.reservableStartDate || '',
+                reservableEndDate: matchingInterval?.reservableEndDate || '',
+                weeklyPattern: matchingInterval?.weeklyPattern || {
+                  monday: false, tuesday: false, wednesday: false, thursday: false,
+                  friday: false, saturday: false, sunday: false
+                },
+                scheduleStartTime: matchingInterval?.scheduleStartTime || this.courses.hours?.[0] || '',
+                scheduleDuration: matchingInterval?.scheduleDuration || this.courses.duration?.[0] || '',
+                startDate: matchingInterval?.startDate || '',
+                endDate: matchingInterval?.endDate || '',
+                dateGenerationMethod: matchingInterval?.dateGenerationMethod || 'manual',
+                consecutiveDaysCount: matchingInterval?.consecutiveDaysCount || 2,
+                selectedWeekdays: matchingInterval?.selectedWeekdays || [],
+                limitAvailableDates: matchingInterval?.limitAvailableDates ?? false,
+                maxSelectableDates: matchingInterval?.maxSelectableDates || 10,
                 dates: []
               };
             }
@@ -2930,8 +2950,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
         selectedWeekdays: [],
         dates: [],
         mustBeConsecutive: false,
+        mustStartFromFirst: false,
         limitAvailableDates: false,
         maxSelectableDates: 10,
+        reservableStartDate: tomorrow.toISOString().split('T')[0],
+        reservableEndDate: tomorrow.toISOString().split('T')[0],
         weeklyPattern: {
           monday: false,
           tuesday: false,
@@ -2970,28 +2993,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Only recalculate if state has changed
     if (JSON.stringify(currentState) !== JSON.stringify(this._lastIntervalState)) {
-      console.log('🔍 DISPLAY_INTERVALS_DEBUG: Estado cambió, recalculando intervalos', {
-        previousState: this._lastIntervalState,
-        currentState: currentState,
-        intervals: this.intervals
-      });
-
       // Ensure intervals array exists, but don't create new ones unnecessarily
       if (!this.intervals || this.intervals.length === 0) {
-        console.log('🔍 DISPLAY_INTERVALS_DEBUG: No hay intervalos, inicializando');
         this.intervals = [];
         const defaultInterval = this.createDefaultInterval();
         this.intervals.push(defaultInterval);
-        console.log('🔍 DISPLAY_INTERVALS_DEBUG: Intervalo por defecto agregado');
       }
 
       if (this.useMultipleIntervals) {
-        this._displayIntervals = [...this.intervals];
-        console.log('🔍 DISPLAY_INTERVALS_DEBUG: Modo múltiples intervalos, mostrando', this._displayIntervals.length);
+        // Return direct reference to intervals, not a copy, so ngModel bindings work
+        this._displayIntervals = this.intervals;
       } else {
         // FIXED: En modo intervalo único, solo mostrar el primer intervalo SIN modificar this.intervals
         this._displayIntervals = this.intervals.length > 0 ? [this.intervals[0]] : [];
-        console.log('🔍 DISPLAY_INTERVALS_DEBUG: Modo intervalo único, mostrando', this._displayIntervals.length, 'de', this.intervals.length, 'total');
       }
 
       this._lastIntervalState = currentState;
@@ -3003,7 +3017,49 @@ export class CoursesCreateUpdateComponent implements OnInit {
   // Helper method to invalidate display intervals cache when intervals change
   private invalidateDisplayIntervalsCache(): void {
     this._lastIntervalState = null;
-    console.log('🔍 DISPLAY_INTERVALS_DEBUG: Cache invalidado');
+  }
+
+  /**
+   * Apply global configuration to all intervals
+   */
+  applyGlobalConfigToAllIntervals(): void {
+    if (!this.intervals || this.intervals.length === 0) {
+      return;
+    }
+
+    console.log('🔧 Aplicando configuración global a todos los intervalos:', {
+      mustBeConsecutive: this.mustBeConsecutive,
+      mustStartFromFirst: this.mustStartFromFirst
+    });
+
+    this.intervals.forEach((interval, index) => {
+      interval.mustBeConsecutive = this.mustBeConsecutive;
+      interval.mustStartFromFirst = this.mustStartFromFirst;
+      console.log(`✅ Intervalo ${index + 1} actualizado con configuración global`);
+    });
+
+    this.syncIntervalsToCourseFormGroup();
+    this.snackBar.open('Configuración global aplicada a todos los intervalos', 'OK', { duration: 3000 });
+  }
+
+  /**
+   * Handle intervals config mode change (unified/independent)
+   */
+  onIntervalsConfigModeChange(isIndependent: boolean): void {
+    const newMode = isIndependent ? 'independent' : 'unified';
+    this.courses.courseFormGroup.patchValue({
+      intervals_config_mode: newMode
+    });
+    console.log('Intervals config mode changed to:', newMode);
+  }
+
+  /**
+   * Handle intervals changes from the intervals manager component
+   */
+  onIntervalsChanged(intervals: any[]): void {
+    console.log('Intervals changed:', intervals);
+    // Here you could sync intervals with the course dates or perform other actions
+    // For now, just log the change
   }
 }
 

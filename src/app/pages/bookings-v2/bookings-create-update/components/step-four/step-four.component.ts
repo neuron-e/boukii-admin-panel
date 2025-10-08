@@ -56,6 +56,7 @@ export class StepFourComponent implements OnDestroy {
   selectedSubGroups = []; // Array para almacenar los subgrupos filtrados
   capacityCheckInterval: any; // Para polling de capacidad en tiempo real
   isCapacityLoading = false; // Para mostrar loading mientras se verifica
+  coursesDateByInterval: Map<string, string[]> = new Map(); // Mapa de fechas por intervalo {intervalId: [dates]}
 
   private availabilityCache = new Map<string, { timestamp: number; courses: any[] }>();
   private availabilityRequests = new Map<string, Observable<any[]>>();
@@ -158,132 +159,124 @@ export class StepFourComponent implements OnDestroy {
   }
 
   handleCourseSelection(course: any): void {
-    // MEJORA CRÍTICA: Track selección de curso
-    this.analytics.trackEvent({
-      category: 'booking',
-      action: 'course_selected',
-      label: course.name,
-      metadata: {
-        course_id: course.id,
-        course_type: course.course_type,
-        sport_level: this.sportLevel?.name,
-        price: course.price,
-        is_flexible: course.is_flexible,
-        selected_date: this.selectedDate ? moment(this.selectedDate).format('YYYY-MM-DD') : null
-      }
-    });
+    console.log('COURSE SELECTION DEBUG: Selecting course:', course.name);
+
+    // Resetear selección de subgrupo cuando cambia el curso
+    this.selectedSubGroup = null;
+    this.stepForm.get('selectedSubGroup')?.setValue(null);
+    this.stepForm.get('selectedSubGroup')?.markAsUntouched();
 
     if (course.course_type === 1) {
-      // MEJORA CRÍTICA: Validación mejorada de capacidad con verificación en tiempo real
+      // Validación de capacidad para cursos colectivos
       this.validateSubgroupCapacity(course);
     } else {
-      this.selectedSubGroups = []; // Si no es colectivo, limpiar los subgrupos
+      this.selectedSubGroups = [];
       this.clearCapacityPolling();
     }
 
     // Guardar el curso seleccionado
     this.selectedCourse = course;
     this.stepForm.get('course').setValue(course);
+
+    console.log('COURSE SELECTION DEBUG: Course set, form valid:', this.stepForm.valid);
   }
 
   /**
    * MEJORA CRÍTICA: Validación avanzada de capacidad con feedback visual mejorado
    */
   private validateSubgroupCapacity(course: any): void {
-    // MEJORA CRÍTICA: Track inicio de validación de capacidad
-    this.analytics.trackEvent({
-      category: 'booking',
-      action: 'capacity_check_started',
-      label: course.name,
-      metadata: {
-        course_id: course.id,
-        sport_level: this.sportLevel?.name,
-        selected_date: moment(this.selectedDate).format('YYYY-MM-DD')
-      }
-    });
-
-    this.feedback.setLoading('capacity_check', true, 'Verificando disponibilidad...');
     this.isCapacityLoading = true;
 
-    // 1. Filtrar grupos por nivel
-    let group = course.course_dates[0].course_groups.filter(
-      (group) => group.degree_id === this.sportLevel.id
-    );
+    // 1. Obtener TODOS los grupos del curso (no filtrar por nivel)
+    const allGroups = course.course_dates[0].course_groups || [];
 
-    if (group.length === 0) {
-      this.feedback.setLoading('capacity_check', false);
-      this.feedback.warning('No se encontraron grupos para el nivel seleccionado', {
-        duration: 4000,
-        action: 'Cambiar nivel',
-        onAction: () => console.log('Cambiar nivel solicitado')
-      });
+    if (allGroups.length === 0) {
       this.selectedSubGroups = [];
       this.isCapacityLoading = false;
       return;
     }
 
-    // 2. Validación mejorada de subgrupos con información detallada y feedback visual
+    // 2. Obtener todos los subgrupos de todos los grupos
     const neededSlots = this.utilizers?.length ?? 1;
-    let availableSubgroups = 0;
-    let totalAvailableSlots = 0;
+    const allSubgroups = [];
 
-    this.selectedSubGroups = group[0].course_subgroups.map(subgroup => {
-      const currentBookings = subgroup.booking_users?.length ?? 0;
-      const maxParticipants = subgroup.max_participants ?? 999;
-      const availableSlots = Math.max(0, maxParticipants - currentBookings);
-      const hasCapacity = availableSlots >= neededSlots;
+    allGroups.forEach(group => {
+      if (group.course_subgroups && group.course_subgroups.length > 0) {
+        group.course_subgroups.forEach(subgroup => {
+          const currentBookings = subgroup.booking_users?.length ?? 0;
+          const maxParticipants = subgroup.max_participants ?? 999;
+          const availableSlots = Math.max(0, maxParticipants - currentBookings);
+          const hasCapacity = availableSlots >= neededSlots;
 
-      if (hasCapacity) {
-        availableSubgroups++;
-        totalAvailableSlots += availableSlots;
+          allSubgroups.push({
+            ...subgroup,
+            // Añadir información completa del grupo/nivel al que pertenece
+            group_info: {
+              degree_id: group.degree_id,
+              degree: group.degree || null,
+              name: group.degree?.name || group.name || '',
+              annotation: group.degree?.annotation || '',
+              color: group.degree?.color || this.sportLevel?.color || '#ccc',
+              league: group.degree?.league || ''
+            },
+            capacity_info: {
+              current_bookings: currentBookings,
+              max_participants: maxParticipants,
+              available_slots: availableSlots,
+              needed_slots: neededSlots,
+              has_capacity: hasCapacity,
+              is_unlimited: maxParticipants === 0 || maxParticipants > 100,
+              capacity_percentage: maxParticipants > 0 ? (currentBookings / maxParticipants) * 100 : 0
+            }
+          });
+        });
       }
-
-      return {
-        ...subgroup,
-        capacity_info: {
-          current_bookings: currentBookings,
-          max_participants: maxParticipants,
-          available_slots: availableSlots,
-          needed_slots: neededSlots,
-          has_capacity: hasCapacity,
-          is_unlimited: maxParticipants === 0 || maxParticipants > 100,
-          capacity_percentage: maxParticipants > 0 ? (currentBookings / maxParticipants) * 100 : 0
-        }
-      };
     });
 
-    this.feedback.setLoading('capacity_check', false);
+    this.selectedSubGroups = allSubgroups;
     this.isCapacityLoading = false;
 
-    // 3. Proporcionar feedback contextual basado en disponibilidad
-    this.providCapacityFeedback(course.name, availableSubgroups, totalAvailableSlots, neededSlots);
+    console.log('SUBGROUPS DEBUG: Total subgroups found:', allSubgroups.length);
+    console.log('SUBGROUPS DEBUG: Subgroups:', allSubgroups);
 
-    // 4. Iniciar polling para verificación en tiempo real
-    this.startCapacityPolling(course);
+    // Autoseleccionar el grupo que coincide con el nivel seleccionado
+    this.autoSelectMatchingSubgroup(allSubgroups);
+
+    // Comentado temporalmente - puede causar destellos
+    // this.startCapacityPolling(course);
   }
 
   /**
-   * MEJORA CRÍTICA: Feedback contextual para disponibilidad de capacidad
+   * Autoseleccionar el subgrupo que coincide con el nivel del usuario
    */
-  private providCapacityFeedback(courseName: string, availableSubgroups: number, totalSlots: number, neededSlots: number): void {
-    if (availableSubgroups === 0) {
-      this.feedback.error(`${courseName} está completo para ${neededSlots} participante${neededSlots > 1 ? 's' : ''}`, {
-        action: 'Ver alternativas',
-        onAction: () => this.suggestAlternatives(courseName)
-      });
-    } else if (totalSlots < neededSlots) {
-      this.feedback.warning(`Solo ${totalSlots} plaza${totalSlots > 1 ? 's' : ''} disponible${totalSlots > 1 ? 's' : ''} en ${courseName}`, {
-        action: 'Ajustar grupo',
-        onAction: () => this.suggestGroupAdjustment(totalSlots)
-      });
+  private autoSelectMatchingSubgroup(subgroups: any[]): void {
+    if (!this.sportLevel || subgroups.length === 0) {
+      return;
+    }
+
+    // Buscar el primer subgrupo que coincida con el nivel seleccionado y tenga capacidad
+    const matchingSubgroup = subgroups.find(sg =>
+      sg.group_info?.degree_id === this.sportLevel.id &&
+      sg.capacity_info?.has_capacity
+    );
+
+    if (matchingSubgroup) {
+      console.log('AUTO-SELECT DEBUG: Found matching subgroup for level:', this.sportLevel.name);
+      console.log('AUTO-SELECT DEBUG: Subgroup:', matchingSubgroup);
+
+      // Autoseleccionar el subgrupo
+      this.stepForm.get('selectedSubGroup')?.setValue(matchingSubgroup);
+      this.selectedSubGroup = matchingSubgroup;
+
+      console.log('AUTO-SELECT DEBUG: Subgroup auto-selected');
     } else {
-      // Feedback positivo con información útil
-      if (totalSlots <= 5) {
-        this.feedback.warning(`¡Últimas ${totalSlots} plazas en ${courseName}! Reserva pronto.`, {
-          duration: 4000
-        });
-      } else {
-        this.feedback.capacityFeedback(totalSlots, neededSlots, courseName);
+      console.log('AUTO-SELECT DEBUG: No matching subgroup found for level:', this.sportLevel.name);
+      // Si no hay coincidencia, intentar seleccionar el primero con capacidad
+      const firstAvailable = subgroups.find(sg => sg.capacity_info?.has_capacity);
+      if (firstAvailable) {
+        console.log('AUTO-SELECT DEBUG: Selecting first available subgroup');
+        this.stepForm.get('selectedSubGroup')?.setValue(firstAvailable);
+        this.selectedSubGroup = firstAvailable;
       }
     }
   }
@@ -372,39 +365,16 @@ export class StepFourComponent implements OnDestroy {
     this.clearCapacityPolling();
   }
 
-  selectSubGroup(group: any): void {
-    console.log('SUBGROUP DEBUG: Selecting subgroup:', group);
-    console.log('SUBGROUP DEBUG: Group capacity info:', group.capacity_info);
+  onSubgroupChange(event: any): void {
+    console.log('SUBGROUP CHANGE DEBUG: Event fired:', event);
+    console.log('SUBGROUP CHANGE DEBUG: Event value:', event.value);
+    console.log('SUBGROUP CHANGE DEBUG: Form control value after change:', this.stepForm.get('selectedSubGroup')?.value);
 
-    this.selectedSubGroup = group;
-    this.stepForm.get('selectedSubGroup')?.setValue(group);
+    // Forzar actualización del formulario
+    this.stepForm.updateValueAndValidity();
 
-    console.log('SUBGROUP DEBUG: Form value after selection:', this.stepForm.get('selectedSubGroup')?.value);
-    console.log('SUBGROUP DEBUG: Form valid after selection:', this.stepForm.valid);
-
-    // Verificar que el formulario se actualizó correctamente
-    if (this.stepForm.get('selectedSubGroup')?.value) {
-      console.log('SUBGROUP DEBUG: ✅ Subgroup successfully selected');
-
-      // Feedback de éxito
-      this.feedback?.success(`Grupo seleccionado: ${group.capacity_info?.available_slots || 'N/A'} plazas disponibles`, {
-        duration: 2000
-      });
-
-      // Track analytics
-      this.analytics?.trackEvent({
-        category: 'booking',
-        action: 'subgroup_selected',
-        label: 'course_subgroup',
-        metadata: {
-          subgroup_id: group.id,
-          available_slots: group.capacity_info?.available_slots,
-          capacity_percentage: group.capacity_info?.capacity_percentage
-        }
-      });
-    } else {
-      console.log('SUBGROUP DEBUG: ❌ Failed to set subgroup value');
-    }
+    console.log('SUBGROUP CHANGE DEBUG: Form valid after update:', this.stepForm.valid);
+    console.log('SUBGROUP CHANGE DEBUG: isFormValid() after update:', this.isFormValid());
   }
 
   updateTabs(): void {
@@ -427,8 +397,36 @@ export class StepFourComponent implements OnDestroy {
   }
 
   isFormValid() {
-    // Validación pura sin efectos secundarios
-    return this.stepForm.valid;
+    console.log('FORM VALIDATION DEBUG: Checking form validity...');
+    console.log('FORM VALIDATION DEBUG: stepForm.valid =', this.stepForm.valid);
+    console.log('FORM VALIDATION DEBUG: selectedCourse =', this.selectedCourse?.name);
+    console.log('FORM VALIDATION DEBUG: course_type =', this.selectedCourse?.course_type);
+
+    // Validación básica del formulario
+    if (!this.stepForm.valid) {
+      console.log('FORM VALIDATION DEBUG: ❌ Form is invalid');
+      return false;
+    }
+
+    // Para cursos colectivos, verificar que haya un subgrupo seleccionado
+    if (this.selectedCourse?.course_type === 1) {
+      const subgroupValue = this.stepForm.get('selectedSubGroup')?.value;
+      const hasSubgroup = !!subgroupValue;
+      console.log('FORM VALIDATION DEBUG: Collective course - subgroup value:', subgroupValue);
+      console.log('FORM VALIDATION DEBUG: Collective course - hasSubgroup:', hasSubgroup);
+
+      if (!hasSubgroup) {
+        console.log('FORM VALIDATION DEBUG: ❌ No subgroup selected for collective course');
+        return false;
+      }
+
+      console.log('FORM VALIDATION DEBUG: ✅ Subgroup is selected');
+      return true;
+    }
+
+    // Para otros tipos de curso, solo verificar validez del formulario
+    console.log('FORM VALIDATION DEBUG: ✅ Non-collective course, form is valid');
+    return true;
   }
 
   /**
@@ -618,10 +616,13 @@ export class StepFourComponent implements OnDestroy {
   compareCourseDates() {
     let ret = [];
     const currentTime = moment(); // Hora actual
+    this.coursesDateByInterval.clear(); // Limpiar el mapa de intervalos
 
     this.courses.forEach((course) => {
       course.course_dates.forEach((courseDate) => {
         const courseDateMoment = moment(courseDate.date, "YYYY-MM-DD");
+        const formattedDate = courseDateMoment.format("YYYY-MM-DD");
+        let shouldAdd = false;
 
         // Si la fecha del curso es hoy, comprobar las horas
         if (courseDateMoment.isSame(moment(), "day")) {
@@ -630,22 +631,39 @@ export class StepFourComponent implements OnDestroy {
 
           // Solo añadir la fecha si el curso aún no ha empezado
           if (currentTime.isBefore(hourStart)) {
-            ret.push(courseDateMoment.format("YYYY-MM-DD"));
+            shouldAdd = true;
           }
           } else {
             const hourEnd = moment(courseDate.hour_end, "HH:mm");
             if (currentTime.isBefore(hourEnd)) {
-              ret.push(courseDateMoment.format("YYYY-MM-DD"));
+              shouldAdd = true;
             }
           }
         } else {
           // Si la fecha no es hoy, añadirla sin comprobación de hora
-          ret.push(courseDateMoment.format("YYYY-MM-DD"));
+          shouldAdd = true;
+        }
+
+        // Si la fecha es válida, añadirla al array general y al mapa por intervalo
+        if (shouldAdd) {
+          ret.push(formattedDate);
+
+          // Si tiene interval_id, añadirla al mapa de intervalos
+          if (courseDate.interval_id) {
+            const intervalId = String(courseDate.interval_id);
+            if (!this.coursesDateByInterval.has(intervalId)) {
+              this.coursesDateByInterval.set(intervalId, []);
+            }
+            this.coursesDateByInterval.get(intervalId).push(formattedDate);
+          }
         }
       });
     });
 
     this.coursesDate = Array.from(new Set(ret));
+
+    // Log para debug
+    console.log('INTERVAL DEBUG: Dates by interval:', this.coursesDateByInterval);
   }
 
   dateClass() {
@@ -660,6 +678,7 @@ export class StepFourComponent implements OnDestroy {
         const colorClass = this.tabs.find(
           (tab) => tab.courseTypeId === this.courseTypeId
         )?.class;
+
         return `with-course ${colorClass}`;
       } else {
         return;
@@ -805,6 +824,31 @@ export class StepFourComponent implements OnDestroy {
   debugPrice(course: any): number {
     console.log('🔍 DEBUG SIMPLE - Course Name:', course?.name, 'Original minPrice:', course?.minPrice);
     return course?.minPrice || 0;
+  }
+
+  /**
+   * Check if a course has intervals configuration
+   */
+  hasIntervals(course: any): boolean {
+    const intervals = course?.settings?.intervals;
+    return intervals && Array.isArray(intervals) && intervals.length > 0;
+  }
+
+  /**
+   * Get intervals from a course
+   */
+  getIntervals(course: any): any[] {
+    if (!this.hasIntervals(course)) {
+      return [];
+    }
+    return course.settings.intervals;
+  }
+
+  /**
+   * Helper function to convert to String (for template)
+   */
+  String(value: any): string {
+    return String(value);
   }
 
   /**

@@ -330,6 +330,109 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
   formatDate(date: string) {
     return this.utilsService.formatDate(date);
   }
+
+  /**
+   * Check if the course has intervals configuration
+   */
+  hasIntervals(): boolean {
+    const intervals = this.course?.settings?.intervals;
+    return intervals && Array.isArray(intervals) && intervals.length > 0;
+  }
+
+  /**
+   * Get the list of intervals from course settings
+   */
+  getIntervals(): any[] {
+    if (!this.hasIntervals()) {
+      return [];
+    }
+    return this.course.settings.intervals;
+  }
+
+  /**
+   * Track collapsed state of intervals
+   */
+  private collapsedIntervals: { [key: number]: boolean } = {};
+
+  /**
+   * Toggle interval collapse state
+   */
+  toggleInterval(intervalIdx: number): void {
+    this.collapsedIntervals[intervalIdx] = !this.collapsedIntervals[intervalIdx];
+  }
+
+  /**
+   * Check if interval is collapsed
+   */
+  isIntervalCollapsed(intervalIdx: number): boolean {
+    return this.collapsedIntervals[intervalIdx] || false;
+  }
+
+  /**
+   * Get interval_id for a specific date by index
+   */
+  getDateIntervalId(dateIndex: number): string | null {
+    const courseDate = this.course.course_dates?.[dateIndex];
+    return courseDate?.interval_id ? String(courseDate.interval_id) : null;
+  }
+
+  /**
+   * Count dates for a specific interval
+   */
+  getDateCountForInterval(intervalId: string): number {
+    if (!this.course?.course_dates) {
+      return 0;
+    }
+    return this.course.course_dates.filter(date =>
+      String(date.interval_id) === String(intervalId)
+    ).length;
+  }
+
+  /**
+   * Select/deselect all dates for a specific interval
+   */
+  selectAllForInterval(intervalId: string, select: boolean): void {
+    this.courseDatesArray.controls.forEach((control, index) => {
+      const dateIntervalId = this.getDateIntervalId(index);
+      if (String(dateIntervalId) === String(intervalId)) {
+        const courseDateGroup = control as FormGroup;
+        const currentlySelected = courseDateGroup.get('selected')?.value;
+
+        // If we're selecting and it's not already selected, simulate a selection
+        if (select && !currentlySelected) {
+          courseDateGroup.get('selected')?.setValue(true);
+          this.onDateSelect({ checked: true }, index);
+        } else if (!select && currentlySelected) {
+          // If we're deselecting and it's currently selected
+          courseDateGroup.get('selected')?.setValue(false);
+          const extrasControl = courseDateGroup.get('extras');
+          extrasControl?.disable();
+          extrasControl?.setValue([]);
+        }
+      }
+    });
+
+    this.stepForm.updateValueAndValidity();
+  }
+
+  /**
+   * Check if all dates in an interval are selected
+   */
+  areAllSelectedForInterval(intervalId: string): boolean {
+    const intervalDates = this.courseDatesArray.controls.filter((control, index) => {
+      const dateIntervalId = this.getDateIntervalId(index);
+      return String(dateIntervalId) === String(intervalId);
+    });
+
+    if (intervalDates.length === 0) {
+      return false;
+    }
+
+    return intervalDates.every(control => {
+      const courseDateGroup = control as FormGroup;
+      return courseDateGroup.get('selected')?.value === true;
+    });
+  }
 }
 
 

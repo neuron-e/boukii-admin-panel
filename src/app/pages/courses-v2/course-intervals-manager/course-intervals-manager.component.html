@@ -1,0 +1,221 @@
+<div class="intervals-manager">
+  <!-- Header -->
+  <div class="header">
+    <h3>
+      Gestión de Intervalos
+      <span class="mode-badge" [class.independent]="isIndependentMode">
+        {{ isIndependentMode ? 'Modo Independiente' : 'Modo Unificado' }}
+      </span>
+    </h3>
+    <button mat-raised-button color="primary" (click)="showAddForm()" *ngIf="isIndependentMode">
+      <mat-icon>add</mat-icon>
+      Añadir Intervalo
+    </button>
+  </div>
+
+  <!-- Info message for unified mode -->
+  <mat-card *ngIf="!isIndependentMode" class="info-card">
+    <mat-card-content>
+      <mat-icon>info</mat-icon>
+      <p>
+        En modo <strong>unificado</strong>, todos los intervalos comparten la misma configuración del curso.
+        Los intervalos se utilizan solo para organizar las fechas.
+      </p>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Info message for independent mode -->
+  <mat-card *ngIf="isIndependentMode" class="info-card independent">
+    <mat-card-content>
+      <mat-icon>stars</mat-icon>
+      <p>
+        En modo <strong>independiente</strong>, cada intervalo puede tener su propia configuración de generación de fechas
+        (días consecutivos, patrón semanal, etc.) y modo de reserva (flexible o paquete).
+      </p>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Loading spinner -->
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <!-- Intervals List -->
+  <div *ngIf="!loading && intervals.length > 0" class="intervals-list">
+    <div cdkDropList (cdkDropListDropped)="drop($event)" [cdkDropListDisabled="!isIndependentMode">
+      <mat-card *ngFor="let interval of intervals; let i = index" class="interval-card" cdkDrag>
+        <mat-card-content>
+          <div class="interval-card-content">
+            <div class="interval-info-container">
+              <!-- Drag handle -->
+              <div *ngIf="isIndependentMode" class="drag-handle" cdkDragHandle>
+                <mat-icon>drag_indicator</mat-icon>
+              </div>
+
+              <!-- Interval info -->
+              <div class="interval-info">
+                <h4>{{ interval.name }}</h4>
+                <p class="dates">
+                  <mat-icon>date_range</mat-icon>
+                  {{ interval.start_date | date:'dd/MM/yyyy' }} - {{ interval.end_date | date:'dd/MM/yyyy' }}
+                </p>
+
+                <!-- Config mode -->
+                <div class="config-badges">
+                  <span class="badge" [class.custom]="interval.config_mode === 'custom'">
+                    {{ interval.config_mode === 'custom' ? 'Configuración personalizada' : 'Hereda configuración' }}
+                  </span>
+
+                  <!-- Date generation method (if custom) -->
+                  <span class="badge method" *ngIf="interval.config_mode === 'custom' && interval.date_generation_method">
+                    <mat-icon>settings</mat-icon>
+                    {{ getMethodLabel(interval.date_generation_method) }}
+                  </span>
+
+                  <!-- Booking mode -->
+                  <span class="badge booking">
+                    {{ interval.booking_mode === 'flexible' ? 'Flexible' : 'Paquete' }}
+                  </span>
+                </div>
+
+                <!-- Course dates count -->
+                <p class="dates-count" *ngIf="interval.courseDates">
+                  <mat-icon>event</mat-icon>
+                  {{ interval.courseDates.length }} fechas
+                </p>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions" *ngIf="isIndependentMode">
+              <button mat-icon-button (click)="editInterval(interval)" matTooltip="Editar">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button (click)="deleteInterval(interval)" matTooltip="Eliminar" color="warn">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <mat-card *ngIf="!loading && intervals.length === 0" class="empty-state">
+    <mat-card-content class="empty-state-content">
+      <mat-icon>schedule</mat-icon>
+      <h4>No hay intervalos configurados</h4>
+      <p *ngIf="isIndependentMode">Añade tu primer intervalo para comenzar</p>
+      <button mat-raised-button color="primary" (click)="showAddForm()" *ngIf="isIndependentMode">
+        <mat-icon>add</mat-icon>
+        Añadir Intervalo
+      </button>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Interval Form (Add/Edit) -->
+  <mat-card *ngIf="showForm" class="interval-form-card">
+    <mat-card-header>
+      <mat-card-title>
+        {{ editingIntervalId !== null ? 'Editar Intervalo' : 'Nuevo Intervalo' }}
+      </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="intervalForm" class="interval-form">
+        <!-- Name -->
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre del intervalo</mat-label>
+          <input matInput formControlName="name" placeholder="Ej: Semana 1, Período Navidad">
+          <mat-error *ngIf="intervalForm.get('name').hasError('required')">
+            El nombre es requerido
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Dates -->
+        <div class="dates-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Fecha inicio</mat-label>
+            <input matInput type="date" formControlName="start_date">
+            <mat-error *ngIf="intervalForm.get('start_date').hasError('required')">
+              La fecha de inicio es requerida
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Fecha fin</mat-label>
+            <input matInput type="date" formControlName="end_date">
+            <mat-error *ngIf="intervalForm.get('end_date').hasError('required')">
+              La fecha de fin es requerida
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <!-- Config Mode -->
+        <mat-form-field appearance="outline">
+          <mat-label>Configuración</mat-label>
+          <mat-select formControlName="config_mode">
+            <mat-option value="inherit">Heredar configuración del curso</mat-option>
+            <mat-option value="custom">Configuración personalizada</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Custom Configuration Options (only if custom) -->
+        <div *ngIf="isCustomConfig" class="custom-config">
+          <!-- Date Generation Method -->
+          <mat-form-field appearance="outline">
+            <mat-label>Método de generación de fechas</mat-label>
+            <mat-select formControlName="date_generation_method">
+              <mat-option value="first_day">Solo primer día</mat-option>
+              <mat-option value="consecutive">Días consecutivos</mat-option>
+              <mat-option value="weekly">Patrón semanal</mat-option>
+              <mat-option value="manual">Manual</mat-option>
+            </mat-select>
+            <mat-error *ngIf="intervalForm.get('date_generation_method').hasError('required')">
+              Selecciona un método de generación
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Consecutive Days Count (only if consecutive) -->
+          <mat-form-field appearance="outline" *ngIf="selectedDateGenerationMethod === 'consecutive'">
+            <mat-label>Número de días consecutivos</mat-label>
+            <input matInput type="number" formControlName="consecutive_days_count" min="1">
+            <mat-error *ngIf="intervalForm.get('consecutive_days_count').hasError('required')">
+              Indica el número de días
+            </mat-error>
+            <mat-error *ngIf="intervalForm.get('consecutive_days_count').hasError('min')">
+              Mínimo 1 día
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Weekly Pattern (only if weekly) -->
+          <div *ngIf="selectedDateGenerationMethod === 'weekly'" class="weekly-pattern">
+            <label>Selecciona los días de la semana:</label>
+            <div formGroupName="weekly_pattern" class="days-grid">
+              <mat-checkbox *ngFor="let day of weekDays" [formControlName]="day.key">
+                {{ day.label }}
+              </mat-checkbox>
+            </div>
+          </div>
+        </div>
+
+        <!-- Booking Mode -->
+        <mat-form-field appearance="outline">
+          <mat-label>Modo de reserva</mat-label>
+          <mat-select formControlName="booking_mode">
+            <mat-option value="flexible">Flexible (cliente elige fechas)</mat-option>
+            <mat-option value="package">Paquete (debe reservar todas las fechas)</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Actions -->
+        <div class="form-actions">
+          <button mat-button type="button" (click)="cancelEdit()">Cancelar</button>
+          <button mat-raised-button color="primary" type="button" (click)="saveInterval()">
+            {{ editingIntervalId !== null ? 'Actualizar' : 'Crear' }}
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

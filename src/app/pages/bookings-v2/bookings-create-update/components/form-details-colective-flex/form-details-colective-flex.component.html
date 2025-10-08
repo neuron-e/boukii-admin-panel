@@ -1,6 +1,23 @@
 <form class="wrapper" [formGroup]="stepForm">
-  <!-- Información de las reglas de reserva -->
-  <div *ngIf="course.settings?.mustBeConsecutive || course.settings?.mustStartFromFirst"
+  <!-- Información de intervalos (si existen) -->
+  <div *ngIf="hasIntervals()"
+       class="intervals-info mb-3"
+       style="background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+      <mat-icon style="color: #f57c00; margin-right: 8px; font-size: 20px;">event_note</mat-icon>
+      <strong style="color: #e65100; font-size: 14px;">{{ 'course_has_intervals_config' | translate }}</strong>
+    </div>
+
+    <div style="padding: 8px; background: #fffbf0; border-radius: 4px; border: 1px dashed #f57c00;">
+      <p style="margin: 0; font-size: 12px; color: #6d4c41;">
+        <mat-icon style="font-size: 14px; vertical-align: middle; color: #f57c00;">info</mat-icon>
+        <strong>{{ 'admin_note' | translate }}:</strong> {{ 'admin_can_book_outside_config' | translate }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Información de las reglas de reserva (configuración global - solo si NO hay intervalos) -->
+  <div *ngIf="!hasIntervals() && (course.settings?.mustBeConsecutive || course.settings?.mustStartFromFirst)"
        class="reservation-rules-info mb-3"
        style="background-color: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
     <div style="display: flex; align-items: center; margin-bottom: 8px;">
@@ -36,43 +53,159 @@
   </div>
 
   <div formArrayName="course_dates">
-    <div *ngFor="let courseDate of courseDatesArray.controls; let i = index" [formGroupName]="i">
-      <div class="content-wrapper" [class.first-date]="i === 0 && course.settings?.mustStartFromFirst">
-        <mat-checkbox formControlName="selected" (change)="onDateSelect($event, i)"></mat-checkbox>
-        <div [class]="{ rowsWrapper: true, last: i === courseDatesArray.controls.length - 1 }">
-          <div class="row-1">
-            <!-- Aquí usamos courseDatesArray en lugar de course.course_dates -->
-            <span class="date">{{ formatDate(courseDatesArray.at(i).get('date').value) }}</span>
-            <span class="hour">{{ courseDatesArray.at(i).get('startHour').value }}h - {{
-              courseDatesArray.at(i).get('endHour').value }}h</span>
-            <span class="price">{{ course.price }} {{ course.currency }} </span>
-          </div>
-          <div class="row-2">
+    <!-- Si hay intervalos, agrupar por intervalo -->
+    <ng-container *ngIf="hasIntervals()">
+      <div *ngFor="let interval of getIntervals(); let intervalIdx = index"
+           style="margin-bottom: 24px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+
+        <!-- Header del intervalo (colapsable) -->
+        <div (click)="toggleInterval(intervalIdx)"
+             style="background: #f5f5f5; border-bottom: 2px solid #1976d2; padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <mat-icon style="color: #1976d2; font-size: 24px;">event</mat-icon>
             <div>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ "participant" | translate }} </mat-label>
-                <input matInput disabled [value]="utilizer.first_name + ' ' + utilizer.last_name" />
-                <mat-icon class="disabled-icon" matPrefix fontSet="material-icons-outlined">people</mat-icon>
-              </mat-form-field>
+              <div style="color: #1976d2; font-weight: 600; font-size: 15px;">
+                {{ interval.name || ('interval' | translate) + ' ' + (intervalIdx + 1) }}
+              </div>
+              <div style="color: #666; font-size: 12px; margin-top: 2px;">
+                {{ interval.startDate | date:'dd/MM/yyyy' }} - {{ interval.endDate | date:'dd/MM/yyyy' }}
+                <span style="margin-left: 8px;">• {{ getDateCountForInterval(interval.id) }} {{'dates' | translate}}</span>
+              </div>
             </div>
-            <div>
-              <div class="extra-field-wrapper" *ngIf=" this.posibleExtras && this.posibleExtras.length">
-                <mat-form-field appearance="outline" class="extras-field">
-                  <mat-label>{{ "extras" | translate }} </mat-label>
-                  <mat-select multiple formControlName="extras" (selectionChange)="onExtraChange(i)"
-                    [disabled]="!(courseDatesArray.at(i)).get('selected').value || !this.posibleExtras || !this.posibleExtras.length">
-                    <mat-option *ngFor="let extra of posibleExtras" [value]="extra">
-                      <span>{{ extra.name }} - {{ extra.description }}</span>
-                      <span>{{ extra.price }}</span>
-                    </mat-option>
-                  </mat-select>
+          </div>
+          <mat-icon style="color: #1976d2; font-size: 24px; transition: transform 0.3s;"
+                    [style.transform]="isIntervalCollapsed(intervalIdx) ? 'rotate(0deg)' : 'rotate(180deg)'">
+            expand_more
+          </mat-icon>
+        </div>
+
+        <!-- Detalles del intervalo (debajo del header) -->
+        <div *ngIf="!isIntervalCollapsed(intervalIdx)"
+             style="background: #f9f9f9; border-bottom: 1px solid #e0e0e0; padding: 12px 16px;">
+
+          <!-- Select All checkbox -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <mat-checkbox [checked]="areAllSelectedForInterval(interval.id)"
+                          (change)="selectAllForInterval(interval.id, $event.checked)"
+                          style="font-weight: 500;">
+              {{ 'select_all' | translate }}
+            </mat-checkbox>
+          </div>
+
+          <!-- Interval configuration details -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; color: #555;">
+            <!-- Bookable period if configured -->
+            <div *ngIf="interval.reservableStartDate || interval.reservableEndDate"
+                 style="display: flex; align-items: center; gap: 8px;">
+              <mat-icon style="font-size: 16px; color: #1976d2;">date_range</mat-icon>
+              <div>
+                <strong style="color: #333;">{{ 'bookable_period' | translate }}:</strong>
+                <div style="font-size: 12px; color: #666;">
+                  {{ interval.reservableStartDate | date:'dd/MM/yyyy' }} - {{ interval.reservableEndDate | date:'dd/MM/yyyy' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Rules if configured -->
+            <div *ngIf="interval.mustStartFromFirst || interval.mustBeConsecutive"
+                 style="display: flex; align-items: start; gap: 8px;">
+              <mat-icon style="font-size: 16px; color: #1976d2;">rule</mat-icon>
+              <div>
+                <strong style="color: #333;">{{ 'booking_rules' | translate }}:</strong>
+                <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 12px; color: #666;">
+                  <li *ngIf="interval.mustStartFromFirst">{{ 'booking_must_start_from_first_day' | translate }}</li>
+                  <li *ngIf="interval.mustBeConsecutive">{{ 'booking_dates_must_be_consecutive' | translate }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contenido del intervalo (fechas) -->
+        <div *ngIf="!isIntervalCollapsed(intervalIdx)" style="padding: 8px;">
+          <div *ngFor="let courseDate of courseDatesArray.controls; let i = index" [formGroupName]="i">
+            <!-- Solo mostrar fechas que pertenecen a este intervalo -->
+            <ng-container *ngIf="getDateIntervalId(i) === interval.id">
+              <div class="content-wrapper" [class.first-date]="i === 0 && course.settings?.mustStartFromFirst">
+                <mat-checkbox formControlName="selected" (change)="onDateSelect($event, i)"></mat-checkbox>
+                <div [class]="{ rowsWrapper: true, last: i === courseDatesArray.controls.length - 1 }">
+                  <div class="row-1">
+                    <span class="date">{{ formatDate(courseDatesArray.at(i).get('date').value) }}</span>
+                    <span class="hour">{{ courseDatesArray.at(i).get('startHour').value }}h - {{
+                      courseDatesArray.at(i).get('endHour').value }}h</span>
+                    <span class="price">{{ course.price }} {{ course.currency }} </span>
+                  </div>
+                  <div class="row-2">
+                    <div>
+                      <mat-form-field appearance="outline">
+                        <mat-label>{{ "participant" | translate }} </mat-label>
+                        <input matInput disabled [value]="utilizer.first_name + ' ' + utilizer.last_name" />
+                        <mat-icon class="disabled-icon" matPrefix fontSet="material-icons-outlined">people</mat-icon>
+                      </mat-form-field>
+                    </div>
+                    <div>
+                      <div class="extra-field-wrapper" *ngIf=" this.posibleExtras && this.posibleExtras.length">
+                        <mat-form-field appearance="outline" class="extras-field">
+                          <mat-label>{{ "extras" | translate }} </mat-label>
+                          <mat-select multiple formControlName="extras" (selectionChange)="onExtraChange(i)"
+                            [disabled]="!(courseDatesArray.at(i)).get('selected').value || !this.posibleExtras || !this.posibleExtras.length">
+                            <mat-option *ngFor="let extra of posibleExtras" [value]="extra">
+                              <span>{{ extra.name }} - {{ extra.description }}</span>
+                              <span>{{ extra.price }}</span>
+                            </mat-option>
+                          </mat-select>
+                        </mat-form-field>
+                        <span class="extras-price">{{ isSelected(i) ? totalExtraPrice[i] : '00.00' + course.currency }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Si NO hay intervalos, mostrar lista normal -->
+    <ng-container *ngIf="!hasIntervals()">
+      <div *ngFor="let courseDate of courseDatesArray.controls; let i = index" [formGroupName]="i">
+        <div class="content-wrapper" [class.first-date]="i === 0 && course.settings?.mustStartFromFirst">
+          <mat-checkbox formControlName="selected" (change)="onDateSelect($event, i)"></mat-checkbox>
+          <div [class]="{ rowsWrapper: true, last: i === courseDatesArray.controls.length - 1 }">
+            <div class="row-1">
+              <span class="date">{{ formatDate(courseDatesArray.at(i).get('date').value) }}</span>
+              <span class="hour">{{ courseDatesArray.at(i).get('startHour').value }}h - {{
+                courseDatesArray.at(i).get('endHour').value }}h</span>
+              <span class="price">{{ course.price }} {{ course.currency }} </span>
+            </div>
+            <div class="row-2">
+              <div>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ "participant" | translate }} </mat-label>
+                  <input matInput disabled [value]="utilizer.first_name + ' ' + utilizer.last_name" />
+                  <mat-icon class="disabled-icon" matPrefix fontSet="material-icons-outlined">people</mat-icon>
                 </mat-form-field>
-                <span class="extras-price">{{ isSelected(i) ? totalExtraPrice[i] : '00.00' + course.currency }}</span>
+              </div>
+              <div>
+                <div class="extra-field-wrapper" *ngIf=" this.posibleExtras && this.posibleExtras.length">
+                  <mat-form-field appearance="outline" class="extras-field">
+                    <mat-label>{{ "extras" | translate }} </mat-label>
+                    <mat-select multiple formControlName="extras" (selectionChange)="onExtraChange(i)"
+                      [disabled]="!(courseDatesArray.at(i)).get('selected').value || !this.posibleExtras || !this.posibleExtras.length">
+                      <mat-option *ngFor="let extra of posibleExtras" [value]="extra">
+                        <span>{{ extra.name }} - {{ extra.description }}</span>
+                        <span>{{ extra.price }}</span>
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <span class="extras-price">{{ isSelected(i) ? totalExtraPrice[i] : '00.00' + course.currency }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </ng-container>
   </div>
 </form>

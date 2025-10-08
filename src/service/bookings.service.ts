@@ -71,6 +71,124 @@ export class BookingService {
     private crudService: ApiCrudService
   ) {}
 
+
+  private parseDurationToMinutes(value: any): number | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      if (value > 10 && Number.isInteger(value)) {
+        return value;
+      }
+
+      return Math.round(value * 60);
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.replace(',', '.').trim().toLowerCase();
+      if (!normalized) {
+        return null;
+      }
+
+      const hourMatch = normalized.match(/(\d+)\s*h/);
+      const minuteMatch = normalized.match(/(\d+)\s*(?:m|min)/);
+
+      if (hourMatch || minuteMatch) {
+        const hours = parseInt(hourMatch?.[1] ?? '0', 10);
+        const minutes = parseInt(minuteMatch?.[1] ?? '0', 10);
+        return hours * 60 + minutes;
+      }
+
+      const numeric = parseFloat(normalized);
+      if (!Number.isNaN(numeric)) {
+        if (numeric > 10) {
+          return Math.round(numeric);
+        }
+
+        return Math.round(numeric * 60);
+      }
+    }
+
+    return null;
+  }
+
+  private formatIntervalLabel(hours: number, minutes: number): string {
+    if (hours <= 0) {
+      return `${minutes}m`;
+    }
+
+    if (minutes === 0) {
+      return `${hours}h`;
+    }
+
+    return `${hours}h ${minutes}m`;
+  }
+
+  private buildIntervalCandidates(minutes: number | null, explicitLabel?: string): string[] {
+    const candidates: string[] = [];
+    const addCandidate = (label?: string) => {
+      if (!label) {
+        return;
+      }
+      const normalized = label.trim();
+      if (!normalized) {
+        return;
+      }
+      if (!candidates.includes(normalized)) {
+        candidates.push(normalized);
+      }
+    };
+
+    addCandidate(explicitLabel);
+
+    if (minutes === null || !Number.isFinite(minutes)) {
+      return candidates;
+    }
+
+    const normalizedMinutes = Math.max(Math.round(minutes / 15) * 15, 0);
+    const hours = Math.floor(normalizedMinutes / 60);
+    const mins = normalizedMinutes % 60;
+
+    addCandidate(this.formatIntervalLabel(hours, mins));
+
+    if (hours > 0 && mins === 0) {
+      addCandidate(`${hours}h 0m`);
+      addCandidate(`${hours}h 0min`);
+      addCandidate(`${hours}h`);
+    } else if (hours > 0) {
+      addCandidate(`${hours}h ${mins}min`);
+      addCandidate(`${hours}h${mins}m`);
+    }
+
+    if (hours === 0) {
+      addCandidate(`${mins}m`);
+      addCandidate(`${mins}min`);
+    }
+
+    addCandidate((normalizedMinutes / 60).toString());
+    addCandidate((normalizedMinutes / 60).toFixed(2));
+    addCandidate(`${normalizedMinutes}m`);
+    addCandidate(`${normalizedMinutes}min`);
+
+    return candidates;
+  }
+
+  private findIntervalByCandidates(priceRange: any[], candidates: string[]): any {
+    if (!Array.isArray(priceRange) || candidates.length === 0) {
+      return null;
+    }
+
+    for (const candidate of candidates) {
+      const match = priceRange.find((range: any) => range?.intervalo === candidate);
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
   setBookingData(data: BookingCreateData) {
     this.bookingDataSubject.next(data);
   }
@@ -130,38 +248,43 @@ export class BookingService {
     let datePrice = 0;
     let extraPrice = 0;
 
+    const bookingUsers = Array.isArray(date?.booking_users) ? date.booking_users : [];
     const validUsers = showCancelled
-      ? date.booking_users
-      : date.booking_users.filter((user: any) => user.status === 1);
+      ? bookingUsers
+      : bookingUsers.filter((user: any) => user?.status === 1);
 
-    if (validUsers.length > 0) {
-      if (course.course_type === 1) {
-        datePrice = parseFloat(course.price || 0);
-      } else {
-        if (course.is_flexible) {
-          const duration = date.duration;
-          const selectedUtilizers = date.utilizers.length;
+    const utilizersCount = Array.isArray(date?.utilizers) ? date.utilizers.length : 0;
+    const selectedUtilizers = validUsers.length || utilizersCount;
 
-          const interval = course.price_range.find(range => range.intervalo === duration);
-          if (interval) {
-            datePrice += parseFloat(interval[selectedUtilizers] || 0);
+    if (selectedUtilizers > 0) {
+      if (course?.course_type === 1) {
+        datePrice = parseFloat(course?.price || 0);
+      } else if (course?.is_flexible) {
+        const durationMinutes = this.parseDurationToMinutes(date?.durationMinutes ?? date?.duration ?? date?.formattedDuration);
+        const intervalCandidates = this.buildIntervalCandidates(durationMinutes, typeof date?.duration === 'string' ? date.duration : undefined);
+        const interval = this.findIntervalByCandidates(course?.price_range, intervalCandidates);
+
+        if (interval) {
+          const rawValue = interval[selectedUtilizers] ?? interval[String(selectedUtilizers)];
+          const priceValue = parseFloat(rawValue ?? '0');
+          if (!Number.isNaN(priceValue)) {
+            datePrice += priceValue;
           }
-        } else {
-          datePrice += parseFloat(course.price || 0) * date.utilizers.length;
         }
+      } else {
+        datePrice += parseFloat(course?.price || 0) * selectedUtilizers;
       }
 
-      // Calcular extras solo para esta fecha
-      extraPrice = date.extras?.reduce((sum: number, extra: any) => {
+      const extras = Array.isArray(date?.extras) ? date.extras : [];
+      extraPrice = extras.reduce((sum: number, extra: any) => {
         const price = parseFloat(extra?.price ?? '0');
         const quantity = Number(extra?.quantity ?? 1) || 1;
-        return sum + (isNaN(price) ? 0 : price * quantity);
-      }, 0) || 0;
+        return sum + (Number.isNaN(price) ? 0 : price * quantity);
+      }, 0);
     }
 
     return datePrice + extraPrice;
   }
-
   updateBookingData(partialData: Partial<BookingCreateData>) {
     const currentData = this.getBookingData();
     if (currentData) {

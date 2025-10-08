@@ -42,10 +42,12 @@ import { ComponenteInputModule } from "../../../../@vex/components/form/input/ap
 import { ComponenteEditorModule } from 'src/@vex/components/form/editor/app.module';
 import { ComponenteDatePickerModule } from 'src/@vex/components/form/datepicker/app.module';
 import { ComponenteSelectModule } from 'src/@vex/components/form/select/app.module';
-import { CoursesModule } from '../courses.module';
 import { ComponenteButtonModule } from 'src/@vex/components/form/button/app.module';
 import { CourseOpcionComponent } from '../components/opcion/opcion.component';
 import { CourseTimingModalModule } from '../../courses/course-timing-modal/course-timing-modal.module';
+import { CourseIntervalsManagerComponent } from '../course-intervals-manager/course-intervals-manager.component';
+import { DragDropModule } from '@angular/cdk/drag-drop';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 
 @NgModule({
   imports: [
@@ -97,9 +99,11 @@ import { CourseTimingModalModule } from '../../courses/course-timing-modal/cours
     ComponenteSelectModule,
     ComponenteButtonModule,
     CourseTimingModalModule,
-    CourseOpcionComponent
+    CourseOpcionComponent,
+    DragDropModule,
+    MatSnackBarModule
   ],
-  declarations: [CoursesCreateUpdateComponent],
+  declarations: [CoursesCreateUpdateComponent, CourseIntervalsManagerComponent],
   exports: [CoursesCreateUpdateComponent]
 })
 export class CoursesCreateUpdateModule { }

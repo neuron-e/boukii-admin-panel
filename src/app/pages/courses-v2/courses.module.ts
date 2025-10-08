@@ -75,7 +75,7 @@ import { ConfirmDialogModule } from 'src/@vex/components/confirm-dialog/confirm-
     CourseOpcionComponent,
     MatTooltipModule,
     MatProgressSpinnerModule,
-    ConfirmDialogModule,
+    ConfirmDialogModule
   ]
 })
 export class CoursesModule { }

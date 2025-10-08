@@ -14,10 +14,14 @@ export class CourseDetailCardNivelComponent implements OnInit {
   @Input() courseFormGroup!: UntypedFormGroup
   @Input() checkbox: boolean = false
   @Input() selectedSubgroup: any;
+  @Input() hideTimingButton: boolean = false;
   @Output() changeMonitor = new EventEmitter<any>()
   @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any, selectedDate?: any }>()
 
   today: Date = new Date()
+
+  // Track collapsed state for each subgroup (key format: "degreeId_subgroupIndex")
+  collapsedSubgroups: { [key: string]: boolean } = {}
 
   ngOnInit() {
     console.log('=== COURSE NIVEL COMPONENT DEBUG ===');
@@ -343,6 +347,16 @@ export class CourseDetailCardNivelComponent implements OnInit {
   }
   onTimingClick(subGroup: any, groupLevel: any, selectedDate?: any): void {
     this.viewTimes.emit({ subGroup, groupLevel, selectedDate });
+  }
+
+  toggleSubgroup(degreeId: string, subgroupIndex: number): void {
+    const key = `${degreeId}_${subgroupIndex}`;
+    this.collapsedSubgroups[key] = !this.collapsedSubgroups[key];
+  }
+
+  isSubgroupCollapsed(degreeId: string, subgroupIndex: number): boolean {
+    const key = `${degreeId}_${subgroupIndex}`;
+    return this.collapsedSubgroups[key] || false;
   }
   // Attendance functionality
   isAttended(user: any): boolean {

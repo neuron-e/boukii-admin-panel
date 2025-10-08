@@ -22,6 +22,7 @@ import {MatDialogModule} from '@angular/material/dialog';
 import {IconComponent} from '../../../../../@vex/components/icon/app.component';
 import {ComponentsCustomModule} from '../../../../components/components-custom.module';
 import {BookingDetailDialogComponent} from './booking-dialog/booking-dialog.component';
+import {BookingDatesEditUnifiedComponent} from './booking-dates-edit-unified/booking-dates-edit-unified.component';
 
 
 
@@ -33,7 +34,8 @@ import {BookingDetailDialogComponent} from './booking-dialog/booking-dialog.comp
     FormDetailsColectiveFlexComponent,
     FormDetailsColectiveFixComponent,
     StepObservationsComponent,
-    BookingDetailDialogComponent
+    BookingDetailDialogComponent,
+    BookingDatesEditUnifiedComponent
   ],
   imports: [
     CommonModule,

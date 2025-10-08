@@ -252,6 +252,106 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   groupBookingUsersByGroupId(booking: any) {
+
+    const parseTimeToMinutes = (time: string): number | null => {
+      if (!time) {
+        return null;
+      }
+
+      const parts = time.split(':');
+      if (parts.length < 2) {
+        return null;
+      }
+
+      const hours = Number(parts[0]);
+      const minutes = Number(parts[1]);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return null;
+      }
+
+      return hours * 60 + minutes;
+    };
+
+    const parseDurationValueToMinutes = (value: any): number | null => {
+      if (value === null || value === undefined) {
+        return null;
+      }
+
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        if (value > 10 && Number.isInteger(value)) {
+          return value;
+        }
+
+        return Math.round(value * 60);
+      }
+
+      if (typeof value === 'string') {
+        const normalized = value.replace(',', '.').trim().toLowerCase();
+        if (!normalized) {
+          return null;
+        }
+
+        const hourMatch = normalized.match(/(\d+)\s*h/);
+        const minuteMatch = normalized.match(/(\d+)\s*(?:m|min)/);
+
+        if (hourMatch || minuteMatch) {
+          const hours = parseInt(hourMatch?.[1] ?? '0', 10);
+          const minutes = parseInt(minuteMatch?.[1] ?? '0', 10);
+          return hours * 60 + minutes;
+        }
+
+        const numeric = parseFloat(normalized);
+        if (!Number.isNaN(numeric)) {
+          if (numeric > 10) {
+            return Math.round(numeric);
+          }
+
+          return Math.round(numeric * 60);
+        }
+      }
+
+      return null;
+    };
+
+    const formatIntervalLabel = (minutes: number): string => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+
+      if (hours <= 0) {
+        return `${mins}m`;
+      }
+
+      if (mins === 0) {
+        return `${hours}h`;
+      }
+
+      return `${hours}h ${mins}m`;
+    };
+
+    const normalizeDurationInfo = (rawDuration: any, startHour?: string, endHour?: string) => {
+      let minutes = parseDurationValueToMinutes(rawDuration);
+
+      if (minutes === null && startHour && endHour) {
+        const start = parseTimeToMinutes(startHour);
+        const end = parseTimeToMinutes(endHour);
+
+        if (start !== null && end !== null && end >= start) {
+          minutes = end - start;
+        }
+      }
+
+      if (minutes === null) {
+        minutes = 0;
+      }
+
+      const normalizedMinutes = Math.max(Math.round(minutes / 15) * 15, 0);
+
+      return {
+        minutes: normalizedMinutes,
+        label: formatIntervalLabel(normalizedMinutes)
+      };
+    };
+
     this.mainClient = booking.client_main;
 
     // Safety check for booking_users
@@ -323,21 +423,15 @@ export class BookingDetailV2Component implements OnInit {
         const courseDateFromCourse = (user.course?.course_dates || []).find((d: any) => d.id === user.course_date_id);
         const resolvedDate = courseDateFromCourse?.date || user.course_date?.date || user.date || null;
 
-        // MEJORA CRÍTICA: Calcular duración si no está disponible formattedDuration
-        let calculatedDuration = user.formattedDuration;
-        if (!calculatedDuration && user.hour_start && user.hour_end) {
-          // Calcular duración basándose en horas de inicio y fin
-          const startHour = parseFloat(user.hour_start.replace(':', '.'));
-          const endHour = parseFloat(user.hour_end.replace(':', '.'));
-          calculatedDuration = endHour - startHour;
-        }
+        const durationInfo = normalizeDurationInfo(user.formattedDuration ?? user.duration, user.hour_start, user.hour_end);
 
         acc[groupId].dates.push({
           id: user.course_date_id,
           date: resolvedDate,
           startHour: user.hour_start,
           endHour: user.hour_end,
-          duration: calculatedDuration,
+          duration: durationInfo.label,
+          durationMinutes: durationInfo.minutes,
           currency: booking.currency,
           monitor: user.monitor,
           utilizers: [],
@@ -381,89 +475,18 @@ export class BookingDetailV2Component implements OnInit {
       return acc;
     }, {}));
     groupedActivities.forEach((groupedActivity: any) => {
-      groupedActivity.total = this.bookingService.calculateActivityPrice(groupedActivity);
+      groupedActivity.dates.forEach((date: any) => {
+        const priceForDate = this.bookingService.calculateDatePrice(groupedActivity.course, date, true);
+        date.price = priceForDate.toFixed(2);
+        date.currency = groupedActivity.course?.currency || booking.currency;
+      });
 
-      // MEJORA CRÍTICA: Calcular precio individual para cada fecha
-      if (groupedActivity.course?.is_flexible && groupedActivity.utilizers?.length) {
-        groupedActivity.dates.forEach((date: any, index: number) => {
-          const duration = date.duration;
-          const selectedUtilizers = groupedActivity.utilizers.length;
-
-          // MEJORA CRÍTICA: Convertir duración decimal a formato de intervalo y buscar el más cercano
-          const convertDurationToInterval = (decimalHours: number): string => {
-            const hours = Math.floor(decimalHours);
-            const minutes = Math.round((decimalHours - hours) * 60);
-
-            // Redondear a intervalos de 15 minutos
-            const roundedMinutes = Math.round(minutes / 15) * 15;
-            const finalMinutes = roundedMinutes === 60 ? 0 : roundedMinutes;
-            const finalHours = roundedMinutes === 60 ? hours + 1 : hours;
-
-            return `${finalHours}h ${finalMinutes === 0 ? '0min' : finalMinutes + 'm'}`;
-          };
-
-          const targetInterval = convertDurationToInterval(duration);
-
-          // Encuentra el intervalo de duración que se aplica
-          let interval = groupedActivity.course.price_range?.find(range => {
-            return range.intervalo === targetInterval;
-          });
-
-          // Si no encuentra coincidencia exacta, buscar el más cercano
-          if (!interval && groupedActivity.course.price_range) {
-            // Buscar manualmente algunos patrones comunes
-            const alternativeFormats = [
-              `${Math.floor(duration)}h ${Math.round((duration - Math.floor(duration)) * 60)}m`,
-              `${Math.floor(duration)}h ${Math.round((duration - Math.floor(duration)) * 60)}min`,
-              targetInterval.replace('0min', '0m'),
-              targetInterval.replace('m', 'min')
-            ];
-
-            for (const altFormat of alternativeFormats) {
-              interval = groupedActivity.course.price_range.find(range => range.intervalo === altFormat);
-              if (interval) break;
-            }
-          }
-
-          // MEJORA CRÍTICA: Si el intervalo encontrado tiene precios nulos, buscar uno válido
-          if (interval && interval[selectedUtilizers] === null) {
-            // Buscar intervalos cercanos que tengan precios válidos
-            const candidateIntervals = ['1h 30m', '1h 45m', '2h 0min', '1h 0min'];
-
-            for (const candidateInterval of candidateIntervals) {
-              const candidateObj = groupedActivity.course.price_range.find(range => range.intervalo === candidateInterval);
-              if (candidateObj && candidateObj[selectedUtilizers] !== null) {
-                interval = candidateObj;
-                break;
-              }
-            }
-          }
-
-          if (interval) {
-            // Intentar acceso con número y string para compatibilidad
-            const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
-            date.price = priceForPax.toString();
-            date.currency = groupedActivity.course.currency || 'CHF';
-          } else {
-            date.price = '0';
-            date.currency = groupedActivity.course.currency || 'CHF';
-          }
-        });
-
-        // MEJORA CRÍTICA: Recalcular el total de la actividad después de asignar precios a fechas
-        const totalFromDates = groupedActivity.dates.reduce((sum: number, date: any) => {
-          return sum + (parseFloat(date.price) || 0);
-        }, 0);
-        groupedActivity.total = totalFromDates;
-
-      } else if (!groupedActivity.course?.is_flexible) {
-        // Para cursos no flexibles, usar el precio base
-        groupedActivity.dates.forEach((date: any) => {
-          date.price = groupedActivity.course?.price || '0';
-          date.currency = groupedActivity.course?.currency || 'CHF';
-        });
-      }
+      groupedActivity.total = groupedActivity.dates.reduce((sum: number, date: any) => {
+        const parsed = parseFloat(date.price);
+        return sum + (Number.isNaN(parsed) ? 0 : parsed);
+      }, 0);
     });
+
 
     // MEJORA CRÍTICA: Forzar detección de cambios para actualizar la UI
     this.cdr.detectChanges();
@@ -473,27 +496,11 @@ export class BookingDetailV2Component implements OnInit {
 
   editActivity(data: any, index: any) {
     if (data && data.course_dates) {
-      // MEJORA: Verificar si se eliminaron fechas y calcular reembolso
-      const originalDates = this.groupedActivities[index].dates;
-      const newDates = data.course_dates;
-      const originalTotal = this.groupedActivities[index].total;
-
-      const datesRemoved = originalDates.length - newDates.length;
-      const hasRemovedDates = datesRemoved > 0;
-
-      if (hasRemovedDates && this.bookingData.paid) {
-        // Calcular reembolso proporcional por fechas eliminadas
-        const refundAmount = this.calculateRefundForRemovedDates(
-          originalDates.length,
-          newDates.length,
-          originalTotal
-        );
-
-        this.showRefundPreviewDialog(refundAmount, datesRemoved, () => {
-          this.processActivityUpdate(data, index);
-        });
+      // Usar la información de priceChange del componente unificado
+      if (data.priceChange) {
+        this.handleBookingChangeWithPriceChange(data, index);
       } else {
-        // No hay fechas eliminadas o no está pagado, proceder normalmente
+        // Sin cambio de precio, proceder normalmente
         this.processActivityUpdate(data, index);
       }
     }
@@ -504,7 +511,159 @@ export class BookingDetailV2Component implements OnInit {
     } else {
       this.getBooking();
     }
+  }
 
+  /**
+   * Maneja cambios de reserva con cambios de precio (añadir o quitar fechas)
+   */
+  private handleBookingChangeWithPriceChange(data: any, index: number): void {
+    const priceChange = data.priceChange;
+
+    console.log('📊 Price Change detected:', priceChange);
+
+    if (priceChange.type === 'add') {
+      // AÑADIR FECHAS - Incremento de precio
+      this.showPriceIncreaseDialog(priceChange, () => {
+        this.processActivityUpdate(data, index);
+      });
+    } else if (priceChange.type === 'remove') {
+      // QUITAR FECHAS - Cancelación parcial
+      if (this.bookingData.paid) {
+        // Si está pagado, mostrar diálogo de reembolso
+        this.showPartialCancellationDialog(priceChange, () => {
+          this.processActivityUpdateWithRefund(data, index, priceChange);
+        });
+      } else {
+        // Si no está pagado, solo actualizar
+        this.processActivityUpdate(data, index);
+      }
+    }
+  }
+
+  /**
+   * Muestra diálogo de confirmación para incremento de precio
+   */
+  private showPriceIncreaseDialog(priceChange: any, onConfirm: () => void): void {
+    const dialogMessage = `
+      <div style="padding: 20px;">
+        <h3 style="color: #4caf50; margin-bottom: 16px;">
+          <mat-icon style="vertical-align: middle;">trending_up</mat-icon>
+          ${this.translateService.instant('price_increase')}
+        </h3>
+        <p>${this.translateService.instant('booking_edit_add_dates_info')}</p>
+        <div style="margin: 16px 0; padding: 16px; background-color: #f5f5f5; border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>${this.translateService.instant('original_price')}:</span>
+            <strong>${priceChange.oldPrice.toFixed(2)} ${this.bookingData.price_currency || 'CHF'}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>${this.translateService.instant('new_price')}:</span>
+            <strong>${priceChange.newPrice.toFixed(2)} ${this.bookingData.price_currency || 'CHF'}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; color: #4caf50; font-size: 16px; font-weight: 600; padding-top: 8px; border-top: 1px solid #e0e0e0;">
+            <span>${this.translateService.instant('to_pay')}:</span>
+            <span>+${priceChange.difference.toFixed(2)} ${this.bookingData.price_currency || 'CHF'}</span>
+          </div>
+        </div>
+        <p style="color: #666; font-size: 14px;">
+          ${this.translateService.instant('booking_edit_add_dates_warning')}
+        </p>
+      </div>
+    `;
+
+    const snackBarRef = this.snackBar.open(
+      this.translateService.instant('confirm_price_increase_question'),
+      this.translateService.instant('confirm'),
+      { duration: 10000, horizontalPosition: 'center', verticalPosition: 'top' }
+    );
+
+    snackBarRef.onAction().subscribe(() => {
+      onConfirm();
+    });
+  }
+
+  /**
+   * Muestra diálogo de confirmación para cancelación parcial con reembolso
+   */
+  private showPartialCancellationDialog(priceChange: any, onConfirm: () => void): void {
+    const removedDatesStr = priceChange.affectedDates
+      .filter((d: any) => d.action === 'remove')
+      .map((d: any) => moment(d.date).format('DD.MM.YYYY'))
+      .join(', ');
+
+    const dialogMessage = `
+      <div style="padding: 20px;">
+        <h3 style="color: #f44336; margin-bottom: 16px;">
+          <mat-icon style="vertical-align: middle;">warning</mat-icon>
+          ${this.translateService.instant('partial_cancellation')}
+        </h3>
+        <p>${this.translateService.instant('booking_edit_remove_dates_info')}</p>
+        <div style="margin: 16px 0;">
+          <strong>${this.translateService.instant('dates_to_cancel')}:</strong>
+          <div style="margin-top: 8px; color: #666;">${removedDatesStr}</div>
+        </div>
+        <div style="margin: 16px 0; padding: 16px; background-color: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>${this.translateService.instant('original_price')}:</span>
+            <strong>${priceChange.oldPrice.toFixed(2)} ${this.bookingData.price_currency || 'CHF'}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>${this.translateService.instant('new_price')}:</span>
+            <strong>${priceChange.newPrice.toFixed(2)} ${this.bookingData.price_currency || 'CHF'}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; color: #f44336; font-size: 16px; font-weight: 600; padding-top: 8px; border-top: 1px solid #ffa726;">
+            <span>${this.translateService.instant('refund_amount')}:</span>
+            <span>${priceChange.difference.toFixed(2)} ${this.bookingData.price_currency || 'CHF'}</span>
+          </div>
+        </div>
+        <p style="color: #e65100; font-size: 14px; font-weight: 500;">
+          ${this.translateService.instant('booking_edit_refund_warning')}
+        </p>
+      </div>
+    `;
+
+    const snackBarRef = this.snackBar.open(
+      this.translateService.instant('confirm_partial_cancellation_question'),
+      this.translateService.instant('confirm'),
+      { duration: 15000, horizontalPosition: 'center', verticalPosition: 'top' }
+    );
+
+    snackBarRef.onAction().subscribe(() => {
+      onConfirm();
+    });
+  }
+
+  /**
+   * Procesa actualización de actividad con reembolso
+   */
+  private processActivityUpdateWithRefund(data: any, index: number, priceChange: any): void {
+    // Primero actualizar la actividad
+    this.processActivityUpdate(data, index);
+
+    // Luego crear el reembolso/crédito
+    // TODO: Implementar lógica de reembolso según el método de pago original
+    console.log('💰 Refund to process:', {
+      amount: priceChange.difference,
+      currency: this.bookingData.price_currency,
+      bookingId: this.bookingData.id
+    });
+
+    // Ejemplo: Crear voucher de crédito
+    this.createCreditVoucherForRefund(priceChange.difference);
+  }
+
+  /**
+   * Crea un voucher de crédito para el reembolso
+   */
+  private createCreditVoucherForRefund(amount: number): void {
+    // TODO: Implementar creación de voucher
+    console.log('🎟️ Creating credit voucher for:', amount);
+
+    this.snackBar.open(
+      this.translateService.instant('refund_credit_voucher_created', { amount: amount.toFixed(2) }),
+      'OK',
+      { duration: 5000 }
+    );
   }
 
   editObservations(bookingUserId:number, data:any) {

@@ -213,11 +213,35 @@ export class CalendarComponent implements OnInit {
           if (result.user_nwd_subtype_id !== 0) {
 
             this.crudService.create('/monitor-nwds', result)
-            .subscribe((data) => {
+            .subscribe(
+              (data: any) => {
+                this.getData();
 
-              this.getData();
-              this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
-            })
+                // Check if partial creation (with skipped dates)
+                if (data.data?.skipped_dates && data.data.skipped_dates.length > 0) {
+                  const created = data.data.summary?.total_created || 0;
+                  const skipped = data.data.summary?.total_skipped || 0;
+
+                  const message = this.translateService.instant('unavailabilities_created_partial', {
+                    created: created,
+                    skipped: skipped
+                  });
+
+                  this.snackbar.open(message, 'OK', {duration: 5000});
+                } else {
+                  // All created successfully
+                  this.snackbar.open(this.translateService.instant('unavailabilities_created_all'), 'OK', {duration: 3000});
+                }
+              },
+              (error: any) => {
+                // Check for 409 - no dates could be created
+                if (error.status === 409) {
+                  this.snackbar.open(this.translateService.instant('unavailabilities_created_none'), 'OK', {duration: 5000});
+                } else {
+                  this.snackbar.open(this.translateService.instant('error'), 'OK', {duration: 3000});
+                }
+              }
+            )
           }
         } else {
 
