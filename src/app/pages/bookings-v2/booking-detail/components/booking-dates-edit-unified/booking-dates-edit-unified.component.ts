@@ -1,5 +1,5 @@
 import { Component, Inject, OnInit } from '@angular/core';
-import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -32,6 +32,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
   stepForm: FormGroup;
   course: any;
   utilizers: any[];
+  utilizersDisplayNames = '';
   sportLevel: any;
   initialData: any[];
   groupedActivities: any[];
@@ -78,6 +79,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
   ) {
     this.course = data.course;
     this.utilizers = data.utilizers || [];
+    this.utilizersDisplayNames = this.computeUtilizersDisplay(this.utilizers);
     this.sportLevel = data.sportLevel;
     this.initialData = data.initialData || [];
     this.groupedActivities = data.groupedActivities || [];
@@ -90,6 +92,17 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     this.calculateOriginalPrice();
     this.initializeForm();
     this.generateWarnings();
+  }
+
+  private computeUtilizersDisplay(utilizers: any[]): string {
+    return utilizers
+      .map(utilizer => {
+        const firstName = utilizer?.first_name ?? '';
+        const lastName = utilizer?.last_name ?? '';
+        return `${firstName} ${lastName}`.trim();
+      })
+      .filter(name => name.length > 0)
+      .join(', ');
   }
 
   /**
@@ -327,7 +340,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
       endHour: [courseDate.hour_end],
       price: [parseFloat(this.course.price || 0)],
       currency: [this.course.currency || 'CHF'],
-      extras: [{ value: [], disabled: !selected || !this.posibleExtras.length }],
+      extras: this.fb.control<any[]>({ value: [], disabled: !selected || !this.posibleExtras.length }),
       monitor: [monitor],
       course_date_id: [courseDate.id]
     });
@@ -336,7 +349,8 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
       const validExtras = this.posibleExtras.filter(extra =>
         extras.some(initialExtra => initialExtra.id === extra.id)
       );
-      group.get('extras')?.patchValue(validExtras);
+      const extrasControl = group.get('extras') as FormControl<any[]> | null;
+      extrasControl?.patchValue(validExtras);
     }
 
     return group;

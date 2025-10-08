@@ -118,7 +118,7 @@
           <div class="date-participants" *ngIf="utilizers.length > 0">
             <mat-form-field appearance="outline" class="participants-field">
               <mat-label>{{ "participants" | translate }}</mat-label>
-              <input matInput disabled [value]="utilizers.map(u => u.first_name + ' ' + u.last_name).join(', ')">
+              <input matInput disabled [value]="utilizersDisplayNames">
               <mat-icon matPrefix>people</mat-icon>
             </mat-form-field>
           </div>

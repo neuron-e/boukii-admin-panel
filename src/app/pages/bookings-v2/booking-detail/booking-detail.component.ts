@@ -14,6 +14,7 @@ import {CancelBookingModalComponent} from '../../bookings/cancel-booking/cancel-
 import {BookingDetailDialogComponent} from './components/booking-dialog/booking-dialog.component';
 import { SchoolService } from 'src/service/school.service';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
+import moment from 'moment';
 
 @Component({
   selector: 'booking-detail-v2',
