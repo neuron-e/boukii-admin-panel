@@ -1135,26 +1135,82 @@ export class MonitorDetailComponent {
             }
             this.crudService.update('/monitors-schools', schoolRel, this.monitorSchoolRel.id)
               .subscribe((a) => { })
-            // revisar a partir de aqui
-            this.sportsData.data.forEach(element => {
-              this.crudService.create('/monitor-sports-degrees', { is_default: true, monitor_id: monitor.data.id, sport_id: element.sport_id, school_id: this.user.schools[0].id, degree_id: element.level.id, salary_level: element.salary_id })
-                .subscribe((e) => {
-                  this.authorisedLevels.forEach(auLevel => {
-
-                    if (e.data.sport_id === auLevel.sport_id) {
-
-                      this.crudService.create('/monitor-sport-authorized-degrees', { monitor_sport_id: e.data.id, degree_id: auLevel.id })
-                        .subscribe((d) => { })
-                    }
-                  });
-                })
-            });
+            this.syncMonitorSportsDegrees(monitor.data.id);
             setTimeout(() => {
               this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
               window.location.reload();
             }, 3000);
           })
       })
+  }
+
+  private syncMonitorSportsDegrees(monitorId: number): void {
+    if (!this.sportsData.data || this.sportsData.data.length === 0) {
+      return;
+    }
+
+    const schoolId = this.user.schools[0].id;
+
+    this.sportsData.data.forEach(element => {
+      const payload = {
+        is_default: true,
+        monitor_id: monitorId,
+        sport_id: element.sport_id,
+        school_id: schoolId,
+        degree_id: element.level?.id,
+        salary_level: element.salary_id
+      };
+
+      const existingRelation = element.monitor_sports_degree_id
+        || this.monitorSportsDegree.find(mdg => mdg.sport_id === element.sport_id)?.id
+        || null;
+
+      if (existingRelation) {
+        this.crudService.update('/monitor-sports-degrees', payload, existingRelation)
+          .subscribe(() => {
+            this.attachAuthorizedLevels(existingRelation, element.sport_id);
+          });
+      } else {
+        this.crudService.create('/monitor-sports-degrees', payload)
+          .subscribe((response) => {
+            const relationId = response.data.id;
+            element.monitor_sports_degree_id = relationId;
+            this.monitorSportsDegree.push(response.data);
+            this.attachAuthorizedLevels(relationId, element.sport_id);
+          });
+      }
+    });
+
+    this.selectedNewSports = [];
+    this.sportsData.data = [];
+    this.authorisedLevels = [];
+  }
+
+  private attachAuthorizedLevels(monitorSportId: number, sportId: number): void {
+    const pendingLevels = this.authorisedLevels.filter(level => level.sport_id === sportId);
+    if (!pendingLevels.length) {
+      return;
+    }
+
+    const relation = this.monitorSportsDegree.find(mdg => mdg.id === monitorSportId);
+    const existingAuthorized = relation?.monitor_sport_authorized_degrees || [];
+
+    pendingLevels.forEach(level => {
+      const alreadyAuthorized = existingAuthorized.some(auth => auth.degree_id === level.id);
+      if (alreadyAuthorized) {
+        return;
+      }
+
+      this.crudService.create('/monitor-sport-authorized-degrees', {
+        monitor_sport_id: monitorSportId,
+        degree_id: level.id
+      }).subscribe((data) => {
+        if (relation) {
+          relation.monitor_sport_authorized_degrees = relation.monitor_sport_authorized_degrees || [];
+          relation.monitor_sport_authorized_degrees.push(data.data);
+        }
+      });
+    });
   }
 
   updateLevel(monitorDegree, level) {

@@ -140,7 +140,8 @@
           </div>
         </div>
 
-        <div *ngIf="!isCapacityLoading && selectedSubGroups.length > 0">
+        <!-- Solo mostrar grupos si NO es Colectivo Flex (en Flex se eligen por fecha en paso DETALLES) -->
+        <div *ngIf="!isCapacityLoading && selectedSubGroups.length > 0 && !(selectedCourse?.is_flexible && selectedCourse?.course_type === 1)">
           <h4 style="margin-bottom: 1rem;">{{ 'available_groups' | translate }}</h4>
           <mat-radio-group formControlName="selectedSubGroup" (change)="onSubgroupChange($event)">
             <mat-radio-button

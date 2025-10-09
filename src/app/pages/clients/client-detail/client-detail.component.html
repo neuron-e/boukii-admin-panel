@@ -1729,7 +1729,7 @@
                   <mat-label>
                     {{'name_client' | translate }}
                   </mat-label>
-                  <input [(ngModel)]="defaults.first_name" formControlName="first_name" matInput
+                  <input formControlName="first_name" matInput
                          required type="text">
                   <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
                 </mat-form-field>
@@ -1739,7 +1739,7 @@
                   <mat-label>
                     {{'surname' | translate }}
                   </mat-label>
-                  <input [(ngModel)]="defaults.last_name" formControlName="last_name" matInput
+                  <input formControlName="last_name" matInput
                          required type="text">
                   <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
                 </mat-form-field>
@@ -1749,7 +1749,7 @@
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                 <mat-form-field appearance="outline" class="flex-auto">
                   <mat-label>Email</mat-label>
-                  <input [(ngModel)]="defaults.email" formControlName="email" matInput required
+                  <input formControlName="email" matInput required
                          type="mail">
                   <mat-icon class="mr-2" matPrefix>
                     main
@@ -1766,7 +1766,7 @@
                 </mat-form-field> -->
                 <mat-form-field appearance="outline" class="flex-auto">
                   <mat-label>Password</mat-label>
-                  <input [(ngModel)]="defaultsUser.password" formControlName="password" matInput
+                  <input formControlName="password" matInput
                          type="password">
                   <mat-icon class="mr-2" matPrefix svgIcon="logo:lock"></mat-icon>
                 </mat-form-field>
@@ -1812,7 +1812,7 @@
 
                 <mat-form-field appearance="outline" class="flex-auto">
                   <mat-label>{{'birth_date' | translate}}</mat-label>
-                  <input type="date" matInput class="flex-auto" formControlName="fromDate" [max]="minDate" [(ngModel)]="defaults.birth_date" required>
+                  <input type="date" matInput class="flex-auto" formControlName="fromDate" [max]="minDate" required>
                   <mat-error *ngIf="formPersonalInfo.controls?.fromDate?.errors?.['required']">
                     {{'clients.creation.errors.monitor_date' | translate }}
                   </mat-error>
@@ -1829,7 +1829,7 @@
                   </mat-label>
 
 
-                  <input [(ngModel)]="defaults.telephone" formControlName="phone" matInput type="tel">
+                  <input formControlName="phone" matInput type="tel">
                   <mat-icon class="mr-2" matPrefix>
                     phone
                   </mat-icon>
@@ -1840,7 +1840,7 @@
                   <mat-label>
                     {{'mobile' | translate }}
                   </mat-label>
-                  <input [(ngModel)]="defaults.phone" formControlName="mobile" matInput required
+                  <input formControlName="mobile" matInput required
                          type="tel">
                   <mat-icon class="mr-2" matPrefix>
                     phone
@@ -1856,7 +1856,7 @@
                   </mat-label>
 
 
-                  <input [(ngModel)]="defaults.address" formControlName="address" matInput
+                  <input formControlName="address" matInput
                          type="text">
                   <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
                 </mat-form-field>
@@ -1866,7 +1866,7 @@
                   <mat-label>
                     {{'cp' | translate }}
                   </mat-label>
-                  <input [(ngModel)]="defaults.cp" formControlName="postalCode" matInput type="text">
+                  <input formControlName="postalCode" matInput type="text">
                   <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
                 </mat-form-field>
               </div>
@@ -2023,7 +2023,7 @@
                           {{'level' | translate }}
                         </mat-label>
                         <input [matAutocomplete]="autoLevel" [value]="element?.level?.name"
-                               [(ngModel)]="element.level" type="text" placeholder="Pick one"
+                               [(ngModel)]="element.level" [ngModelOptions]="{standalone: true}" name="elementLevel" type="text" placeholder="Pick one"
                                aria-label="Number" matInput>
                         <mat-autocomplete #autoLevel="matAutocomplete"
                                           [displayWith]="displayFnLevel">
@@ -2101,7 +2101,7 @@
                           {{'level' | translate }}
                         </mat-label>
                         <input [formControl]="levelForm" [matAutocomplete]="autoLevel"
-                               [(ngModel)]="element.level" type="text" placeholder="Pick one"
+                               type="text" placeholder="Pick one"
                                aria-label="Number" matInput>
                         <mat-autocomplete #autoLevel="matAutocomplete"
                                           [displayWith]="displayFnLevel">
@@ -2160,7 +2160,7 @@
                   <mat-label>
                     {{'observation_general' |translate}}
                   </mat-label>
-                  <textarea [(ngModel)]="defaultsObservations.general" formControlName="summary"
+                  <textarea formControlName="summary"
                             matInput></textarea>
                 </mat-form-field>
               </div>
@@ -2171,7 +2171,7 @@
                   <mat-label>
                     {{'observation_school' |translate}}
                   </mat-label>
-                  <textarea [(ngModel)]="defaultsObservations.notes" formControlName="notes"
+                  <textarea formControlName="notes"
                             matInput></textarea>
                 </mat-form-field>
               </div>
@@ -2182,7 +2182,7 @@
                   <mat-label>
                     {{'historical' | translate }}
                   </mat-label>
-                  <textarea [(ngModel)]="defaultsObservations.historical" formControlName="hitorical"
+                  <textarea formControlName="hitorical"
                             matInput></textarea>
                 </mat-form-field>
               </div>

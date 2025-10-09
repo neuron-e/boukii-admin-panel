@@ -46,6 +46,7 @@ export class CoursesComponent {
     { label: 'price', property: 'price', type: 'price', visible: true },
     { label: 'register', property: 'created_at', type: 'date', visible: true },
     { label: 'bookings', property: 'max_participants', type: 'bookings', visible: true },
+    { label: 'archived', property: 'archived_at', type: 'archived', visible: true },  // Nueva columna
     { label: 'status', property: 'active', type: 'light', visible: true },
     { label: 'options', property: 'options', type: 'light', visible: true },
     { label: 'Online', property: 'online', type: 'light', visible: true },

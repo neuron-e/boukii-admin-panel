@@ -942,8 +942,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   getSelectedDates(dates: any) {
     const selectedDates = dates.filter((date: any) => date.selected);
 
-    // MEJORA CRÍTICA: Calcular precio individual para cada fecha en cursos flexibles
-    if (this.course?.is_flexible && this.utilizers?.length) {
+    // Calcular precio individual para cada fecha según el tipo de curso
+    if (this.course?.course_type === 2 && this.course?.is_flexible && this.utilizers?.length) {
+      // PRIVADOS FLEX: Usar price_range según duración y PAX
       selectedDates.forEach((date: any) => {
         const duration = date.duration;
         const selectedUtilizers = this.utilizers.length;
@@ -963,8 +964,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           date.currency = this.course.currency || 'CHF';
         }
       });
-    } else if (!this.course?.is_flexible) {
-      // Para cursos no flexibles, usar el precio base
+    } else if (this.course?.course_type === 0 && this.course?.is_flexible) {
+      // COLECTIVOS FLEX: Precio base por fecha
+      selectedDates.forEach((date: any) => {
+        date.price = this.course?.price || '0';
+        date.currency = this.course?.currency || 'CHF';
+      });
+    } else {
+      // CURSOS FIJOS (colectivos o privados): Precio base
       selectedDates.forEach((date: any) => {
         date.price = this.course?.price || '0';
         date.currency = this.course?.currency || 'CHF';

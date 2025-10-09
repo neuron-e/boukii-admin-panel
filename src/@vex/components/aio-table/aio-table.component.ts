@@ -136,6 +136,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   inActiveCourse = false;
   finishedCourse = false;
   allCourse = true;
+  showArchivedCourses = false;
 
   activeBooking = true;
   finishedBooking = false;
@@ -284,6 +285,11 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
           filter = filter + '&active=1';
         } else if (!this.activeCourse && this.inActiveCourse) {
           filter = filter + '&active=0';
+        }
+
+        // Filtro para mostrar cursos archivados
+        if (this.showArchivedCourses) {
+          filter = filter + '&include_archived=true';
         }
 
         if (this.sportsControl?.value?.length !== this.sports?.length) {
@@ -674,6 +680,34 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
       if (confirmed) this.crudService.restore(this.deleteEntity, item.id).subscribe(() => this.getData(this.pageIndex, this.pageSize));
+    });
+  }
+
+  /**
+   * Restaurar un curso archivado
+   */
+  unarchiveCourse(item: any) {
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      maxWidth: '100vw',
+      panelClass: 'full-screen-dialog',
+      data: {
+        message: this.translateService.instant('restore_text'),
+        title: this.translateService.instant('restore_course')
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        this.crudService.post('/courses/' + item.id + '/unarchive', {})
+          .subscribe(() => {
+            this.snackbar.open(
+              this.translateService.instant('course_archived') + ' - ' + this.translateService.instant('restore_course'),
+              'OK',
+              { duration: 3000 }
+            );
+            this.getData(this.pageIndex, this.pageSize);
+          });
+      }
     });
   }
 

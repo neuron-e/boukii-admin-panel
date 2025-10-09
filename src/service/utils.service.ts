@@ -520,7 +520,11 @@ export class UtilsService {
 
   getClientDegreeByClient(client: any, sport_id: number) {
     if (client && client !== null && sport_id && sport_id !== null) {
-      const clientSports = Array.isArray(client?.client_sports) ? client.client_sports : [];
+      const clientSports = Array.isArray(client?.client_sports)
+        ? client.client_sports
+        : Array.isArray(client?.clientSports)
+          ? client.clientSports
+          : [];
       const sportObject = clientSports.find(
         (obj) => obj.sport_id === sport_id && obj.school_id == this.getSchoolData().id
       );

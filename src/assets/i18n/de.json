@@ -33,6 +33,9 @@
   "communications.subject": "Betreff",
   "communications.subject_required": "Betreff ist erforderlich",
   "communications.recipients": "Empfänger",
+  "communications.recipients_will_receive": "Empfänger erhalten diese Nachricht",
+  "communications.recipients_count": "Empfänger",
+  "communications.system_recipients": "Administratoren",
   "communications.all_subscribers": "Alle Abonnenten",
   "communications.active_clients": "Aktive Kunden",
   "communications.inactive_clients": "Inaktive Kunden",
@@ -50,6 +53,7 @@
   "communications.export_data": "Daten exportieren",
   "communications.view_analytics": "Analysen anzeigen",
   "communications.inbox": "Posteingang",
+  "communications.mail": "Mail",
   "communications.system_messages": "Systemnachrichten",
   "communications.system_messages_desc": "Wichtige Benachrichtigungen und Plattform-Updates.",
   "communications.compose": "Verfassen",
@@ -212,6 +216,8 @@
   "max_pax": "Teilnehmer max.",
   "participants": "Teilnehmer",
   "available_groups": "Verfügbare Gruppen",
+  "select_group": "Gruppe auswählen",
+  "loading_groups": "Gruppen laden",
   "checking_capacity": "Kapazität prüfen",
   "slots_available": "Plätze verfügbar",
   "need": "brauchen",
@@ -1374,5 +1380,10 @@
   "global_configuration": "Globale Konfiguration",
   "select_all": "Alles auswählen",
   "booking_rules": "Buchungsregeln",
-  "accepts_newsletter_school": "Akzeptiert Schul-Newsletter"
+  "accepts_newsletter_school": "Akzeptiert Schul-Newsletter",
+  "archived": "Archiviert",
+  "show_archived_courses": "Archivierte Kurse anzeigen",
+  "course_archived": "Kurs archiviert",
+  "restore_course": "Kurs wiederherstellen",
+  "archived_course": "ARCHIVIERT"
 }

@@ -244,7 +244,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     // Initialize tab labels
     this.tabLabels = {
       newsletter: this.translateService.instant('communications.newsletter'),
-      inbox: this.translateService.instant('communications.inbox'),
+      inbox: this.translateService.instant('communications.mail'),
       analytics: this.translateService.instant('communications.analytics')
     };
 
@@ -272,6 +272,8 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     // No additional configuration needed
   }
 
+  recipientCount = 0;
+
   private createForm(): void {
     this.newsletterForm = this.fb.group({
       subject: ['', Validators.required],
@@ -280,11 +282,36 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       template: ['']
     });
 
+    // Listen to recipients changes to update count
+    this.newsletterForm.get('recipients')?.valueChanges.subscribe((recipients) => {
+      this.updateRecipientCount(recipients);
+    });
+
     this.templateForm = this.fb.group({
       name: ['', Validators.required],
       description: [''],
       subject: ['', Validators.required],
       content: ['', Validators.required]
+    });
+
+    // Initial count load
+    this.updateRecipientCount(['all']);
+  }
+
+  updateRecipientCount(recipients: string[]): void {
+    if (!recipients || recipients.length === 0) {
+      this.recipientCount = 0;
+      return;
+    }
+
+    this.crudService.post('/admin/newsletters/subscriber-count', { recipients }).subscribe({
+      next: (response) => {
+        this.recipientCount = response.data?.total || 0;
+      },
+      error: (error) => {
+        console.error('Error getting recipient count:', error);
+        this.recipientCount = 0;
+      }
     });
   }
 

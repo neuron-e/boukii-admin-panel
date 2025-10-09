@@ -127,6 +127,9 @@
                             </mat-option>
                           </mat-select>
                           <mat-icon matSuffix>people</mat-icon>
+                          <mat-hint *ngIf="recipientCount > 0">
+                            <strong>{{ recipientCount }}</strong> {{ 'communications.recipients_will_receive' | translate }}
+                          </mat-hint>
                         </mat-form-field>
                       </div>
 

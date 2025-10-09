@@ -226,12 +226,14 @@ export class BookingDetailV2Component implements OnInit {
     this.crudService
       .get("/bookings/" + this.id, [
         "user",
-        "clientMain.clientSports",
+        "clientMain.clientSports.degree",
+        "clientMain.clientSports.sport",
         "vouchersLogs.voucher",
         "bookingUsers.course.courseDates.courseGroups.courseSubgroups",
         "bookingUsers.course.courseExtras",
         "bookingUsers.bookingUserExtras.courseExtra",
-        "bookingUsers.client.clientSports",
+        "bookingUsers.client.clientSports.degree",
+        "bookingUsers.client.clientSports.sport",
         "bookingUsers.courseDate",
         "bookingUsers.monitor.monitorSportsDegrees",
         "bookingUsers.degree",

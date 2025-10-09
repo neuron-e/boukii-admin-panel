@@ -437,8 +437,28 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private mergeCourseExtras() {
+    // Cargar extras de settings frescos desde localStorage para evitar duplicados
+    let settingsExtras = [];
+    try {
+      const storedUser = localStorage.getItem("boukiiUser");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const settings = typeof user?.schools?.[0]?.settings === 'string'
+        ? JSON.parse(user.schools[0].settings)
+        : user?.schools?.[0]?.settings;
+
+      if (settings?.extras) {
+        settingsExtras = [
+          ...(settings.extras.food || []),
+          ...(settings.extras.forfait || []),
+          ...(settings.extras.transport || [])
+        ];
+      }
+    } catch (error) {
+      console.error("Error loading extras from localStorage:", error);
+    }
+
     // Formatear extras de configuración
-    const formattedSettingsExtras = (this.extras || []).map(extra => ({
+    const formattedSettingsExtras = settingsExtras.map(extra => ({
       id: extra.id.toString(),
       name: extra.name,
       product: extra.product,
@@ -459,13 +479,21 @@ export class CoursesCreateUpdateComponent implements OnInit {
       active: true,
     }));
 
-    // Unir sin duplicados
-    this.extras = [...formattedSettingsExtras, ...formattedCourseExtras].reduce((acc, extra) => {
-      if (!acc.some(e => e.id === extra.id)) {
-        acc.push(extra);
-      }
-      return acc;
-    }, []);
+    // Unir sin duplicados usando un Map para garantizar unicidad por ID
+    const extrasMap = new Map();
+
+    // Primero agregar extras de settings
+    formattedSettingsExtras.forEach(extra => {
+      extrasMap.set(extra.id, extra);
+    });
+
+    // Luego agregar/sobrescribir con extras del curso (tienen prioridad)
+    formattedCourseExtras.forEach(extra => {
+      extrasMap.set(extra.id, extra);
+    });
+
+    // Convertir Map a array
+    this.extras = Array.from(extrasMap.values());
   }
 
   private initializeExtrasForm() {
@@ -498,6 +526,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     this.extrasModal = false;
     this.resetExtraForm();
+  }
+
+  /**
+   * Verifica si un extra es temporal (creado localmente, no guardado en BD)
+   */
+  isTemporaryExtra(extraId: any): boolean {
+    return String(extraId).startsWith('aFOR-');
   }
 
   resetExtraForm() {

@@ -341,12 +341,17 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
 
   /**
    * Get the list of intervals from course settings
+   * Only returns intervals that have at least one available date
    */
   getIntervals(): any[] {
     if (!this.hasIntervals()) {
       return [];
     }
-    return this.course.settings.intervals;
+    // Filtrar solo intervalos que tengan fechas disponibles
+    return this.course.settings.intervals.filter(interval => {
+      const dateCount = this.getDateCountForInterval(interval.id);
+      return dateCount > 0;
+    });
   }
 
   /**
@@ -378,14 +383,21 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
 
   /**
    * Count dates for a specific interval
+   * Only counts dates that are in the FormArray (available dates)
    */
   getDateCountForInterval(intervalId: string): number {
-    if (!this.course?.course_dates) {
+    if (!this.courseDatesArray || !this.course?.course_dates) {
       return 0;
     }
-    return this.course.course_dates.filter(date =>
-      String(date.interval_id) === String(intervalId)
-    ).length;
+    // Contar solo las fechas que están en el FormArray (las disponibles)
+    let count = 0;
+    this.courseDatesArray.controls.forEach((control, index) => {
+      const courseDate = this.course.course_dates[index];
+      if (courseDate && String(courseDate.interval_id) === String(intervalId)) {
+        count++;
+      }
+    });
+    return count;
   }
 
   /**
@@ -432,6 +444,167 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
       const courseDateGroup = control as FormGroup;
       return courseDateGroup.get('selected')?.value === true;
     });
+  }
+
+  // ==================== SELECTOR DE GRUPOS POR FECHA ====================
+
+  // Almacena los grupos disponibles por cada fecha (índice de fecha -> array de subgrupos)
+  availableGroupsByDate: { [dateIndex: number]: any[] } = {};
+
+  // Estado de carga de grupos por fecha
+  loadingGroupsByDate: { [dateIndex: number]: boolean } = {};
+
+  // Grupo seleccionado por fecha (índice de fecha -> subgrupo)
+  selectedGroupByDate: { [dateIndex: number]: any } = {};
+
+  // Estado de expansión del selector de grupos por fecha
+  groupSelectorExpanded: { [dateIndex: number]: boolean } = {};
+
+  /**
+   * Carga los subgrupos disponibles para una fecha específica desde el objeto curso
+   */
+  loadGroupsForDate(dateIndex: number): void {
+    const courseDate = this.course.course_dates[dateIndex];
+    if (!courseDate || !this.course) {
+      return;
+    }
+
+    this.loadingGroupsByDate[dateIndex] = true;
+
+    // Obtener grupos del courseDate directamente
+    const groups = courseDate.course_groups || [];
+
+    if (groups.length === 0) {
+      this.availableGroupsByDate[dateIndex] = [];
+      this.loadingGroupsByDate[dateIndex] = false;
+      return;
+    }
+
+    // Procesar subgrupos de todos los grupos
+    const neededSlots = 1; // Para colectivo flex, siempre es 1 participante
+    const allSubgroups = [];
+
+    groups.forEach(group => {
+      if (group.course_subgroups && group.course_subgroups.length > 0) {
+        group.course_subgroups.forEach(subgroup => {
+          const currentBookings = subgroup.booking_users?.length ?? 0;
+          const maxParticipants = subgroup.max_participants ?? 999;
+          const availableSlots = Math.max(0, maxParticipants - currentBookings);
+          const hasCapacity = availableSlots >= neededSlots;
+
+          allSubgroups.push({
+            ...subgroup,
+            group_info: {
+              degree_id: group.degree_id,
+              degree: group.degree || null,
+              name: group.degree?.name || group.name || '',
+              annotation: group.degree?.annotation || '',
+              color: group.degree?.color || this.sportLevel?.color || '#ccc',
+              league: group.degree?.league || ''
+            },
+            capacity_info: {
+              current_bookings: currentBookings,
+              max_participants: maxParticipants,
+              available_slots: availableSlots,
+              needed_slots: neededSlots,
+              has_capacity: hasCapacity,
+              is_unlimited: maxParticipants === 0 || maxParticipants > 100,
+              capacity_percentage: maxParticipants > 0 ? (currentBookings / maxParticipants) * 100 : 0
+            }
+          });
+        });
+      }
+    });
+
+    this.availableGroupsByDate[dateIndex] = allSubgroups;
+    this.loadingGroupsByDate[dateIndex] = false;
+
+    // Auto-seleccionar el grupo que coincide con el nivel del usuario
+    this.autoSelectGroupForDate(dateIndex);
+  }
+
+  /**
+   * Auto-selecciona el grupo que coincide con el nivel del usuario
+   */
+  private autoSelectGroupForDate(dateIndex: number): void {
+    const groups = this.availableGroupsByDate[dateIndex];
+    if (!groups || groups.length === 0 || !this.sportLevel) {
+      return;
+    }
+
+    // Buscar grupo que coincida con el nivel y tenga capacidad
+    const matchingGroup = groups.find(g =>
+      g.group_info?.degree_id === this.sportLevel.id &&
+      g.capacity_info?.has_capacity
+    );
+
+    if (matchingGroup) {
+      this.selectedGroupByDate[dateIndex] = matchingGroup;
+      this.updateDateGroup(dateIndex, matchingGroup);
+    } else {
+      // Si no hay coincidencia, seleccionar el primero con capacidad
+      const firstAvailable = groups.find(g => g.capacity_info?.has_capacity);
+      if (firstAvailable) {
+        this.selectedGroupByDate[dateIndex] = firstAvailable;
+        this.updateDateGroup(dateIndex, firstAvailable);
+      }
+    }
+  }
+
+  /**
+   * Actualiza el FormGroup de la fecha con el grupo seleccionado
+   */
+  private updateDateGroup(dateIndex: number, group: any): void {
+    const dateControl = this.courseDatesArray.at(dateIndex) as FormGroup;
+    if (dateControl) {
+      dateControl.patchValue({
+        subgroup_id: group?.id,
+        monitor_id: group?.monitor_id
+      });
+    }
+  }
+
+  /**
+   * Maneja el cambio de grupo seleccionado
+   */
+  onGroupChange(dateIndex: number, group: any): void {
+    this.selectedGroupByDate[dateIndex] = group;
+    this.updateDateGroup(dateIndex, group);
+  }
+
+  /**
+   * Alterna la expansión del selector de grupos
+   */
+  toggleGroupSelector(dateIndex: number): void {
+    this.groupSelectorExpanded[dateIndex] = !this.groupSelectorExpanded[dateIndex];
+
+    // Cargar grupos si aún no se han cargado
+    if (this.groupSelectorExpanded[dateIndex] && !this.availableGroupsByDate[dateIndex]) {
+      this.loadGroupsForDate(dateIndex);
+    }
+  }
+
+  /**
+   * Verifica si el selector está expandido
+   */
+  isGroupSelectorExpanded(dateIndex: number): boolean {
+    return this.groupSelectorExpanded[dateIndex] || false;
+  }
+
+  /**
+   * Obtiene el nombre del grupo seleccionado para mostrar en el botón
+   */
+  getSelectedGroupName(dateIndex: number): string {
+    const group = this.selectedGroupByDate[dateIndex];
+    if (!group) {
+      return this.translateService.instant('select_group');
+    }
+
+    // Mostrar nivel + nombre del subgrupo si existe
+    const levelName = `${group.group_info?.league || ''} ${group.group_info?.name || ''}`.trim();
+    const subgroupName = group.name ? ` - ${group.name}` : '';
+
+    return levelName + subgroupName;
   }
 }
 

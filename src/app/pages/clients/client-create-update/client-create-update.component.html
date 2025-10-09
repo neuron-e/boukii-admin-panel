@@ -23,7 +23,7 @@
         </div>
         <div style="float: left;width: 50%;">
           <div style="float:right">
-            {{'active' |translate}} <mat-slide-toggle [(ngModel)]="defaultsUser.active"></mat-slide-toggle>
+            {{'active' |translate}} <mat-slide-toggle name="defaultsUserActive" [ngModelOptions]="{standalone: true}" [(ngModel)]="defaultsUser.active"></mat-slide-toggle>
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@
 
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'name_client' | translate }}</mat-label>
-                <input formControlName="name" matInput required type="text" [(ngModel)]="defaults.first_name">
+                <input formControlName="name" matInput required type="text">
                 <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
                 <mat-error *ngIf="formInfoAccount.controls?.name?.errors?.['required']">
                   {{'clients.creation.errors.name' | translate }}
@@ -60,7 +60,7 @@
 
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'surname' | translate }}</mat-label>
-                <input formControlName="surname" matInput required type="text" [(ngModel)]="defaults.last_name">
+                <input formControlName="surname" matInput required type="text">
                 <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
                 <mat-error *ngIf="formInfoAccount.controls?.surname?.errors?.['required']">
                   {{'course_detail' |translate}}
@@ -71,7 +71,7 @@
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>Email</mat-label>
-                <input formControlName="email" matInput required type="mail" [(ngModel)]="defaults.email">
+                <input formControlName="email" matInput required type="mail">
                 <mat-icon class="mr-2" matPrefix>mail</mat-icon>
                 <mat-error *ngIf="formInfoAccount.controls?.email?.errors?.['required']">
                   {{'clients.creation.errors.email' | translate }}
@@ -83,7 +83,7 @@
 
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'username' | translate }}</mat-label>
-                <input formControlName="username" matInput type="text" [(ngModel)]="defaultsUser.username">
+                <input formControlName="username" matInput type="text">
                 <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
               </mat-form-field>
             </div>
@@ -107,7 +107,7 @@
 
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'birth_date' | translate}}</mat-label>
-                <input type="date" matInput class="flex-auto" formControlName="fromDate" [max]="minDate" [(ngModel)]="defaults.birth_date" required>
+                <input type="date" matInput class="flex-auto" formControlName="fromDate" [max]="minDate" required>
                 <mat-error *ngIf="formPersonalInfo.controls?.fromDate?.errors?.['required']">
                   {{'clients.creation.errors.monitor_date' | translate }}
                 </mat-error>
@@ -119,14 +119,14 @@
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'phone' | translate }}</mat-label>
 
-                <input formControlName="phone" matInput type="tel" [(ngModel)]="defaults.telephone">
+                <input formControlName="phone" matInput type="tel">
                 <mat-icon class="mr-2" matPrefix>phone</mat-icon>
 
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'mobile' | translate }}</mat-label>
-                <input formControlName="mobile" matInput required type="tel" [(ngModel)]="defaults.phone">
+                <input formControlName="mobile" matInput required type="tel">
                 <mat-icon class="mr-2" matPrefix>phone</mat-icon>
 
                 <mat-error *ngIf="formPersonalInfo.controls?.mobile?.errors?.['required']">
@@ -139,13 +139,13 @@
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'address' | translate }}</mat-label>
 
-                <input formControlName="address" matInput type="text" [(ngModel)]="defaults.address">
+                <input formControlName="address" matInput type="text">
                 <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'cp' | translate }}</mat-label>
-                <input formControlName="postalCode" matInput type="text" [(ngModel)]="defaults.cp">
+                <input formControlName="postalCode" matInput type="text">
                 <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
               </mat-form-field>
             </div>
@@ -255,7 +255,7 @@
                   <mat-cell *matCellDef="let element">
                     <mat-form-field appearance="outline" class="flex-auto" style="margin: 2% 0 0 0;">
                       <mat-label>{{'level' | translate }}</mat-label>
-                      <input type="text" placeholder="Pick one" aria-label="Number" matInput [formControl]="levelForm"
+                      <input type="text" placeholder="Pick one" aria-label="Number" matInput name="elementLevel" [ngModelOptions]="{standalone: true}"
                         [matAutocomplete]="autoLevel" [(ngModel)]="element.level" />
                       <mat-autocomplete #autoLevel="matAutocomplete" [displayWith]="displayFnLevel">
                         <mat-option *ngFor="let level of element.degrees" [value]="level">
@@ -282,28 +282,28 @@
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'observation_general' | translate}}</mat-label>
-                <textarea formControlName="summary" matInput [(ngModel)]="defaultsObservations.general"></textarea>
+                <textarea formControlName="summary" matInput></textarea>
               </mat-form-field>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'observation_school' | translate}}</mat-label>
-                <textarea formControlName="notes" matInput [(ngModel)]="defaultsObservations.notes"></textarea>
+                <textarea formControlName="notes" matInput></textarea>
               </mat-form-field>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
               <mat-form-field appearance="outline" class="flex-auto">
                 <mat-label>{{'historical' | translate }}</mat-label>
-                <textarea formControlName="hitorical" matInput [(ngModel)]="defaultsObservations.historical"></textarea>
+                <textarea formControlName="hitorical" matInput></textarea>
               </mat-form-field>
             </div>
 
             <!-- Newsletter Checkbox -->
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 20px;">
               <mat-slide-toggle
-                [(ngModel)]="schoolNewsletterSubscription"
+                name="schoolNewsletterSubscription" [ngModelOptions]="{standalone: true}" [(ngModel)]="schoolNewsletterSubscription"
                 color="primary">
                 {{ 'communications.accepts_newsletter_school' | translate }}
               </mat-slide-toggle>
@@ -312,7 +312,7 @@
             <!-- VIP Checkbox -->
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 15px;">
               <mat-slide-toggle
-                [(ngModel)]="schoolVip"
+                name="schoolVip" [ngModelOptions]="{standalone: true}" [(ngModel)]="schoolVip"
                 color="primary">
                 <mat-icon class="mr-2 text-primary">star</mat-icon>
                 {{ 'clients.is_vip' | translate }}

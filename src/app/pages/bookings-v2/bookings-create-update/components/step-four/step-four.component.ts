@@ -835,13 +835,21 @@ export class StepFourComponent implements OnDestroy {
   }
 
   /**
-   * Get intervals from a course
+   * Get intervals from a course - filtra solo intervalos con fechas futuras disponibles
    */
   getIntervals(course: any): any[] {
     if (!this.hasIntervals(course)) {
       return [];
     }
-    return course.settings.intervals;
+
+    // Filtrar solo intervalos que tengan al menos una fecha futura
+    return course.settings.intervals.filter(interval => {
+      const hasFutureDates = course.course_dates?.some(courseDate =>
+        String(courseDate.interval_id) === String(interval.id) &&
+        this.utilsService.isFutureDate(courseDate)
+      );
+      return hasFutureDates;
+    });
   }
 
   /**

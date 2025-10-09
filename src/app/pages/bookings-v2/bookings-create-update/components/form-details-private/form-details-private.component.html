@@ -79,16 +79,7 @@
         <ng-container [formArrayName]="'utilizers'">
           <div class="row3" *ngFor="let utilizerGroup of getUtilizersArray(i).controls; let u = index"
             [formGroupName]="u">
-            <!-- Datos del utilizador -->
-            <div>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ "participant" | translate }} {{ u + 1
-                  }}</mat-label>
-                <input matInput disabled
-                  [value]="utilizerGroup.get('first_name').value + ' ' + utilizerGroup.get('last_name').value" />
-                <mat-icon class="disabled-icon" matPrefix fontSet="material-icons-outlined">people</mat-icon>
-              </mat-form-field>
-            </div>
+            <!-- Campo participante removido - se muestra solo fechas y extras -->
             <!-- Selección de extras -->
             <div class="extra-field-wrapper" *ngIf=" this.possibleExtras && this.possibleExtras.length">
               <mat-form-field appearance="outline" class="extras-field">

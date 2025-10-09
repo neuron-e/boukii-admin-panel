@@ -1002,7 +1002,7 @@
               number:'0.2-2'}}&nbsp;{{courses.courseFormGroup.controls['currency'].value}}/{{'day' |
               translate}}
             </div>
-            <mat-icon *ngIf="item.id.startsWith('aFOR-')" (click)="extras.splice(j,1)"
+            <mat-icon *ngIf="isTemporaryExtra(item.id)" (click)="extras.splice(j,1)"
                       style="cursor: pointer;float: inline-end;">
               delete
             </mat-icon>
@@ -1097,33 +1097,37 @@
 </vex-flux-layout>
 
 <vex-flux-modal *ngIf="extrasModal" [width]="670" (Close)="extrasModal=false" title="{{'create_extras' | translate}}">
-  <div [formGroup]="extrasFormGroup" body style="display: flex; column-gap: 20px; flex-wrap: wrap;">
-    <app-form-input [required]="true" [form]="extrasFormGroup" style="width: calc(50% - 10px);margin-top: 10px;"
-                    control="product" name="product" type="text">
-    </app-form-input>
-    <app-form-input [required]="true" [form]="extrasFormGroup" style="width: calc(50% - 10px);margin-top: 10px;"
-                    control="name" name="name" type="text">
-    </app-form-input>
-    <app-form-input [required]="true" [form]="extrasFormGroup"
-                    [Suffix]="courses.courseFormGroup.controls['currency'].value"
-                    style="width: calc(50% - 10px);margin-top: 10px;" control="price" name="price_per_day" type="number">
-    </app-form-input>
-    <app-form-input [required]="true" [form]="extrasFormGroup" style="width: calc(50% - 10px);margin-top: 10px;"
-                    control="tva" name="tva" Suffix="%" type="number">
-    </app-form-input>
-    <div style="width: 100%">
-      <mat-slide-toggle formControlName="status">
-        {{'active' | translate}}
-      </mat-slide-toggle>
-    </div>
-    <button (click)="extrasModal=false"
-            style="margin-top: 0px !important;height: 38px; width: 128px;margin-left: auto;" mat-button type="button">
-      {{'cancel' | translate }}
-    </button>
-    <button (click)="createExtras()" style="margin-top: 0px !important;height: 38px; width: 150px;" color="primary"
-            mat-raised-button type="button">
-      {{ editingIndex !== null ? 'save' : 'create_extras' | translate }}
-    </button>
+  <div body>
+    <form [formGroup]="extrasFormGroup" style="display: flex; column-gap: 20px; flex-wrap: wrap; padding: 20px;">
+      <app-form-input [required]="true" [form]="extrasFormGroup" style="width: calc(50% - 10px);margin-top: 10px;"
+                      control="product" name="product" type="text">
+      </app-form-input>
+      <app-form-input [required]="true" [form]="extrasFormGroup" style="width: calc(50% - 10px);margin-top: 10px;"
+                      control="name" name="name" type="text">
+      </app-form-input>
+      <app-form-input [required]="true" [form]="extrasFormGroup"
+                      [Suffix]="courses.courseFormGroup.controls['currency'].value"
+                      style="width: calc(50% - 10px);margin-top: 10px;" control="price" name="price_per_day" type="number">
+      </app-form-input>
+      <app-form-input [required]="true" [form]="extrasFormGroup" style="width: calc(50% - 10px);margin-top: 10px;"
+                      control="tva" name="tva" Suffix="%" type="number">
+      </app-form-input>
+      <div style="width: 100%">
+        <mat-slide-toggle formControlName="status">
+          {{'active' | translate}}
+        </mat-slide-toggle>
+      </div>
+      <div style="width: 100%; display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+        <button (click)="extrasModal=false"
+                style="height: 38px; width: 128px;" mat-button type="button">
+          {{'cancel' | translate }}
+        </button>
+        <button (click)="createExtras()" style="height: 38px; width: 150px;" color="primary"
+                mat-raised-button type="button">
+          {{ (editingIndex !== null ? 'save' : 'create_extras') | translate }}
+        </button>
+      </div>
+    </form>
   </div>
 </vex-flux-modal>
 

@@ -133,16 +133,104 @@
                     <span class="date">{{ formatDate(courseDatesArray.at(i).get('date').value) }}</span>
                     <span class="hour">{{ courseDatesArray.at(i).get('startHour').value }}h - {{
                       courseDatesArray.at(i).get('endHour').value }}h</span>
+                    <!-- Badge del nivel seleccionado -->
+                    <div *ngIf="selectedGroupByDate[i]" style="display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 600; color: white; margin: 0 8px;"
+                         [style.background]="selectedGroupByDate[i]?.group_info?.color || sportLevel?.color">
+                      {{ selectedGroupByDate[i]?.group_info?.league || '' }} {{ selectedGroupByDate[i]?.group_info?.name || '' }}
+                    </div>
                     <span class="price">{{ course.price }} {{ course.currency }} </span>
                   </div>
-                  <div class="row-2">
-                    <div>
-                      <mat-form-field appearance="outline">
-                        <mat-label>{{ "participant" | translate }} </mat-label>
-                        <input matInput disabled [value]="utilizer.first_name + ' ' + utilizer.last_name" />
-                        <mat-icon class="disabled-icon" matPrefix fontSet="material-icons-outlined">people</mat-icon>
-                      </mat-form-field>
+
+                  <!-- Selector de grupo expandible (SOLO aparece si la fecha está seleccionada) -->
+                  <div *ngIf="courseDatesArray.at(i).get('selected').value" style="margin-top: 12px; width: 100%;">
+                    <!-- Botón para expandir/colapsar selector de grupos -->
+                    <button type="button" mat-stroked-button
+                            (click)="toggleGroupSelector(i)"
+                            class="group-selector-toggle"
+                            style="width: 100%; text-align: left; justify-content: space-between; display: flex; align-items: center; padding: 10px 16px;">
+                      <span style="display: flex; align-items: center;">
+                        <mat-icon style="margin-right: 8px; color: #1976d2;">groups</mat-icon>
+                        <span style="font-weight: 500;">{{ getSelectedGroupName(i) }}</span>
+                      </span>
+                      <mat-icon>{{ isGroupSelectorExpanded(i) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    </button>
+
+                    <!-- Panel desplegable con lista de grupos -->
+                    <div *ngIf="isGroupSelectorExpanded(i)"
+                         style="margin-top: 8px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; background: #fafafa; max-height: 400px; overflow-y: auto;">
+
+                      <!-- Loading spinner -->
+                      <div *ngIf="loadingGroupsByDate[i]" style="text-align: center; padding: 30px;">
+                        <mat-spinner diameter="40"></mat-spinner>
+                        <p style="margin-top: 12px; color: #666;">{{ 'loading_groups' | translate }}</p>
+                      </div>
+
+                      <!-- Lista de grupos -->
+                      <div *ngIf="!loadingGroupsByDate[i] && availableGroupsByDate[i]?.length > 0"
+                           style="display: flex; flex-direction: column; gap: 8px;">
+                        <div *ngFor="let group of availableGroupsByDate[i]"
+                             (click)="group.capacity_info?.has_capacity && onGroupChange(i, group)"
+                             class="group-item"
+                             [class.selected]="selectedGroupByDate[i]?.id === group.id"
+                             [class.disabled]="!group.capacity_info?.has_capacity"
+                             style="padding: 14px; border: 2px solid; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;"
+                             [style.border-color]="selectedGroupByDate[i]?.id === group.id ? '#1976d2' : '#e0e0e0'"
+                             [style.background]="selectedGroupByDate[i]?.id === group.id ? '#e3f2fd' : 'white'"
+                             [style.opacity]="group.capacity_info?.has_capacity ? '1' : '0.5'"
+                             [style.cursor]="group.capacity_info?.has_capacity ? 'pointer' : 'not-allowed'">
+
+                          <!-- Badge del nivel + nombre del subgrupo -->
+                          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                              <!-- Badge del nivel -->
+                              <div style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; color: white; margin-bottom: 4px;"
+                                   [style.background]="group.group_info?.color || '#1976d2'">
+                                {{ group.group_info?.league || '' }} {{ group.group_info?.name || '' }}
+                              </div>
+                              <!-- Nombre específico del subgrupo (si existe) -->
+                              <div *ngIf="group.name" style="font-size: 13px; font-weight: 500; color: #333; margin-top: 4px;">
+                                {{ group.name }}
+                              </div>
+                            </div>
+                            <mat-icon *ngIf="selectedGroupByDate[i]?.id === group.id" style="color: #1976d2;">check_circle</mat-icon>
+                          </div>
+
+                          <!-- Información de capacidad -->
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div *ngIf="!group.capacity_info?.is_unlimited" style="flex: 1;">
+                              <div style="font-size: 13px; color: #666; margin-bottom: 4px;">
+                                {{ group.capacity_info?.current_bookings }} / {{ group.capacity_info?.max_participants }} {{ 'participants' | translate }}
+                              </div>
+                              <!-- Barra de progreso -->
+                              <div style="width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; transition: width 0.3s ease;"
+                                     [style.width.%]="group.capacity_info?.capacity_percentage"
+                                     [style.background]="group.capacity_info?.capacity_percentage > 80 ? '#f44336' : (group.capacity_info?.capacity_percentage > 50 ? '#ff9800' : '#4caf50')">
+                                </div>
+                              </div>
+                            </div>
+                            <div *ngIf="group.capacity_info?.is_unlimited" style="display: flex; align-items: center; color: #4caf50;">
+                              <mat-icon style="margin-right: 4px;">all_inclusive</mat-icon>
+                              <span style="font-size: 13px; font-weight: 500;">{{ 'unlimited_capacity' | translate }}</span>
+                            </div>
+                            <div *ngIf="!group.capacity_info?.has_capacity" style="display: flex; align-items: center; color: #f44336; margin-left: 12px;">
+                              <mat-icon style="margin-right: 4px; font-size: 18px;">warning</mat-icon>
+                              <span style="font-size: 12px; font-weight: 500;">{{ 'course_full' | translate }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Mensaje cuando no hay grupos -->
+                      <div *ngIf="!loadingGroupsByDate[i] && (!availableGroupsByDate[i] || availableGroupsByDate[i].length === 0)"
+                           style="text-align: center; padding: 30px; color: #999;">
+                        <mat-icon style="font-size: 48px; width: 48px; height: 48px; color: #ccc;">error_outline</mat-icon>
+                        <p style="margin-top: 8px; font-size: 14px;">{{ 'no_available_groups' | translate }}</p>
+                      </div>
                     </div>
+                  </div>
+
+                  <div class="row-2">
                     <div>
                       <div class="extra-field-wrapper" *ngIf=" this.posibleExtras && this.posibleExtras.length">
                         <mat-form-field appearance="outline" class="extras-field">
@@ -177,16 +265,104 @@
               <span class="date">{{ formatDate(courseDatesArray.at(i).get('date').value) }}</span>
               <span class="hour">{{ courseDatesArray.at(i).get('startHour').value }}h - {{
                 courseDatesArray.at(i).get('endHour').value }}h</span>
+              <!-- Badge del nivel seleccionado -->
+              <div *ngIf="selectedGroupByDate[i]" style="display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 600; color: white; margin: 0 8px;"
+                   [style.background]="selectedGroupByDate[i]?.group_info?.color || sportLevel?.color">
+                {{ selectedGroupByDate[i]?.group_info?.league || '' }} {{ selectedGroupByDate[i]?.group_info?.name || '' }}
+              </div>
               <span class="price">{{ course.price }} {{ course.currency }} </span>
             </div>
-            <div class="row-2">
-              <div>
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ "participant" | translate }} </mat-label>
-                  <input matInput disabled [value]="utilizer.first_name + ' ' + utilizer.last_name" />
-                  <mat-icon class="disabled-icon" matPrefix fontSet="material-icons-outlined">people</mat-icon>
-                </mat-form-field>
+
+            <!-- Selector de grupo expandible (SOLO aparece si la fecha está seleccionada) -->
+            <div *ngIf="courseDatesArray.at(i).get('selected').value" style="margin-top: 12px; width: 100%;">
+              <!-- Botón para expandir/colapsar selector de grupos -->
+              <button type="button" mat-stroked-button
+                      (click)="toggleGroupSelector(i)"
+                      class="group-selector-toggle"
+                      style="width: 100%; text-align: left; justify-content: space-between; display: flex; align-items: center; padding: 10px 16px;">
+                <span style="display: flex; align-items: center;">
+                  <mat-icon style="margin-right: 8px; color: #1976d2;">groups</mat-icon>
+                  <span style="font-weight: 500;">{{ getSelectedGroupName(i) }}</span>
+                </span>
+                <mat-icon>{{ isGroupSelectorExpanded(i) ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </button>
+
+              <!-- Panel desplegable con lista de grupos -->
+              <div *ngIf="isGroupSelectorExpanded(i)"
+                   style="margin-top: 8px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; background: #fafafa; max-height: 400px; overflow-y: auto;">
+
+                <!-- Loading spinner -->
+                <div *ngIf="loadingGroupsByDate[i]" style="text-align: center; padding: 30px;">
+                  <mat-spinner diameter="40"></mat-spinner>
+                  <p style="margin-top: 12px; color: #666;">{{ 'loading_groups' | translate }}</p>
+                </div>
+
+                <!-- Lista de grupos -->
+                <div *ngIf="!loadingGroupsByDate[i] && availableGroupsByDate[i]?.length > 0"
+                     style="display: flex; flex-direction: column; gap: 8px;">
+                  <div *ngFor="let group of availableGroupsByDate[i]"
+                       (click)="group.capacity_info?.has_capacity && onGroupChange(i, group)"
+                       class="group-item"
+                       [class.selected]="selectedGroupByDate[i]?.id === group.id"
+                       [class.disabled]="!group.capacity_info?.has_capacity"
+                       style="padding: 14px; border: 2px solid; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;"
+                       [style.border-color]="selectedGroupByDate[i]?.id === group.id ? '#1976d2' : '#e0e0e0'"
+                       [style.background]="selectedGroupByDate[i]?.id === group.id ? '#e3f2fd' : 'white'"
+                       [style.opacity]="group.capacity_info?.has_capacity ? '1' : '0.5'"
+                       [style.cursor]="group.capacity_info?.has_capacity ? 'pointer' : 'not-allowed'">
+
+                    <!-- Badge del nivel + nombre del subgrupo -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                      <div style="flex: 1;">
+                        <!-- Badge del nivel -->
+                        <div style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; color: white; margin-bottom: 4px;"
+                             [style.background]="group.group_info?.color || '#1976d2'">
+                          {{ group.group_info?.league || '' }} {{ group.group_info?.name || '' }}
+                        </div>
+                        <!-- Nombre específico del subgrupo (si existe) -->
+                        <div *ngIf="group.name" style="font-size: 13px; font-weight: 500; color: #333; margin-top: 4px;">
+                          {{ group.name }}
+                        </div>
+                      </div>
+                      <mat-icon *ngIf="selectedGroupByDate[i]?.id === group.id" style="color: #1976d2;">check_circle</mat-icon>
+                    </div>
+
+                    <!-- Información de capacidad -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <div *ngIf="!group.capacity_info?.is_unlimited" style="flex: 1;">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 4px;">
+                          {{ group.capacity_info?.current_bookings }} / {{ group.capacity_info?.max_participants }} {{ 'participants' | translate }}
+                        </div>
+                        <!-- Barra de progreso -->
+                        <div style="width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                          <div style="height: 100%; transition: width 0.3s ease;"
+                               [style.width.%]="group.capacity_info?.capacity_percentage"
+                               [style.background]="group.capacity_info?.capacity_percentage > 80 ? '#f44336' : (group.capacity_info?.capacity_percentage > 50 ? '#ff9800' : '#4caf50')">
+                          </div>
+                        </div>
+                      </div>
+                      <div *ngIf="group.capacity_info?.is_unlimited" style="display: flex; align-items: center; color: #4caf50;">
+                        <mat-icon style="margin-right: 4px;">all_inclusive</mat-icon>
+                        <span style="font-size: 13px; font-weight: 500;">{{ 'unlimited_capacity' | translate }}</span>
+                      </div>
+                      <div *ngIf="!group.capacity_info?.has_capacity" style="display: flex; align-items: center; color: #f44336; margin-left: 12px;">
+                        <mat-icon style="margin-right: 4px; font-size: 18px;">warning</mat-icon>
+                        <span style="font-size: 12px; font-weight: 500;">{{ 'course_full' | translate }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Mensaje cuando no hay grupos -->
+                <div *ngIf="!loadingGroupsByDate[i] && (!availableGroupsByDate[i] || availableGroupsByDate[i].length === 0)"
+                     style="text-align: center; padding: 30px; color: #999;">
+                  <mat-icon style="font-size: 48px; width: 48px; height: 48px; color: #ccc;">error_outline</mat-icon>
+                  <p style="margin-top: 8px; font-size: 14px;">{{ 'no_available_groups' | translate }}</p>
+                </div>
               </div>
+            </div>
+
+            <div class="row-2">
               <div>
                 <div class="extra-field-wrapper" *ngIf=" this.posibleExtras && this.posibleExtras.length">
                   <mat-form-field appearance="outline" class="extras-field">
