@@ -828,7 +828,7 @@
             <p style="float: left;">Boukii Care</p>
             <mat-slide-toggle
               color="accent"
-<!-- BOUKII CARE DESACTIVADO -               [(ngModel)]="booking.has_boukii_care" -->
+              [(ngModel)]="booking.has_boukii_care"
               *ngIf="boukiiCarePrice"
               (change)="addBoukiiCare($event)"
               [disabled]="booking.status === 2"
@@ -1033,16 +1033,16 @@
 							</div>
 
 <!-- BOUKII CARE DESACTIVADO - 							<span *ngIf="booking.has_boukii_care" style="width: 100%; float:left"> -->
-								<p style="float:left">Boukii Care</p>
-								<p style="float:right">
-<!-- BOUKII CARE DESACTIVADO - 									{{ booking.price_boukii_care }} -->
-									{{
-									bookingsToCreate.length > 0
-									? bookingsToCreate[0].courseDates[0].currency
-									: ""
-									}}
-								</p>
-							</span>
+<!-- BOUKII CARE DESACTIVADO - 								<p style="float:left">Boukii Care</p> -->
+<!-- BOUKII CARE DESACTIVADO - 								<p style="float:right"> -->
+<!-- BOUKII CARE DESACTIVADO - <!-- BOUKII CARE DESACTIVADO - 									{{ booking.price_boukii_care }} --> -->
+<!-- BOUKII CARE DESACTIVADO - 									{{ -->
+<!-- BOUKII CARE DESACTIVADO - 									bookingsToCreate.length > 0 -->
+<!-- BOUKII CARE DESACTIVADO - 									? bookingsToCreate[0].courseDates[0].currency -->
+<!-- BOUKII CARE DESACTIVADO - 									: "" -->
+<!-- BOUKII CARE DESACTIVADO - 									}} -->
+<!-- BOUKII CARE DESACTIVADO - 								</p> -->
+<!-- BOUKII CARE DESACTIVADO - 							</span> -->
 
 							<div *ngIf="booking.has_tva">
 								<div class="col-left">
