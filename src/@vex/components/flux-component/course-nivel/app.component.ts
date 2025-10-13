@@ -264,15 +264,7 @@ export class CourseDetailCardNivelComponent implements OnInit {
     return fallback ?? 0;
   }
   // Ensure we always iterate arrays in templates
-  asArray<T = any>(val: any): T[] {
-    try {
-      if (Array.isArray(val)) return val as T[];
-      if (typeof val === 'string') return JSON.parse(val || '[]') as T[];
-    } catch (e) {
-      console.warn('asArray parse failed, defaulting to []', e);
-    }
-    return [] as T[];
-  }
+/**   * Get capacity indicator for a specific date in a subgroup   * Returns string like "1/6" (occupied/total)   */  getCapacityIndicatorForDate(bookingUsers: any, degreeId: number, subgroupIndex: number, courseDateId: number, totalCapacity: number): string {    const usersInDate = this.getUsersForSpecificDate(bookingUsers, degreeId, courseDateId);    const occupied = usersInDate.length;    return `${occupied}/${totalCapacity}`;  }
   // Total de paxes únicos asignados a un degree (deduplicado por client_id)
   findBookingUsers(bookingUsers: any, courseDates: any[], degreeId: number): number {
     try {
