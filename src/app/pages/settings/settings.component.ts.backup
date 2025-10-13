@@ -365,13 +365,13 @@ export class SettingsComponent implements OnInit {
 
 
             this.hasCancellationInsurance = settings?.taxes?.cancellation_insurance_percent !== null && parseFloat(settings?.taxes?.cancellation_insurance_percent) !== 0 && !isNaN(parseFloat(settings?.taxes?.cancellation_insurance_percent));
-    // BOUKII CARE DESACTIVADO -             this.hasBoukiiCare = settings?.taxes?.boukii_care_price !== null && parseInt(settings?.taxes?.boukii_care_price) !== 0 && !isNaN(parseInt(settings?.taxes?.boukii_care_price));
+            this.hasBoukiiCare = settings?.taxes?.boukii_care_price !== null && parseInt(settings?.taxes?.boukii_care_price) !== 0 && !isNaN(parseInt(settings?.taxes?.boukii_care_price));
             this.hasTVA = settings?.taxes?.tva !== null && parseFloat(settings?.taxes?.tva) !== 0 && !isNaN(parseFloat(settings?.taxes?.tva));
 
             this.currency = settings?.taxes?.currency;
 
             this.cancellationInsurancePercent = parseFloat(settings?.taxes?.cancellation_insurance_percent);
-    // BOUKII CARE DESACTIVADO -             this.boukiiCarePrice = parseInt(settings?.taxes?.boukii_care_price);
+            this.boukiiCarePrice = parseInt(settings?.taxes?.boukii_care_price);
             this.tva = parseFloat(settings?.taxes?.tva);
             this.cancellationNoRem = settings?.cancellations?.without_cancellation_insurance;
             this.cancellationRem = settings?.cancellations?.with_cancellation_insurance;
@@ -872,7 +872,7 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+        boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -956,7 +956,7 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+        boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1083,7 +1083,7 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+        boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1109,7 +1109,7 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+        boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1138,7 +1138,7 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+        boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },

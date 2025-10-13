@@ -1055,26 +1055,26 @@
                 <mat-slide-toggle [(ngModel)]="hasBoukiiCare"></mat-slide-toggle>
                 Boukii Care
                 <span style="color: #e6e6e6">
-<!-- BOUKII CARE DESACTIVADO - 									({{'settings.bookings.boukii_care_title' -->
+									({{'settings.bookings.boukii_care_title'
                   | translate}})
 								</span>
               </h1>
               <p style="padding: 1%; ;float: left; width: 75%;">
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text1' |translate}} -->
+                {{'settings.bookings.boukii_care_text1' |translate}}
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text2' |translate}} -->
+                {{'settings.bookings.boukii_care_text2' |translate}}
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text3' |translate}} -->
+                {{'settings.bookings.boukii_care_text3' |translate}}
                 <br>
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text4' |translate}} -->
+                {{'settings.bookings.boukii_care_text4' |translate}}
                 <a href style="text-decoration:none; color: #f53d7c;">
                   Enlace
                 </a>
               </p>
               <div style="width:100%; float:left;">
                 <p style="width:100%; float:left;;">
-<!-- BOUKII CARE DESACTIVADO -                   {{'settings.bookings.boukii_care_price' -->
+                  {{'settings.bookings.boukii_care_price'
                   | translate}}
                 </p>
                 <mat-form-field appearance="outline" class="flex-auto">
