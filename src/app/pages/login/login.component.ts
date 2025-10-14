@@ -22,6 +22,7 @@ export class LoginComponent implements OnInit {
 
   inputType = 'password';
   visible = false;
+  loading = false;
 
   constructor(private router: Router,
               private fb: UntypedFormBuilder,
@@ -41,8 +42,22 @@ export class LoginComponent implements OnInit {
   }
 
   send() {
+    if (this.form.invalid || this.loading) {
+      return;
+    }
+
+    this.loading = true;
+    this.cd.markForCheck();
+
+    // El servicio maneja el login y la navegación
     this.authService.login(this.form.value.email, this.form.value.password);
 
+    // Resetear loading después de 5 segundos como fallback
+    // (el servicio no devuelve el observable para controlarlo directamente)
+    setTimeout(() => {
+      this.loading = false;
+      this.cd.markForCheck();
+    }, 5000);
   }
 
   changeLang(lang: string) {

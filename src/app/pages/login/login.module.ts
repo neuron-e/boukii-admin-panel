@@ -10,6 +10,7 @@ import {MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBarModule} from '@angular/materia
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
 import {MatMenuModule} from '@angular/material/menu';
 import {ToolbarUserModule} from '../../../@vex/layout/toolbar/toolbar-user/toolbar-user.module';
@@ -34,6 +35,7 @@ import {ToolbarUserModule} from '../../../@vex/layout/toolbar/toolbar-user/toolb
         MatTooltipModule,
         MatButtonModule,
         MatCheckboxModule,
+        MatProgressSpinnerModule,
         TranslateModule,
         MatMenuModule,
         ToolbarUserModule
