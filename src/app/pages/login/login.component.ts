@@ -47,6 +47,8 @@ export class LoginComponent implements OnInit {
     }
 
     this.loading = true;
+    // Deshabilitar formulario durante el login (forma correcta con reactive forms)
+    this.form.disable();
     this.cd.markForCheck();
 
     // El servicio maneja el login y la navegación
@@ -56,6 +58,7 @@ export class LoginComponent implements OnInit {
     // (el servicio no devuelve el observable para controlarlo directamente)
     setTimeout(() => {
       this.loading = false;
+      this.form.enable();
       this.cd.markForCheck();
     }, 5000);
   }
