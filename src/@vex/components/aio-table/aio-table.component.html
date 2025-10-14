@@ -394,7 +394,7 @@
         <!-- Text Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'text'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell style="text-wrap: balance;">
@@ -406,7 +406,7 @@
         <!-- Trads Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'trads'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell
@@ -420,7 +420,7 @@
         <!-- id Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'id'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell
@@ -438,7 +438,7 @@
         <!-- QR Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'qr'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell
@@ -452,7 +452,7 @@
         <!-- Paiment method Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'payment_method_id'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -464,7 +464,7 @@
         <!-- Paiment method Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'payment_method'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -477,7 +477,7 @@
 
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'count'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell style="text-align: center;">
@@ -491,7 +491,7 @@
 
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'booking_users'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -519,7 +519,7 @@
 
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'course_type_data'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -533,7 +533,7 @@
 
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'course_image'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -554,7 +554,7 @@
 
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'booking_users_image'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -578,7 +578,7 @@
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'booking_users_image_monitors'"
                         [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -595,7 +595,7 @@
 
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'booking_dates'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row;let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -633,7 +633,7 @@
 
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'sports'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -661,7 +661,7 @@
 
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'sports_monitor'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -687,7 +687,7 @@
         <!-- Birth Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'birth'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -700,7 +700,7 @@
         <!-- Bookings Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'bookings'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -720,7 +720,7 @@
         <!-- Price Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'price'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -752,7 +752,7 @@
         <!-- Price Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'payment_status'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses"
@@ -765,7 +765,7 @@
         <!-- Client status Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'clients_schools'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses"
@@ -779,7 +779,7 @@
         <!-- payment_status_data Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'payment_status_data'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row;let i = index" [ngClass]="column.cssClasses"
@@ -793,7 +793,7 @@
         <!-- Cancelation Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'cancelation_status'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses"
@@ -808,7 +808,7 @@
         <!-- Acceptance Status Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'acceptance_status'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -829,7 +829,7 @@
         <!-- Light Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'light'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -844,7 +844,7 @@
         <!-- Light Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'warning'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -856,7 +856,7 @@
         <!-- Light DATA Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'light_data'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row;let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -873,7 +873,7 @@
         <!-- Light school Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'light_school'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -890,7 +890,7 @@
         <!-- light_monitors_schools school Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'light_monitors_schools'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -903,7 +903,7 @@
         <!-- Status Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'status'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -920,7 +920,7 @@
         <!-- Level Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'level'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -937,7 +937,7 @@
         <!-- Level Monitor Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'monitor_sports_degrees'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               MAX. {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -954,7 +954,7 @@
         <!-- Client Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'client'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -978,7 +978,7 @@
         <!-- Client Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'client_2'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -1001,7 +1001,7 @@
         <!-- Monitor Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'monitor'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell
@@ -1025,7 +1025,7 @@
         <!-- Dates Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'dates'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses"
@@ -1036,7 +1036,7 @@
         <!-- Dates Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'datesCourse'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row, let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -1060,7 +1060,7 @@
         <!-- Register Date Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'register_date'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses"
@@ -1079,7 +1079,7 @@
         <!-- Register Date Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'date'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -1094,7 +1094,7 @@
         <!-- Register Date Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'duration'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row;let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -1108,7 +1108,7 @@
         <!-- Sport Date Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'sport'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -1121,7 +1121,7 @@
         <!-- Sport Date Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'flexible'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -1145,7 +1145,7 @@
         <!-- Coronita Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'coronita'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
@@ -1162,7 +1162,7 @@
         <!-- Active Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'active'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
@@ -1175,7 +1175,7 @@
         <!-- Archived Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'archived'" [matColumnDef]="column.property">
-            <th *matHeaderCellDef class="uppercase" mat-header-cell [mat-sort-header]="column.sortable !== false ? '' : null">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
