@@ -53,15 +53,15 @@ export class ClientsComponent {
   }
 
   columns: TableColumn<any>[] = [
-    { label: 'type', property: 'a', type: 'coronita', visible: true, cssClasses: ['font-medium'] },
+    { label: 'type', property: 'a', type: 'coronita', visible: true, cssClasses: ['font-medium'], sortable: false },
     { label: 'Id', property: 'id', type: 'text', visible: true, cssClasses: ['font-medium'] },
     { label: 'client', property: 'first_name', type: 'client_2', visible: true, cssClasses: ['font-medium'] },
-    { label: 'level', property: 'test', type: 'level', visible: true, cssClasses: ['font-medium'] },
-    { label: 'users', property: 'utilizers', type: 'count', visible: true, cssClasses: ['font-medium'] },
+    { label: 'level', property: 'test', type: 'level', visible: true, cssClasses: ['font-medium'], sortable: false },
+    { label: 'users', property: 'utilizers', type: 'count', visible: true, cssClasses: ['font-medium'], sortable: false },
     { label: 'Email', property: 'email', type: 'text', visible: true, cssClasses: ['font-medium'] },
-    { label: 'sports', property: 'client_sports', type: 'sports', visible: true, cssClasses: ['font-medium'] },
+    { label: 'sports', property: 'client_sports', type: 'sports', visible: true, cssClasses: ['font-medium'], sortable: false },
     { label: 'register', property: 'created_at', type: 'date', visible: true, cssClasses: ['font-medium'] },
-    { label: 'status', property: 'clients_schools', type: 'clients_schools', visible: true, cssClasses: ['font-medium'] },
+    { label: 'status', property: 'clients_schools', type: 'clients_schools', visible: true, cssClasses: ['font-medium'], sortable: false },
     { label: 'Actions', property: 'actions', type: 'button', visible: true }
   ];
 

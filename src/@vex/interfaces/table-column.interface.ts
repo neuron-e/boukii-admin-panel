@@ -6,4 +6,5 @@ export interface TableColumn<T> {
     | 'course_type_data' | 'light_data'  | 'payment_status_data' | 'course_image' | 'payment_method_id' | 'payment_method' | 'coronita' | 'qr' | 'light_monitors_schools' | 'monitor' | 'client_2' | 'booking_users_image_monitors' | 'monitor_sports_degrees' | 'acceptance_status' | 'archived';
   visible?: boolean;
   cssClasses?: string[];
+  sortable?: boolean;
 }
