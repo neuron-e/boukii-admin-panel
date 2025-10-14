@@ -236,9 +236,9 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
   // Métodos de utilidad para el template
   getTrendIcon(trend: string): string {
     switch (trend) {
-      case 'up': return 'trending_up';
-      case 'down': return 'trending_down';
-      default: return 'trending_flat';
+      case 'up': return 'mat:trending_up';
+      case 'down': return 'mat:trending_down';
+      default: return 'mat:trending_flat';
     }
   }
 

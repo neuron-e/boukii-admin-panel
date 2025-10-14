@@ -100,7 +100,7 @@
           [value]="totalAlerts.toString()"
           [bg]="totalAlerts > 0 ? '#fef2f2' : '#f0fdf4'"
           [valueColor]="totalAlerts > 0 ? '#dc2626' : '#16a34a'"
-          icon="warning"
+          icon="mat:warning"
           [label]="'critical_alerts'"
           [label_secondary]="'requires_attention'"
           (click)="totalAlerts > 0 && navigateToBookings()">
@@ -122,7 +122,7 @@
           [value]="formatPercentage(occupancy?.cursosPrivados.porcentaje || 0)"
           [bg]="'#eff6ff'"
           [valueColor]="'#2563eb'"
-          icon="person"
+          icon="mat:person"
           [label]="'private_courses'"
           [label_secondary]="'occupancy_rate'"
           (click)="navigateToCourses()">
@@ -133,7 +133,7 @@
           [value]="formatPercentage(occupancy?.cursosColectivos.porcentaje || 0)"
           [bg]="'#fffbeb'"
           [valueColor]="'#d97706'"
-          icon="group"
+          icon="mat:group"
           [label]="'collective_courses'"
           [label_secondary]="'occupancy_rate'"
           (click)="navigateToCourses()">
