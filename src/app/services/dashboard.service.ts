@@ -71,7 +71,7 @@ export class DashboardService {
       ),
 
       // Pagos pendientes
-      pagosPendientes: this.crudService.list('/admin/bookings', 1, 1000, 'desc', 'id',
+      pagosPendientes: this.crudService.list('/bookings', 1, 1000, 'desc', 'id',
         `&school_id=${schoolId}&paid=false&status=1`).pipe(
         map((response: any) => response?.data?.data?.length || 0),
         catchError(() => of(0))
@@ -254,7 +254,7 @@ export class DashboardService {
 
   // Métodos auxiliares privados
   private getRevenueForPeriod(startDate: string, endDate: string, schoolId: number): Observable<number> {
-    return this.crudService.list('/admin/bookings', 1, 1000, 'desc', 'id',
+    return this.crudService.list('/bookings', 1, 1000, 'desc', 'id',
       `&school_id=${schoolId}&date_start=${startDate}&date_end=${endDate}&paid=true`).pipe(
       map((response: any) => {
         const bookings = response?.data?.data || [];
