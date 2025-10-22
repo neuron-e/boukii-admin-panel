@@ -162,6 +162,8 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   exportTableToExcel = () => this.excelExportService.exportAsExcelFile(this.dataSource.data, 'YourTableData');
 
   ngOnInit() {
+    const initialColumn = this.columns.find(column => column.property === this.Sort.active);
+    this.backendOrderColumn = initialColumn?.sortKey || this.Sort.active || 'id';
     this.searchCtrl.valueChanges
       .pipe(
         debounceTime(500), // Espera 300 ms tras cada cambio
@@ -173,7 +175,8 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       });
     this.routeActive.queryParams.subscribe(params => {
       this.gift = +params['isGift'] || 0;
-      if (this.entity.includes('vouchers')) this.filter += this.gift ? '&is_gift=1' : '&is_gift=0';
+      // Commented out to allow tab-based filtering in bonuses component
+      // if (this.entity.includes('vouchers')) this.filter += this.gift ? '&is_gift=1' : '&is_gift=0';
     });
     this.getLanguages();
     this.getDegrees();
@@ -184,7 +187,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   // Detecta cambios en las propiedades de entrada
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['search']) this.getFilteredData(1, 99999, this.filter);
+    if (changes['search'] || changes['entity']) {
+      this.pageIndex = 1;
+      this.getFilteredData(this.pageIndex, this.pageSize, this.filter);
+    }
   }
 
   getLanguages = () => this.crudService.list('/languages', 1, 1000).subscribe((data) => this.languages = data.data.reverse())
@@ -203,7 +209,9 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   }
 
-  Sort: Sort = { active: 'id', direction: 'desc' }
+  Sort: Sort = { active: 'id', direction: 'desc' };
+  backendOrderColumn = 'id';
+
 
   filterData(all: boolean = false, pageIndex: number = this.pageIndex, pageSize: number = this.pageSize) {
     let filter = '';
@@ -332,11 +340,12 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         }
       }
       if (this.entity.includes('vouchers')) {
-        if (this.gift) {
-          filter = filter + '&is_gift=1';
-        } else {
-          filter = filter + '&is_gift=0';
-        }
+        // Commented out to allow tab-based filtering in bonuses component
+        // if (this.gift) {
+        //   filter = filter + '&is_gift=1';
+        // } else {
+        //   filter = filter + '&is_gift=0';
+        // }
         if (this.trashed) {
           filter = filter + '&onlyTrashed=true';
         }
@@ -363,7 +372,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       pageIndex,
       pageSize,
       this.Sort.direction,
-      this.Sort.active,
+      this.backendOrderColumn,
       this.searchCtrl.value + filter + '&school_id=' + this.user.schools[0].id + this.search +
       (this.filterField !== null ? '&' + this.filterColumn + '=' + this.filterField : ''),
       '',
@@ -401,8 +410,16 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   sortData(sort: Sort) {
-    this.Sort = sort
-    this.filterData(false, this.pageIndex, this.pageSize)
+    const hasDirection = sort.direction === 'asc' || sort.direction === 'desc';
+    const resolvedDirection = (hasDirection ? sort.direction : 'desc') as ('asc' | 'desc');
+    const resolvedActive = hasDirection ? sort.active : 'id';
+
+    this.Sort = { active: resolvedActive || 'id', direction: resolvedDirection };
+
+    const column = this.columns.find(col => col.property === this.Sort.active);
+    this.backendOrderColumn = column?.sortKey || this.Sort.active || 'id';
+
+    this.filterData(false, this.pageIndex, this.pageSize);
   }
 
   ngAfterViewInit() {
@@ -419,12 +436,12 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   createModal() {
-
     const dialogRef = this.dialog.open(this.createComponent, {
       width: this.widthModal,
       height: this.heigthModal,
-      maxWidth: '100vw',  // Asegurarse de que no haya un ancho máximo
-      panelClass: 'full-screen-dialog'  // Si necesitas estilos adicionales
+      maxWidth: '100vw',
+      panelClass: 'full-screen-dialog',
+      data: { mode: 'create' }
     });
 
     dialogRef.afterClosed().subscribe((data: any) => {
@@ -441,9 +458,9 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     const dialogRef = this.dialog.open(this.createComponent, {
       width: this.widthModal,
       height: this.heigthModal,
-      maxWidth: '100vw',  // Asegurarse de que no haya un ancho máximo
-      panelClass: 'full-screen-dialog',  // Si necesitas estilos adicionales
-      data: row
+      maxWidth: '100vw',
+      panelClass: 'full-screen-dialog',
+      data: { mode: 'update', id: row.id, row: row }
     });
 
     dialogRef.afterClosed().subscribe((data: any) => {
@@ -1596,5 +1613,60 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       return '#FF9800'; // Orange for pending
     }
     return '#9E9E9E'; // Gray for unknown
+  }
+
+  /**
+   * Copy text to clipboard
+   */
+  copyToClipboard(text: string): void {
+    if (!text) {
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        this.snackbar.open(this.translateService.instant('Copied to clipboard'), 'OK', { duration: 2000 });
+      }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        this.fallbackCopyTextToClipboard(text);
+      });
+    } else {
+      this.fallbackCopyTextToClipboard(text);
+    }
+  }
+
+  /**
+   * Fallback copy method for older browsers
+   */
+  private fallbackCopyTextToClipboard(text: string): void {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.width = '2em';
+    textArea.style.height = '2em';
+    textArea.style.padding = '0';
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        this.snackbar.open(this.translateService.instant('Copied to clipboard'), 'OK', { duration: 2000 });
+      } else {
+        this.snackbar.open(this.translateService.instant('Failed to copy'), 'OK', { duration: 2000 });
+      }
+    } catch (err) {
+      console.error('Fallback: Could not copy text: ', err);
+      this.snackbar.open(this.translateService.instant('Failed to copy'), 'OK', { duration: 2000 });
+    }
+
+    document.body.removeChild(textArea);
   }
 }

@@ -58,6 +58,11 @@ const childrenRoutes: VexRoutes = [
         canActivate: [AuthGuard],
       },
       {
+        path: 'discounts',
+        loadChildren: () => import('./pages/discounts/discounts.module').then(m => m.DiscountsModule),
+        canActivate: [AuthGuard],
+      },
+      {
         path: 'messages',
         loadChildren: () => import('./pages/communications/communications.module').then(m => m.CommunicationsModule),
         canActivate: [AuthGuard],

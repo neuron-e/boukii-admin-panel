@@ -1,0 +1,189 @@
+<div *ngIf="!loading" class="px-6 py-6">
+  <div class="flex items-center justify-between mb-6">
+    <h2 mat-dialog-title class="m-0">
+      {{ (mode === 'create' ? 'Create Gift Voucher' : 'Edit Gift Voucher') | translate }}
+    </h2>
+    <button mat-icon-button (click)="close()" type="button">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    <div [formGroup]="form" class="flex flex-col gap-4">
+
+      <!-- Basic Information -->
+      <div class="card">
+        <div class="px-6 py-4 border-b">
+          <h3 class="title m-0">{{'Basic Information' | translate}}</h3>
+        </div>
+        <div class="px-6 py-4 flex flex-col gap-4">
+
+          <!-- Amount -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'Amount' | translate}}</mat-label>
+            <input formControlName="amount"
+                   type="number"
+                   min="1"
+                   matInput
+                   required>
+            <span matPrefix>$ </span>
+            <mat-icon matPrefix svgIcon="mat:monetization_on"></mat-icon>
+          </mat-form-field>
+
+          <!-- Sender Name -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'Sender Name' | translate}}</mat-label>
+            <input formControlName="sender_name"
+                   matInput
+                   required>
+            <mat-icon matPrefix svgIcon="mat:person"></mat-icon>
+          </mat-form-field>
+
+          <!-- Personal Message -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'Personal Message' | translate}}</mat-label>
+            <textarea formControlName="personal_message"
+                      matInput
+                      rows="3"></textarea>
+            <mat-icon matPrefix svgIcon="mat:message"></mat-icon>
+          </mat-form-field>
+
+        </div>
+      </div>
+
+      <!-- Recipient Information -->
+      <div class="card">
+        <div class="px-6 py-4 border-b">
+          <h3 class="title m-0">{{'Recipient Information' | translate}}</h3>
+        </div>
+        <div class="px-6 py-4 flex flex-col gap-4">
+
+          <!-- Recipient Name -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'Recipient Name' | translate}}</mat-label>
+            <input formControlName="recipient_name"
+                   matInput
+                   required>
+            <mat-icon matPrefix svgIcon="mat:person_outline"></mat-icon>
+          </mat-form-field>
+
+          <!-- Recipient Email -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'Recipient Email' | translate}}</mat-label>
+            <input formControlName="recipient_email"
+                   type="email"
+                   matInput
+                   required>
+            <mat-icon matPrefix svgIcon="mat:email"></mat-icon>
+          </mat-form-field>
+
+          <!-- Send Immediately Toggle -->
+          <div class="flex-auto mb-2">
+            <mat-checkbox [(ngModel)]="sendImmediately"
+                          (change)="onSendImmediatelyChange()"
+                          [ngModelOptions]="{standalone: true}"
+                          color="primary">
+              {{'Send immediately' | translate}}
+            </mat-checkbox>
+          </div>
+
+          <!-- Delivery Date -->
+          <mat-form-field *ngIf="!sendImmediately" appearance="outline" class="w-full">
+            <mat-label>{{'Delivery Date' | translate}}</mat-label>
+            <input matInput
+                   [matDatepicker]="deliveryPicker"
+                   formControlName="delivery_date">
+            <mat-datepicker-toggle matSuffix [for]="deliveryPicker"></mat-datepicker-toggle>
+            <mat-datepicker #deliveryPicker></mat-datepicker>
+            <mat-icon matPrefix svgIcon="mat:event"></mat-icon>
+          </mat-form-field>
+
+        </div>
+      </div>
+
+      <!-- Additional Options -->
+      <div class="card">
+        <div class="px-6 py-4 border-b">
+          <h3 class="title m-0">{{'Additional Options' | translate}}</h3>
+        </div>
+        <div class="px-6 py-4 flex flex-col gap-4">
+
+          <!-- Purchased By Client -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'Purchased By Client' | translate}} ({{'Optional' | translate}})</mat-label>
+            <input [formControl]="clientsForm"
+                   [matAutocomplete]="auto"
+                   type="text"
+                   placeholder="{{'Search client' | translate}}"
+                   matInput>
+            <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn">
+              <mat-option *ngFor="let client of filteredOptions | async" [value]="client">
+                {{client.first_name}} {{client.last_name}}
+              </mat-option>
+            </mat-autocomplete>
+            <mat-icon matPrefix svgIcon="mat:person"></mat-icon>
+          </mat-form-field>
+
+          <!-- Is Paid Toggle -->
+          <div class="flex-auto">
+            <mat-slide-toggle formControlName="is_paid"
+                              color="accent">
+              {{'Paid' | translate}}
+            </mat-slide-toggle>
+          </div>
+
+          <!-- Payment Reference -->
+          <mat-form-field *ngIf="form.get('is_paid')?.value" appearance="outline" class="w-full">
+            <mat-label>{{'Payment Reference' | translate}}</mat-label>
+            <input formControlName="payment_reference"
+                   matInput>
+            <mat-icon matPrefix svgIcon="mat:receipt"></mat-icon>
+          </mat-form-field>
+
+          <!-- Notes -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'Notes' | translate}}</mat-label>
+            <textarea formControlName="notes"
+                      matInput
+                      rows="3"></textarea>
+            <mat-icon matPrefix svgIcon="mat:notes"></mat-icon>
+          </mat-form-field>
+
+          <!-- Status Info (Update Mode Only) -->
+          <div *ngIf="mode === 'update'" class="p-4 rounded bg-gray-50">
+            <div class="flex items-center gap-4">
+              <mat-chip-listbox>
+                <mat-chip [class]="defaults.is_delivered ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'">
+                  {{ defaults.is_delivered ? ('Delivered' | translate) : ('Not Delivered' | translate) }}
+                </mat-chip>
+                <mat-chip [class]="defaults.is_redeemed ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'">
+                  {{ defaults.is_redeemed ? ('Redeemed' | translate) : ('Not Redeemed' | translate) }}
+                </mat-chip>
+              </mat-chip-listbox>
+            </div>
+            <p *ngIf="defaults.is_redeemed" class="text-sm text-secondary mt-2 mb-0">
+              {{'Redeemed on' | translate}}: {{defaults.redeemed_at | date:'dd/MM/yyyy HH:mm'}}
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="px-6 py-4">
+    <button (click)="close()"
+            mat-button
+            type="button">
+      {{'cancel' | translate}}
+    </button>
+    <button [disabled]="form.invalid"
+            (click)="save()"
+            color="primary"
+            mat-raised-button
+            type="button">
+      {{'save' | translate}}
+    </button>
+  </mat-dialog-actions>
+</div>

@@ -141,70 +141,9 @@
                  placeholder="{{'search' | translate}}..." type="search">
         </div>
 
-        <!-- Bonuses fake -->
-        <ng-container *ngIf="entity.includes('vouchers')">
-          <div>
-            <button (click)="gift = 0; filterData(true)" class="ml-4 flex-none" mat-button type="button">
-							<span [ngStyle]="{'color': !gift ? '#fe3085' : ''}">
-								{{'vouchers'
-                | translate}}
-							</span>
-            </button>
-          </div>
-          <!--					<div>
-            <button (click)="gift = 1; filterData(false, 1)"
-              class="ml-4 flex-none"
-              mat-button
-              type="button">
-              <span [ngStyle]="{'color': gift ? '#fe3085' : ''}">
-                {{'gift_vouchers'
-                | translate}}
-              </span>
-            </button>
-          </div>
-          <div>
-            <button (click)="router.navigate(['./discount-codes'])"
-              class="ml-4 flex-none"
-              mat-button
-              type="button">
-              <span [ngStyle]="{'color': activeCourse ? '#fe3085' : ''}">
-                {{'discount_code'
-                | translate}}
-              </span>
-            </button>
-          </div>-->
-        </ng-container>
+        <!-- All filters removed - now using tabs in bonuses.component.html -->
 
-        <ng-container *ngIf="entity.includes('discount')">
-          <div>
-            <button (click)="navigateWithParam('./vouchers', '0')" class="ml-4 flex-none" mat-button
-                    type="button">
-							<span [ngStyle]="{'color': activeCourse ? '#fe3085' : ''}">
-								{{'vouchers'
-                | translate}}
-							</span>
-            </button>
-          </div>
-          <div>
-            <button (click)="navigateWithParam('./vouchers', '1')" class="ml-4 flex-none" mat-button
-                    type="button">
-							<span [ngStyle]="{'color': finishedCourse ? '#fe3085' : ''}">
-								{{'gift_vouchers'
-                | translate}}
-							</span>
-            </button>
-          </div>
-          <div>
-            <button class="ml-4 flex-none" mat-button type="button">
-							<span [ngStyle]="{'color': allCourse ? '#fe3085' : ''}">
-								{{'discount_code'
-                | translate}}
-							</span>
-            </button>
-          </div>
-        </ng-container>
-
-        <!-- Bonuses fake close -->
+        <!-- Courses filters -->
         <ng-container *ngIf="entity.includes('courses')">
           <div>
             <button
@@ -1188,6 +1127,63 @@
         </ng-container>
 
         <!-- Contact Column -->
+        <!-- Badge Columns (for status display) -->
+        <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
+          <ng-container *ngIf="column.type === 'badge'" [matColumnDef]="column.property">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
+              {{ column.label | translate }}
+            </th>
+            <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
+              <span *ngIf="row[column.property]"
+                    class="px-2 py-1 rounded text-xs font-medium"
+                    [ngClass]="{
+                      'bg-green-100 text-green-800': row[column.property] === 1 || row[column.property] === true || row[column.property] === 'active',
+                      'bg-red-100 text-red-800': row[column.property] === 0 || row[column.property] === false || row[column.property] === 'inactive'
+                    }">
+                {{ row[column.property] === 1 || row[column.property] === true ? 'Activo' : 'Inactivo' }}
+              </span>
+              <span *ngIf="!row[column.property] && row[column.property] !== 0"
+                    class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                Sin estado
+              </span>
+            </td>
+          </ng-container>
+        </ng-container>
+
+        <!-- Currency Columns (for money amounts) -->
+        <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
+          <ng-container *ngIf="column.type === 'currency'" [matColumnDef]="column.property">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
+              {{ column.label | translate }}
+            </th>
+            <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
+              <span class="font-medium">
+                {{ row[column.property] | currency:'EUR':'symbol':'1.0-2' }}
+              </span>
+            </td>
+          </ng-container>
+        </ng-container>
+
+        <!-- Text Copyable Columns (with copy button) -->
+        <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
+          <ng-container *ngIf="column.type === 'text_copyable'" [matColumnDef]="column.property">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
+              {{ column.label | translate }}
+            </th>
+            <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
+              <div class="flex items-center gap-2">
+                <span class="font-medium">{{ row[column.property] }}</span>
+                <button mat-icon-button
+                        (click)="$event.stopPropagation(); copyToClipboard(row[column.property])"
+                        matTooltip="{{'Copy to clipboard' | translate}}"
+                        class="w-6 h-6">
+                  <mat-icon class="icon-sm text-secondary">content_copy</mat-icon>
+                </button>
+              </div>
+            </td>
+          </ng-container>
+        </ng-container>
+
         <ng-container matColumnDef="contact">
           <th *matHeaderCellDef mat-header-cell mat-sort-header></th>
           <td *matCellDef="let row" mat-cell>

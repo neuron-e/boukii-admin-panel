@@ -1,0 +1,49 @@
+<div class="gift-voucher-card rounded-lg shadow-lg"
+     [class]="cardClasses"
+     [style.background-color]="backgroundColor"
+     [style.color]="textColor"
+     [class.border-2]="showBorder">
+
+  <div class="text-center">
+    <!-- Gift Icon -->
+    <mat-icon [class]="iconSize + ' mb-4'" svgIcon="mat:card_giftcard"></mat-icon>
+
+    <!-- Title -->
+    <h2 class="text-2xl font-bold mb-2">{{'Gift Voucher' | translate}}</h2>
+
+    <!-- Amount -->
+    <div [class]="amountSize + ' font-bold my-4'">
+      €{{amount || '0.00'}}
+    </div>
+
+    <mat-divider class="my-4" [style.border-color]="textColor" style="opacity: 0.3"></mat-divider>
+
+    <!-- Details -->
+    <div class="text-left space-y-3">
+      <!-- From -->
+      <div *ngIf="senderName">
+        <p class="text-xs font-medium opacity-75 m-0">{{'From:' | translate}}</p>
+        <p class="text-sm font-semibold m-0">{{senderName}}</p>
+      </div>
+
+      <!-- To -->
+      <div *ngIf="recipientName">
+        <p class="text-xs font-medium opacity-75 m-0">{{'To:' | translate}}</p>
+        <p class="text-sm font-semibold m-0">{{recipientName}}</p>
+      </div>
+
+      <!-- Personal Message -->
+      <div *ngIf="personalMessage" class="mt-4">
+        <p class="text-xs font-medium opacity-75 m-0">{{'Message:' | translate}}</p>
+        <p class="text-sm italic m-0 mt-1">{{personalMessage}}</p>
+      </div>
+    </div>
+
+    <mat-divider class="my-4" [style.border-color]="textColor" style="opacity: 0.3"></mat-divider>
+
+    <!-- Template Info -->
+    <div class="text-xs opacity-75">
+      <p class="m-0">{{'Template:' | translate}} {{template}}</p>
+    </div>
+  </div>
+</div>

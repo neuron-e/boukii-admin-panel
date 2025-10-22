@@ -1,0 +1,460 @@
+import { Component, OnInit, ViewChild, ElementRef, Inject } from '@angular/core';
+import { FormControl, UntypedFormBuilder, UntypedFormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
+import { stagger20ms } from 'src/@vex/animations/stagger.animation';
+import { Observable, map, of, startWith, debounceTime, switchMap } from 'rxjs';
+import { ApiCrudService } from 'src/service/crud.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { TranslateService } from '@ngx-translate/core';
+import { COMMA, ENTER } from '@angular/cdk/keycodes';
+import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import { MatChipInputEvent } from '@angular/material/chips';
+
+// Custom validator for discount value based on discount type
+function discountValueValidator(control: AbstractControl): ValidationErrors | null {
+  const formGroup = control.parent;
+  if (!formGroup) {
+    return null;
+  }
+
+  const discountType = formGroup.get('discount_type')?.value;
+  const discountValue = control.value;
+
+  if (discountValue === null || discountValue === undefined || discountValue === '') {
+    return null; // Let required validator handle this
+  }
+
+  const numValue = Number(discountValue);
+
+  if (discountType === 'percentage') {
+    if (numValue < 0 || numValue > 100) {
+      return { percentageRange: true };
+    }
+  } else if (discountType === 'fixed_amount') {
+    if (numValue <= 0) {
+      return { minValue: true };
+    }
+  }
+
+  return null;
+}
+
+// Custom validator for date range
+function dateRangeValidator(control: AbstractControl): ValidationErrors | null {
+  const formGroup = control.parent;
+  if (!formGroup) {
+    return null;
+  }
+
+  const validFrom = formGroup.get('valid_from')?.value;
+  const validUntil = control.value;
+
+  if (validFrom && validUntil) {
+    const fromDate = new Date(validFrom);
+    const untilDate = new Date(validUntil);
+
+    if (fromDate > untilDate) {
+      return { dateRange: true };
+    }
+  }
+
+  return null;
+}
+
+@Component({
+  selector: 'vex-discounts-create-update',
+  templateUrl: './discounts-create-update.component.html',
+  styleUrls: ['./discounts-create-update.component.scss'],
+  animations: [fadeInUp400ms, stagger20ms]
+})
+export class DiscountsCreateUpdateComponent implements OnInit {
+
+  mode: 'create' | 'update' = 'create';
+
+  defaults: any = {
+    code: null,
+    name: null,
+    description: null,
+    discount_type: 'percentage',
+    discount_value: null,
+    min_booking_amount: null,
+    max_discount_amount: null,
+    applicable_to: 'all',
+    course_ids: [],
+    client_ids: [],
+    valid_from: null,
+    valid_until: null,
+    max_uses: null,
+    max_uses_per_client: null,
+    current_uses: 0,
+    is_active: true,
+    school_id: null,
+  };
+
+  user: any;
+  loading: boolean = true;
+  form: UntypedFormGroup;
+  id: any = null;
+
+  // Autocomplete for courses
+  courseCtrl = new FormControl('');
+  filteredCourses: Observable<any[]>;
+  selectedCourses: any[] = [];
+  allCourses: any[] = [];
+
+  // Autocomplete for clients
+  clientCtrl = new FormControl('');
+  filteredClients: Observable<any[]>;
+  selectedClients: any[] = [];
+  allClients: any[] = [];
+
+  // Chip separators
+  readonly separatorKeysCodes: number[] = [ENTER, COMMA];
+
+  @ViewChild('courseInput') courseInput: ElementRef<HTMLInputElement>;
+  @ViewChild('clientInput') clientInput: ElementRef<HTMLInputElement>;
+
+  constructor(
+    private fb: UntypedFormBuilder,
+    private crudService: ApiCrudService,
+    private translateService: TranslateService,
+    private snackbar: MatSnackBar,
+    public dialogRef: MatDialogRef<DiscountsCreateUpdateComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: any
+  ) {
+    this.user = JSON.parse(localStorage.getItem('boukiiUser'));
+
+    // Set mode and id from dialog data
+    this.mode = data?.mode || 'create';
+    this.id = data?.id || null;
+
+    this.form = this.fb.group({
+      code: [null, Validators.required],
+      name: [null, Validators.required],
+      description: [null],
+      discount_type: ['percentage', Validators.required],
+      discount_value: [null, [Validators.required, discountValueValidator]],
+      min_booking_amount: [null],
+      max_discount_amount: [null],
+      applicable_to: ['all', Validators.required],
+      valid_from: [null],
+      valid_until: [null, [dateRangeValidator]],
+      max_uses: [null],
+      max_uses_per_client: [null],
+      is_active: [true],
+    });
+
+    // Re-validate discount_value when discount_type changes
+    this.form.get('discount_type')?.valueChanges.subscribe(() => {
+      this.form.get('discount_value')?.updateValueAndValidity();
+    });
+
+    // Re-validate valid_until when valid_from changes
+    this.form.get('valid_from')?.valueChanges.subscribe(() => {
+      this.form.get('valid_until')?.updateValueAndValidity();
+    });
+
+    // Initialize filtered courses
+    this.filteredCourses = this.courseCtrl.valueChanges.pipe(
+      startWith(''),
+      debounceTime(300),
+      switchMap(value => {
+        if (typeof value === 'string') {
+          return this.filterCourses(value);
+        }
+        return of([]);
+      })
+    );
+
+    // Initialize filtered clients
+    this.filteredClients = this.clientCtrl.valueChanges.pipe(
+      startWith(''),
+      debounceTime(300),
+      switchMap(value => {
+        if (typeof value === 'string') {
+          return this.filterClients(value);
+        }
+        return of([]);
+      })
+    );
+  }
+
+  ngOnInit() {
+    // Load courses and clients
+    this.loadCourses();
+    this.loadClients();
+
+    if (this.mode === 'update' && this.id) {
+      this.getDiscountCode();
+    } else {
+      this.loading = false;
+    }
+  }
+
+  loadCourses() {
+    this.crudService.getAll('/courses')
+      .subscribe({
+        next: (res: any) => {
+          this.allCourses = res.data || [];
+        },
+        error: (err) => {
+          console.error('Error loading courses:', err);
+          this.allCourses = [];
+        }
+      });
+  }
+
+  loadClients() {
+    this.crudService.getAll('/clients')
+      .subscribe({
+        next: (res: any) => {
+          this.allClients = res.data || [];
+        },
+        error: (err) => {
+          console.error('Error loading clients:', err);
+          this.allClients = [];
+        }
+      });
+  }
+
+  filterCourses(value: string): Observable<any[]> {
+    const filterValue = value.toLowerCase();
+    const filtered = this.allCourses.filter(course =>
+      !this.selectedCourses.find(sc => sc.id === course.id) &&
+      (course.name?.toLowerCase().includes(filterValue) ||
+       course.code?.toLowerCase().includes(filterValue))
+    );
+    return of(filtered);
+  }
+
+  filterClients(value: string): Observable<any[]> {
+    const filterValue = value.toLowerCase();
+    const filtered = this.allClients.filter(client =>
+      !this.selectedClients.find(sc => sc.id === client.id) &&
+      ((client.first_name?.toLowerCase() + ' ' + client.last_name?.toLowerCase()).includes(filterValue) ||
+       client.email?.toLowerCase().includes(filterValue))
+    );
+    return of(filtered);
+  }
+
+  selectedCourse(event: MatAutocompleteSelectedEvent): void {
+    const course = event.option.value;
+    this.selectedCourses.push(course);
+    this.courseInput.nativeElement.value = '';
+    this.courseCtrl.setValue('');
+  }
+
+  removeCourse(course: any): void {
+    const index = this.selectedCourses.findIndex(c => c.id === course.id);
+    if (index >= 0) {
+      this.selectedCourses.splice(index, 1);
+    }
+  }
+
+  selectedClient(event: MatAutocompleteSelectedEvent): void {
+    const client = event.option.value;
+    this.selectedClients.push(client);
+    this.clientInput.nativeElement.value = '';
+    this.clientCtrl.setValue('');
+  }
+
+  removeClient(client: any): void {
+    const index = this.selectedClients.findIndex(c => c.id === client.id);
+    if (index >= 0) {
+      this.selectedClients.splice(index, 1);
+    }
+  }
+
+  displayCourseFn(course: any): string {
+    return course ? (course.name || course.code || '') : '';
+  }
+
+  displayClientFn(client: any): string {
+    return client ? `${client.first_name || ''} ${client.last_name || ''}`.trim() : '';
+  }
+
+  save() {
+    if (this.form.invalid) {
+      this.snackbar.open(this.translateService.instant('error.form_invalid'), 'OK', { duration: 3000 });
+      return;
+    }
+
+    // Validate applicable_to selections
+    if (this.form.value.applicable_to === 'specific_courses' && this.selectedCourses.length === 0) {
+      this.snackbar.open(this.translateService.instant('error.select_at_least_one_course'), 'OK', { duration: 3000 });
+      return;
+    }
+
+    if (this.form.value.applicable_to === 'specific_clients' && this.selectedClients.length === 0) {
+      this.snackbar.open(this.translateService.instant('error.select_at_least_one_client'), 'OK', { duration: 3000 });
+      return;
+    }
+
+    if (this.mode === 'create') {
+      this.create();
+    } else if (this.mode === 'update') {
+      this.update();
+    }
+  }
+
+  create() {
+    const data = {
+      code: this.form.value.code,
+      name: this.form.value.name,
+      description: this.form.value.description,
+      discount_type: this.form.value.discount_type,
+      discount_value: this.form.value.discount_value,
+      min_booking_amount: this.form.value.min_booking_amount,
+      max_discount_amount: this.form.value.max_discount_amount,
+      applicable_to: this.form.value.applicable_to,
+      course_ids: this.selectedCourses.map(c => c.id),
+      client_ids: this.selectedClients.map(c => c.id),
+      valid_from: this.form.value.valid_from,
+      valid_until: this.form.value.valid_until,
+      max_uses: this.form.value.max_uses,
+      max_uses_per_client: this.form.value.max_uses_per_client,
+      is_active: this.form.value.is_active,
+      school_id: this.user.schools[0].id
+    };
+
+    this.crudService.create('/discount-codes', data)
+      .subscribe({
+        next: (res) => {
+          this.snackbar.open(this.translateService.instant('snackbar.discount.create'), 'OK', { duration: 3000 });
+          this.dialogRef.close(res);
+        },
+        error: (err) => {
+          console.error('Error creating discount code:', err);
+          const errorMsg = err?.error?.message || this.translateService.instant('error.create_failed');
+          this.snackbar.open(errorMsg, 'OK', { duration: 5000 });
+        }
+      });
+  }
+
+  update() {
+    const data = {
+      code: this.form.value.code,
+      name: this.form.value.name,
+      description: this.form.value.description,
+      discount_type: this.form.value.discount_type,
+      discount_value: this.form.value.discount_value,
+      min_booking_amount: this.form.value.min_booking_amount,
+      max_discount_amount: this.form.value.max_discount_amount,
+      applicable_to: this.form.value.applicable_to,
+      course_ids: this.selectedCourses.map(c => c.id),
+      client_ids: this.selectedClients.map(c => c.id),
+      valid_from: this.form.value.valid_from,
+      valid_until: this.form.value.valid_until,
+      max_uses: this.form.value.max_uses,
+      max_uses_per_client: this.form.value.max_uses_per_client,
+      is_active: this.form.value.is_active,
+      school_id: this.user.schools[0].id
+    };
+
+    this.crudService.update('/discount-codes', data, this.id)
+      .subscribe({
+        next: (res) => {
+          this.snackbar.open(this.translateService.instant('snackbar.discount.update'), 'OK', { duration: 3000 });
+          this.dialogRef.close(res);
+        },
+        error: (err) => {
+          console.error('Error updating discount code:', err);
+          const errorMsg = err?.error?.message || this.translateService.instant('error.update_failed');
+          this.snackbar.open(errorMsg, 'OK', { duration: 5000 });
+        }
+      });
+  }
+
+  generateRandomCode() {
+    this.form.patchValue({
+      code: "DISC-" + this.generateRandomNumber()
+    });
+  }
+
+  getDiscountCode() {
+    this.crudService.get('/discount-codes/' + this.id, ['courses', 'clients'])
+      .subscribe({
+        next: (data: any) => {
+          this.defaults = data.data;
+
+          // Populate form
+          this.form.patchValue({
+            code: this.defaults.code,
+            name: this.defaults.name,
+            description: this.defaults.description,
+            discount_type: this.defaults.discount_type,
+            discount_value: this.defaults.discount_value,
+            min_booking_amount: this.defaults.min_booking_amount,
+            max_discount_amount: this.defaults.max_discount_amount,
+            applicable_to: this.defaults.applicable_to,
+            valid_from: this.defaults.valid_from,
+            valid_until: this.defaults.valid_until,
+            max_uses: this.defaults.max_uses,
+            max_uses_per_client: this.defaults.max_uses_per_client,
+            is_active: this.defaults.is_active,
+          });
+
+          // Populate selected courses and clients
+          if (this.defaults.courses && Array.isArray(this.defaults.courses)) {
+            this.selectedCourses = this.defaults.courses;
+          }
+          if (this.defaults.clients && Array.isArray(this.defaults.clients)) {
+            this.selectedClients = this.defaults.clients;
+          }
+
+          this.loading = false;
+        },
+        error: (err) => {
+          console.error('Error loading discount code:', err);
+          this.snackbar.open(this.translateService.instant('error.load_failed'), 'OK', { duration: 3000 });
+          this.loading = false;
+        }
+      });
+  }
+
+  generateRandomNumber() {
+    const min = 10000000;
+    const max = 99999999;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  close() {
+    this.dialogRef.close();
+  }
+
+  // Helper method to check if applicable_to requires course selection
+  get showCourseSelection(): boolean {
+    return this.form.get('applicable_to')?.value === 'specific_courses';
+  }
+
+  // Helper method to check if applicable_to requires client selection
+  get showClientSelection(): boolean {
+    return this.form.get('applicable_to')?.value === 'specific_clients';
+  }
+
+  // Helper to get error message for discount value
+  getDiscountValueError(): string {
+    const control = this.form.get('discount_value');
+    if (control?.hasError('required')) {
+      return this.translateService.instant('error.required');
+    }
+    if (control?.hasError('percentageRange')) {
+      return this.translateService.instant('error.percentage_range');
+    }
+    if (control?.hasError('minValue')) {
+      return this.translateService.instant('error.min_value');
+    }
+    return '';
+  }
+
+  // Helper to get error message for date range
+  getDateRangeError(): string {
+    const control = this.form.get('valid_until');
+    if (control?.hasError('dateRange')) {
+      return this.translateService.instant('error.date_range');
+    }
+    return '';
+  }
+}
+

@@ -37,3 +37,59 @@
 .opaque-box p:last-child {
   margin-bottom: 0; /* Elimina el espacio extra en el último párrafo */
 }
+
+// Template Selector Styles
+.template-selector {
+  .template-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    border: 2px solid #E0E0E0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #FAFAFA;
+    min-height: 100px;
+
+    &:hover {
+      border-color: #9C27B0;
+      background-color: #F3E5F5;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(156, 39, 176, 0.15);
+    }
+
+    &.selected {
+      border-color: #9C27B0;
+      background-color: #F3E5F5;
+      box-shadow: 0 4px 12px rgba(156, 39, 176, 0.2);
+
+      mat-icon {
+        color: #9C27B0;
+      }
+
+      .template-name {
+        color: #9C27B0;
+        font-weight: 600;
+      }
+    }
+
+    mat-icon {
+      font-size: 36px;
+      width: 36px;
+      height: 36px;
+      margin-bottom: 8px;
+      color: #757575;
+      transition: color 0.3s ease;
+    }
+
+    .template-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #616161;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+  }
+}

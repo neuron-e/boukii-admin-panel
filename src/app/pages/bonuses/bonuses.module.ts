@@ -20,9 +20,25 @@ import { BonusesComponent } from './bonuses.component';
 import { BonusesRoutingModule } from './bonuses-routing.module';
 import { BonusesCreateUpdateComponent } from './bonuses-create-update/bonuses-create-update.component';
 import { BonusesCreateUpdateModule } from './bonuses-create-update/bonuses-create-update.module';
+import { TransferVoucherDialogComponent } from './transfer-voucher-dialog/transfer-voucher-dialog.component';
+import { ReactiveFormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatCardModule } from '@angular/material/card';
+import { MatMenuModule } from '@angular/material/menu';
+import { TranslateModule } from '@ngx-translate/core';
+import { DiscountsCreateUpdateModule } from '../discounts/discounts-create-update/discounts-create-update.module';
 
 @NgModule({
-  declarations: [BonusesComponent],
+  declarations: [
+    BonusesComponent,
+    TransferVoucherDialogComponent
+  ],
   imports: [
     CommonModule,
     LayoutModule,
@@ -40,11 +56,23 @@ import { BonusesCreateUpdateModule } from './bonuses-create-update/bonuses-creat
     WidgetAssistantModule,
     WidgetLargeChartModule,
     WidgetTableModule,
-    //LanguageCreateUpdateModule,
     MatDialogModule,
     ComponentsModule,
-    BonusesCreateUpdateModule
+    BonusesCreateUpdateModule,
+    DiscountsCreateUpdateModule,
+    ReactiveFormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatAutocompleteModule,
+    MatProgressSpinnerModule,
+    MatDividerModule,
+    MatTabsModule,
+    MatCardModule,
+    MatMenuModule,
+    TranslateModule
   ]
 })
 export class BonusesModule {
 }
+

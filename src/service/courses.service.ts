@@ -265,6 +265,7 @@ export class CoursesService {
       id: [null, Validators.required],
       sport_id: [null, Validators.required],
       is_flexible: [false, Validators.required],
+      use_interval_groups: [false],
       intervals_config_mode: ['unified', Validators.required],
       created_at: [new Date()],
       user: [this.user.username + " (" + this.user.first_name + " " + this.user.last_name + ")"],

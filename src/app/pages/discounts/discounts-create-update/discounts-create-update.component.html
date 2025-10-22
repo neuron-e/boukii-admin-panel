@@ -1,73 +1,302 @@
-<vex-secondary-toolbar current="{{'bonus' | translate}}">
-  <vex-breadcrumbs
-    [crumbs]=" [{icon: 'bonos-2', text: ''}, {text: mode === 'create' ? 'bonus.new_bonus' : 'bonus.edit_bonus', icon: ''}]"
-    class="flex-auto"
-  ></vex-breadcrumbs>
-</vex-secondary-toolbar>
-<div
-  [@stagger]="true"
-  class="p-gutter container"
-  style="max-width: none"
-  *ngIf="!loading"
->
-  <div class="flex flex-col sm:flex-row gap-4">
-    <div @fadeInUp class="card flex-auto">
-      <div class="px-6 py-4 border-b flex items-center">
-        <h2 class="title m-0">{{(mode === 'create' ? 'bonus.new_bonus' : 'bonus.edit_bonus') | translate}}</h2>
-      </div>
-      <div class="px-6 py-4 flex flex-col" [formGroup]="form">
-
-        <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-
-          <mat-form-field appearance="outline" class="flex-auto" style="width: 80%;" [ngStyle]="{'width': mode === 'create' ? '80%' : '100%'}">
-            <mat-label>{{'bonus.code' |translate}}</mat-label>
-            <input formControlName="code" [(ngModel)]="defaults.code" matInput required [readonly]="mode === 'update'">
-          </mat-form-field>
-
-          <div class="flex-auto" *ngIf="mode === 'create'" style="width: 20%;">
-            <button mat-raised-button color="accent" style="color: #fff;background: #f53d7c;padding: 1%;width: 100%; border-radius: 0; margin: 3% 0 0 0;" (click)="generateRandomCode()">{{'bonus.generate' | translate}}</button>
-          </div>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-          <mat-form-field appearance="outline" class="flex-auto">
-            <mat-label>{{'quantity' | translate}}</mat-label>
-            <input formControlName="quantity" [(ngModel)]="defaults.quantity" matInput [readonly]="defaults.percentage">
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="flex-auto">
-            <mat-label>{{'bookings_page.reductions.percentaje' | translate}}</mat-label>
-            <input formControlName="percentage" matInput [value]="defaults.percentage" [(ngModel)]="defaults.percentage" [readonly]="defaults.quantity">
-          </mat-form-field>
-
-        </div>
-        <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-          <mat-form-field appearance="outline" class="flex-auto">
-            <mat-label>{{'total' | translate}}</mat-label>
-            <input formControlName="total" matInput [value]="defaults.total" [(ngModel)]="defaults.total">
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="flex-auto" *ngIf="mode=='update'">
-            <mat-label>{{'remaining_balance' | translate}}</mat-label>
-            <input formControlName="remaining" matInput [value]="defaults.remaining" [(ngModel)]="defaults.remaining">
-          </mat-form-field>
-        </div>
-        <div class="flex items-center justify-end gap-2">
-          <button mat-button type="button" (click)="goTo('/discount-codes')">{{'cancel' | translate }}</button>
-          <!-- Added (click) event here -->
-          <button
-            color="primary"
-            mat-raised-button
-            type="button"
-            (click)="save()"
-            [disabled]="form.invalid"
-          >
-            {{'save' | translate }}
-          </button>
-        </div>
-      </div>
-
-    </div>
-
+<div *ngIf="!loading" class="px-6 py-6">
+  <div class="flex items-center justify-between mb-6">
+    <h2 mat-dialog-title class="m-0">
+      {{(mode === 'create' ? 'discount.new_discount' : 'discount.edit_discount') | translate}}
+    </h2>
+    <button mat-icon-button (click)="close()" type="button">
+      <mat-icon>close</mat-icon>
+    </button>
   </div>
 
+  <mat-dialog-content>
+    <div class="flex flex-col gap-4">
+
+      <!-- Section 1: Información Básica -->
+      <div class="card">
+        <div class="px-6 py-4 border-b flex items-center">
+          <h2 class="title m-0">1️⃣ {{'discount.code_configuration' | translate}}</h2>
+        </div>
+      <div class="px-6 py-4" [formGroup]="form">
+        <div class="flex flex-col gap-4">
+
+          <!-- Code with generate button -->
+          <div class="flex flex-col sm:flex-row gap-4">
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'discount.code' | translate}}</mat-label>
+              <input formControlName="code" matInput required [readonly]="mode === 'update'">
+              <mat-error *ngIf="form.get('code')?.hasError('required')">
+                {{'error.required' | translate}}
+              </mat-error>
+            </mat-form-field>
+
+            <button
+              *ngIf="mode === 'create'"
+              mat-raised-button
+              color="accent"
+              type="button"
+              (click)="generateRandomCode()"
+              style="height: 56px; min-width: 150px;">
+              <mat-icon>refresh</mat-icon>
+              {{'discount.generate' | translate}}
+            </button>
+          </div>
+
+          <!-- Name -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'discount.name' | translate}}</mat-label>
+            <input formControlName="name" matInput required>
+            <mat-error *ngIf="form.get('name')?.hasError('required')">
+              {{'error.required' | translate}}
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Description -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'discount.description' | translate}}</mat-label>
+            <textarea formControlName="description" matInput rows="3"></textarea>
+          </mat-form-field>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Tipo y Valor de Descuento -->
+    <div @fadeInUp class="card">
+      <div class="px-6 py-4 border-b flex items-center">
+        <h2 class="title m-0">2️⃣ {{'discount.type_and_value' | translate}}</h2>
+      </div>
+      <div class="px-6 py-4" [formGroup]="form">
+        <div class="flex flex-col gap-4">
+
+          <!-- Discount Type (Radio Buttons) -->
+          <div>
+            <label class="block text-sm font-medium mb-2">{{'discount.discount_type' | translate}}</label>
+            <mat-radio-group formControlName="discount_type" class="flex gap-4">
+              <mat-radio-button value="percentage">
+                {{'discount.percentage' | translate}}
+              </mat-radio-button>
+              <mat-radio-button value="fixed_amount">
+                {{'discount.fixed_amount' | translate}}
+              </mat-radio-button>
+            </mat-radio-group>
+          </div>
+
+          <!-- Discount Value -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>
+              {{form.get('discount_type')?.value === 'percentage' ? ('discount.percentage_value' | translate) : ('discount.amount_value' | translate)}}
+            </mat-label>
+            <input formControlName="discount_value" matInput type="number" min="0" [max]="form.get('discount_type')?.value === 'percentage' ? 100 : null" required>
+            <span matSuffix>{{form.get('discount_type')?.value === 'percentage' ? '%' : '$'}}</span>
+            <mat-error *ngIf="form.get('discount_value')?.errors">
+              {{getDiscountValueError()}}
+            </mat-error>
+            <mat-hint *ngIf="form.get('discount_type')?.value === 'percentage'">
+              {{'discount.percentage_hint' | translate}}
+            </mat-hint>
+          </mat-form-field>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Aplicabilidad y Validez -->
+    <div @fadeInUp class="card">
+      <div class="px-6 py-4 border-b flex items-center">
+        <h2 class="title m-0">3️⃣ {{'discount.applicability_and_restrictions' | translate}}</h2>
+      </div>
+      <div class="px-6 py-4" [formGroup]="form">
+        <div class="flex flex-col gap-4">
+
+          <!-- Applicable To -->
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{'discount.applicable_to' | translate}}</mat-label>
+            <mat-select formControlName="applicable_to" required>
+              <mat-option value="all">{{'discount.all_courses_clients' | translate}}</mat-option>
+              <mat-option value="specific_courses">{{'discount.specific_courses' | translate}}</mat-option>
+              <mat-option value="specific_clients">{{'discount.specific_clients' | translate}}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Course Selection (Autocomplete with Chips) -->
+          <div *ngIf="showCourseSelection">
+            <label class="block text-sm font-medium mb-2">{{'discount.select_courses' | translate}}</label>
+
+            <!-- Selected Courses Chips -->
+            <mat-chip-set *ngIf="selectedCourses.length > 0" class="mb-2">
+              <mat-chip
+                *ngFor="let course of selectedCourses"
+                [removable]="true"
+                (removed)="removeCourse(course)">
+                {{course.name || course.code}}
+                <button matChipRemove><mat-icon>cancel</mat-icon></button>
+              </mat-chip>
+            </mat-chip-set>
+
+            <!-- Autocomplete Input -->
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>{{'discount.search_courses' | translate}}</mat-label>
+              <input
+                matInput
+                [formControl]="courseCtrl"
+                [matAutocomplete]="autoCourse"
+                #courseInput>
+              <mat-autocomplete
+                #autoCourse="matAutocomplete"
+                [displayWith]="displayCourseFn"
+                (optionSelected)="selectedCourse($event)">
+                <mat-option *ngFor="let course of filteredCourses$ | async" [value]="course">
+                  {{course.name || course.code}}
+                </mat-option>
+              </mat-autocomplete>
+            </mat-form-field>
+          </div>
+
+          <!-- Client Selection (Autocomplete with Chips) -->
+          <div *ngIf="showClientSelection">
+            <label class="block text-sm font-medium mb-2">{{'discount.select_clients' | translate}}</label>
+
+            <!-- Selected Clients Chips -->
+            <mat-chip-set *ngIf="selectedClients.length > 0" class="mb-2">
+              <mat-chip
+                *ngFor="let client of selectedClients"
+                [removable]="true"
+                (removed)="removeClient(client)">
+                {{client.first_name}} {{client.last_name}}
+                <button matChipRemove><mat-icon>cancel</mat-icon></button>
+              </mat-chip>
+            </mat-chip-set>
+
+            <!-- Autocomplete Input -->
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>{{'discount.search_clients' | translate}}</mat-label>
+              <input
+                matInput
+                [formControl]="clientCtrl"
+                [matAutocomplete]="autoClient"
+                #clientInput>
+              <mat-autocomplete
+                #autoClient="matAutocomplete"
+                [displayWith]="displayClientFn"
+                (optionSelected)="selectedClient($event)">
+                <mat-option *ngFor="let client of filteredClients$ | async" [value]="client">
+                  {{client.first_name}} {{client.last_name}} ({{client.email}})
+                </mat-option>
+              </mat-autocomplete>
+            </mat-form-field>
+          </div>
+
+          <!-- Min Booking Amount and Max Discount Amount -->
+          <div class="flex flex-col sm:flex-row gap-4">
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'discount.min_booking_amount' | translate}}</mat-label>
+              <input formControlName="min_booking_amount" matInput type="number" min="0">
+              <span matPrefix>$ </span>
+              <mat-hint>{{'discount.min_booking_hint' | translate}}</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'discount.max_discount_amount' | translate}}</mat-label>
+              <input formControlName="max_discount_amount" matInput type="number" min="0">
+              <span matPrefix>$ </span>
+              <mat-hint>{{'discount.max_discount_hint' | translate}}</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <!-- Date Range -->
+          <div class="flex flex-col sm:flex-row gap-4">
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'discount.valid_from' | translate}}</mat-label>
+              <input formControlName="valid_from" matInput [matDatepicker]="pickerFrom">
+              <mat-datepicker-toggle matSuffix [for]="pickerFrom"></mat-datepicker-toggle>
+              <mat-datepicker #pickerFrom></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'discount.valid_until' | translate}}</mat-label>
+              <input formControlName="valid_until" matInput [matDatepicker]="pickerUntil">
+              <mat-datepicker-toggle matSuffix [for]="pickerUntil"></mat-datepicker-toggle>
+              <mat-datepicker #pickerUntil></mat-datepicker>
+              <mat-error *ngIf="form.get('valid_until')?.hasError('dateRange')">
+                {{getDateRangeError()}}
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Configuración Adicional -->
+    <div @fadeInUp class="card">
+      <div class="px-6 py-4 border-b flex items-center">
+        <h2 class="title m-0">4️⃣ {{'discount.additional_options' | translate}}</h2>
+      </div>
+      <div class="px-6 py-4" [formGroup]="form">
+        <div class="flex flex-col gap-4">
+
+          <!-- Max Uses and Max Uses Per Client -->
+          <div class="flex flex-col sm:flex-row gap-4">
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'discount.max_uses' | translate}}</mat-label>
+              <input formControlName="max_uses" matInput type="number" min="0">
+              <mat-hint>{{'discount.max_uses_hint' | translate}}</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'discount.max_uses_per_client' | translate}}</mat-label>
+              <input formControlName="max_uses_per_client" matInput type="number" min="0">
+              <mat-hint>{{'discount.max_uses_per_client_hint' | translate}}</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <!-- Current Uses (Read-only in update mode) -->
+          <mat-form-field appearance="outline" class="w-full" *ngIf="mode === 'update'">
+            <mat-label>{{'discount.current_uses' | translate}}</mat-label>
+            <input [value]="defaults.current_uses" matInput readonly>
+            <mat-icon matSuffix>info</mat-icon>
+          </mat-form-field>
+
+          <!-- Is Stackable Checkbox -->
+          <div class="flex flex-col gap-2">
+            <mat-checkbox formControlName="is_stackable" color="primary">
+              {{'discount.is_stackable' | translate}}
+            </mat-checkbox>
+            <span class="text-xs text-gray-600 ml-6">
+              {{'discount.is_stackable_hint' | translate}}
+            </span>
+          </div>
+
+          <!-- Is Active Toggle -->
+          <div class="flex items-center gap-4">
+            <mat-slide-toggle formControlName="is_active" color="primary">
+              {{'discount.is_active' | translate}}
+            </mat-slide-toggle>
+            <span class="text-sm text-secondary">
+              {{form.get('is_active')?.value ? ('discount.active_status' | translate) : ('discount.inactive_status' | translate)}}
+            </span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="px-6 py-4">
+    <button mat-button type="button" (click)="close()">
+      {{'cancel' | translate}}
+    </button>
+    <button
+      color="primary"
+      mat-raised-button
+      type="button"
+      (click)="save()"
+      [disabled]="form.invalid">
+      <mat-icon>save</mat-icon>
+      {{'save' | translate}}
+    </button>
+  </mat-dialog-actions>
 </div>
+

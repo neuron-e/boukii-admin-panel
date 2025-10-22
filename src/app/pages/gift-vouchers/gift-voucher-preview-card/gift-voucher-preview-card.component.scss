@@ -1,0 +1,24 @@
+.gift-voucher-card {
+  transition: all 0.3s ease;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  mat-icon {
+    display: inline-flex;
+  }
+
+  mat-divider {
+    width: 100%;
+  }
+}
+
+.space-y-3 > * + * {
+  margin-top: 0.75rem;
+}

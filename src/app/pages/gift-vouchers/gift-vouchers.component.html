@@ -1,0 +1,18 @@
+<vex-page-layout>
+
+  <vex-secondary-toolbar current="">
+    <vex-breadcrumbs [crumbs]="[
+    {icon:'card_giftcard'},
+    {text:'gift_vouchers', title: true},
+    {text:'list', subtitle: true},
+    ]" class="flex"></vex-breadcrumbs>
+  </vex-secondary-toolbar>
+
+  <vex-page-layout-content class="-mt-6 fullwidth">
+    <vex-aio-table [columns]="columns" [entity]="entity" [deleteEntity]="deleteEntity" [title]="'gift_vouchers'"
+                   [route]="'gift-vouchers'" [createComponent]="createComponent" [canDelete]="true"
+                   [canDeactivate]="false" [sectionIcon]="icon"
+                   [with]="['purchasedByClient']"
+                   [createOnModal]="true" [widthModal]="'800px'" [heigthModal]="'90vh'"></vex-aio-table>
+  </vex-page-layout-content>
+</vex-page-layout>
