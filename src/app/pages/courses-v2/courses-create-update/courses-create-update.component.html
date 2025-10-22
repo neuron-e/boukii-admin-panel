@@ -252,7 +252,7 @@
         <!-- Contenedor de intervalos (siempre visible) -->
         <div>
           <!-- Lista de intervalos -->
-          <div *ngFor="let interval of getDisplayIntervals(); let i = index">
+          <div *ngFor="let interval of getDisplayIntervals(); let i = index; trackBy: trackInterval">
             <div *ngIf="useMultipleIntervals"
               style="width: 100%; background-color: var(--color-grey4); height: 60px; border-top: 1px solid #C7D0D3; padding: 0 24px; align-content: space-evenly; display: flex; justify-content: space-between; align-items: center;">
               <span>
@@ -278,6 +278,7 @@
                   <label style="display: block; font-size: 12px; color: #6c757d; margin-bottom: 4px;">{{ 'start_date' | translate }}</label>
                   <input type="date"
                          [(ngModel)]="interval.startDate"
+                         (ngModelChange)="onIntervalStartDateChange(i, $event)"
                          style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;">
                 </div>
                 <div style="flex: 1;">
@@ -285,6 +286,7 @@
                   <input type="date"
                          [(ngModel)]="interval.endDate"
                          [min]="interval.startDate"
+                         (ngModelChange)="onIntervalEndDateChange(i, $event)"
                          style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;">
                 </div>
               </div>
@@ -323,7 +325,8 @@
 
               <!-- Opciones específicas del intervalo -->
               <div style="display: flex; flex-direction: column; gap: 8px;">
-                <mat-checkbox [(ngModel)]="interval.mustBeConsecutive" [ngModelOptions]="{standalone: true}">
+                <mat-checkbox [(ngModel)]="interval.mustBeConsecutive" [ngModelOptions]="{standalone: true}"
+                              (change)="handleIntervalDateRangeChange(i)">
                   <span style="font-size: 13px; font-weight: 500;">{{ 'dates_must_be_consecutive' | translate }}</span>
                 </mat-checkbox>
 
@@ -829,7 +832,7 @@
                          multi
                          displayMode="flat"
                          style="margin-top: 16px;">
-            <mat-expansion-panel *ngFor="let interval of intervals; let i = index"
+            <mat-expansion-panel *ngFor="let interval of intervals; let i = index; trackBy: trackInterval"
                                  (opened)="onIntervalPanelOpened(i)"
                                  [expanded]="selectedIntervalIndexForGroups === i">
               <mat-expansion-panel-header>
@@ -852,7 +855,7 @@
 
               <div *ngIf="intervalGroups[i]"
                    style="display: flex; flex-direction: column; gap: 12px;">
-                <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []); index as levelIndex">
+                <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []); index as levelIndex; trackBy: trackLevel">
                   <div *ngIf="level.active && intervalGroups[i][level.id]"
                        style="padding: 16px; border: 1px solid #dee2e6; border-radius: 6px; background-color: #f8f9fa;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
@@ -878,6 +881,7 @@
                         </label>
                         <input type="number"
                                [(ngModel)]="intervalGroups[i][level.id].max_participants"
+                               (ngModelChange)="onIntervalGroupConfigChange(i)"
                                min="0"
                                style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;">
                       </div>
@@ -889,10 +893,11 @@
                       <h6 style="margin: 0 0 8px 0; font-size: 12px; color: #6c757d; font-weight: 600;">
                         {{ 'subgroups' | translate }}
                       </h6>
-                      <div *ngFor="let subgroup of intervalGroups[i][level.id].subgroups; let j = index"
+                      <div *ngFor="let subgroup of intervalGroups[i][level.id].subgroups; let j = index; trackBy: trackIntervalSubgroup"
                            style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px; padding: 8px; background-color: white; border-radius: 4px;">
                         <mat-checkbox [(ngModel)]="subgroup.active"
                                      color="primary"
+                                     (change)="onIntervalGroupConfigChange(i)"
                                      style="flex-shrink: 0;">
                         </mat-checkbox>
                         <span style="flex: 1; font-size: 12px; color: #495057;">
@@ -901,6 +906,7 @@
                         <div style="flex: 1;">
                           <input type="number"
                                  [(ngModel)]="subgroup.max_participants"
+                                 (ngModelChange)="onIntervalGroupConfigChange(i)"
                                  [disabled]="!subgroup.active"
                                  min="0"
                                  placeholder="{{ 'max_pax' | translate }}"
@@ -924,7 +930,7 @@
 
         <div class="level"
              style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
-          <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i">
+          <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
             <div style="display: flex;gap: 16px;align-items: center;">
               <mat-checkbox [disabled]="mode==='update'&&level.active"
                             [style.backgroundColor]="level.active?level.color:level.color+'33'"
