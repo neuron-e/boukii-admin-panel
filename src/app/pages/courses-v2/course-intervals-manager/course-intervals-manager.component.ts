@@ -5,6 +5,13 @@ import { CourseIntervalsService } from '../../../../service/course-intervals.ser
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
+interface IntervalDiscountForm {
+  id?: number;
+  days: number;
+  type: 'percentage' | 'fixed';
+  value: number;
+}
+
 @Component({
   selector: 'vex-course-intervals-manager',
   templateUrl: './course-intervals-manager.component.html',
@@ -23,6 +30,10 @@ export class CourseIntervalsManagerComponent implements OnInit {
   editingIntervalId: number | null = null;
   showForm: boolean = false;
   loading: boolean = false;
+  selectedIntervalForDiscounts: CourseInterval | null = null;
+  intervalDiscounts: IntervalDiscountForm[] = [];
+  discountsLoading = false;
+  discountsSaving = false;
 
   // Days of week for weekly pattern
   weekDays = [
@@ -83,7 +94,8 @@ export class CourseIntervalsManagerComponent implements OnInit {
     this.loading = true;
     this.intervalsService.getIntervalsByCourse(this.courseId).subscribe({
       next: (response) => {
-        this.intervals = response.data || [];
+        const data = Array.isArray(response?.data) ? response.data : [];
+        this.intervals = data.map(interval => this.normalizeInterval(interval));
         this.intervalsChanged.emit(this.intervals);
         this.loading = false;
       },
@@ -93,6 +105,22 @@ export class CourseIntervalsManagerComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  private normalizeInterval(interval: any): CourseInterval {
+    const normalized: CourseInterval = {
+      ...interval,
+      discounts: Array.isArray(interval?.discounts)
+        ? interval.discounts.map((discount: any) => ({
+            id: discount?.id,
+            days: Number(discount?.days ?? discount?.min_days ?? 0) || 1,
+            type: discount?.type === 'fixed_amount' ? 'fixed' : (discount?.type ?? 'percentage'),
+            value: Number(discount?.value ?? discount?.discount_value ?? 0) || 0
+          }))
+        : []
+    };
+
+    return normalized;
   }
 
   onConfigModeChange(mode: 'inherit' | 'custom'): void {
@@ -275,6 +303,145 @@ export class CourseIntervalsManagerComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  openDiscountsEditor(interval: CourseInterval): void {
+    if (!interval?.id) {
+      return;
+    }
+
+    this.selectedIntervalForDiscounts = interval;
+    this.discountsLoading = true;
+    this.discountsSaving = false;
+    this.intervalDiscounts = [];
+
+    this.intervalsService.getIntervalDiscounts(interval.id).subscribe({
+      next: (response) => {
+        const discounts = Array.isArray(response?.data) ? response.data : [];
+        if (discounts.length > 0) {
+          this.intervalDiscounts = discounts.map((discount: any) => this.normalizeIntervalDiscount(discount));
+        } else {
+          this.intervalDiscounts = [this.createDefaultDiscountRow()];
+        }
+        this.sortIntervalDiscounts();
+        this.discountsLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading interval discounts:', error);
+        this.snackBar.open('Error al cargar los descuentos del intervalo', 'Cerrar', { duration: 3000 });
+        this.intervalDiscounts = [this.createDefaultDiscountRow()];
+        this.discountsLoading = false;
+      }
+    });
+  }
+
+  closeDiscountsEditor(): void {
+    this.selectedIntervalForDiscounts = null;
+    this.intervalDiscounts = [];
+    this.discountsLoading = false;
+    this.discountsSaving = false;
+  }
+
+  addDiscountRow(): void {
+    this.intervalDiscounts.push(this.createDefaultDiscountRow(this.getNextDiscountDay()));
+    this.sortIntervalDiscounts();
+  }
+
+  removeDiscountRow(index: number): void {
+    if (index < 0 || index >= this.intervalDiscounts.length) {
+      return;
+    }
+    this.intervalDiscounts.splice(index, 1);
+  }
+
+  saveIntervalDiscounts(): void {
+    if (!this.selectedIntervalForDiscounts?.id) {
+      return;
+    }
+
+    if (this.intervalDiscounts.length === 0) {
+      this.snackBar.open('Añade al menos una regla de descuento', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    const seenDays = new Set<number>();
+    for (const discount of this.intervalDiscounts) {
+      if (!discount.days || discount.days < 1) {
+        this.snackBar.open('Los días deben ser números positivos', 'Cerrar', { duration: 3000 });
+        return;
+      }
+      if (discount.value < 0) {
+        this.snackBar.open('El valor del descuento no puede ser negativo', 'Cerrar', { duration: 3000 });
+        return;
+      }
+      if (seenDays.has(discount.days)) {
+        this.snackBar.open('No puede haber más de un descuento para el mismo número de días', 'Cerrar', { duration: 4000 });
+        return;
+      }
+      seenDays.add(discount.days);
+    }
+
+    const payload = this.intervalDiscounts
+      .map(discount => ({
+        days: discount.days,
+        type: discount.type,
+        value: discount.value
+      }))
+      .sort((a, b) => a.days - b.days);
+
+    this.discountsSaving = true;
+
+    this.intervalsService.saveIntervalDiscounts(this.selectedIntervalForDiscounts.id, payload).subscribe({
+      next: () => {
+        this.selectedIntervalForDiscounts.discounts = payload.map(item => ({
+          days: item.days,
+          type: item.type,
+          value: item.value
+        }));
+        this.snackBar.open('Descuentos guardados correctamente', 'Cerrar', { duration: 3000 });
+        this.discountsSaving = false;
+      },
+      error: (error) => {
+        console.error('Error saving interval discounts:', error);
+        this.snackBar.open('No se pudieron guardar los descuentos', 'Cerrar', { duration: 3000 });
+        this.discountsSaving = false;
+      }
+    });
+  }
+
+  get hasDiscountEditor(): boolean {
+    return !!this.selectedIntervalForDiscounts;
+  }
+
+  private createDefaultDiscountRow(days: number = 2): IntervalDiscountForm {
+    return {
+      days,
+      type: 'percentage',
+      value: 10
+    };
+  }
+
+  private normalizeIntervalDiscount(discount: any): IntervalDiscountForm {
+    const rawType = discount?.type ?? discount?.discount_type;
+    const normalizedType = rawType === 'fixed' || rawType === 'fixed_amount' ? 'fixed' : 'percentage';
+
+    return {
+      id: discount?.id,
+      days: Number(discount?.days ?? discount?.min_days ?? 0) || 1,
+      type: normalizedType,
+      value: Number(discount?.value ?? discount?.discount_value ?? 0) || 0
+    };
+  }
+
+  private sortIntervalDiscounts(): void {
+    this.intervalDiscounts = [...this.intervalDiscounts].sort((a, b) => a.days - b.days);
+  }
+
+  private getNextDiscountDay(): number {
+    if (this.intervalDiscounts.length === 0) {
+      return 2;
+    }
+    return Math.max(...this.intervalDiscounts.map(discount => discount.days)) + 1;
   }
 
   drop(event: CdkDragDrop<CourseInterval[]>): void {

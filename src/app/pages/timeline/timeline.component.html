@@ -1021,6 +1021,50 @@
                                 style="float: left;width: 100%;">{{'new_monitor' |
                   translate}}</mat-card-title>
               </div>
+              <div class="monitor-bulk-controls" *ngIf="monitorAssignmentDates.length">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>{{'monitor_assignment.scope_label' | translate}}</mat-label>
+                  <mat-select [(ngModel)]="monitorAssignmentScope"
+                              (selectionChange)="onMonitorAssignmentScopeChange($event.value)">
+                    <mat-option value="single">
+                      {{'monitor_assignment.scope.single' | translate}}
+                    </mat-option>
+                    <mat-option value="from" *ngIf="monitorAssignmentDates.length > 1">
+                      {{'monitor_assignment.scope.from' | translate}}
+                    </mat-option>
+                    <mat-option value="range" *ngIf="monitorAssignmentDates.length > 1">
+                      {{'monitor_assignment.scope.range' | translate}}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <div class="bulk-date-row"
+                     *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentDates.length > 1">
+                  <mat-form-field appearance="outline" class="flex-auto">
+                    <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
+                    <mat-select [(ngModel)]="monitorAssignmentStartDate"
+                                (selectionChange)="onMonitorAssignmentStartChange($event.value)">
+                      <mat-option *ngFor="let option of monitorAssignmentDates"
+                                  [value]="option.value">
+                        {{ option.label }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="flex-auto"
+                                  *ngIf="monitorAssignmentScope === 'range'">
+                    <mat-label>{{'monitor_assignment.end_date' | translate}}</mat-label>
+                    <mat-select [(ngModel)]="monitorAssignmentEndDate"
+                                (selectionChange)="onMonitorAssignmentEndChange($event.value)">
+                      <mat-option *ngFor="let option of monitorAssignmentDates"
+                                  [value]="option.value">
+                        {{ option.label }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <div class="bulk-selection-summary" *ngIf="monitorAssignmentScope !== 'single'">
+                  {{ getSelectedAssignmentSessionCount() }} {{'days' | translate}}
+                </div>
+              </div>
               <mat-form-field appearance="outline" class="flex-auto"
                               style="width: 100%;" *ngIf="!loadingMonitors">
                 <mat-select placeholder="{{'new_monitor' | translate}}"

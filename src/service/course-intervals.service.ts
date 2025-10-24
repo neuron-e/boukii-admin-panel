@@ -65,6 +65,25 @@ export class CourseIntervalsService {
   }
 
   /**
+   * Retrieve discount rules for a specific interval.
+   */
+  getIntervalDiscounts(intervalId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/course-intervals/${intervalId}/discounts`);
+  }
+
+  /**
+   * Save discount rules for a specific interval.
+   */
+  saveIntervalDiscounts(
+    intervalId: number,
+    discounts: Array<{ days: number; type: 'percentage' | 'fixed'; value: number }>
+  ): Observable<any> {
+    return this.http.put(`${this.apiUrl}/course-intervals/${intervalId}/discounts`, {
+      discounts
+    });
+  }
+
+  /**
    * Helper: Generate default interval name
    */
   generateIntervalName(index: number, startDate?: string, endDate?: string): string {

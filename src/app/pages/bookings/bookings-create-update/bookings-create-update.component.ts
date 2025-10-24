@@ -3595,4 +3595,20 @@ export class BookingsCreateUpdateComponent implements OnInit {
   }
 
   protected readonly Math = Math;
+
+  getVoucherRemaining(bonus: any): number {
+    if (!bonus) {
+      return 0;
+    }
+
+    const explicitRemaining = parseFloat(bonus?.remaining_balance_after ?? '');
+    if (!isNaN(explicitRemaining)) {
+      return explicitRemaining;
+    }
+
+    const remaining = parseFloat(bonus?.remaining_balance ?? 0);
+    const used = parseFloat(bonus?.reducePrice ?? 0);
+    const value = remaining - used;
+    return value > 0 ? value : 0;
+  }
 }

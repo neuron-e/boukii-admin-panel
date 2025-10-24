@@ -13,6 +13,12 @@ export interface CourseInterval {
   created_at?: string;
   updated_at?: string;
   courseDates?: any[]; // Course dates related to this interval
+  discounts?: Array<{
+    id?: number;
+    days: number;
+    type: 'percentage' | 'fixed' | string;
+    value: number;
+  }>;
 }
 
 export interface WeeklyPattern {

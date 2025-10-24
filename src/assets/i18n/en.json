@@ -242,6 +242,17 @@
   "week": "Week",
   "month": "Month",
   "monitor": "Monitor",
+  "monitor_assignment": {
+    "scope_label": "Apply monitor to",
+    "scope": {
+      "single": "Only this session",
+      "interval": "For this interval",
+      "from": "From selected date onward",
+      "range": "Between two dates"
+    },
+    "start_date": "Start date",
+    "end_date": "End date"
+  },
   "birth_date": "Birthdate",
   "address": "Address",
   "username": "Username",
@@ -268,7 +279,8 @@
   "from": "From",
   "to": "Until",
   "in": "in",
-  "interval": "Kalendar Week",
+  "interval": "Week",
+  "all_intervals": "All intervals",
   "price": "Price",
   "price_per_date": "Price per date",
   "prices": "Prices",
@@ -1557,5 +1569,10 @@
   "valid_to": "Valid to",
   "remaining": "Remaining",
   "total": "Total",
-  "active": "Active"
+  "active": "Active",
+  "select_date_to_load_monitors": "Click on a date to load available monitors",
+  "configure_levels_by_interval": "Configure different levels by interval",
+  "configure_levels_by_interval_description": "Allows you to configure specific levels and subgroups for each date interval",
+  "copy_to_all_intervals": "Copy to all intervals",
+  "configuration_copied_to_all_intervals": "Configuration successfully copied to all intervals"
 }

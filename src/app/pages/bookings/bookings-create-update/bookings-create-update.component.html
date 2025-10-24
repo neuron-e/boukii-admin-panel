@@ -2266,6 +2266,11 @@
                     {{bookingsToCreate.length > 0 ?
                     bookingsToCreate[0].currency : ''}}
                   </p>
+                  <p style="float:left; width: 100%; font-size: 12px; color: #666;">
+                    {{ 'remaining_balance' | translate }}:
+                    {{ getVoucherRemaining(item.bonus) | number:'0.2-2' }}
+                    {{ bookingsToCreate.length > 0 ? bookingsToCreate[0].currency : '' }}
+                  </p>
                 </span>
               </ng-container>
             </div>

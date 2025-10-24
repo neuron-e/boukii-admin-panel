@@ -243,6 +243,17 @@
   "week": "Semana",
   "month": "Mes",
   "monitor": "Monitor",
+  "monitor_assignment": {
+    "scope_label": "Aplicar monitor a",
+    "scope": {
+      "single": "Sólo esta sesión",
+      "interval": "Para este intervalo",
+      "from": "Desde la fecha seleccionada",
+      "range": "Intervalo de fechas"
+    },
+    "start_date": "Fecha inicio",
+    "end_date": "Fecha fin"
+  },
   "birth_date": "Fecha de nacimiento",
   "address": "Dirección",
   "username": "Nombre de usuario",
@@ -269,7 +280,8 @@
   "from": "Desde",
   "to": "Hasta",
   "in": "en",
-  "interval": "Kalendar Week",
+  "interval": "Semana",
+  "all_intervals": "Todos los intervalos",
   "price": "Precio",
   "price_per_date": "Precio por fecha",
   "prices": "Precios",
@@ -1662,5 +1674,10 @@
   "Voucher transferred successfully": "Bono transferido correctamente",
   "Error creating voucher": "Error al crear bono",
   "Error updating voucher": "Error al actualizar bono",
-  "Please select a client or create as generic voucher": "Por favor seleccione un cliente o cree como bono genérico"
+  "Please select a client or create as generic voucher": "Por favor seleccione un cliente o cree como bono genérico",
+  "select_date_to_load_monitors": "Haz clic en una fecha para cargar monitores disponibles",
+  "configure_levels_by_interval": "Configurar niveles diferentes por intervalo",
+  "configure_levels_by_interval_description": "Permite configurar niveles y subgrupos específicos para cada intervalo de fechas",
+  "copy_to_all_intervals": "Copiar a todos los intervalos",
+  "configuration_copied_to_all_intervals": "Configuración copiada a todos los intervalos exitosamente"
 }

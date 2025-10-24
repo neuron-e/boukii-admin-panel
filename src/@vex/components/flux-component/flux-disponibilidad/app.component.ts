@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { ApiCrudService } from 'src/service/crud.service';
+import { MonitorsService } from 'src/service/monitors.service';
 
 @Component({
   selector: 'vex-flux-disponibilidad',
@@ -31,7 +32,10 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   displayFn = (value: any): string => value
   selectDate: number = 0
-  constructor(private crudService: ApiCrudService, private snackbar: MatSnackBar, private translateService: TranslateService) { }
+  assignmentScope: 'single' | 'interval' | 'from' | 'range' = 'single';
+  assignmentStartIndex = 0;
+  assignmentEndIndex = 0;
+  constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private snackbar: MatSnackBar, private translateService: TranslateService) { }
   getLanguages = () => this.crudService.list('/languages', 1, 1000).subscribe((data) => this.languages = data.data.reverse())
   getLanguage(id: any) {
     const lang: any = this.languages.find((c: any) => c.id == +id);
@@ -56,62 +60,216 @@ export class FluxDisponibilidadComponent implements OnInit {
   async getAvailable(data: any) {
     return await firstValueFrom(this.crudService.post('/admin/monitors/available', data))
   }
-  monitors!: any
+  monitors: any = null
+
+  private getCourseDates(): any[] {
+    return this.courseFormGroup?.controls?.['course_dates']?.value || [];
+  }
+
   selectUser: any[] = []
   async getAvail(item: any) {
     const monitor = await this.getAvailable({ date: item.date, endTime: item.hour_end, minimumDegreeId: this.level.id, sportId: this.courseFormGroup.controls['sport_id'].value, startTime: item.hour_start })
     this.monitors = monitor.data
   }
   booking_users: any
-  ngOnInit(): void {
-    console.log('=== FLUX-DISPONIBILIDAD COMPONENT DEBUG ===');
-    console.log('courseFormGroup booking_users:', this.courseFormGroup.controls['booking_users'].value);
-    console.log('course_dates:', this.courseFormGroup.controls['course_dates'].value);
+  onAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range'): void {
+    this.assignmentScope = scope;
+    const total = this.getCourseDates().length;
+    if (scope === 'single' || total <= 1) {
+      this.assignmentStartIndex = this.selectDate;
+      this.assignmentEndIndex = this.selectDate;
+      return;
+    }
+    if (scope === 'interval') {
+      // Asignar monitor a todas las fechas del intervalo actual
+      const currentIntervalIndexes = this.getIntervalDateIndexes();
+      if (currentIntervalIndexes.length > 0) {
+        this.assignmentStartIndex = currentIntervalIndexes[0];
+        this.assignmentEndIndex = currentIntervalIndexes[currentIntervalIndexes.length - 1];
+      }
+      return;
+    }
+    if (scope === 'from') {
+      this.assignmentStartIndex = this.selectDate;
+      this.assignmentEndIndex = total > 0 ? total - 1 : this.selectDate;
+      return;
+    }
+    const lastIndex = total > 0 ? total - 1 : this.selectDate;
+    this.assignmentStartIndex = this.selectDate;
+    this.assignmentEndIndex = Math.min(Math.max(this.assignmentEndIndex, this.selectDate), lastIndex);
+  }
 
-    // Check if each course_date has booking_users_active
-    this.courseFormGroup.controls['course_dates'].value.forEach((date: any, index: number) => {
-      console.log(`Date ${index} (${date.date}):`, {
-        id: date.id,
-        booking_users_active: date.booking_users_active,
-        booking_users_active_length: date.booking_users_active?.length || 0
+  onAssignmentStartIndexChange(value: number): void {
+    this.assignmentStartIndex = value;
+    if (this.assignmentScope === 'range' && this.assignmentStartIndex > this.assignmentEndIndex) {
+      this.assignmentEndIndex = value;
+    }
+  }
+
+  onAssignmentEndIndexChange(value: number): void {
+    this.assignmentEndIndex = value;
+    if (this.assignmentScope === 'range' && this.assignmentEndIndex < this.assignmentStartIndex) {
+      this.assignmentStartIndex = value;
+    }
+  }
+
+  onSelectDate(index: number, item: any): void {
+    this.selectDate = index;
+    if (this.assignmentScope === 'single') {
+      this.assignmentStartIndex = index;
+      this.assignmentEndIndex = index;
+    } else if (this.assignmentScope === 'from' && this.assignmentStartIndex > index) {
+      this.assignmentStartIndex = index;
+    }
+    this.getAvail(item);
+  }
+
+  private resolveAssignmentIndexes(selectDate: number): { startIndex: number; endIndex: number } {
+    const total = this.getCourseDates().length;
+    if (total === 0) {
+      return { startIndex: selectDate, endIndex: selectDate };
+    }
+    if (this.assignmentScope === 'single' || total === 1) {
+      return { startIndex: selectDate, endIndex: selectDate };
+    }
+    if (this.assignmentScope === 'interval') {
+      const intervalIndexes = this.getIntervalDateIndexes();
+      if (intervalIndexes.length > 0) {
+        return { startIndex: intervalIndexes[0], endIndex: intervalIndexes[intervalIndexes.length - 1] };
+      }
+      return { startIndex: selectDate, endIndex: selectDate };
+    }
+    if (this.assignmentScope === 'from') {
+      const startIdx = Math.min(Math.max(this.assignmentStartIndex, 0), total - 1);
+      return { startIndex: startIdx, endIndex: total - 1 };
+    }
+    const startIdx = Math.min(this.assignmentStartIndex, this.assignmentEndIndex);
+    const endIdx = Math.max(this.assignmentStartIndex, this.assignmentEndIndex);
+    return {
+      startIndex: Math.max(0, Math.min(startIdx, total - 1)),
+      endIndex: Math.max(0, Math.min(endIdx, total - 1))
+    };
+  }
+
+  private buildTargetIndexes(startIndex: number, endIndex: number): number[] {
+    const indexes: number[] = [];
+    for (let idx = startIndex; idx <= endIndex; idx++) {
+      indexes.push(idx);
+    }
+    return indexes;
+  }
+
+  private collectBookingUserIds(indexes: number[]): number[] {
+    const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
+    const dates = this.getCourseDates();
+    const result = new Set<number>();
+    const levelId = this.level?.id;
+
+    indexes.forEach(idx => {
+      const date = dates[idx];
+      if (!date) {
+        return;
+      }
+      const group = date?.course_groups?.find((g: any) => g.degree_id === levelId);
+      const subgroup = group?.course_subgroups?.[this.subgroup_index];
+      const subgroupId = subgroup?.id;
+      if (!subgroupId) {
+        return;
+      }
+      bookingUsers.forEach((user: any) => {
+        if (user?.course_date_id === date?.id && user?.course_subgroup_id === subgroupId && user?.id != null) {
+          result.add(user.id);
+        }
       });
     });
 
-    this.getAvail(this.courseFormGroup.controls['course_dates'].value[0])
+    return Array.from(result);
+  }
+
+  private resolveFallbackSubgroupId(index: number): number | null {
+    const date = this.getCourseDates()[index];
+    if (!date) {
+      return null;
+    }
+    const levelGroup = date?.course_groups?.find((g: any) => g.degree_id === this.level?.id);
+    const subgroup = levelGroup?.course_subgroups?.[this.subgroup_index];
+    return subgroup?.id ?? null;
+  }
+
+  getAssignmentSelectedDays(): number {
+    const { startIndex, endIndex } = this.resolveAssignmentIndexes(this.selectDate);
+    if (startIndex > endIndex) {
+      return 0;
+    }
+    return endIndex - startIndex + 1;
+  }
+
+  /**
+   * Verifica si hay múltiples intervalos configurados
+   */
+  hasMultipleIntervals(): boolean {
+    try {
+      const courseDates = this.getCourseDates();
+      if (!courseDates || courseDates.length === 0) {
+        return false;
+      }
+
+      // Obtener todos los interval_id únicos
+      const intervalIds = new Set(courseDates.map(date => date.interval_id).filter(id => id != null));
+      return intervalIds.size > 1;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Obtiene los índices de las fechas que pertenecen al intervalo de la fecha seleccionada
+   */
+  private getIntervalDateIndexes(): number[] {
+    try {
+      const courseDates = this.getCourseDates();
+      if (!courseDates || courseDates.length === 0) {
+        return [];
+      }
+
+      const selectedDate = courseDates[this.selectDate];
+      if (!selectedDate) {
+        return [];
+      }
+
+      const selectedIntervalId = selectedDate.interval_id;
+
+      // Si no hay interval_id, considerar todas las fechas del mismo horario
+      if (selectedIntervalId == null) {
+        return courseDates
+          .map((date, index) => ({ date, index }))
+          .filter(item => item.date.interval_id == null)
+          .map(item => item.index);
+      }
+
+      // Obtener todas las fechas con el mismo interval_id
+      return courseDates
+        .map((date, index) => ({ date, index }))
+        .filter(item => item.date.interval_id === selectedIntervalId || String(item.date.interval_id) === String(selectedIntervalId))
+        .map(item => item.index);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  ngOnInit(): void {
+    const totalDates = this.getCourseDates().length;
+    this.assignmentStartIndex = this.selectDate;
+    this.assignmentEndIndex = totalDates > 0 ? totalDates - 1 : this.selectDate;
+    if (totalDates <= 1) {
+      this.assignmentScope = 'single';
+    }
+
+    // NO cargar monitores disponibles automáticamente para evitar colapsar la API
+    // Los monitores se cargarán solo cuando el usuario haga clic en una fecha
     this.booking_users = this.courseFormGroup.controls['booking_users'].value.filter((user: any, index: any, self: any) =>
       index === self.findIndex((u: any) => u.client_id === user.client_id)
     );
-
-    console.log('Filtered booking_users:', this.booking_users);
-    console.log('Level ID:', this.level?.id);
-    console.log('Subgroup index:', this.subgroup_index);
-
-    // Debug the filtering logic used in the template
-    const selectedDate = this.selectDate || 0;
-    const courseDates = this.courseFormGroup.controls['course_dates'].value;
-    const selectedCourseDate = courseDates[selectedDate];
-    console.log('Selected date index:', selectedDate);
-    console.log('Selected course date:', selectedCourseDate);
-
-    const levelGroup = selectedCourseDate?.course_groups?.find((g: any) => g.degree_id === this.level?.id);
-    console.log('Level group found:', levelGroup);
-
-    const targetSubgroup = levelGroup?.course_subgroups?.[this.subgroup_index];
-    console.log('Target subgroup:', targetSubgroup);
-    console.log('Target subgroup ID:', targetSubgroup?.id);
-
-    // Check which users match the subgroup
-    const bookingUsers = this.courseFormGroup.controls['booking_users'].value || [];
-    bookingUsers.forEach((user: any, index: number) => {
-      console.log(`User ${index}:`, {
-        name: `${user.client?.first_name} ${user.client?.last_name}`,
-        course_subgroup_id: user.course_subgroup_id,
-        matches_subgroup: user.course_subgroup_id === targetSubgroup?.id,
-        degree_id: user.degree_id
-      });
-    });
-
-    console.log('====================================');
   }
 
   changeMonitor(event: any) {
@@ -163,22 +321,47 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   Date = (v: string): Date => new Date(v)
 
-  SelectMonitor(event: any, selectDate: any) {
-    if (this.find(this.courseFormGroup.controls['course_dates'].value[selectDate].course_groups, 'degree_id', this.level.id).course_subgroups[this.subgroup_index].monitor_id != event.option.value.id) {
-      this.monitorSelect.emit({ monitor: event.option.value, i: selectDate });
-      this.modified[selectDate] = Boolean(this.find(this.courseFormGroup.controls['course_dates'].value[selectDate].course_groups, 'degree_id', this.level.id).course_subgroups[this.subgroup_index].monitor_id)
-      const course_dates = this.courseFormGroup.controls['course_dates'].value
-      for (const date in course_dates) {
-        if (!this.find(course_dates[date].course_groups, 'degree_id', this.level.id).course_subgroups[this.subgroup_index].monitor_id) {
-          this.getAvailable({ date: course_dates[date].date, endTime: course_dates[date].hour_end, minimumDegreeId: this.level.id, sportId: this.courseFormGroup.controls['sport_id'].value, startTime: course_dates[date].hour_start })
-            .then((data) => {
-              if (data.data.find((a: any) => a.id === event.option.value.id)) {
-                this.monitorSelect.emit({ monitor: event.option.value, i: date });
-                this.modified[date] = true
-              }
-            }
-            )
-        }
+  async SelectMonitor(event: any, selectDate: number) {
+    const selectedMonitor = event?.option?.value ?? null;
+    const monitorId = selectedMonitor ? selectedMonitor.id : null;
+    const courseDates = this.getCourseDates();
+    const baseGroup = courseDates?.[selectDate]?.course_groups?.find((g: any) => g.degree_id === this.level?.id);
+    const baseSubgroup = baseGroup?.course_subgroups?.[this.subgroup_index];
+
+    if (baseSubgroup && baseSubgroup.monitor_id === monitorId) {
+      return;
+    }
+
+    const { startIndex, endIndex } = this.resolveAssignmentIndexes(selectDate);
+    const targetIndexes = this.buildTargetIndexes(startIndex, endIndex);
+    const bookingUserIds = this.collectBookingUserIds(targetIndexes);
+
+    let subgroupId: number | null = null;
+    if (!bookingUserIds.length && targetIndexes.length === 1) {
+      subgroupId = this.resolveFallbackSubgroupId(targetIndexes[0]);
+    }
+
+    const payload = {
+      monitor_id: monitorId,
+      booking_users: bookingUserIds,
+      subgroup_id: subgroupId
+    };
+
+    try {
+      await firstValueFrom(this.monitorsService.transferMonitor(payload));
+
+      targetIndexes.forEach(idx => {
+        this.monitorSelect.emit({ monitor: selectedMonitor, i: idx });
+        this.modified[idx] = true;
+      });
+
+      this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+    } catch (error) {
+      console.error('Error occurred while assigning monitor:', error);
+      if (error?.error?.message && error.error.message.includes('Overlap')) {
+        this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
+      } else {
+        this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
       }
     }
   }
@@ -192,13 +375,6 @@ export class FluxDisponibilidadComponent implements OnInit {
     // Usar la misma lógica que en el template: filtrar por degree_id
     const bookingUsers = this.booking_users || [];
     const studentsInSubgroup = bookingUsers.filter((user: any) => user.degree_id === this.level.id);
-
-    console.log('=== TIMING CLICK DEBUG ===');
-    console.log('Level ID:', this.level.id);
-    console.log('SubGroup:', subGroup);
-    console.log('Booking users available:', bookingUsers.length);
-    console.log('Students in subgroup (by degree_id):', studentsInSubgroup);
-    console.log('=========================');
 
     if (studentsInSubgroup.length === 0) {
       this.snackbar.open(this.translateService.instant('no_user_reserved'), 'OK', { duration: 2000 });
@@ -215,8 +391,6 @@ export class FluxDisponibilidadComponent implements OnInit {
       studentsInLevel: studentsInSubgroup  // Agregar los estudiantes encontrados
     };
 
-    console.log('Emitting viewTimes with data:', timingData);
-
     this.viewTimes.emit(timingData);
   }
 
@@ -228,17 +402,8 @@ export class FluxDisponibilidadComponent implements OnInit {
       // Use the same filtering logic as the template: filter by degree_id
       const bookingUsers = this.booking_users || [];
       const studentsInLevel = bookingUsers.filter((user: any) => user.degree_id === this.level?.id);
-
-      console.log('hasStudents() check:', {
-        level_id: this.level?.id,
-        booking_users_count: bookingUsers.length,
-        students_in_level_count: studentsInLevel.length,
-        has_students: studentsInLevel.length > 0
-      });
-
       return studentsInLevel.length > 0;
     } catch (error) {
-      console.error('hasStudents() error:', error);
       return false;
     }
   }
@@ -248,33 +413,57 @@ export class FluxDisponibilidadComponent implements OnInit {
    */
   toggleAcceptance(bookingUser: any, accepted: boolean): void {
     if (!bookingUser || !bookingUser.id) {
-      console.error('No booking user found');
       return;
     }
-
-    console.log('Toggling acceptance for booking user:', bookingUser.id, 'to:', accepted);
 
     const payload = { accepted: accepted };
 
     this.crudService.update(`admin/booking-users/${bookingUser.id}/acceptance`, payload, '')
       .subscribe({
         next: (response: any) => {
-          console.log('Acceptance updated successfully:', response);
-          
           // Actualizar el objeto local
           bookingUser.accepted = accepted;
-          
+
           // Mostrar mensaje de confirmación
-          const message = accepted ? 
-            this.translateService.instant('attendance.confirmed') : 
+          const message = accepted ?
+            this.translateService.instant('attendance.confirmed') :
             this.translateService.instant('attendance.pending');
-          
+
           this.snackbar.open(message, 'OK', { duration: 3000 });
         },
         error: (error) => {
-          console.error('Error updating acceptance:', error);
           this.snackbar.open('Error al actualizar confirmación', 'OK', { duration: 3000 });
         }
       });
+  }
+
+  /**
+   * Get student count for a specific date and subgroup
+   * Returns format like "3/8" (current students / max capacity)
+   */
+  getStudentCount(dateItem: any): string {
+    try {
+      // Find the level group for this date
+      const levelGroup = dateItem?.course_groups?.find((g: any) => g.degree_id === this.level?.id);
+      const subgroup = levelGroup?.course_subgroups?.[this.subgroup_index];
+
+      if (!subgroup) {
+        return '0/0';
+      }
+
+      // Count students in this subgroup for this date
+      // Students are in booking_users_active filtered by course_date_id and course_subgroup_id
+      const bookingUsersActive = dateItem?.booking_users_active || [];
+      const studentsInSubgroup = bookingUsersActive.filter((user: any) =>
+        user.course_subgroup_id === subgroup.id
+      );
+
+      const currentCount = studentsInSubgroup.length;
+      const maxCapacity = this.level?.max_participants || 0;
+
+      return `${currentCount}/${maxCapacity}`;
+    } catch (error) {
+      return '0/0';
+    }
   }
 }

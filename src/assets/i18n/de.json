@@ -242,6 +242,17 @@
   "week": "Woche",
   "month": "Monat",
   "monitor": "Monitor",
+  "monitor_assignment": {
+    "scope_label": "Trainer zuweisen für",
+    "scope": {
+      "single": "Nur diesen Termin",
+      "interval": "Für dieses Intervall",
+      "from": "Ab ausgewähltem Datum",
+      "range": "Zwischen zwei Daten"
+    },
+    "start_date": "Startdatum",
+    "end_date": "Enddatum"
+  },
   "birth_date": "Geburtsdatum",
   "address": "Adresse",
   "username": "Nutzername",
@@ -268,7 +279,8 @@
   "from": "Aus",
   "to": "Bis",
   "in": "In",
-  "interval": "Kalendar Week",
+  "interval": "Woche",
+  "all_intervals": "Alle Intervalle",
   "price": "Preis",
   "price_per_date": "Preis pro Datum",
   "prices": "Preise",
@@ -1559,5 +1571,10 @@
   "valid_to": "Gültig bis",
   "remaining": "Verbleibend",
   "total": "Gesamt",
-  "active": "Aktiv"
+  "active": "Aktiv",
+  "select_date_to_load_monitors": "Klicken Sie auf ein Datum, um verfügbare Trainer zu laden",
+  "configure_levels_by_interval": "Verschiedene Ebenen pro Intervall konfigurieren",
+  "configure_levels_by_interval_description": "Ermöglicht die Konfiguration spezifischer Ebenen und Untergruppen für jedes Datumsintervall",
+  "copy_to_all_intervals": "In alle Intervalle kopieren",
+  "configuration_copied_to_all_intervals": "Konfiguration erfolgreich in alle Intervalle kopiert"
 }

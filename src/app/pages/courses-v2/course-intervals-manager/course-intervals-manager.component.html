@@ -83,6 +83,32 @@
                   <mat-icon>event</mat-icon>
                   {{ interval.courseDates.length }} fechas
                 </p>
+
+                <!-- Interval discount summary -->
+                <div class="interval-discounts-preview">
+                  <div class="preview-header">
+                    <mat-icon>sell</mat-icon>
+                    <span>Descuentos por días</span>
+                  </div>
+                  <div class="preview-list" *ngIf="interval.discounts?.length; else noIntervalDiscounts">
+                    <span class="discount-chip" *ngFor="let discount of interval.discounts">
+                      Día {{ discount.days }} →
+                      <ng-container *ngIf="discount.type === 'percentage'; else fixedDiscount">
+                        {{ discount.value | number:'0.0-2' }}%
+                      </ng-container>
+                      <ng-template #fixedDiscount>
+                        {{ discount.value | number:'0.0-2' }}
+                      </ng-template>
+                    </span>
+                  </div>
+                  <ng-template #noIntervalDiscounts>
+                    <span class="muted">Sin descuentos configurados</span>
+                  </ng-template>
+                  <button mat-stroked-button color="primary" type="button" class="discounts-config-button" (click)="openDiscountsEditor(interval)">
+                    <mat-icon>edit</mat-icon>
+                    Configurar descuentos
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -100,6 +126,63 @@
       </mat-card>
     </div>
   </div>
+
+  <!-- Discount editor panel -->
+  <mat-card *ngIf="hasDiscountEditor" class="discount-editor-card">
+    <mat-card-header>
+      <mat-card-title>Descuentos para {{ selectedIntervalForDiscounts?.name }}</mat-card-title>
+      <button mat-icon-button (click)="closeDiscountsEditor()" aria-label="Cerrar editor de descuentos">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-card-header>
+    <mat-card-content>
+      <div *ngIf="discountsLoading" class="loading-container">
+        <mat-spinner diameter="32"></mat-spinner>
+      </div>
+      <div *ngIf="!discountsLoading" class="discounts-editor-body">
+        <div class="discounts-table-header">
+          <span>Día</span>
+          <span>Tipo</span>
+          <span>Valor</span>
+          <span></span>
+        </div>
+        <div class="discount-row" *ngFor="let discount of intervalDiscounts; let idx = index">
+          <mat-form-field appearance="outline">
+            <mat-label>Día</mat-label>
+            <input matInput type="number" min="1" [(ngModel)]="discount.days" [name]="'discountDay' + idx">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Tipo</mat-label>
+            <mat-select [(ngModel)]="discount.type" [name]="'discountType' + idx">
+              <mat-option value="percentage">Porcentaje (%)</mat-option>
+              <mat-option value="fixed">Cantidad fija</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ discount.type === 'percentage' ? 'Porcentaje (%)' : 'Importe' }}</mat-label>
+            <input matInput type="number" min="0" step="0.01" [(ngModel)]="discount.value" [name]="'discountValue' + idx">
+          </mat-form-field>
+          <button mat-icon-button color="warn" (click)="removeDiscountRow(idx)" [disabled]="intervalDiscounts.length === 1">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+        <button mat-stroked-button color="primary" type="button" (click)="addDiscountRow()" class="add-discount-btn">
+          <mat-icon>add</mat-icon>
+          Añadir regla
+        </button>
+        <p class="hint">
+          Los descuentos se aplican cuando el cliente reserva el número indicado de días dentro de este intervalo.
+        </p>
+      </div>
+    </mat-card-content>
+    <mat-card-actions>
+      <button mat-button type="button" (click)="closeDiscountsEditor()">Cancelar</button>
+      <button mat-raised-button color="primary" type="button" class="save-button" (click)="saveIntervalDiscounts()" [disabled]="discountsLoading || discountsSaving">
+        <mat-spinner *ngIf="discountsSaving" diameter="18"></mat-spinner>
+        <span *ngIf="!discountsSaving">Guardar descuentos</span>
+      </button>
+    </mat-card-actions>
+  </mat-card>
 
   <!-- Empty state -->
   <mat-card *ngIf="!loading && intervals.length === 0" class="empty-state">

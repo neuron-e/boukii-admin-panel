@@ -1060,3 +1060,23 @@
     }
   }
 }
+
+.monitor-bulk-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.monitor-bulk-controls .bulk-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bulk-selection-summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-dark2);
+}
+

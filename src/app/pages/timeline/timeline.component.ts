@@ -16,6 +16,7 @@ import {
   subWeeks
 } from 'date-fns';
 import {ApiCrudService} from 'src/service/crud.service';
+import {MonitorsService} from 'src/service/monitors.service';
 import {LEVELS} from 'src/app/static-data/level-data';
 import {MOCK_COUNTRIES} from 'src/app/static-data/countries-data';
 import {MatDialog} from '@angular/material/dialog';
@@ -137,7 +138,12 @@ export class TimelineComponent implements OnInit, OnDestroy {
   filteredUsers: Observable<any[]>;
   filteredMonitorsO: Observable<any[]>;
 
-  constructor(private crudService: ApiCrudService, private dialog: MatDialog, public translateService: TranslateService,
+  monitorAssignmentScope: 'single' | 'from' | 'range' = 'single';
+  monitorAssignmentStartDate: string | null = null;
+  monitorAssignmentEndDate: string | null = null;
+  monitorAssignmentDates: { value: string, label: string }[] = [];
+
+  constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private dialog: MatDialog, public translateService: TranslateService,
     private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router) {
     this.dateAdapter.setLocale(this.translateService.getDefaultLang());
     this.dateAdapter.getFirstDayOfWeek = () => { return 1; }
@@ -1202,6 +1208,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
         this.subgroupDetail = task.course_subgroup_id;
         this.taskDetail = task;
         this.showDetail = true;
+        this.initializeMonitorAssignment(task);
       }
       this.hideBlock();
       this.hideEditBlock();
@@ -1226,6 +1233,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.showDetail = false;
     this.editedMonitor = null;
     this.showEditMonitor = false;
+    this.resetMonitorAssignmentState();
   }
 
   hideBlock() {
@@ -1370,7 +1378,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
                         subgroup_id: subgroup_id
                       };
 
-                      this.crudService.post('/admin/planner/monitors/transfer', data)
+                      this.monitorsService.transferMonitor(data)
                         .subscribe((data) => {
                           this.moveTask = false;
                           this.taskMoved = null;
@@ -1428,7 +1436,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
                         };
 
 
-                        this.crudService.post('/admin/planner/monitors/transfer', data)
+                        this.monitorsService.transferMonitor(data)
                           .subscribe((data) => {
 
                             //this.getData();
@@ -1489,7 +1497,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
                     booking_users: all_booking_users,
                     subgroup_id: subgroup_id
                   };
-                  this.crudService.post('/admin/planner/monitors/transfer', data)
+                  this.monitorsService.transferMonitor(data)
                     .subscribe((data) => {
                       this.moveTask = false;
                       this.taskMoved = null;
@@ -1547,7 +1555,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
                     };
 
 
-                    this.crudService.post('/admin/planner/monitors/transfer', data)
+                    this.monitorsService.transferMonitor(data)
                       .subscribe((data) => {
 
                         this.moveTask = false;
@@ -1694,43 +1702,228 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.showEditMonitor = false;
   }
 
-  saveEditedMonitor() {
-    let data: any;
-    let all_booking_users = [];
-    let subgroup_id = [];
-    this.taskDetail.all_clients.forEach((client: any) => {
-      all_booking_users.push(client.id);
+  private initializeMonitorAssignment(task: any): void {
+    this.monitorAssignmentDates = this.buildMonitorAssignmentDates(task);
+    const defaultDate = task?.date || null;
+    this.monitorAssignmentScope = 'single';
+    this.monitorAssignmentStartDate = defaultDate;
+    this.monitorAssignmentEndDate = defaultDate;
+  }
+
+  private resetMonitorAssignmentState(): void {
+    this.monitorAssignmentScope = 'single';
+    this.monitorAssignmentStartDate = null;
+    this.monitorAssignmentEndDate = null;
+    this.monitorAssignmentDates = [];
+  }
+
+  private buildMonitorAssignmentDates(task: any): { value: string, label: string }[] {
+    if (!task) {
+      return [];
+    }
+    const relatedTasks = this.getRelatedTasks(task);
+    const uniqueDates = Array.from(new Set(
+      relatedTasks
+        .map((related: any) => related?.date)
+        .filter((date: string) => !!date)
+    ));
+
+    uniqueDates.sort((a, b) => a.localeCompare(b));
+
+    return uniqueDates.map(date => ({
+      value: date,
+      label: moment(date).format('DD/MM/YYYY')
+    }));
+  }
+
+  private getRelatedTasks(task: any): any[] {
+    if (!task) {
+      return [];
+    }
+
+    const courseId = task.course_id;
+    const subgroupId = task.course_subgroup_id;
+    const bookingId = task.booking_id;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+
+    return tasksSource.filter(candidate => {
+      if (!candidate) {
+        return false;
+      }
+      if (subgroupId) {
+        return candidate.course_subgroup_id === subgroupId;
+      }
+      if (bookingId && candidate.booking_id) {
+        return candidate.booking_id === bookingId;
+      }
+      if (courseId) {
+        return candidate.course_id === courseId;
+      }
+      return false;
+    });
+  }
+
+  onMonitorAssignmentScopeChange(scope: 'single' | 'from' | 'range'): void {
+    this.monitorAssignmentScope = scope;
+    const defaultDate = this.taskDetail?.date || null;
+
+    if (scope === 'single') {
+      this.monitorAssignmentStartDate = defaultDate;
+      this.monitorAssignmentEndDate = defaultDate;
+      return;
+    }
+
+    const firstDate = this.monitorAssignmentDates[0]?.value || defaultDate;
+    const lastDate = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || defaultDate;
+
+    if (scope === 'from') {
+      this.monitorAssignmentStartDate = defaultDate ?? firstDate;
+      this.monitorAssignmentEndDate = lastDate;
+      return;
+    }
+
+    // Range scope
+    this.monitorAssignmentStartDate = defaultDate ?? firstDate;
+    this.monitorAssignmentEndDate = lastDate;
+    this.ensureAssignmentRangeOrder();
+  }
+
+  onMonitorAssignmentStartChange(value: string): void {
+    this.monitorAssignmentStartDate = value;
+    if (this.monitorAssignmentScope === 'from') {
+      this.monitorAssignmentEndDate = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || value;
+    }
+    if (this.monitorAssignmentScope === 'range') {
+      this.ensureAssignmentRangeOrder();
+    }
+  }
+
+  onMonitorAssignmentEndChange(value: string): void {
+    this.monitorAssignmentEndDate = value;
+    if (this.monitorAssignmentScope === 'range') {
+      this.ensureAssignmentRangeOrder();
+    }
+  }
+
+  private ensureAssignmentRangeOrder(): void {
+    if (this.monitorAssignmentScope !== 'range') {
+      return;
+    }
+    if (!this.monitorAssignmentStartDate || !this.monitorAssignmentEndDate) {
+      return;
+    }
+    if (this.monitorAssignmentStartDate > this.monitorAssignmentEndDate) {
+      const temp = this.monitorAssignmentStartDate;
+      this.monitorAssignmentStartDate = this.monitorAssignmentEndDate;
+      this.monitorAssignmentEndDate = temp;
+    }
+  }
+
+  private resolveAssignmentDateRange(): { start: moment.Moment, end: moment.Moment } {
+    const fallbackDate = this.taskDetail?.date || moment().format('YYYY-MM-DD');
+    let startDate = this.monitorAssignmentStartDate || fallbackDate;
+    let endDate = this.monitorAssignmentEndDate || startDate;
+
+    if (this.monitorAssignmentScope === 'from') {
+      const last = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || endDate;
+      endDate = last;
+    } else if (this.monitorAssignmentScope === 'single') {
+      startDate = this.taskDetail?.date || startDate;
+      endDate = startDate;
+    }
+
+    if (moment(startDate).isAfter(moment(endDate))) {
+      const temp = startDate;
+      startDate = endDate;
+      endDate = temp;
+    }
+
+    return {
+      start: moment(startDate, 'YYYY-MM-DD'),
+      end: moment(endDate, 'YYYY-MM-DD')
+    };
+  }
+
+  private collectBookingUserIdsForAssignment(): number[] {
+    const baseTask = this.taskDetail;
+    if (!baseTask) {
+      return [];
+    }
+
+    const relatedTasks = this.getRelatedTasks(baseTask);
+    const { start, end } = this.resolveAssignmentDateRange();
+    const bookingUserIds = new Set<number>();
+
+    relatedTasks.forEach(candidate => {
+      const candidateDate = moment(candidate.date, 'YYYY-MM-DD');
+      if (!candidateDate.isValid()) {
+        return;
+      }
+      if (candidateDate.isBefore(start) || candidateDate.isAfter(end)) {
+        return;
+      }
+      const clients = Array.isArray(candidate.all_clients) ? candidate.all_clients : [];
+      clients.forEach((client: any) => {
+        if (client && client.id != null) {
+          bookingUserIds.add(client.id);
+        }
+      });
     });
 
-    if (!this.taskDetail.all_clients.length) {
-      subgroup_id = this.taskDetail.booking_id;
+    if (bookingUserIds.size === 0 && Array.isArray(baseTask.all_clients)) {
+      baseTask.all_clients.forEach((client: any) => {
+        if (client && client.id != null) {
+          bookingUserIds.add(client.id);
+        }
+      });
     }
-    /*
-    if(this.taskDetail.type == 'collective'){
-      data = {
-        type: 1,
-        monitor_id: this.editedMonitor.id,
-        subgroup_id: this.taskDetail.course_subgroup_id,
-        booking_users: all_booking_users
-      };
-    }
-    else if(this.taskDetail.type == 'private'){
-      data = {
-        type: 2,
-        monitor_id: this.editedMonitor.id,
-        course_id: this.taskDetail.course_id,
-        booking_users: all_booking_users
-      };
-    }*/
 
-    data = {
-      monitor_id: this.editedMonitor.id,
-      booking_users: all_booking_users,
-      subgroup_id: subgroup_id
+    return Array.from(bookingUserIds);
+  }
+
+  getSelectedAssignmentSessionCount(): number {
+    const baseTask = this.taskDetail;
+    if (!baseTask) {
+      return 0;
+    }
+    const relatedTasks = this.getRelatedTasks(baseTask);
+    const { start, end } = this.resolveAssignmentDateRange();
+    const dates = new Set<string>();
+
+    relatedTasks.forEach(candidate => {
+      const candidateDate = moment(candidate.date, 'YYYY-MM-DD');
+      if (candidateDate.isValid() && !candidateDate.isBefore(start) && !candidateDate.isAfter(end)) {
+        dates.add(candidate.date);
+      }
+    });
+
+    if (dates.size === 0 && baseTask.date) {
+      dates.add(baseTask.date);
+    }
+
+    return dates.size;
+  }
+
+  saveEditedMonitor() {
+    const monitorId = this.editedMonitor ? this.editedMonitor.id : null;
+    const bookingUserIds = this.collectBookingUserIdsForAssignment();
+    let subgroupId: number | null = null;
+
+    if (!bookingUserIds.length) {
+      if (this.taskDetail?.course_subgroup_id) {
+        subgroupId = this.taskDetail.course_subgroup_id;
+      } else if (!this.taskDetail?.all_clients?.length && this.taskDetail?.booking_id) {
+        subgroupId = this.taskDetail.booking_id;
+      }
+    }
+
+    const payload = {
+      monitor_id: monitorId,
+      booking_users: bookingUserIds,
+      subgroup_id: subgroupId
     };
 
-
-    this.crudService.post('/admin/planner/monitors/transfer', data)
+    this.monitorsService.transferMonitor(payload)
       .subscribe((data) => {
 
         this.editedMonitor = null;

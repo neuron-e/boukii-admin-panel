@@ -14,3 +14,46 @@
 .button-div:hover {
   background-color: #ff5577;
 }
+
+.voucher-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.voucher-option__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.voucher-option__meta {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: #666;
+}
+
+.voucher-badge {
+  background: rgba(233, 30, 99, 0.12);
+  color: #e91e63;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.applied-indicator {
+  margin-left: 12px;
+  color: #8fd14f;
+  font-size: 12px;
+}
+
+.voucher-empty {
+  margin-top: 12px;
+  text-align: center;
+  color: #777;
+  font-size: 14px;
+}

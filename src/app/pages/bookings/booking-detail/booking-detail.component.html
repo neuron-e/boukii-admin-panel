@@ -1208,6 +1208,12 @@
 										"dd-MM-yyyy HH:mm") : getCurrentDateFormatted() }}
 										<br>
 										{{ item?.bonus?.code }}
+										<br>
+										<span class="voucher-remaining-info">
+											{{ 'remaining_balance' | translate }}:
+											{{ getVoucherRemaining(item?.bonus) | number:'0.2-2' }}
+											{{ getCurrency() }}
+										</span>
 									</div>
 									<div class="col-right">
 										{{

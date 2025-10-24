@@ -242,6 +242,17 @@
   "week": "Settimana",
   "month": "Mese",
   "monitor": "Tenere sotto controllo",
+  "monitor_assignment": {
+    "scope_label": "Assegna istruttore a",
+    "scope": {
+      "single": "Solo questa sessione",
+      "interval": "Per questo intervallo",
+      "from": "Dalla data selezionata in poi",
+      "range": "Tra due date"
+    },
+    "start_date": "Data inizio",
+    "end_date": "Data fine"
+  },
   "birth_date": "Data di nascita",
   "address": "Indirizzo",
   "username": "Nome partecipante",
@@ -268,7 +279,8 @@
   "from": "Da",
   "to": "Fino a",
   "in": "In",
-  "interval": "Kalendar Week",
+  "interval": "Settimana",
+  "all_intervals": "Tutti gli intervalli",
   "price": "Prezzo",
   "price_per_date": "Prezzo per data",
   "prices": "Prezzi",
@@ -1559,5 +1571,10 @@
   "valid_to": "Valido fino a",
   "remaining": "Rimanenti",
   "total": "Totale",
-  "active": "Attivo"
+  "active": "Attivo",
+  "select_date_to_load_monitors": "Clicca su una data per caricare gli istruttori disponibili",
+  "configure_levels_by_interval": "Configura livelli diversi per intervallo",
+  "configure_levels_by_interval_description": "Consente di configurare livelli e sottogruppi specifici per ogni intervallo di date",
+  "copy_to_all_intervals": "Copia in tutti gli intervalli",
+  "configuration_copied_to_all_intervals": "Configurazione copiata con successo in tutti gli intervalli"
 }

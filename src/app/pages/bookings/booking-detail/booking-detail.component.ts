@@ -357,13 +357,18 @@ export class BookingDetailComponent implements OnInit {
               if (vl.length > 0) {
                 this.bonusLog = vl;
                 vl.forEach((voucherLog) => {
-                  let v = voucherLog.voucher;
+                  const voucher = { ...voucherLog.voucher };
+                  const logAmount = parseFloat(voucherLog.amount ?? 0);
+                  const safeRemaining = parseFloat(voucher?.remaining_balance ?? 0);
+                  const computedOriginal = safeRemaining + (logAmount > 0 ? logAmount : 0);
 
-                  v.currentPay = parseFloat(voucherLog.amount);
-                  v.before = true;
+                  voucher.currentPay = logAmount;
+                  voucher.before = true;
+                  voucher.remaining_balance_after = safeRemaining;
+                  voucher.original_balance = isNaN(computedOriginal) ? safeRemaining : computedOriginal;
 
-                  this.bonus.push({ bonus: v, log: voucherLog });
-                  this.currentBonus.push({ bonus: v, log: voucherLog });
+                  this.bonus.push({ bonus: voucher, log: voucherLog });
+                  this.currentBonus.push({ bonus: voucher, log: voucherLog });
                 });
               }
 
@@ -3665,5 +3670,31 @@ export class BookingDetailComponent implements OnInit {
     );
   }
 
+  getVoucherRemaining(bonus: any): number {
+    if (!bonus) {
+      return 0;
+    }
+
+    const explicitRemaining = parseFloat(bonus?.remaining_balance_after ?? '');
+    if (!isNaN(explicitRemaining)) {
+      return explicitRemaining;
+    }
+
+    const remaining = parseFloat(bonus?.remaining_balance ?? 0);
+    const used = parseFloat(bonus?.reducePrice ?? 0);
+    const value = remaining - used;
+    return value > 0 ? value : 0;
+  }
+
+  getCurrency(): string {
+    return (
+      this.booking?.currency ??
+      this.selectedItem?.currency ??
+      this.defaults?.currency ??
+      ''
+    );
+  }
+
   protected readonly Math = Math;
 }
+

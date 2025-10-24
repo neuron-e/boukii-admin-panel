@@ -18,10 +18,36 @@
     <div style="width:100%">
       <mat-radio-group>
         <ng-container *ngFor="let b of bonuses">
-        <mat-radio-button *ngIf="!b.payed " [disabled]="isInUse(b.id)" class="radio"  (change)="bonus = b" [value]="b">
-          {{ b.code }} - {{'remaining_balance' | translate}}: {{ b.remaining_balance }} {{defaults.currency}} <span style="color:#8fd14f">{{ isInUse(b.id) ? 'applied' : '' | translate}}</span>
-        </mat-radio-button>
-      </ng-container>
+          <mat-radio-button
+            *ngIf="!b.payed"
+            [disabled]="isInUse(b.id) || b.remaining_balance <= 0"
+            class="radio"
+            (change)="bonus = b"
+            [value]="b">
+            <div class="voucher-option">
+              <div class="voucher-option__header">
+                <span class="voucher-code">{{ b.code }}</span>
+                <span class="voucher-badge" *ngIf="b.is_generic">{{ 'text_generic_voucher' | translate }}</span>
+              </div>
+              <div class="voucher-option__meta">
+                <span>
+                  {{ 'text_voucher_amount' | translate }}:
+                  {{ b.quantity | number:'0.2-2' }} {{ defaults.currency }}
+                </span>
+                <span>
+                  {{ 'remaining_balance' | translate }}:
+                  {{ b.remaining_balance | number:'0.2-2' }} {{ defaults.currency }}
+                </span>
+              </div>
+            </div>
+            <span class="applied-indicator" *ngIf="isInUse(b.id)">
+              {{ 'applied' | translate }}
+            </span>
+          </mat-radio-button>
+        </ng-container>
+        <div *ngIf="!bonuses?.length" class="voucher-empty">
+          {{ 'text_select_client_voucher' | translate }}
+        </div>
       </mat-radio-group>
     </div>
   </mat-dialog-content>

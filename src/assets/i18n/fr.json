@@ -242,6 +242,17 @@
   "week": "Semaine",
   "month": "Mois",
   "monitor": "Moniteur",
+  "monitor_assignment": {
+    "scope_label": "Appliquer le moniteur à",
+    "scope": {
+      "single": "Uniquement cette séance",
+      "interval": "Pour cet intervalle",
+      "from": "À partir de la date sélectionnée",
+      "range": "Entre deux dates"
+    },
+    "start_date": "Date de début",
+    "end_date": "Date de fin"
+  },
   "birth_date": "Date de naissance",
   "address": "adresse",
   "username": "Nom d'participant",
@@ -268,7 +279,8 @@
   "from": "Depuis",
   "to": "Jusqu'à",
   "in": "dans",
-  "interval": "Kalendar Week",
+  "interval": "Semaine",
+  "all_intervals": "Tous les intervalles",
   "price": "Prix",
   "price_per_date": "Prix â€‹â€‹par date",
   "prices": "Des prix",
@@ -1559,5 +1571,10 @@
   "valid_to": "Valide jusqu'à",
   "remaining": "Restants",
   "total": "Total",
-  "active": "Actif"
+  "active": "Actif",
+  "select_date_to_load_monitors": "Cliquez sur une date pour charger les moniteurs disponibles",
+  "configure_levels_by_interval": "Configurer des niveaux différents par intervalle",
+  "configure_levels_by_interval_description": "Permet de configurer des niveaux et sous-groupes spécifiques pour chaque intervalle de dates",
+  "copy_to_all_intervals": "Copier vers tous les intervalles",
+  "configuration_copied_to_all_intervals": "Configuration copiée avec succès vers tous les intervalles"
 }

@@ -14,7 +14,7 @@
 				</td>
 				<td *ngFor="let item of courseFormGroup.controls['course_dates'].value;index as i"
 					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-					[style.borderTop]="selectDate===i?'3px solid #E91E63':''" (click)="selectDate=i;getAvail(item)"
+					[style.borderTop]="selectDate===i?'3px solid #E91E63':''" (click)="onSelectDate(i, item)"
 					style="
 			color: var(--color-dark1);
 			font-size: 12px;
@@ -29,6 +29,56 @@
 		<tbody>
 			<tr style="border-bottom: 3px solid #dee6ea;">
 				<td style="background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
+          <div class="monitor-bulk-controls"
+               *ngIf="courseFormGroup.controls['course_dates'].value?.length">
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>{{'monitor_assignment.scope_label' | translate}}</mat-label>
+              <mat-select [(ngModel)]="assignmentScope"
+                          (selectionChange)="onAssignmentScopeChange($event.value)">
+                <mat-option value="single">
+                  {{'monitor_assignment.scope.single' | translate}}
+                </mat-option>
+                <mat-option value="interval"
+                            *ngIf="hasMultipleIntervals()">
+                  {{'monitor_assignment.scope.interval' | translate}}
+                </mat-option>
+                <mat-option value="from"
+                            *ngIf="courseFormGroup.controls['course_dates'].value?.length > 1">
+                  {{'monitor_assignment.scope.from' | translate}}
+                </mat-option>
+                <mat-option value="range"
+                            *ngIf="courseFormGroup.controls['course_dates'].value?.length > 1">
+                  {{'monitor_assignment.scope.range' | translate}}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <div class="bulk-date-row"
+                 *ngIf="assignmentScope !== 'single' && courseFormGroup.controls['course_dates'].value?.length > 1">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
+                <mat-select [(ngModel)]="assignmentStartIndex"
+                            (selectionChange)="onAssignmentStartIndexChange($event.value)">
+                  <mat-option *ngFor="let date of courseFormGroup.controls['course_dates'].value; index as idx"
+                              [value]="idx">
+                    {{date.date | date:'dd-MM-yyyy'}}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="flex-1" *ngIf="assignmentScope === 'range'">
+                <mat-label>{{'monitor_assignment.end_date' | translate}}</mat-label>
+                <mat-select [(ngModel)]="assignmentEndIndex"
+                            (selectionChange)="onAssignmentEndIndexChange($event.value)">
+                  <mat-option *ngFor="let date of courseFormGroup.controls['course_dates'].value; index as idx"
+                              [value]="idx">
+                    {{date.date | date:'dd-MM-yyyy'}}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <div class="bulk-selection-summary" *ngIf="assignmentScope !== 'single'">
+              {{ getAssignmentSelectedDays() }} {{'days' | translate}}
+            </div>
+          </div>
           <app-form-select
             [table]="monitors"
             [value]="find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.course_subgroups?.[subgroup_index]?.monitor
@@ -39,6 +89,17 @@
             name="first_name"
             name2="last_name">
           </app-form-select>
+          <div class="level" *ngIf="monitors === undefined || monitors === null"
+               style="width: 100%; height: 100%; padding: 10px; background: #F5F5F5; border-radius: 8px; justify-content: flex-start; align-items: center; gap: 8px; display: inline-flex">
+            <mat-icon style="color: #666;" class="icon24">
+              info
+            </mat-icon>
+            <div>
+              <span style="flex: 1 1 0; font-size: 14px; font-weight: 400; line-height: 18px; word-wrap: break-word;color: #666;">
+                {{"select_date_to_load_monitors" | translate}}
+              </span>
+            </div>
+          </div>
           <div class="level" *ngIf="monitors?.length === 0 && !find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.course_subgroups[subgroup_index]?.monitor"
                style="width: 100%; height: 100%; padding: 10px; background: #D2EFFF; border-radius: 8px; justify-content: flex-start; align-items: center; gap: 8px; display: inline-flex">
             <mat-icon style="color: #006fcb;" class="icon24">
@@ -55,7 +116,7 @@
 				<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as i"
 					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':'var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
 					[style.color]="find(item.course_groups,'degree_id',level.id)?.course_subgroups?.[subgroup_index]?.monitor?modified[i]?'#FFCF25':'#31C044':'#C7D0D3'"
-					(click)="selectDate=i;getAvail(item)">
+					(click)="onSelectDate(i, item)">
 					<mat-icon class="icon10">circle</mat-icon>
 				</td>
 			</tr>
@@ -83,7 +144,10 @@
             </div>
           </td>
 				<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as i"
-					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'">
+					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					(click)="onSelectDate(i, item)"
+					style="text-align: center; font-size: 11px; font-weight: 600; color: var(--color-dark1);">
+					{{getStudentCount(item)}}
 				</td>
 			</tr>
 			<tr *ngFor="let user of booking_users || []; index as i">
@@ -102,7 +166,7 @@
 					</td>
 					<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as j"
 						[style.backgroundColor]="selectDate===j?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-						(click)="selectDate=j;getAvail(item)">
+						(click)="onSelectDate(j, item)">
             <div style="display: flex; gap: 5px; justify-content: center;">
               <ng-container *ngIf="find(item.booking_users_active,'client_id',user.client_id) as userInDate">
                 <!-- Verde: Presente el día del curso (attended=true) -->
@@ -159,7 +223,7 @@
 				</td>
 				<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as i"
 					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-					(click)="selectDate=i;getAvail(item)">
+					(click)="onSelectDate(i, item)">
 				</td>
 			</tr>
 		</tbody>

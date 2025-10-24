@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { ReactiveFormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SecondaryToolbarModule } from '../../secondary-toolbar/secondary-toolbar.module';
 import { TranslateModule } from '@ngx-translate/core';
 import { FluxDisponibilidadComponent } from './app.component';
@@ -24,7 +24,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     CommonModule,
     MatButtonModule,
     MatIconModule,
-    ReactiveFormsModule, MatListModule,
+    ReactiveFormsModule, FormsModule, MatListModule,
     SecondaryToolbarModule,
     TranslateModule, MatFormFieldModule, MatAutocompleteModule, MatSelectModule, MatFormFieldModule,
     MatFormFieldModule,
