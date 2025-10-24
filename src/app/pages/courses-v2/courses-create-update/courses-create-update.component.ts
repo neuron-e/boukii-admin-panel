@@ -112,14 +112,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Configuración de niveles por intervalo
   configureLevelsByInterval = false;
-  intervalLevelsConfig: Record<number, any> = {}; // Configuración de niveles por intervalo
-
   intervalGroupsMap: Record<string, IntervalGroupsState> = {};
   intervalGroups: IntervalGroupsState[] = [];
   selectedIntervalIndexForGroups = 0;
   selectedIntervalKeyForGroups: string | null = null;
   selectedIntervalTabIndex = 0; // Para las pestañas en la sección de detalles
   selectedIntervalFilterIndex = 0; // 0 = all intervals, 1+ = specific interval (index - 1)
+  private intervalSubgroupKeySeed = 0;
 
   get canConfigureIntervalGroups(): boolean {
     return !!this.courses?.courseFormGroup?.controls?.['is_flexible']?.value
@@ -1069,9 +1068,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
     if (!level?.id) return [];
 
     // Usar cache para evitar búsquedas repetidas
-    if (this.allSubgroupsCache.has(level.id)) {
+/*    if (this.allSubgroupsCache.has(level.id)) {
       return this.allSubgroupsCache.get(level.id)!;
-    }
+    }*/
 
     const courseDates = this.courses?.courseFormGroup?.controls['course_dates']?.value || [];
     const subgroupsByIndex = new Map<number, any>();
@@ -1157,24 +1156,146 @@ export class CoursesCreateUpdateComponent implements OnInit {
   // ============================================
 
   onConfigureLevelsByIntervalChange(): void {
+    const intervalControl = this.courses?.courseFormGroup?.get('use_interval_groups');
     if (this.configureLevelsByInterval) {
-      // Inicializar configuración para cada intervalo
-      this.initializeIntervalLevelsConfig();
+      intervalControl?.setValue(true);
+      this.courses?.courseFormGroup?.patchValue({
+        intervals_config_mode: 'independent'
+      });
+      this.invalidateIntervalGroupTemplate();
+      this.ensureIntervalGroupsAlignment();
+      this.syncIntervalGroupsArray();
+      this.scheduleIntervalGroupsSync();
     } else {
-      // Limpiar configuración de intervalos
-      this.intervalLevelsConfig = {};
+      intervalControl?.setValue(false);
+      this.syncIntervalsToCourseFormGroup();
     }
   }
 
-  private initializeIntervalLevelsConfig(): void {
-    this.intervals?.forEach((interval, idx) => {
-      if (!this.intervalLevelsConfig[idx]) {
-        this.intervalLevelsConfig[idx] = {
-          levels: {},
-          subgroups: {}
-        };
-      }
-    });
+  private invalidateIntervalGroupTemplate(): void {
+    this.baseIntervalGroupTemplate = {};
+  }
+
+  private getIntervalKeyForIndex(intervalIdx: number): string | null {
+    if (!Array.isArray(this.intervals) || intervalIdx < 0 || intervalIdx >= this.intervals.length) {
+      return null;
+    }
+    const interval = this.intervals[intervalIdx];
+    return this.resolveIntervalKey(interval, intervalIdx);
+  }
+
+  private ensureIntervalGroupState(intervalIdx: number, level: any): IntervalGroupState | null {
+    this.ensureIntervalGroupsAlignment();
+
+    const levelId = level?.id ?? level?.degree_id;
+    if (levelId == null) {
+      return null;
+    }
+
+    const intervalKey = this.getIntervalKeyForIndex(intervalIdx);
+    if (!intervalKey) {
+      return null;
+    }
+
+    if (!this.intervalGroupsMap[intervalKey]) {
+      const template = this.ensureIntervalGroupTemplate();
+      this.intervalGroupsMap[intervalKey] = this.mergeGroupStates(template);
+    }
+
+    const levelKey = String(levelId);
+    const intervalState = this.intervalGroupsMap[intervalKey];
+    if (!intervalState[levelKey]) {
+      intervalState[levelKey] = this.createGroupStateFromLevel(level);
+    }
+
+    const config = intervalState[levelKey];
+    if (!config.subgroups || config.subgroups.length === 0) {
+      config.subgroups = [
+        this.createIntervalSubgroupState(levelId, level?.max_participants)
+      ];
+    }
+
+    if (config.max_participants == null) {
+      config.max_participants = level?.max_participants ?? undefined;
+    }
+
+    return config;
+  }
+
+  private createIntervalSubgroupState(levelId: number | string, maxParticipants?: number): IntervalSubgroupState {
+    const key = `cfg-${levelId}-${Date.now()}-${this.intervalSubgroupKeySeed++}`;
+    return {
+      degree_id: levelId,
+      max_participants: maxParticipants ?? undefined,
+      active: true,
+      key
+    };
+  }
+
+  isLevelActiveForInterval(intervalIdx: number, level: any): boolean {
+    const state = this.ensureIntervalGroupState(intervalIdx, level);
+    if (!state) {
+      return false;
+    }
+    return state.active !== false;
+  }
+
+  onIntervalLevelToggle(intervalIdx: number, level: any, active: boolean): void {
+    const state = this.ensureIntervalGroupState(intervalIdx, level);
+    if (!state) {
+      return;
+    }
+
+    level.active = active;
+    state.active = active;
+
+    if (active && (!state.subgroups || state.subgroups.length === 0)) {
+      const levelId = level?.id ?? level?.degree_id;
+      state.subgroups = [this.createIntervalSubgroupState(levelId, level?.max_participants)];
+    }
+
+    if (!active) {
+      state.subgroups = (state.subgroups || []).map(subgroup => ({ ...subgroup, active: false }));
+    }
+
+    this.syncIntervalGroupsArray();
+    this.scheduleIntervalGroupsSync();
+  }
+
+  getIntervalLevelSubgroups(intervalIdx: number, level: any): IntervalSubgroupState[] {
+    const state = this.ensureIntervalGroupState(intervalIdx, level);
+    return state?.subgroups || [];
+  }
+
+  addIntervalLevelSubgroup(intervalIdx: number, level: any): void {
+    const state = this.ensureIntervalGroupState(intervalIdx, level);
+    if (!state) {
+      return;
+    }
+
+    const levelId = level?.id ?? level?.degree_id;
+    const maxParticipants = level?.max_participants ?? state.max_participants ?? this.courses.courseFormGroup.controls['max_participants']?.value;
+    const newSubgroup = this.createIntervalSubgroupState(levelId, maxParticipants);
+    state.subgroups = [...(state.subgroups || []), newSubgroup];
+
+    this.syncIntervalGroupsArray();
+    this.scheduleIntervalGroupsSync();
+  }
+
+  removeIntervalLevelSubgroup(intervalIdx: number, level: any, subgroupIdx: number): void {
+    const state = this.ensureIntervalGroupState(intervalIdx, level);
+    if (!state || !Array.isArray(state.subgroups)) {
+      return;
+    }
+
+    if (subgroupIdx < 0 || subgroupIdx >= state.subgroups.length) {
+      return;
+    }
+
+    state.subgroups.splice(subgroupIdx, 1);
+
+    this.syncIntervalGroupsArray();
+    this.scheduleIntervalGroupsSync();
   }
 
   getIntervalLabel(interval: any, index: number): string {
@@ -1196,63 +1317,28 @@ export class CoursesCreateUpdateComponent implements OnInit {
     return `${this.translateService.instant('interval')} ${index + 1}`;
   }
 
-  selectLevelForInterval(intervalIdx: number, event: any, levelIdx: number): void {
-    if (!this.intervalLevelsConfig[intervalIdx]) {
-      this.intervalLevelsConfig[intervalIdx] = { levels: {}, subgroups: {} };
-    }
-
-    const level = this.courses.courseFormGroup.controls['levelGrop'].value[levelIdx];
-    const isActive = !level.active;
-
-    this.intervalLevelsConfig[intervalIdx].levels[level.id] = isActive;
-
-    if (isActive && !this.intervalLevelsConfig[intervalIdx].subgroups[level.id]) {
-      // Crear al menos un subgrupo por defecto
-      this.intervalLevelsConfig[intervalIdx].subgroups[level.id] = [{ index: 0 }];
-    }
-  }
-
-  addLevelSubgroupForInterval(intervalIdx: number, level: any, subgroupIdx: number, add: boolean): void {
-    if (!this.intervalLevelsConfig[intervalIdx]) {
-      this.intervalLevelsConfig[intervalIdx] = { levels: {}, subgroups: {} };
-    }
-
-    if (!this.intervalLevelsConfig[intervalIdx].subgroups[level.id]) {
-      this.intervalLevelsConfig[intervalIdx].subgroups[level.id] = [];
-    }
-
-    if (add) {
-      const newIndex = this.intervalLevelsConfig[intervalIdx].subgroups[level.id].length;
-      this.intervalLevelsConfig[intervalIdx].subgroups[level.id].push({ index: newIndex });
-    }
-  }
-
-  removeLevelSubgroupForInterval(intervalIdx: number, level: any, subgroupIdx: number): void {
-    if (this.intervalLevelsConfig[intervalIdx]?.subgroups[level.id]) {
-      this.intervalLevelsConfig[intervalIdx].subgroups[level.id].splice(subgroupIdx, 1);
-    }
-  }
-
-  getSubgroupsForIntervalLevel(intervalIdx: number, levelId: number): any[] {
-    return this.intervalLevelsConfig[intervalIdx]?.subgroups[levelId] || [];
-  }
-
   copyIntervalConfigToAll(sourceIntervalIdx: number): void {
-    const sourceConfig = this.intervalLevelsConfig[sourceIntervalIdx];
+    this.ensureIntervalGroupsAlignment();
 
+    const sourceKey = this.getIntervalKeyForIndex(sourceIntervalIdx);
+    if (!sourceKey) {
+      return;
+    }
+
+    const sourceConfig = this.intervalGroupsMap[sourceKey];
     if (!sourceConfig) {
       return;
     }
 
-    // Copiar configuración a todos los demás intervalos
-    this.intervals?.forEach((_, idx) => {
-      if (idx !== sourceIntervalIdx) {
-        this.intervalLevelsConfig[idx] = {
-          levels: { ...sourceConfig.levels },
-          subgroups: JSON.parse(JSON.stringify(sourceConfig.subgroups))
-        };
+    Object.keys(this.intervalGroupsMap).forEach(key => {
+      if (key === sourceKey) {
+        return;
       }
+      this.intervalGroupsMap[key] = this.cloneGroupsStateMap(sourceConfig);
     });
+
+    this.syncIntervalGroupsArray();
+    this.scheduleIntervalGroupsSync();
 
     this.snackBar.open(
       this.translateService.instant('configuration_copied_to_all_intervals'),
@@ -1429,6 +1515,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
         this.loadDiscountsFromCourse();
         this.enforceIntervalGroupAvailability();
         this.refreshIntervalGroupStateFromSettings();
+        this.configureLevelsByInterval = this.isIntervalGroupModeActive;
+        if (this.configureLevelsByInterval) {
+          this.invalidateIntervalGroupTemplate();
+          this.ensureIntervalGroupsAlignment();
+          this.scheduleIntervalGroupsSync();
+        }
         this.loading = false
        // setTimeout(() => (this.loading = false), 0);
       });
@@ -1815,30 +1907,68 @@ export class CoursesCreateUpdateComponent implements OnInit {
   filter = (array: any[], key: string, value: string | boolean) => array.filter((a: any) => value ? a[key] === value : a[key])
 
   selectLevel = (event: any, i: number) => {
-    const levelGrop = this.courses.courseFormGroup.controls['levelGrop'].value
-    const course_dates = this.courses.courseFormGroup.controls['course_dates'].value
-    levelGrop[i].active = event.target.checked
-    if (event.target.checked) {
+    const levelGrop = this.courses.courseFormGroup.controls['levelGrop'].value;
+    const course_dates = this.courses.courseFormGroup.controls['course_dates'].value;
+    let isActive: boolean;
+    if (typeof event === 'boolean') {
+      isActive = event;
+    } else if (event?.checked !== undefined) {
+      isActive = event.checked;
+    } else if (event?.target?.checked !== undefined) {
+      isActive = event.target.checked;
+    } else {
+      isActive = !levelGrop[i].active;
+    }
+
+    levelGrop[i].active = isActive;
+    if (isActive && (levelGrop[i].max_participants == null || levelGrop[i].max_participants === '')) {
+      levelGrop[i].max_participants = this.courses.courseFormGroup.controls['max_participants']?.value ?? null;
+    }
+
+    if (isActive) {
 /*      levelGrop[i].age_min = this.courses.courseFormGroup.controls['age_min'].value
       levelGrop[i].age_max = this.courses.courseFormGroup.controls['age_max'].value*/
-      levelGrop[i].max_participants = this.courses.courseFormGroup.controls['max_participants'].value
+      levelGrop[i].max_participants = levelGrop[i].max_participants ?? this.courses.courseFormGroup.controls['max_participants'].value;
       for (const course of course_dates) {
         if (this.mode === "create") {
-          course.course_groups = [...course.course_groups, { ...levelGrop[i], degree_id: levelGrop[i].id, course_subgroups: [] }]
-          course.groups = [...course.groups, { ...levelGrop[i], degree_id: levelGrop[i].id, subgroups: [] }]
+          course.course_groups = [...course.course_groups, { ...levelGrop[i], degree_id: levelGrop[i].id, course_subgroups: [] }];
+          course.groups = [...course.groups, { ...levelGrop[i], degree_id: levelGrop[i].id, subgroups: [] }];
         }
         else {
-          course.course_groups = [...course.course_groups, { ...levelGrop[i], degree_id: levelGrop[i].id, course_id: this.courses.courseFormGroup.controls['id'].value, course_subgroups: [] }]
+          course.course_groups = [...course.course_groups, { ...levelGrop[i], degree_id: levelGrop[i].id, course_id: this.courses.courseFormGroup.controls['id'].value, course_subgroups: [] }];
         }
       }
     } else {
       for (const course of course_dates) {
-        course.course_groups = course.course_groups.filter((a: any) => a.id !== levelGrop[i].id)
-        if (this.mode === "create") course.groups = course.groups.filter((a: any) => a.id !== levelGrop[i].id)
+        course.course_groups = course.course_groups.filter((a: any) => a.id !== levelGrop[i].id);
+        if (this.mode === "create") course.groups = course.groups.filter((a: any) => a.id !== levelGrop[i].id);
       }
     }
-    this.courses.courseFormGroup.patchValue({ levelGrop, course_dates })
-    if (event.target.checked) this.addLevelSubgroup(levelGrop[i], 0, true)
+    this.courses.courseFormGroup.patchValue({ levelGrop, course_dates });
+    if (isActive) {
+      this.addLevelSubgroup(levelGrop[i], 0, true);
+    }
+
+    if (this.configureLevelsByInterval) {
+      this.invalidateIntervalGroupTemplate();
+      const intervalsCount = Array.isArray(this.intervals) ? this.intervals.length : 0;
+      for (let idx = 0; idx < intervalsCount; idx++) {
+        const state = this.ensureIntervalGroupState(idx, levelGrop[i]);
+        if (state) {
+          state.active = isActive;
+          if (isActive && (!state.subgroups || state.subgroups.length === 0)) {
+            state.subgroups = [
+              this.createIntervalSubgroupState(levelGrop[i].id, levelGrop[i].max_participants)
+            ];
+          }
+          if (!isActive) {
+            state.subgroups = (state.subgroups || []).map(subgroup => ({ ...subgroup, active: false }));
+          }
+        }
+      }
+      this.syncIntervalGroupsArray();
+      this.scheduleIntervalGroupsSync();
+    }
   }
 
   addLevelSubgroup = (level: any, j: number, add: boolean) => {
@@ -1875,6 +2005,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
     });
 
     this.courses.courseFormGroup.patchValue({ course_dates });
+    if (this.configureLevelsByInterval) {
+      this.invalidateIntervalGroupTemplate();
+      this.ensureIntervalGroupsAlignment();
+      this.syncIntervalGroupsArray();
+      this.scheduleIntervalGroupsSync();
+    }
   };
 
   selectExtra = (event: any, item: any, i: number) => {

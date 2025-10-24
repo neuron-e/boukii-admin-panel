@@ -920,17 +920,17 @@
               <div class="level" style="display: flex;flex-direction: column;padding: 10px; border-radius: 8px; gap: 10px;">
                 <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
                   <div style="display: flex;gap: 16px;align-items: center;">
-                    <mat-checkbox [style.backgroundColor]="level.active?level.color:level.color+'33'"
+                    <mat-checkbox [style.backgroundColor]="isLevelActiveForInterval(intervalIdx, level)?level.color:level.color+'33'"
                                   [style.color]="level.color"
                                   [style.border]="'1px solid '+level.color"
-                                  [(ngModel)]="level.active"
-                                  (click)="selectLevelForInterval(intervalIdx, $event, i)"
+                                  [checked]="isLevelActiveForInterval(intervalIdx, level)"
+                                  (change)="onIntervalLevelToggle(intervalIdx, level, $event.checked)"
                                   style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly;">
                       {{level.annotation}} {{level.level}}
                     </mat-checkbox>
                   </div>
 
-                  <div *ngIf="level.active" style="display: flex;gap: 16px;">
+                  <div *ngIf="isLevelActiveForInterval(intervalIdx, level)" style="display: flex;gap: 16px;">
                     <app-form-input [required]="true" [value]="level.age_min" [max]="level.age_max"
                                     (do)="level.age_min=$event.target.value;" style="width: calc(33.33% - 10px - 16px);"
                                     name="courses.min_age" type="number" Suffix="years">
@@ -943,7 +943,7 @@
                                     (do)="level.max_participants=$event.target.value;" name="max_pax"
                                     style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="paxes">
                     </app-form-input>
-                    <mat-icon (click)="addLevelSubgroupForInterval(intervalIdx, level, 0, true)" color="primary" style="color: white;
+                    <mat-icon (click)="addIntervalLevelSubgroup(intervalIdx, level)" color="primary" style="color: white;
                               height: 30px;
                               min-width: 30px;
                               border-radius: 15px;
@@ -957,11 +957,11 @@
                   </div>
 
                   <!-- Subgrupos del nivel en este intervalo -->
-                  <ng-container *ngIf="level.active && getSubgroupsForIntervalLevel(intervalIdx, level.id).length > 0">
-                    <div *ngFor="let subgroup of getSubgroupsForIntervalLevel(intervalIdx, level.id); index as j"
+                  <ng-container *ngIf="isLevelActiveForInterval(intervalIdx, level) && getIntervalLevelSubgroups(intervalIdx, level).length > 0">
+                    <div *ngFor="let subgroup of getIntervalLevelSubgroups(intervalIdx, level); index as j"
                          style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px;">
                       {{level.annotation}} {{level.level}} {{("00"+(j+1)).slice(-2)}}
-                      <img *ngIf="j > 0" (click)="removeLevelSubgroupForInterval(intervalIdx, level, j)"
+                      <img *ngIf="j > 0" (click)="removeIntervalLevelSubgroup(intervalIdx, level, j)"
                            src="assets/icons/icon/delete.png" alt class="icon20"
                            style="cursor: pointer; font-size: 20px;align-content: space-evenly;">
                     </div>

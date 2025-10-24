@@ -58,6 +58,91 @@ export class CourseDetailCardNivelComponent implements OnInit {
     } catch {}
     return [];
   }
+
+  private extractIntervalsFromSettings(): any[] {
+    try {
+      const settingsControl = this.courseFormGroup?.controls?.['settings'];
+      let rawSettings = settingsControl ? settingsControl.value : null;
+      if (!rawSettings && (this.courseFormGroup as any)?.value) {
+        rawSettings = (this.courseFormGroup as any).value.settings;
+      }
+      if (!rawSettings) {
+        return [];
+      }
+      const settings = typeof rawSettings === 'string' ? JSON.parse(rawSettings) : rawSettings;
+      if (settings && Array.isArray(settings.intervals)) {
+        return settings.intervals;
+      }
+      if (settings?.intervalConfiguration && Array.isArray(settings.intervalConfiguration.intervals)) {
+        return settings.intervalConfiguration.intervals;
+      }
+    } catch (error) {
+      console.warn('extractIntervalsFromSettings failed', error);
+    }
+    return [];
+  }
+
+  private formatIntervalRange(start: any, end: any): string {
+    const buildLabel = (value: any) => {
+      if (!value) {
+        return null;
+      }
+      const parsed = new Date(value);
+      if (isNaN(parsed.getTime())) {
+        return null;
+      }
+      return parsed.toLocaleDateString();
+    };
+    const startLabel = buildLabel(start);
+    const endLabel = buildLabel(end);
+    if (startLabel && endLabel) {
+      return `${startLabel} - ${endLabel}`;
+    }
+    return startLabel || endLabel || '';
+  }
+
+  getIntervalLabelForCourseDate(courseDate: any): string | null {
+    if (!courseDate) {
+      return null;
+    }
+
+    const directName = courseDate?.interval_name ?? courseDate?.intervalName ?? courseDate?.interval?.name;
+    if (directName) {
+      return directName;
+    }
+
+    const intervalId = courseDate?.interval_id ?? courseDate?.intervalId ?? courseDate?.interval?.id ?? null;
+    if (intervalId == null) {
+      return null;
+    }
+
+    const intervals = this.extractIntervalsFromSettings();
+    const key = String(intervalId);
+    let foundIndex = -1;
+    const match = intervals.find((interval: any, idx: number) => {
+      const candidateKey = interval?.id ?? interval?.interval_id ?? interval?.intervalId ?? idx;
+      if (String(candidateKey) === key) {
+        foundIndex = idx;
+        return true;
+      }
+      return false;
+    });
+
+    const baseLabel = `${this.translateService.instant('interval')} ${foundIndex >= 0 ? foundIndex + 1 : key}`;
+
+    if (match) {
+      if (match.name) {
+        return match.name;
+      }
+      const range = this.formatIntervalRange(match.startDate ?? match.start_date, match.endDate ?? match.end_date);
+      if (range) {
+        return `${baseLabel} · ${range}`;
+      }
+      return baseLabel;
+    }
+
+    return baseLabel;
+  }
   // Helpers to robustly navigate snake/camel case API responses
   private groupsOf(cd: any): any[] {
     return (cd?.course_groups || cd?.courseGroups || []) as any[];

@@ -99,6 +99,11 @@
                         <span style="font-weight: 600; font-size: 14px; color: var(--color-dark1);">
                           {{course_date.date | date:'EEEE, MMMM d, y'}}
                         </span>
+                        <span *ngIf="getIntervalLabelForCourseDate(course_date) as intervalLabel"
+                              style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #006fcb; background: #D2EFFF; padding: 2px 8px; border-radius: 12px;">
+                          <mat-icon style="font-size: 14px;">timelapse</mat-icon>
+                          {{ intervalLabel }}
+                        </span>
                         <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: white; background: #31C044; padding: 2px 8px; border-radius: 12px;">
                           {{ getCapacityIndicatorForDate(courseFormGroup.controls.booking_users.value, item.id, i, course_date.id, getSubgroupCapacity(getCourseDates(), item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0))) }}
                         </span>
