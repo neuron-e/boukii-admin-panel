@@ -12,9 +12,9 @@
 						{{'monitor' | translate}}
 					</div>
 				</td>
-				<td *ngFor="let item of courseFormGroup.controls['course_dates'].value;index as i"
-					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-					[style.borderTop]="selectDate===i?'3px solid #E91E63':''" (click)="onSelectDate(i, item)"
+				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					[style.borderTop]="selectDate===entry.index?'3px solid #E91E63':''" (click)="onSelectDate(entry.index, entry.date)"
 					style="
 			color: var(--color-dark1);
 			font-size: 12px;
@@ -22,7 +22,7 @@
 			font-weight: 600;
 			line-height: 16px;
 			word-wrap: break-word">
-					{{item.date | date:'dd-MM-yyyy'}}
+					{{entry.date.date | date:'dd-MM-yyyy'}}
 				</td>
 			</tr>
 		</thead>
@@ -43,24 +43,24 @@
                   {{'monitor_assignment.scope.interval' | translate}}
                 </mat-option>
                 <mat-option value="from"
-                            *ngIf="courseFormGroup.controls['course_dates'].value?.length > 1">
+                            *ngIf="getDatesForSubgroup().length > 1">
                   {{'monitor_assignment.scope.from' | translate}}
                 </mat-option>
                 <mat-option value="range"
-                            *ngIf="courseFormGroup.controls['course_dates'].value?.length > 1">
+                            *ngIf="getDatesForSubgroup().length > 1">
                   {{'monitor_assignment.scope.range' | translate}}
                 </mat-option>
               </mat-select>
             </mat-form-field>
             <div class="bulk-date-row"
-                 *ngIf="assignmentScope !== 'single' && courseFormGroup.controls['course_dates'].value?.length > 1">
+                 *ngIf="assignmentScope !== 'single' && getDatesForSubgroup().length > 1">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
                 <mat-select [(ngModel)]="assignmentStartIndex"
                             (selectionChange)="onAssignmentStartIndexChange($event.value)">
-                  <mat-option *ngFor="let date of courseFormGroup.controls['course_dates'].value; index as idx"
-                              [value]="idx">
-                    {{date.date | date:'dd-MM-yyyy'}}
+                  <mat-option *ngFor="let entry of getDatesForSubgroup(); index as idx"
+                              [value]="entry.index">
+                    {{entry.date.date | date:'dd-MM-yyyy'}}
                   </mat-option>
                 </mat-select>
               </mat-form-field>
@@ -68,9 +68,9 @@
                 <mat-label>{{'monitor_assignment.end_date' | translate}}</mat-label>
                 <mat-select [(ngModel)]="assignmentEndIndex"
                             (selectionChange)="onAssignmentEndIndexChange($event.value)">
-                  <mat-option *ngFor="let date of courseFormGroup.controls['course_dates'].value; index as idx"
-                              [value]="idx">
-                    {{date.date | date:'dd-MM-yyyy'}}
+                  <mat-option *ngFor="let entry of getDatesForSubgroup(); index as idx"
+                              [value]="entry.index">
+                    {{entry.date.date | date:'dd-MM-yyyy'}}
                   </mat-option>
                 </mat-select>
               </mat-form-field>
@@ -81,9 +81,9 @@
           </div>
           <app-form-select
             [table]="monitors"
-            [value]="find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.course_subgroups?.[subgroup_index]?.monitor
-    ? (find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.course_subgroups?.[subgroup_index]?.monitor?.first_name + ' ' +
-       find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.course_subgroups?.[subgroup_index]?.monitor?.last_name)
+            [value]="getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor
+    ? (getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor?.first_name + ' ' +
+       getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor?.last_name)
     : ''"
             (do)="SelectMonitor($event,selectDate)"
             name="first_name"
@@ -100,7 +100,7 @@
               </span>
             </div>
           </div>
-          <div class="level" *ngIf="monitors?.length === 0 && !find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.course_subgroups[subgroup_index]?.monitor"
+          <div class="level" *ngIf="monitors?.length === 0 && !getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor"
                style="width: 100%; height: 100%; padding: 10px; background: #D2EFFF; border-radius: 8px; justify-content: flex-start; align-items: center; gap: 8px; display: inline-flex">
             <mat-icon style="color: #006fcb;" class="icon24">
               info
@@ -113,10 +113,10 @@
             </div>
           </div>
 				</td>
-				<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as i"
-					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':'var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-					[style.color]="find(item.course_groups,'degree_id',level.id)?.course_subgroups?.[subgroup_index]?.monitor?modified[i]?'#FFCF25':'#31C044':'#C7D0D3'"
-					(click)="onSelectDate(i, item)">
+				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':'var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					[style.color]="getSubgroupForDate(entry.date)?.monitor ? (modified[entry.index] ? '#FFCF25' : '#31C044') : '#C7D0D3'"
+					(click)="onSelectDate(entry.index, entry.date)">
 					<mat-icon class="icon10">circle</mat-icon>
 				</td>
 			</tr>
@@ -136,19 +136,19 @@
                   <mat-icon class="small-16">schedule</mat-icon>
                 </button>
                 <img (click)="openTransferModal()"
-                     *ngIf="find(courseFormGroup.controls['course_dates'].value[selectDate].course_groups,'degree_id',level.id)?.booking_users?.length"
+                     *ngIf="getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.booking_users?.length"
                      src="assets/icons/icon/exc.png"
                      class="icon24"
                      style="cursor: pointer;">
               </div>
             </div>
           </td>
-				<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as i"
-					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-					(click)="onSelectDate(i, item)"
+					<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					(click)="onSelectDate(entry.index, entry.date)"
 					style="text-align: center; font-size: 11px; font-weight: 600; color: var(--color-dark1);">
-					{{getStudentCount(item)}}
-				</td>
+					{{getStudentCount(entry.date)}}
+					</td>
 			</tr>
 			<tr *ngFor="let user of booking_users || []; index as i">
 				<ng-container
@@ -164,11 +164,11 @@
 							{{calculateAge(user.client.birth_date)}} {{'years' | translate }}
 						</span>
 					</td>
-					<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as j"
-						[style.backgroundColor]="selectDate===j?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-						(click)="onSelectDate(j, item)">
+					<td *ngFor="let entry of getDatesForSubgroup(); index as j"
+						[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+						(click)="onSelectDate(entry.index, entry.date)">
             <div style="display: flex; gap: 5px; justify-content: center;">
-              <ng-container *ngIf="find(item.booking_users_active,'client_id',user.client_id) as userInDate">
+              <ng-container *ngIf="find(entry.date.booking_users_active,'client_id',user.client_id) as userInDate">
                 <!-- Verde: Presente el día del curso (attended=true) -->
                 <mat-icon class="icon10"
                           *ngIf="userInDate?.attended"
@@ -187,7 +187,7 @@
 
                 <!-- Rojo: Día pasado sin asistencia -->
                 <mat-icon class="icon10"
-                          *ngIf="Date(item.date) < today && !userInDate?.attended && !userInDate?.group_changed"
+                          *ngIf="Date(entry.date.date) < today && !userInDate?.attended && !userInDate?.group_changed"
                           style="color: #E70F0F;"
                           [matTooltip]="'not_presented' | translate">
                   circle
@@ -204,7 +204,7 @@
 
               <!-- Si no hay usuario para esta fecha, mostrar gris -->
               <mat-icon class="icon10"
-                        *ngIf="!find(item.booking_users_active,'client_id',user.client_id)"
+                        *ngIf="!find(entry.date.booking_users_active,'client_id',user.client_id)"
                         style="color: #C7D0D3;"
                         [matTooltip]="'upcoming_day' | translate">
                 circle
@@ -221,9 +221,9 @@
 						{{"no_user_reserved" | translate}}
 					</div>
 				</td>
-				<td *ngFor="let item of courseFormGroup.controls['course_dates'].value; index as i"
-					[style.backgroundColor]="selectDate===i?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-					(click)="onSelectDate(i, item)">
+				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					(click)="onSelectDate(entry.index, entry.date)">
 				</td>
 			</tr>
 		</tbody>

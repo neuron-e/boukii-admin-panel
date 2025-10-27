@@ -62,6 +62,84 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
   monitors: any = null
 
+  private getUserSubgroupId(user: any): number | null {
+    return (user?.course_subgroup_id ??
+      user?.course_sub_group_id ??
+      user?.course_sub_group?.id ??
+      user?.courseSubGroupId ??
+      user?.courseSubGroup?.id ??
+      null) as number | null;
+  }
+
+  private getUserCourseDateId(user: any): number | null {
+    return (user?.course_date_id ??
+      user?.courseDateId ??
+      user?.course_date?.id ??
+      user?.courseDate?.id ??
+      null) as number | null;
+  }
+
+  private toArray<T = any>(val: any): T[] {
+    if (!val) return [];
+    if (Array.isArray(val)) return val as T[];
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed as T[] : [];
+      } catch {
+        return [];
+      }
+    }
+    if (typeof val === 'object') {
+      const values = Object.values(val);
+      if (values.every(v => typeof v === 'string' && (v as string).length <= 2)) {
+        try {
+          const parsed = JSON.parse(values.join(''));
+          return Array.isArray(parsed) ? parsed as T[] : [];
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  }
+
+  private getSettingsObject(): any {
+    try {
+      const control = this.courseFormGroup?.controls?.['settings'];
+      let raw = control ? control.value : undefined;
+      if (!raw && (this.courseFormGroup as any)?.value) {
+        raw = (this.courseFormGroup as any).value.settings;
+      }
+      if (!raw) return {};
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch { return {}; }
+      }
+      if (Array.isArray(raw)) {
+        try { return JSON.parse(raw.join('')); } catch { return {}; }
+      }
+      if (typeof raw === 'object') {
+        const values = Object.values(raw);
+        if (values.every(v => typeof v === 'string' && (v as string).length <= 2)) {
+          try { return JSON.parse(values.join('')); } catch { return raw; }
+        }
+        return raw;
+      }
+      return raw;
+    } catch {
+      return {};
+    }
+  }
+
+  private extractIntervals(): any[] {
+    const settings = this.getSettingsObject();
+    if (settings) {
+      if (Array.isArray(settings.intervals)) return settings.intervals;
+      if (settings?.intervalConfiguration?.intervals) return settings.intervalConfiguration.intervals;
+    }
+    return [];
+  }
+
   private getCourseDates(): any[] {
     return this.courseFormGroup?.controls?.['course_dates']?.value || [];
   }
@@ -81,7 +159,6 @@ export class FluxDisponibilidadComponent implements OnInit {
       return;
     }
     if (scope === 'interval') {
-      // Asignar monitor a todas las fechas del intervalo actual
       const currentIntervalIndexes = this.getIntervalDateIndexes();
       if (currentIntervalIndexes.length > 0) {
         this.assignmentStartIndex = currentIntervalIndexes[0];
@@ -153,10 +230,31 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   private buildTargetIndexes(startIndex: number, endIndex: number): number[] {
     const indexes: number[] = [];
+    const courseDates = this.getCourseDates();
     for (let idx = startIndex; idx <= endIndex; idx++) {
-      indexes.push(idx);
+      if (this.getSubgroupForDate(courseDates[idx])) {
+        indexes.push(idx);
+      }
     }
     return indexes;
+  }
+
+  getDatesForSubgroup(): Array<{ date: any, index: number }> {
+    const courseDates = this.getCourseDates();
+    const result: Array<{ date: any, index: number }> = [];
+    courseDates.forEach((date, index) => {
+      const subgroup = this.getSubgroupForDate(date);
+      if (!subgroup) {
+        return;
+      }
+      const dateId = date?.id ?? null;
+      const subgroupDateId = subgroup?.course_date_id ?? subgroup?.courseDateId ?? null;
+      if (dateId && subgroupDateId && subgroupDateId !== dateId) {
+        return;
+      }
+      result.push({ date, index });
+    });
+    return result;
   }
 
   private collectBookingUserIds(indexes: number[]): number[] {
@@ -170,14 +268,15 @@ export class FluxDisponibilidadComponent implements OnInit {
       if (!date) {
         return;
       }
-      const group = date?.course_groups?.find((g: any) => g.degree_id === levelId);
-      const subgroup = group?.course_subgroups?.[this.subgroup_index];
+      const subgroup = this.getSubgroupForDate(date);
       const subgroupId = subgroup?.id;
       if (!subgroupId) {
         return;
       }
       bookingUsers.forEach((user: any) => {
-        if (user?.course_date_id === date?.id && user?.course_subgroup_id === subgroupId && user?.id != null) {
+        const userCourseDateId = this.getUserCourseDateId(user);
+        const userSubgroupId = this.getUserSubgroupId(user);
+        if (userCourseDateId === date?.id && userSubgroupId === subgroupId && user?.id != null) {
           result.add(user.id);
         }
       });
@@ -188,24 +287,17 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   private resolveFallbackSubgroupId(index: number): number | null {
     const date = this.getCourseDates()[index];
-    if (!date) {
-      return null;
-    }
-    const levelGroup = date?.course_groups?.find((g: any) => g.degree_id === this.level?.id);
-    const subgroup = levelGroup?.course_subgroups?.[this.subgroup_index];
+    const subgroup = this.getSubgroupForDate(date);
     return subgroup?.id ?? null;
   }
 
   getAssignmentSelectedDays(): number {
     const { startIndex, endIndex } = this.resolveAssignmentIndexes(this.selectDate);
-    if (startIndex > endIndex) {
-      return 0;
-    }
-    return endIndex - startIndex + 1;
+    return this.buildTargetIndexes(startIndex, endIndex).length || 0;
   }
 
   /**
-   * Verifica si hay múltiples intervalos configurados
+   * Verifica si hay mÃºltiples intervalos configurados
    */
   hasMultipleIntervals(): boolean {
     try {
@@ -214,7 +306,7 @@ export class FluxDisponibilidadComponent implements OnInit {
         return false;
       }
 
-      // Obtener todos los interval_id únicos
+      // Obtener todos los interval_id Ãºnicos
       const intervalIds = new Set(courseDates.map(date => date.interval_id).filter(id => id != null));
       return intervalIds.size > 1;
     } catch (error) {
@@ -223,7 +315,7 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
 
   /**
-   * Obtiene los índices de las fechas que pertenecen al intervalo de la fecha seleccionada
+   * Obtiene los Ã­ndices de las fechas que pertenecen al intervalo de la fecha seleccionada
    */
   private getIntervalDateIndexes(): number[] {
     try {
@@ -258,20 +350,27 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    const availableDates = this.getDatesForSubgroup();
+    if (availableDates.length) {
+      this.selectDate = availableDates[0].index;
+    } else {
+      this.selectDate = 0;
+    }
+
     const totalDates = this.getCourseDates().length;
     this.assignmentStartIndex = this.selectDate;
     this.assignmentEndIndex = totalDates > 0 ? totalDates - 1 : this.selectDate;
-    if (totalDates <= 1) {
+    if (availableDates.length <= 1) {
       this.assignmentScope = 'single';
     }
 
-    // NO cargar monitores disponibles automáticamente para evitar colapsar la API
-    // Los monitores se cargarán solo cuando el usuario haga clic en una fecha
-    this.booking_users = this.courseFormGroup.controls['booking_users'].value.filter((user: any, index: any, self: any) =>
+    // NO cargar monitores disponibles automaticamente para evitar colapsar la API
+    // Los monitores se cargaran solo cuando el usuario haga clic en una fecha
+    const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
+    this.booking_users = bookingUsers.filter((user: any, index: any, self: any) =>
       index === self.findIndex((u: any) => u.client_id === user.client_id)
     );
   }
-
   changeMonitor(event: any) {
     const subIndex = event.date[0].course_subgroups.findIndex((a: any) => a.id === event.subgroup.id)
     for (const [index, date] of event.date.entries()) {
@@ -325,8 +424,7 @@ export class FluxDisponibilidadComponent implements OnInit {
     const selectedMonitor = event?.option?.value ?? null;
     const monitorId = selectedMonitor ? selectedMonitor.id : null;
     const courseDates = this.getCourseDates();
-    const baseGroup = courseDates?.[selectDate]?.course_groups?.find((g: any) => g.degree_id === this.level?.id);
-    const baseSubgroup = baseGroup?.course_subgroups?.[this.subgroup_index];
+    const baseSubgroup = this.getSubgroupForDate(courseDates?.[selectDate]);
 
     if (baseSubgroup && baseSubgroup.monitor_id === monitorId) {
       return;
@@ -368,27 +466,56 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   /**
    * Emit timing event for the subgroup
-   * Abre el modal incluso si no hay alumnos (se mostrará vacío)
+   * Abre el modal incluso si no hay alumnos (se mostrarÃ¡ vacÃ­o)
    */
   onTimingClick(): void {
-    const subGroup = this.group.course_subgroups[this.subgroup_index];
-    // Usar la misma lógica que en el template: filtrar por degree_id
-    const bookingUsers = this.booking_users || [];
-    const studentsInSubgroup = bookingUsers.filter((user: any) => user.degree_id === this.level.id);
+    const courseDates = this.getCourseDates();
+    const selectedDateObj = courseDates?.[this.selectDate] || courseDates?.[0] || null;
+    const subGroup = this.getSubgroupForDate(selectedDateObj) ?? this.group.course_subgroups?.[this.subgroup_index];
+
+    const subgroupIds = this.getSubgroupIdsAcrossDates();
+    const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
+    const seenStudents = new Set<number | string>();
+    const studentsInSubgroup: any[] = [];
+    const pushStudent = (user: any) => {
+      if (!user) return;
+      const key = user?.id ?? user?.booking_user_id ?? user?.client_id ?? user?.client?.id;
+      if (key == null || seenStudents.has(key)) return;
+      seenStudents.add(key);
+      studentsInSubgroup.push(user);
+    };
+
+    bookingUsers.forEach((user: any) => {
+      if ((user?.degree_id ?? user?.degreeId) !== this.level?.id) return;
+      const userSubgroupId = this.getUserSubgroupId(user);
+      if (userSubgroupId != null && subgroupIds.has(userSubgroupId)) {
+        pushStudent(user);
+      }
+    });
+
+    if (!studentsInSubgroup.length) {
+      courseDates.forEach(date => {
+        const subgroup = this.getSubgroupForDate(date);
+        if (!subgroup?.id) return;
+        this.toArray(date?.booking_users_active).forEach(user => {
+          const userSubgroupId = this.getUserSubgroupId(user);
+          if (userSubgroupId === subgroup.id) {
+            pushStudent(user);
+          }
+        });
+        this.toArray(subgroup?.booking_users).forEach(user => pushStudent(user));
+      });
+    }
 
     if (studentsInSubgroup.length === 0) {
       this.snackbar.open(this.translateService.instant('no_user_reserved'), 'OK', { duration: 2000 });
     }
 
-    // Determinar la fecha seleccionada actualmente
-    const courseDates = this.courseFormGroup.controls['course_dates']?.value || [];
-    const selectedDateObj = courseDates?.[this.selectDate] || courseDates?.[0] || null;
-
     const timingData = {
       subGroup: subGroup,
       groupLevel: this.level,
       selectedDate: selectedDateObj,
-      studentsInLevel: studentsInSubgroup  // Agregar los estudiantes encontrados
+      studentsInLevel: studentsInSubgroup
     };
 
     this.viewTimes.emit(timingData);
@@ -399,10 +526,30 @@ export class FluxDisponibilidadComponent implements OnInit {
    */
   hasStudents(): boolean {
     try {
-      // Use the same filtering logic as the template: filter by degree_id
-      const bookingUsers = this.booking_users || [];
-      const studentsInLevel = bookingUsers.filter((user: any) => user.degree_id === this.level?.id);
-      return studentsInLevel.length > 0;
+      const courseDates = this.getCourseDates();
+      for (const date of courseDates) {
+        const subgroup = this.getSubgroupForDate(date);
+        if (!subgroup) continue;
+        const bookingUsersActive = this.toArray(date?.booking_users_active);
+        if (bookingUsersActive.some((user: any) => this.getUserSubgroupId(user) === subgroup.id)) {
+          return true;
+        }
+        const embeddedUsers = this.toArray(subgroup?.booking_users);
+        if (embeddedUsers.length) {
+          return true;
+        }
+      }
+
+      const globalUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
+      return globalUsers.some((user: any) => {
+        if ((user?.degree_id ?? user?.degreeId) !== this.level?.id) return;
+        const userSubgroupId = this.getUserSubgroupId(user);
+        if (userSubgroupId == null) return false;
+        return courseDates.some(date => {
+          const subgroup = this.getSubgroupForDate(date);
+          return subgroup?.id === userSubgroupId;
+        });
+      });
     } catch (error) {
       return false;
     }
@@ -424,7 +571,7 @@ export class FluxDisponibilidadComponent implements OnInit {
           // Actualizar el objeto local
           bookingUser.accepted = accepted;
 
-          // Mostrar mensaje de confirmación
+          // Mostrar mensaje de confirmaciÃ³n
           const message = accepted ?
             this.translateService.instant('attendance.confirmed') :
             this.translateService.instant('attendance.pending');
@@ -432,7 +579,7 @@ export class FluxDisponibilidadComponent implements OnInit {
           this.snackbar.open(message, 'OK', { duration: 3000 });
         },
         error: (error) => {
-          this.snackbar.open('Error al actualizar confirmación', 'OK', { duration: 3000 });
+          this.snackbar.open('Error al actualizar confirmaciÃ³n', 'OK', { duration: 3000 });
         }
       });
   }
@@ -443,27 +590,83 @@ export class FluxDisponibilidadComponent implements OnInit {
    */
   getStudentCount(dateItem: any): string {
     try {
-      // Find the level group for this date
-      const levelGroup = dateItem?.course_groups?.find((g: any) => g.degree_id === this.level?.id);
-      const subgroup = levelGroup?.course_subgroups?.[this.subgroup_index];
-
+      const subgroup = this.getSubgroupForDate(dateItem);
       if (!subgroup) {
-        return '0/0';
+        return '-';
       }
 
-      // Count students in this subgroup for this date
-      // Students are in booking_users_active filtered by course_date_id and course_subgroup_id
-      const bookingUsersActive = dateItem?.booking_users_active || [];
-      const studentsInSubgroup = bookingUsersActive.filter((user: any) =>
-        user.course_subgroup_id === subgroup.id
-      );
+      const bookingUsersActive = this.toArray(dateItem?.booking_users_active);
+      let currentCount = bookingUsersActive.filter((user: any) => {
+        const userSubgroupId = this.getUserSubgroupId(user);
+        return userSubgroupId === subgroup.id;
+      }).length;
 
-      const currentCount = studentsInSubgroup.length;
-      const maxCapacity = this.level?.max_participants || 0;
+      if (currentCount === 0) {
+        const embeddedUsers = this.toArray(subgroup?.booking_users);
+        currentCount = embeddedUsers.length;
+      }
 
-      return `${currentCount}/${maxCapacity}`;
+      const maxCapacity =
+        subgroup?.max_participants ??
+        this.group?.course_subgroups?.[this.subgroup_index]?.max_participants ??
+        this.level?.max_participants ??
+        this.courseFormGroup?.controls?.['max_participants']?.value ??
+        0;
+
+      return `${currentCount}/${maxCapacity || 0}`;
     } catch (error) {
       return '0/0';
     }
   }
+
+  getSubgroupForDate(date: any): any | null {
+    if (!date || !this.level?.id) return null;
+    const degreeId = this.level.id;
+
+    const dateId = date?.id ?? null;
+    const dateLevelSubgroups = this.toArray(date?.course_subgroups || date?.courseSubgroups)
+      .filter((sg: any) => (sg?.degree_id ?? sg?.degreeId) === degreeId)
+      .filter((sg: any) => {
+        const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
+        return !dateId || !sgDateId || sgDateId === dateId;
+      });
+    if (dateLevelSubgroups.length > this.subgroup_index) {
+      return dateLevelSubgroups[this.subgroup_index];
+    }
+
+    const group = (date?.course_groups || [])
+      .find((g: any) => (g?.degree_id ?? g?.degreeId) === degreeId);
+    const groupSubgroups = this.toArray(group?.course_subgroups || group?.courseSubgroups)
+      .filter((sg: any) => {
+        const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
+        return !dateId || !sgDateId || sgDateId === dateId;
+      });
+    if (groupSubgroups.length > this.subgroup_index) {
+      return groupSubgroups[this.subgroup_index];
+    }
+
+    return null;
+  }
+
+  private getSubgroupIdsAcrossDates(): Set<number> {
+    const ids = new Set<number>();
+    const courseDates = this.getCourseDates();
+    courseDates.forEach(date => {
+      const subgroup = this.getSubgroupForDate(date);
+      if (subgroup?.id != null) {
+        ids.add(subgroup.id);
+      }
+    });
+    return ids;
+  }
 }
+
+
+
+
+
+
+
+
+
+
