@@ -35,6 +35,7 @@ export class FluxDisponibilidadComponent implements OnInit {
   assignmentScope: 'single' | 'interval' | 'from' | 'range' = 'single';
   assignmentStartIndex = 0;
   assignmentEndIndex = 0;
+  private _cachedDatesForSubgroup: Array<{ date: any, index: number }> | null = null;
   constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private snackbar: MatSnackBar, private translateService: TranslateService) { }
   getLanguages = () => this.crudService.list('/languages', 1, 1000).subscribe((data) => this.languages = data.data.reverse())
   getLanguage(id: any) {
@@ -240,6 +241,10 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
 
   getDatesForSubgroup(): Array<{ date: any, index: number }> {
+    if (this._cachedDatesForSubgroup !== null) {
+      return this._cachedDatesForSubgroup;
+    }
+
     const courseDates = this.getCourseDates();
     const result: Array<{ date: any, index: number }> = [];
     courseDates.forEach((date, index) => {
@@ -254,7 +259,13 @@ export class FluxDisponibilidadComponent implements OnInit {
       }
       result.push({ date, index });
     });
+
+    this._cachedDatesForSubgroup = result;
     return result;
+  }
+
+  private invalidateDatesCache(): void {
+    this._cachedDatesForSubgroup = null;
   }
 
   private collectBookingUserIds(indexes: number[]): number[] {
@@ -404,6 +415,7 @@ export class FluxDisponibilidadComponent implements OnInit {
         );
       }
     }
+    this.invalidateDatesCache();
     this.cambiarModal = false
   }
 
@@ -453,6 +465,7 @@ export class FluxDisponibilidadComponent implements OnInit {
         this.modified[idx] = true;
       });
 
+      this.invalidateDatesCache();
       this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
     } catch (error) {
       console.error('Error occurred while assigning monitor:', error);
