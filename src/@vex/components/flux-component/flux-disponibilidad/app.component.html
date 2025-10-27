@@ -1,12 +1,43 @@
 <div style="overflow-x: auto;overflow-y: hidden; height: 100%;">
 	<table>
 		<thead>
+			<!-- Fila de headers de intervalos (solo si hay múltiples intervalos) -->
+			<tr *ngIf="hasMultipleIntervals()" class="interval-headers-row">
+				<td [attr.rowspan]="2"
+					style="color: var(--color-dark1);
+						font-size: 12px;
+						font-style: normal;
+						font-weight: 600;
+						line-height: 16px;
+						background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);
+						vertical-align: middle;">
+					<div class="flexicon">
+						<img src="assets/icons/icon/monitor.png" class="icon24">
+						{{'monitor' | translate}}
+					</div>
+				</td>
+				<td *ngFor="let header of getIntervalHeaders()"
+					[attr.colspan]="header.colspan"
+					class="interval-header-cell"
+					style="
+						text-align: center;
+						font-size: 13px;
+						font-weight: 700;
+						color: var(--color-dark1);
+						background-color: var(--is-light-theme, #f0f4f8) var(--is-dark-theme, #2a2a2a);
+						padding: 8px 4px;
+						border-bottom: 2px solid #E91E63;">
+					{{header.name}}
+				</td>
+			</tr>
+			<!-- Fila de fechas individuales -->
 			<tr style="height: 34px;">
-				<td style="color: var(--color-dark1);
-                font-size: 12px;
-                font-style: normal;
-                font-weight: 600;
-                line-height: 16px;">
+				<td *ngIf="!hasMultipleIntervals()"
+					style="color: var(--color-dark1);
+						font-size: 12px;
+						font-style: normal;
+						font-weight: 600;
+						line-height: 16px;">
 					<div class="flexicon">
 						<img src="assets/icons/icon/monitor.png" class="icon24">
 						{{'monitor' | translate}}
@@ -29,32 +60,32 @@
 		<tbody>
 			<tr style="border-bottom: 3px solid #dee6ea;">
 				<td style="background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
-          <div class="monitor-bulk-controls"
-               *ngIf="courseFormGroup.controls['course_dates'].value?.length">
-            <mat-form-field appearance="outline" class="w-full">
-              <mat-label>{{'monitor_assignment.scope_label' | translate}}</mat-label>
-              <mat-select [(ngModel)]="assignmentScope"
-                          (selectionChange)="onAssignmentScopeChange($event.value)">
-                <mat-option value="single">
-                  {{'monitor_assignment.scope.single' | translate}}
-                </mat-option>
-                <mat-option value="interval"
-                            *ngIf="hasMultipleIntervals()">
-                  {{'monitor_assignment.scope.interval' | translate}}
-                </mat-option>
-                <mat-option value="from"
-                            *ngIf="getDatesForSubgroup().length > 1">
-                  {{'monitor_assignment.scope.from' | translate}}
-                </mat-option>
-                <mat-option value="range"
-                            *ngIf="getDatesForSubgroup().length > 1">
-                  {{'monitor_assignment.scope.range' | translate}}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-            <div class="bulk-date-row"
-                 *ngIf="assignmentScope !== 'single' && getDatesForSubgroup().length > 1">
-              <mat-form-field appearance="outline" class="flex-1">
+          <div class="monitor-assignment-compact"
+               *ngIf="courseFormGroup.controls['course_dates'].value?.length && getDatesForSubgroup().length > 1">
+            <div class="assignment-inline">
+              <span class="assignment-label">{{'monitor_assignment.scope_label' | translate}}:</span>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mini-select">
+                <mat-select [(ngModel)]="assignmentScope"
+                            (selectionChange)="onAssignmentScopeChange($event.value)">
+                  <mat-option value="single">
+                    {{'monitor_assignment.scope.single' | translate}}
+                  </mat-option>
+                  <mat-option value="interval"
+                              *ngIf="hasMultipleIntervals()">
+                    {{'monitor_assignment.scope.interval' | translate}}
+                  </mat-option>
+                  <mat-option value="from">
+                    {{'monitor_assignment.scope.from' | translate}}
+                  </mat-option>
+                  <mat-option value="range">
+                    {{'monitor_assignment.scope.range' | translate}}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline"
+                              subscriptSizing="dynamic"
+                              class="mini-select"
+                              *ngIf="assignmentScope !== 'single'">
                 <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
                 <mat-select [(ngModel)]="assignmentStartIndex"
                             (selectionChange)="onAssignmentStartIndexChange($event.value)">
@@ -64,7 +95,10 @@
                   </mat-option>
                 </mat-select>
               </mat-form-field>
-              <mat-form-field appearance="outline" class="flex-1" *ngIf="assignmentScope === 'range'">
+              <mat-form-field appearance="outline"
+                              subscriptSizing="dynamic"
+                              class="mini-select"
+                              *ngIf="assignmentScope === 'range'">
                 <mat-label>{{'monitor_assignment.end_date' | translate}}</mat-label>
                 <mat-select [(ngModel)]="assignmentEndIndex"
                             (selectionChange)="onAssignmentEndIndexChange($event.value)">
@@ -74,9 +108,9 @@
                   </mat-option>
                 </mat-select>
               </mat-form-field>
-            </div>
-            <div class="bulk-selection-summary" *ngIf="assignmentScope !== 'single'">
-              {{ getAssignmentSelectedDays() }} {{'days' | translate}}
+              <span class="days-info" *ngIf="assignmentScope !== 'single'">
+                ({{ getAssignmentSelectedDays() }} {{'days' | translate}})
+              </span>
             </div>
           </div>
           <app-form-select

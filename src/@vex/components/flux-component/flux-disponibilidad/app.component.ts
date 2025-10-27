@@ -36,6 +36,7 @@ export class FluxDisponibilidadComponent implements OnInit {
   assignmentStartIndex = 0;
   assignmentEndIndex = 0;
   private _cachedDatesForSubgroup: Array<{ date: any, index: number }> | null = null;
+  private _cachedIntervalHeaders: Array<{ name: string; colspan: number }> | null = null;
   constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private snackbar: MatSnackBar, private translateService: TranslateService) { }
   getLanguages = () => this.crudService.list('/languages', 1, 1000).subscribe((data) => this.languages = data.data.reverse())
   getLanguage(id: any) {
@@ -266,6 +267,7 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   private invalidateDatesCache(): void {
     this._cachedDatesForSubgroup = null;
+    this._cachedIntervalHeaders = null;
   }
 
   private collectBookingUserIds(indexes: number[]): number[] {
@@ -360,6 +362,71 @@ export class FluxDisponibilidadComponent implements OnInit {
     }
   }
 
+  /**
+   * Obtiene los grupos de intervalos para mostrar headers visuales
+   * Retorna un array con el nombre del intervalo y el colspan (cantidad de fechas)
+   */
+  getIntervalHeaders(): Array<{ name: string; colspan: number }> {
+    if (this._cachedIntervalHeaders !== null) {
+      return this._cachedIntervalHeaders;
+    }
+
+    try {
+      if (!this.hasMultipleIntervals()) {
+        this._cachedIntervalHeaders = [];
+        return [];
+      }
+
+      const datesForSubgroup = this.getDatesForSubgroup();
+      if (datesForSubgroup.length === 0) {
+        this._cachedIntervalHeaders = [];
+        return [];
+      }
+
+      const intervals = this.extractIntervals();
+      const headers: Array<{ name: string; colspan: number }> = [];
+      let currentIntervalId: any = null;
+      let currentCount = 0;
+      let currentIntervalName = '';
+
+      datesForSubgroup.forEach((entry, idx) => {
+        const date = entry.date;
+        const intervalId = date.interval_id;
+
+        if (intervalId !== currentIntervalId) {
+          // Guardar el grupo anterior si existe
+          if (currentCount > 0) {
+            headers.push({ name: currentIntervalName, colspan: currentCount });
+          }
+
+          // Iniciar nuevo grupo
+          currentIntervalId = intervalId;
+          currentCount = 1;
+
+          // Buscar el nombre del intervalo
+          const interval = intervals.find((i: any) =>
+            String(i.id) === String(intervalId) || i.id === intervalId
+          );
+          currentIntervalName = interval?.name || `Semana ${headers.length + 1}`;
+        } else {
+          currentCount++;
+        }
+      });
+
+      // Agregar el último grupo
+      if (currentCount > 0) {
+        headers.push({ name: currentIntervalName, colspan: currentCount });
+      }
+
+      this._cachedIntervalHeaders = headers;
+      return headers;
+    } catch (error) {
+      console.error('Error generating interval headers:', error);
+      this._cachedIntervalHeaders = [];
+      return [];
+    }
+  }
+
   ngOnInit(): void {
     const availableDates = this.getDatesForSubgroup();
     if (availableDates.length) {
@@ -375,8 +442,11 @@ export class FluxDisponibilidadComponent implements OnInit {
       this.assignmentScope = 'single';
     }
 
-    // NO cargar monitores disponibles automaticamente para evitar colapsar la API
-    // Los monitores se cargaran solo cuando el usuario haga clic en una fecha
+    // Cargar monitores disponibles de la primera fecha automáticamente
+    if (availableDates.length > 0) {
+      this.getAvail(availableDates[0].date);
+    }
+
     const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
     this.booking_users = bookingUsers.filter((user: any, index: any, self: any) =>
       index === self.findIndex((u: any) => u.client_id === user.client_id)
