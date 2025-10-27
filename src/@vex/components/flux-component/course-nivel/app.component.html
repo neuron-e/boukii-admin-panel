@@ -46,7 +46,8 @@
 
       <!-- IMPROVED SUBGROUP DESIGN WITH DATE-BASED STRUCTURE -->
       <ng-container *ngIf="item.modal">
-        <div *ngFor="let ix of asArray(getSubgroupsForDegree(getCourseDates(), item.id)); index as i"
+        <!-- Usar getAllUniqueSubgroupsForDegree para mostrar TODOS los subgrupos únicos -->
+        <div *ngFor="let ix of asArray(getAllUniqueSubgroupsForDegree(getCourseDates(), item.id)); index as i"
              style="margin-bottom: 16px; border: 1px solid var(--color-grey2); border-radius: 8px; background-color: white; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
           <!-- Subgroup Header -->
@@ -85,10 +86,11 @@
             </div>
           </div>
 
-          <!-- Date-based Content -->
+          <!-- Date-based Content - Solo mostrar las fechas que tienen este subgrupo -->
           <div *ngIf="!isSubgroupCollapsed(item.id, i)" style="padding: 16px;">
-            <ng-container *ngIf="getCourseDates()?.length; else noMonitors">
-              <ng-container *ngFor="let course_date of getCourseDates(); let dateIndex = index">
+            <ng-container *ngIf="getCourseDatesForSubgroupIndex(getCourseDates(), item.id, i)?.length; else noMonitors">
+              <!-- Iterar solo sobre las fechas que tienen este subgrupo específico -->
+              <ng-container *ngFor="let course_date of getCourseDatesForSubgroupIndex(getCourseDates(), item.id, i); let dateIndex = index">
                 <ng-container *ngIf="find(course_date.course_groups || [],'degree_id',item.id)?.course_subgroups?.[i] as subG">
 
                   <!-- Date Section -->

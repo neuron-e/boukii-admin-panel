@@ -175,11 +175,100 @@ export class CourseDetailCardNivelComponent implements OnInit {
     }
     return [];
   }
+
+  /**
+   * Devuelve TODOS los subgrupos únicos para un degree a través de TODOS los course_dates
+   * Útil cuando hay configuración por intervalos y diferentes intervalos tienen diferente número de subgrupos
+   * HYBRID: Try both cd.course_subgroups (new) and course_groups.course_subgroups (old)
+   */
+  getAllUniqueSubgroupsForDegree(courseDates: any[], degreeId: number): any[] {
+    if (!Array.isArray(courseDates)) return [];
+
+    // Try both structures: cd.course_subgroups (new) and course_groups.course_subgroups (old)
+    const maxSubgroupsCount = Math.max(...courseDates.map(cd => {
+      // Try new structure first: course_subgroups at date level
+      const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
+      const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
+        (sg?.degree_id ?? sg?.degreeId) === degreeId
+      );
+      if (dateLevelSubgroups.length > 0) {
+        return dateLevelSubgroups.length;
+      }
+
+      // Fallback to old structure: course_subgroups inside course_groups
+      const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
+      return this.subgroupsOf(group || {}).length;
+    }), 0);
+
+    // Crear un array con el número máximo de subgrupos encontrados
+    const uniqueSubgroups: any[] = [];
+    for (let i = 0; i < maxSubgroupsCount; i++) {
+      // Buscar el primer subgrupo en este índice que tenga datos
+      for (const cd of courseDates) {
+        // Try new structure first
+        const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
+        const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
+          (sg?.degree_id ?? sg?.degreeId) === degreeId
+        );
+        if (dateLevelSubgroups[i]) {
+          uniqueSubgroups.push(dateLevelSubgroups[i]);
+          break;
+        }
+
+        // Fallback to old structure
+        const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
+        const subgroup = this.subgroupsOf(group || {})[i];
+        if (subgroup) {
+          uniqueSubgroups.push(subgroup);
+          break;
+        }
+      }
+    }
+
+    return uniqueSubgroups;
+  }
+
+  /**
+   * Obtiene las fechas (course_dates) que tienen un subgrupo específico (por índice) para un degree
+   * HYBRID: Try both cd.course_subgroups (new) and course_groups.course_subgroups (old)
+   */
+  getCourseDatesForSubgroupIndex(courseDates: any[], degreeId: number, subgroupIndex: number): any[] {
+    if (!Array.isArray(courseDates)) return [];
+
+    return courseDates.filter(cd => {
+      // Try new structure first: course_subgroups at date level
+      const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
+      const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
+        (sg?.degree_id ?? sg?.degreeId) === degreeId
+      );
+      if (dateLevelSubgroups.length > subgroupIndex && dateLevelSubgroups[subgroupIndex] != null) {
+        return true;
+      }
+
+      // Fallback to old structure: course_subgroups inside course_groups
+      const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
+      const subgroups = this.subgroupsOf(group || {});
+      return subgroups.length > subgroupIndex && subgroups[subgroupIndex] != null;
+    });
+  }
   // Obtiene los IDs de subgrupo para un índice concreto (posición) a lo largo de todas las fechas
+  // HYBRID: Try both cd.course_subgroups (new) and course_groups.course_subgroups (old)
   getSubgroupIdsForIndex(courseDates: any[], degreeId: number, index: number): number[] {
     if (!Array.isArray(courseDates)) return [];
     const ids = new Set<number>();
     for (const cd of courseDates) {
+      // Try new structure first
+      const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
+      const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
+        (sg?.degree_id ?? sg?.degreeId) === degreeId
+      );
+      const sgNew = dateLevelSubgroups[index];
+      if (sgNew?.id != null) {
+        ids.add(sgNew.id);
+        continue;
+      }
+
+      // Fallback to old structure
       const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
       const sg = this.subgroupsOf(group || {})?.[index];
       if (sg?.id != null) ids.add(sg.id);
@@ -383,11 +472,24 @@ export class CourseDetailCardNivelComponent implements OnInit {
   }
   countSubgroups(courseDates: any[], degreeId: number): number {
     if (!Array.isArray(courseDates) || !courseDates.length) return 0;
+    // HYBRID: Try both structures
     const sum = courseDates
-      .flatMap((date: any) => this.groupsOf(date))
-      .filter((group: any) => this.degreeIdOf(group) === degreeId)
-      .flatMap((group: any) => this.subgroupsOf(group))
-      .filter((subgroup: any) => (subgroup?.degree_id ?? subgroup?.degreeId) === degreeId).length;
+      .flatMap((cd: any) => {
+        // Try new structure first
+        const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
+        const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
+          (sg?.degree_id ?? sg?.degreeId) === degreeId
+        );
+        if (dateLevelSubgroups.length > 0) {
+          return dateLevelSubgroups;
+        }
+
+        // Fallback to old structure
+        const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
+        return this.subgroupsOf(group || {}).filter((sg: any) =>
+          (sg?.degree_id ?? sg?.degreeId) === degreeId
+        );
+      }).length;
     return Math.round(sum / courseDates.length);
   }
   onTimingClick(subGroup: any, groupLevel: any, selectedDate?: any): void {
