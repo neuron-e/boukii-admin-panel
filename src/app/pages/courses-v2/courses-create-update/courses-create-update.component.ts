@@ -438,31 +438,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private mergeSubgroups(base: IntervalSubgroupState[], existing: IntervalSubgroupState[] | undefined): IntervalSubgroupState[] {
+    // Si ya hay subgrupos configurados (existing), priorizarlos completamente
+    if (Array.isArray(existing) && existing.length > 0) {
+      return existing.map(subgroup => ({ ...subgroup }));
+    }
+
     const result: IntervalSubgroupState[] = [];
-    const existingMap = new Map<string, IntervalSubgroupState>();
-
-    (existing || []).forEach(subgroup => {
-      if (subgroup?.key) {
-        existingMap.set(subgroup.key, { ...subgroup });
-      }
-    });
-
-    base.forEach(baseSubgroup => {
-      const existingSubgroup = baseSubgroup?.key ? existingMap.get(baseSubgroup.key) : undefined;
-      if (existingSubgroup) {
-        result.push({
-          ...baseSubgroup,
-          ...existingSubgroup,
-          key: baseSubgroup.key
-        });
-        existingMap.delete(baseSubgroup.key);
-      } else {
-        result.push({ ...baseSubgroup });
-      }
-    });
-
-    existingMap.forEach(subgroup => {
-      result.push({ ...subgroup });
+    (base || []).forEach(baseSubgroup => {
+      result.push({ ...baseSubgroup });
     });
 
     return result;
@@ -855,6 +838,16 @@ export class CoursesCreateUpdateComponent implements OnInit {
     Object.keys(maxSubgroupsPerIntervalLevel).forEach(intervalId => {
       if (!grouped[intervalId]) {
         grouped[intervalId] = this.mergeGroupStates(template);
+        Object.keys(grouped[intervalId]).forEach(levelKey => {
+          const levelState = grouped[intervalId][levelKey];
+          if (levelState) {
+            levelState.active = false;
+            levelState.subgroups = (levelState.subgroups || []).map(subgroup => ({
+              ...subgroup,
+              active: subgroup?.active === true
+            }));
+          }
+        });
       }
 
       Object.keys(maxSubgroupsPerIntervalLevel[intervalId]).forEach(levelKey => {
