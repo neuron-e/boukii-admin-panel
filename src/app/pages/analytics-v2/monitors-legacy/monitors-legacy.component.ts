@@ -64,8 +64,8 @@ interface MonitorKPIs {
       <mat-card class="loading-card">
         <mat-card-content class="loading-content">
           <mat-spinner diameter="40"></mat-spinner>
-          <h3>Cargando análisis de monitores...</h3>
-          <p>Procesando datos de horas trabajadas</p>
+          <h3>{{ 'loading_monitor_analysis' | translate }}</h3>
+          <p>{{ 'processing_work_hours_data' | translate }}</p>
         </mat-card-content>
       </mat-card>
     </div>
@@ -82,9 +82,9 @@ interface MonitorKPIs {
             <div class="kpi-content">
               <div class="kpi-info">
                 <div class="kpi-value">{{ kpis.busy }}/{{ kpis.total }}</div>
-                <div class="kpi-label">Monitores Activos</div>
+                <div class="kpi-label">{{ 'active_monitors' | translate }}</div>
                 <div class="kpi-change">
-                  <span>{{ getOccupancyPercentage() }}% ocupación</span>
+                  <span>{{ getOccupancyPercentage() }}% {{ 'occupancy' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">people</mat-icon>
@@ -98,9 +98,9 @@ interface MonitorKPIs {
             <div class="kpi-content">
               <div class="kpi-info">
                 <div class="kpi-value">{{ kpis.totalWorkedHours | number:'1.0-2' }}h</div>
-                <div class="kpi-label">Horas Trabajadas</div>
+                <div class="kpi-label">{{ 'worked_hours' | translate }}</div>
                 <div class="kpi-change">
-                  <span>{{ getEfficiencyPercentage() }}% eficiencia</span>
+                  <span>{{ getEfficiencyPercentage() }}% {{ 'efficiency' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">schedule</mat-icon>
@@ -114,9 +114,9 @@ interface MonitorKPIs {
             <div class="kpi-content">
               <div class="kpi-info">
                 <div class="kpi-value">{{ formatCurrency(getTotalFilteredCost()) }}</div>
-                <div class="kpi-label">Ingresos Monitores</div>
+                <div class="kpi-label">{{ 'monitor_income' | translate }}</div>
                 <div class="kpi-change">
-                  <span>{{ getAverageHourlyRate() + this.currency}}/hora promedio</span>
+                  <span>{{ getAverageHourlyRate() + this.currency}}/{{ 'average_hour' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">monetization_on</mat-icon>
@@ -130,9 +130,9 @@ interface MonitorKPIs {
             <div class="kpi-content">
               <div class="kpi-info">
                 <div class="kpi-value">{{ getTotalBookingHours() }}h</div>
-                <div class="kpi-label">Horas Cursos</div>
+                <div class="kpi-label">{{ 'course_hours' | translate }}</div>
                 <div class="kpi-change">
-                  <span>+{{ kpis.totalNwdHours | number:'1.0-2'}}h bloqueos</span>
+                  <span>+{{ kpis.totalNwdHours | number:'1.0-2'}}h {{ 'blockages' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">school</mat-icon>
@@ -148,8 +148,8 @@ interface MonitorKPIs {
         <!-- Distribución de Horas por Tipo -->
         <mat-card class="chart-card">
           <mat-card-header>
-            <mat-card-title>Distribución de Horas por Tipo</mat-card-title>
-            <mat-card-subtitle>Análisis temporal de actividades</mat-card-subtitle>
+            <mat-card-title>{{ 'hours_distribution_by_type' | translate }}</mat-card-title>
+            <mat-card-subtitle>{{ 'temporal_activities_analysis' | translate }}</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
             <div id="hoursTypeChart" class="chart-container"></div>
@@ -159,8 +159,8 @@ interface MonitorKPIs {
         <!-- Horas por Deporte -->
         <mat-card class="chart-card">
           <mat-card-header>
-            <mat-card-title>Horas por Deporte</mat-card-title>
-            <mat-card-subtitle>Tendencias por especialidad</mat-card-subtitle>
+            <mat-card-title>{{ 'hours_by_sport' | translate }}</mat-card-title>
+            <mat-card-subtitle>{{ 'trends_by_specialty' | translate }}</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
             <div id="hoursSportChart" class="chart-container"></div>
@@ -172,23 +172,23 @@ interface MonitorKPIs {
       <!-- ==================== DETAILED TABLE ==================== -->
       <mat-card class="table-card">
         <mat-card-header>
-          <mat-card-title>Análisis Detallado por Monitor</mat-card-title>
-          <mat-card-subtitle>{{ monitorsData.length }} monitores analizados</mat-card-subtitle>
+          <mat-card-title>{{ 'detailed_monitor_analysis' | translate }}</mat-card-title>
+          <mat-card-subtitle>{{ monitorsData.length }} {{ 'monitors_analyzed' | translate }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
 
           <!-- Table Filters -->
           <div class="table-filters">
             <mat-form-field appearance="outline" class="filter-field">
-              <mat-label>Buscar monitor</mat-label>
+              <mat-label>{{ 'search_monitor' | translate }}</mat-label>
               <input matInput [(ngModel)]="searchFilter" (input)="applyTableFilter()">
               <mat-icon matSuffix>search</mat-icon>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-field">
-              <mat-label>Filtrar por deporte</mat-label>
+              <mat-label>{{ 'filter_by_sport' | translate }}</mat-label>
               <mat-select [(ngModel)]="sportFilter" (selectionChange)="applyTableFilter()">
-                <mat-option value="">Todos los deportes</mat-option>
+                <mat-option value="">{{ 'all_sports' | translate }}</mat-option>
                 <mat-option *ngFor="let sport of availableSports" [value]="sport">
                   {{ sport }}
                 </mat-option>
@@ -201,7 +201,7 @@ interface MonitorKPIs {
 
             <!-- Monitor Column -->
             <ng-container matColumnDef="monitor">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Monitor</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'monitor' | translate }}</th>
               <td mat-cell *matCellDef="let row" class="monitor-cell">
                 <div class="monitor-info">
                   <span class="monitor-name">{{ row.monitor }}</span>
@@ -211,7 +211,7 @@ interface MonitorKPIs {
 
             <!-- Sport Column -->
             <ng-container matColumnDef="sport">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Deporte</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'sport' | translate }}</th>
               <td mat-cell *matCellDef="let row">
                 <mat-chip class="sport-chip">{{ row.sport }}</mat-chip>
               </td>
@@ -219,37 +219,37 @@ interface MonitorKPIs {
 
             <!-- Hours Collective -->
             <ng-container matColumnDef="hours_collective">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Colectivas</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'collective_hours_abbr' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ row.hours_collective }}h</td>
             </ng-container>
 
             <!-- Hours Private -->
             <ng-container matColumnDef="hours_private">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Privadas</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'private_hours_abbr' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ row.hours_private }}h</td>
             </ng-container>
 
             <!-- Hours Activities -->
             <ng-container matColumnDef="hours_activities">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Actividades</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'activities_hours_abbr' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ row.hours_activities }}h</td>
             </ng-container>
 
             <!-- Hours NWD -->
             <ng-container matColumnDef="hours_nwd_payed">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Bloqueos</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'nwd_hours_abbr' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ row.hours_nwd_payed }}h</td>
             </ng-container>
 
             <!-- Hour Price -->
             <ng-container matColumnDef="hour_price">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Precio/Hora</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'price_per_hour' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ formatCurrency(row.hour_price) }}</td>
             </ng-container>
 
             <!-- Total Hours -->
             <ng-container matColumnDef="total_hours">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Total Horas</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'total_hours' | translate }}</th>
               <td mat-cell *matCellDef="let row" class="total-hours-cell">
                 <strong>{{ row.total_hours }}h</strong>
               </td>
@@ -257,7 +257,7 @@ interface MonitorKPIs {
 
             <!-- Total Cost -->
             <ng-container matColumnDef="total_cost">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Costo Total</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'total_cost' | translate }}</th>
               <td mat-cell *matCellDef="let row" class="total-cost-cell">
                 <strong>{{ formatCurrency(row.total_cost) }}</strong>
               </td>
@@ -271,11 +271,11 @@ interface MonitorKPIs {
           <!-- Table Footer -->
           <div class="table-footer" *ngIf="filteredMonitorsData.length > 0">
             <div class="footer-stats">
-              <span>{{ filteredMonitorsData.length }} monitores</span>
+              <span>{{ filteredMonitorsData.length }} {{ 'monitors' | translate }}</span>
               <span>•</span>
-              <span>{{ getTotalFilteredHours() }}h totales</span>
+              <span>{{ getTotalFilteredHours() }}h {{ 'total_lowercase' | translate }}</span>
               <span>•</span>
-              <span>{{ formatCurrency(getTotalFilteredCost()) }} costo total</span>
+              <span>{{ formatCurrency(getTotalFilteredCost()) }} {{ 'total_cost_lowercase' | translate }}</span>
             </div>
           </div>
 
@@ -289,16 +289,16 @@ interface MonitorKPIs {
             <div class="detail-title-section">
               <mat-card-title>
                 <mat-icon>person</mat-icon>
-                Detalle de {{ selectedMonitor.monitor }}
+                {{ 'detail_of' | translate }} {{ selectedMonitor.monitor }}
               </mat-card-title>
               <mat-card-subtitle>
-                {{ monitorDetailData.length }} días trabajados
+                {{ monitorDetailData.length }} {{ 'days_worked' | translate }}
               </mat-card-subtitle>
             </div>
             <div class="detail-actions">
               <button mat-raised-button color="primary" (click)="exportMonitorDetail()" class="export-button">
                 <mat-icon>download</mat-icon>
-                Exportar Monitor
+                {{ 'export_monitor' | translate }}
               </button>
               <button mat-icon-button (click)="closeDetail()" class="close-button">
                 <mat-icon>close</mat-icon>
@@ -311,7 +311,7 @@ interface MonitorKPIs {
           <!-- Loading Detail -->
           <div *ngIf="loadingDetail" class="detail-loading">
             <mat-spinner diameter="30"></mat-spinner>
-            <span>Cargando detalle del monitor...</span>
+            <span>{{ 'loading_monitor_detail' | translate }}</span>
           </div>
 
           <!-- Detail Content -->
@@ -321,19 +321,19 @@ interface MonitorKPIs {
             <div class="detail-kpis">
               <div class="detail-kpi">
                 <div class="detail-kpi-value">{{ getDetailTotalHours() }}</div>
-                <div class="detail-kpi-label">Total Horas</div>
+                <div class="detail-kpi-label">{{ 'total_hours' | translate }}</div>
               </div>
               <div class="detail-kpi">
                 <div class="detail-kpi-value">{{ formatCurrency(getDetailTotalCost()) }}</div>
-                <div class="detail-kpi-label">Total Ingresos</div>
+                <div class="detail-kpi-label">{{ 'total_income' | translate }}</div>
               </div>
               <div class="detail-kpi">
                 <div class="detail-kpi-value">{{ getDetailAverageHourlyRate() }}€/h</div>
-                <div class="detail-kpi-label">Tarifa Promedio</div>
+                <div class="detail-kpi-label">{{ 'average_rate' | translate }}</div>
               </div>
               <div class="detail-kpi">
                 <div class="detail-kpi-value">{{ monitorDetailData.length }}</div>
-                <div class="detail-kpi-label">Días Activos</div>
+                <div class="detail-kpi-label">{{ 'active_days' | translate }}</div>
               </div>
             </div>
 
@@ -342,7 +342,7 @@ interface MonitorKPIs {
 
               <!-- Date Column -->
               <ng-container matColumnDef="date">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Fecha</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'date' | translate }}</th>
                 <td mat-cell *matCellDef="let row">
                   {{ formatDate(row.date) }}
                 </td>
@@ -350,7 +350,7 @@ interface MonitorKPIs {
 
               <!-- Sport Column -->
               <ng-container matColumnDef="sport">
-                <th mat-header-cell *matHeaderCellDef>Deporte</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'sport' | translate }}</th>
                 <td mat-cell *matCellDef="let row">
                   <div class="sport-info">
                     <img [src]="row.sport?.icon_prive" [alt]="row.sport?.name" class="sport-icon">
@@ -361,31 +361,31 @@ interface MonitorKPIs {
 
               <!-- Collective Hours -->
               <ng-container matColumnDef="hours_collective">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Colectivas</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'collective_hours_abbr' | translate }}</th>
                 <td mat-cell *matCellDef="let row">{{ row.hours_collective }}</td>
               </ng-container>
 
               <!-- Private Hours -->
               <ng-container matColumnDef="hours_private">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Privadas</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'private_hours_abbr' | translate }}</th>
                 <td mat-cell *matCellDef="let row">{{ row.hours_private }}</td>
               </ng-container>
 
               <!-- Activities Hours -->
               <ng-container matColumnDef="hours_activities">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Actividades</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'activities_hours_abbr' | translate }}</th>
                 <td mat-cell *matCellDef="let row">{{ row.hours_activities }}</td>
               </ng-container>
 
               <!-- NWD Hours -->
               <ng-container matColumnDef="hours_nwd_payed">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Bloqueos</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'nwd_hours_abbr' | translate }}</th>
                 <td mat-cell *matCellDef="let row">{{ row.hours_nwd_payed }}</td>
               </ng-container>
 
               <!-- Total Hours -->
               <ng-container matColumnDef="total_hours">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Total Horas</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'total_hours' | translate }}</th>
                 <td mat-cell *matCellDef="let row" class="total-hours-cell">
                   <strong>{{ row.total_hours }}</strong>
                 </td>
@@ -393,7 +393,7 @@ interface MonitorKPIs {
 
               <!-- Hour Price -->
               <ng-container matColumnDef="hour_price">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Precio/Hora</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'price_per_hour' | translate }}</th>
                 <td mat-cell *matCellDef="let row">
                   {{ formatCurrency(row.hour_price) }}
                 </td>
@@ -401,7 +401,7 @@ interface MonitorKPIs {
 
               <!-- Total Cost -->
               <ng-container matColumnDef="total_cost">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Total</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'total' | translate }}</th>
                 <td mat-cell *matCellDef="let row" class="total-cost-cell">
                   <strong>{{ formatCurrency(row.total_cost) }}</strong>
                 </td>
