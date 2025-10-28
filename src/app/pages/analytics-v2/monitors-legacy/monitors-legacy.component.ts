@@ -554,23 +554,34 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   private generateMonitorDetailCsv(): string {
     let csv = '\uFEFF'; // UTF-8 BOM for Excel compatibility
 
+    // Get current language for date formatting
+    const currentLang = this.translateService.currentLang || 'es';
+
     // Header info
-    csv += `"DETALLE DE MONITOR"\n`;
-    csv += `"Monitor: ${this.selectedMonitor?.monitor || ''}"\n`;
-    csv += `"Deporte: ${this.selectedMonitor?.sport || ''}"\n`;
-    csv += `"Fecha de exportación: ${new Date().toLocaleString('es-ES')}"\n`;
-    csv += `"Periodo: ${this.filterForm?.value.startDate || ''} - ${this.filterForm?.value.endDate || ''}"\n`;
-    csv += `"Total días trabajados: ${this.monitorDetailData.length}"\n\n`;
+    csv += `"${this.translateService.instant('monitor_detail_title')}"\n`;
+    csv += `"${this.translateService.instant('monitor')}: ${this.selectedMonitor?.monitor || ''}"\n`;
+    csv += `"${this.translateService.instant('sport')}: ${this.selectedMonitor?.sport || ''}"\n`;
+    csv += `"${this.translateService.instant('export_date')}: ${new Date().toLocaleString(currentLang)}"\n`;
+    csv += `"${this.translateService.instant('period')}: ${this.filterForm?.value.startDate || ''} - ${this.filterForm?.value.endDate || ''}"\n`;
+    csv += `"${this.translateService.instant('total_days_worked')}: ${this.monitorDetailData.length}"\n\n`;
 
     // Summary KPIs
-    csv += `"RESUMEN"\n`;
-    csv += `"Total Horas","${this.getDetailTotalHours()}"\n`;
-    csv += `"Total Ingresos","${this.formatCurrency(this.getDetailTotalCost())}"\n`;
-    csv += `"Tarifa Promedio","${this.getDetailAverageHourlyRate()} ${this.currency}/h"\n`;
-    csv += `"Días Activos","${this.monitorDetailData.length}"\n\n`;
+    csv += `"${this.translateService.instant('summary_uppercase')}"\n`;
+    csv += `"${this.translateService.instant('total_hours')}","${this.getDetailTotalHours()}"\n`;
+    csv += `"${this.translateService.instant('total_income')}","${this.formatCurrency(this.getDetailTotalCost())}"\n`;
+    csv += `"${this.translateService.instant('average_rate')}","${this.getDetailAverageHourlyRate()} ${this.currency}/h"\n`;
+    csv += `"${this.translateService.instant('active_days')}","${this.monitorDetailData.length}"\n\n`;
 
     // Column headers
-    csv += '"Fecha","Deporte","H. Colectivas","H. Privadas","H. Actividades","H. Bloqueos","Total Horas","Precio/Hora","Total"\n';
+    csv += `"${this.translateService.instant('date')}",`;
+    csv += `"${this.translateService.instant('sport')}",`;
+    csv += `"${this.translateService.instant('collective_hours_abbr')}",`;
+    csv += `"${this.translateService.instant('private_hours_abbr')}",`;
+    csv += `"${this.translateService.instant('activities_hours_abbr')}",`;
+    csv += `"${this.translateService.instant('nwd_hours_abbr')}",`;
+    csv += `"${this.translateService.instant('total_hours')}",`;
+    csv += `"${this.translateService.instant('price_per_hour')}",`;
+    csv += `"${this.translateService.instant('total')}"\n`;
 
     // Data rows
     this.monitorDetailData.forEach(row => {
@@ -587,7 +598,7 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
 
     // Totals row
     csv += '\n';
-    csv += `"TOTAL","","","","","","${this.getDetailTotalHours()}","","${this.formatCurrency(this.getDetailTotalCost())}"\n`;
+    csv += `"${this.translateService.instant('total').toUpperCase()}","","","","","","${this.getDetailTotalHours()}","","${this.formatCurrency(this.getDetailTotalCost())}"\n`;
 
     return csv;
   }

@@ -1722,5 +1722,19 @@
   "adjust_filters_message": "Ajusta los filtros y vuelve a intentarlo",
   "refresh_data": "Refrescar datos",
   "monitors_tab": "Monitores",
-  "dates": "Fechas"
+  "dates": "Fechas",
+  "monitor_detail_title": "DETALLE DE MONITOR",
+  "export_date": "Fecha de exportación",
+  "period": "Periodo",
+  "total_days_worked": "Total días trabajados",
+  "summary_uppercase": "RESUMEN",
+  "total_income": "Total Ingresos",
+  "average_rate": "Tarifa Promedio",
+  "active_days": "Días Activos",
+  "collective_hours_abbr": "H. Colectivas",
+  "private_hours_abbr": "H. Privadas",
+  "activities_hours_abbr": "H. Actividades",
+  "nwd_hours_abbr": "H. Bloqueos",
+  "price_per_hour": "Precio/Hora",
+  "total": "Total"
 }

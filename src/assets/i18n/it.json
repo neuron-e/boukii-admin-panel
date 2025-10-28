@@ -1619,5 +1619,19 @@
   "adjust_filters_message": "Regola i filtri e riprova",
   "refresh_data": "Aggiorna dati",
   "monitors_tab": "Monitor",
-  "dates": "Date"
+  "dates": "Date",
+  "monitor_detail_title": "DETTAGLIO MONITOR",
+  "export_date": "Data di esportazione",
+  "period": "Periodo",
+  "total_days_worked": "Giorni totali lavorati",
+  "summary_uppercase": "RIEPILOGO",
+  "total_income": "Reddito totale",
+  "average_rate": "Tariffa media",
+  "active_days": "Giorni attivi",
+  "collective_hours_abbr": "Ore Collettive",
+  "private_hours_abbr": "Ore Private",
+  "activities_hours_abbr": "Ore Attività",
+  "nwd_hours_abbr": "Ore Blocco",
+  "price_per_hour": "Prezzo/Ora",
+  "total": "Totale"
 }

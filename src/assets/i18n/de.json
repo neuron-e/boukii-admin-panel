@@ -1619,5 +1619,19 @@
   "adjust_filters_message": "Passen Sie die Filter an und versuchen Sie es erneut",
   "refresh_data": "Daten aktualisieren",
   "monitors_tab": "Monitore",
-  "dates": "Daten"
+  "dates": "Daten",
+  "monitor_detail_title": "MONITOR-DETAILS",
+  "export_date": "Exportdatum",
+  "period": "Zeitraum",
+  "total_days_worked": "Gesamt gearbeitete Tage",
+  "summary_uppercase": "ZUSAMMENFASSUNG",
+  "total_income": "Gesamteinnahmen",
+  "average_rate": "Durchschnittssatz",
+  "active_days": "Aktive Tage",
+  "collective_hours_abbr": "Gruppen Std.",
+  "private_hours_abbr": "Privat Std.",
+  "activities_hours_abbr": "Aktivitäten Std.",
+  "nwd_hours_abbr": "Block Std.",
+  "price_per_hour": "Preis/Stunde",
+  "total": "Gesamt"
 }

@@ -1617,5 +1617,19 @@
   "adjust_filters_message": "Adjust the filters and try again",
   "refresh_data": "Refresh data",
   "monitors_tab": "Monitors",
-  "dates": "Dates"
+  "dates": "Dates",
+  "monitor_detail_title": "MONITOR DETAIL",
+  "export_date": "Export date",
+  "period": "Period",
+  "total_days_worked": "Total days worked",
+  "summary_uppercase": "SUMMARY",
+  "total_income": "Total Income",
+  "average_rate": "Average Rate",
+  "active_days": "Active Days",
+  "collective_hours_abbr": "Group Hrs.",
+  "private_hours_abbr": "Private Hrs.",
+  "activities_hours_abbr": "Activities Hrs.",
+  "nwd_hours_abbr": "Block Hrs.",
+  "price_per_hour": "Price/Hour",
+  "total": "Total"
 }
