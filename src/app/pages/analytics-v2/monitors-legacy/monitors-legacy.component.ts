@@ -286,16 +286,24 @@ interface MonitorKPIs {
       <mat-card *ngIf="selectedMonitor && monitorDetailData.length > 0" class="detail-card">
         <mat-card-header>
           <div class="detail-header">
-            <mat-card-title>
-              <mat-icon>person</mat-icon>
-              Detalle de {{ selectedMonitor.monitor }}
-            </mat-card-title>
-            <mat-card-subtitle>
-              {{ monitorDetailData.length }} días trabajados
-            </mat-card-subtitle>
-            <button mat-icon-button (click)="closeDetail()" class="close-button">
-              <mat-icon>close</mat-icon>
-            </button>
+            <div class="detail-title-section">
+              <mat-card-title>
+                <mat-icon>person</mat-icon>
+                Detalle de {{ selectedMonitor.monitor }}
+              </mat-card-title>
+              <mat-card-subtitle>
+                {{ monitorDetailData.length }} días trabajados
+              </mat-card-subtitle>
+            </div>
+            <div class="detail-actions">
+              <button mat-raised-button color="primary" (click)="exportMonitorDetail()" class="export-button">
+                <mat-icon>download</mat-icon>
+                Exportar Monitor
+              </button>
+              <button mat-icon-button (click)="closeDetail()" class="close-button">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
           </div>
         </mat-card-header>
         <mat-card-content>
@@ -518,6 +526,107 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   closeDetail(): void {
     this.selectedMonitor = null;
     this.monitorDetailData = [];
+  }
+
+  /**
+   * Export individual monitor detail to CSV
+   */
+  exportMonitorDetail(): void {
+    if (!this.selectedMonitor || !this.monitorDetailData || this.monitorDetailData.length === 0) {
+      console.warn('⚠️ No monitor detail data available for export');
+      return;
+    }
+
+    console.log(`📤 Exporting detail for monitor: ${this.selectedMonitor.monitor}`);
+
+    // Generate CSV content
+    const csvContent = this.generateMonitorDetailCsv();
+    const fileName = `monitor_${this.selectedMonitor.monitor.replace(/\s+/g, '_')}_${this.getCurrentDateString()}.csv`;
+
+    // Download
+    this.downloadCsv(csvContent, fileName);
+    console.log(`✅ Monitor detail exported: ${fileName}`);
+  }
+
+  /**
+   * Generate CSV content from monitor detail data
+   */
+  private generateMonitorDetailCsv(): string {
+    let csv = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+
+    // Header info
+    csv += `"DETALLE DE MONITOR"\n`;
+    csv += `"Monitor: ${this.selectedMonitor?.monitor || ''}"\n`;
+    csv += `"Deporte: ${this.selectedMonitor?.sport || ''}"\n`;
+    csv += `"Fecha de exportación: ${new Date().toLocaleString('es-ES')}"\n`;
+    csv += `"Periodo: ${this.filterForm?.value.startDate || ''} - ${this.filterForm?.value.endDate || ''}"\n`;
+    csv += `"Total días trabajados: ${this.monitorDetailData.length}"\n\n`;
+
+    // Summary KPIs
+    csv += `"RESUMEN"\n`;
+    csv += `"Total Horas","${this.getDetailTotalHours()}"\n`;
+    csv += `"Total Ingresos","${this.formatCurrency(this.getDetailTotalCost())}"\n`;
+    csv += `"Tarifa Promedio","${this.getDetailAverageHourlyRate()} ${this.currency}/h"\n`;
+    csv += `"Días Activos","${this.monitorDetailData.length}"\n\n`;
+
+    // Column headers
+    csv += '"Fecha","Deporte","H. Colectivas","H. Privadas","H. Actividades","H. Bloqueos","Total Horas","Precio/Hora","Total"\n';
+
+    // Data rows
+    this.monitorDetailData.forEach(row => {
+      csv += `"${this.formatDate(row.date)}",`;
+      csv += `"${row.sport?.name || ''}",`;
+      csv += `"${row.hours_collective}",`;
+      csv += `"${row.hours_private}",`;
+      csv += `"${row.hours_activities}",`;
+      csv += `"${row.hours_nwd_payed}",`;
+      csv += `"${row.total_hours}",`;
+      csv += `"${this.formatNumberForCsv(row.hour_price)}",`;
+      csv += `"${this.formatNumberForCsv(row.total_cost)}"\n`;
+    });
+
+    // Totals row
+    csv += '\n';
+    csv += `"TOTAL","","","","","","${this.getDetailTotalHours()}","","${this.formatCurrency(this.getDetailTotalCost())}"\n`;
+
+    return csv;
+  }
+
+  /**
+   * Download CSV file
+   */
+  private downloadCsv(content: string, filename: string): void {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * Get current date string for filename
+   */
+  private getCurrentDateString(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Format number for CSV export
+   */
+  private formatNumberForCsv(value: number | null | undefined): string {
+    if (value === null || value === undefined || isNaN(value)) {
+      return '0.00';
+    }
+    return value.toFixed(2);
   }
 
   private async loadMonitorDetail(monitorId: number): Promise<void> {

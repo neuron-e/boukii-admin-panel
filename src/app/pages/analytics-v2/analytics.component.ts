@@ -14,6 +14,7 @@ import {BookingListModalComponent} from './booking-list-modal/booking-list-modal
 import {MatDialog} from '@angular/material/dialog';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {CourseStatisticsModalComponent} from './course-statistics-modal/course-statistics-modal.component';
+import {MonitorsLegacyComponent} from './monitors-legacy/monitors-legacy.component';
 
 // ==================== INTERFACES ====================
 
@@ -229,6 +230,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('sourcesChart', { static: false }) sourcesChartRef!: ElementRef;
   @ViewChild('sourcePerformanceChart', { static: false }) sourcePerformanceChartRef!: ElementRef;
   @ViewChild('comparisonChart', { static: false }) comparisonChartRef!: ElementRef;
+  @ViewChild(MonitorsLegacyComponent, { static: false }) monitorsLegacyComponent!: MonitorsLegacyComponent;
 
   // ==================== FORM CONTROLS ====================
   filterForm: FormGroup;
@@ -1581,8 +1583,20 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public onExportData(): void {
-    if (!this.dashboardData) return;
+    if (!this.dashboardData) {
+      this.showMessage('No hay datos disponibles para exportar', 'warning');
+      return;
+    }
 
+    // Check which tab is active and export accordingly
+    if (this.activeTab === 'monitors') {
+      this.exportMonitorsData();
+    } else {
+      this.exportDashboardData();
+    }
+  }
+
+  private exportDashboardData(): void {
     const filters = this.buildFiltersObject();
     const exportFilters = {
       ...filters,
@@ -1590,16 +1604,157 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       sections: ['executive_summary', 'financial_kpis', 'booking_analysis', 'critical_issues']
     };
 
+    this.showMessage('Exportando datos del dashboard...', 'info');
+
     this.apiService.get('/admin/finance/season-dashboard/export', [], exportFilters).subscribe({
       next: (response) => {
-        debugger;
         console.log('✅ Export successful:', response);
         if (response.data?.download_url) {
           window.open(response.data.download_url, '_blank');
+          this.showMessage('Exportación completada exitosamente', 'success');
+        } else {
+          // Fallback: if no download_url, export locally
+          this.exportDashboardDataLocally();
         }
       },
-      error: (error) => console.error('❌ Export error:', error)
+      error: (error) => {
+        console.error('❌ Export error:', error);
+        // Fallback to local export on error
+        this.exportDashboardDataLocally();
+      }
     });
+  }
+
+  private exportDashboardDataLocally(): void {
+    this.showMessage('Generando exportación local...', 'info');
+    const csvContent = this.generateDashboardCsv();
+    const fileName = `dashboard_export_${this.getCurrentDateString()}.csv`;
+    this.downloadCsvContent(csvContent, fileName);
+    this.showMessage('Dashboard exportado exitosamente', 'success');
+  }
+
+  private exportMonitorsData(): void {
+    console.log('📤 Exporting monitors data from local component...');
+
+    // Check if monitors component is available
+    if (!this.monitorsLegacyComponent) {
+      this.showMessage('El componente de monitores no está disponible', 'warning');
+      console.error('❌ MonitorsLegacyComponent is not available');
+      return;
+    }
+
+    // Get local data from the child component
+    const monitorsData = this.monitorsLegacyComponent.monitorsData;
+
+    if (!monitorsData || monitorsData.length === 0) {
+      this.showMessage('No hay datos de monitores para exportar', 'warning');
+      console.warn('⚠️ No monitors data available for export');
+      return;
+    }
+
+    console.log(`✅ Found ${monitorsData.length} monitors to export`);
+    this.showMessage('Exportando datos de monitores...', 'info');
+
+    // Generate CSV from local data
+    const csvContent = this.generateMonitorsCsv(monitorsData);
+    const fileName = `monitores_export_${this.getCurrentDateString()}.csv`;
+
+    // Download the CSV
+    this.downloadCsvContent(csvContent, fileName);
+    this.showMessage(`${monitorsData.length} monitores exportados exitosamente`, 'success');
+  }
+
+
+  private generateMonitorsCsv(monitorsData: any[]): string {
+    let csvContent = '\uFEFF'; // UTF-8 BOM
+
+    // Add export metadata
+    csvContent += `"EXPORTACIÓN DE MONITORES"\n`;
+    csvContent += `"Fecha de exportación: ${new Date().toLocaleString('es-ES')}"\n`;
+    csvContent += `"Rango de fechas: ${this.filterForm.value.startDate} - ${this.filterForm.value.endDate}"\n`;
+    csvContent += `"Total monitores: ${monitorsData.length}"\n\n`;
+
+    // Header
+    csvContent += '"Monitor","Deporte","H. Colectivas","H. Privadas","H. Actividades","H. Bloqueos","Total Horas","Precio/Hora","Total"\n';
+
+    // Data rows
+    monitorsData.forEach(monitor => {
+      const row = [
+        `"${monitor.monitor || ''}"`,
+        `"${monitor.sport || ''}"`,
+        `"${monitor.hours_collective || 0}"`,
+        `"${monitor.hours_private || 0}"`,
+        `"${monitor.hours_activities || 0}"`,
+        `"${monitor.hours_nwd_payed || 0}"`,
+        `"${monitor.total_hours || 0}"`,
+        `"${this.formatNumberForCsv(monitor.hour_price)}"`,
+        `"${this.formatNumberForCsv(monitor.total_cost)}"`
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+
+    // Totals row
+    const totalHours = monitorsData.reduce((sum, m) => {
+      const hours = typeof m.total_hours === 'number' ? m.total_hours : 0;
+      return sum + hours;
+    }, 0);
+
+    const totalCost = monitorsData.reduce((sum, m) => {
+      const cost = typeof m.total_cost === 'number' ? m.total_cost : 0;
+      return sum + cost;
+    }, 0);
+
+    csvContent += '\n';
+    csvContent += `"TOTAL","","","","","","${totalHours}","","${this.formatNumberForCsv(totalCost)}"\n`;
+
+    return csvContent;
+  }
+
+  /**
+   * Format number for CSV export
+   */
+  private formatNumberForCsv(value: number | null | undefined): string {
+    if (value === null || value === undefined || isNaN(value)) {
+      return '0.00';
+    }
+    return value.toFixed(2).replace('.', ',');
+  }
+
+  private generateDashboardCsv(): string {
+    let csvContent = '\uFEFF'; // UTF-8 BOM
+
+    csvContent += `"DASHBOARD ANALYTICS EXPORT"\n`;
+    csvContent += `"Fecha de exportación: ${new Date().toLocaleString('es-ES')}"\n`;
+    csvContent += `"Rango de fechas: ${this.filterForm.value.startDate} - ${this.filterForm.value.endDate}"\n\n`;
+
+    // Executive Summary
+    csvContent += `"RESUMEN EJECUTIVO"\n`;
+    csvContent += `"Ingresos Totales","${this.formatCurrencyForCsv(this.dashboardData?.executive_kpis?.revenue_expected)}"\n`;
+    csvContent += `"Reservas Totales","${this.dashboardData?.season_info?.total_bookings || 0}"\n`;
+    csvContent += `"Ingresos Pendientes","${this.formatCurrencyForCsv(this.dashboardData?.executive_kpis?.revenue_pending)}"\n`;
+    csvContent += `"Participantes Totales","${this.dashboardData?.executive_kpis?.total_participants || 0}"\n`;
+    csvContent += `"Clientes Totales","${this.dashboardData?.executive_kpis?.total_clients || 0}"\n\n`;
+
+    // Revenue by Month
+    if (this.dashboardData?.trend_analysis?.monthly_breakdown?.length) {
+      csvContent += `"INGRESOS POR MES"\n`;
+      csvContent += `"Mes","Ingresos","Reservas","Valor Promedio","Clientes Únicos"\n`;
+      this.dashboardData.trend_analysis.monthly_breakdown.forEach((item: any) => {
+        csvContent += `"${this.formatDateWithMonthName(item.month)}","${this.formatCurrencyForCsv(item.revenue)}","${item.bookings}","${this.formatCurrencyForCsv(item.avg_booking_value)}","${item.unique_clients}"\n`;
+      });
+      csvContent += '\n';
+    }
+
+    // Courses
+    if (this.dashboardData?.courses?.length) {
+      csvContent += `"CURSOS"\n`;
+      csvContent += `"Curso","Tipo","Ingresos","Reservas","Precio Promedio","Participantes"\n`;
+      this.dashboardData.courses.forEach((course: any) => {
+        csvContent += `"${course.name}","${this.getCourseTypeName(course.type)}","${this.formatCurrencyForCsv(course.revenue)}","${course.bookings}","${this.formatCurrencyForCsv(course.average_price)}","${course.participants}"\n`;
+      });
+    }
+
+    return csvContent;
   }
 
   public filterCourses(event: any): void {
