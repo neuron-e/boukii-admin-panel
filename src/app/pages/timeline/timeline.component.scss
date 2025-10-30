@@ -1080,3 +1080,29 @@
   color: var(--color-dark2);
 }
 
+
+// Interval badge in task cards (day view)
+.interval-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  margin-left: 4px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 60px;
+  vertical-align: middle;
+}
+
+// Interval badge in detail panel
+.interval-badge-detail {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}

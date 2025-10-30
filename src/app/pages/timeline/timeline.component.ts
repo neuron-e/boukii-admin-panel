@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, HostListener, OnDestroy, OnInit} from '@angular/core';
 import {
   addDays,
   addMonths,
@@ -138,7 +138,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   filteredUsers: Observable<any[]>;
   filteredMonitorsO: Observable<any[]>;
 
-  monitorAssignmentScope: 'single' | 'from' | 'range' = 'single';
+  monitorAssignmentScope: 'single' | 'interval' | 'from' | 'range' = 'single';
   monitorAssignmentStartDate: string | null = null;
   monitorAssignmentEndDate: string | null = null;
   monitorAssignmentDates: { value: string, label: string }[] = [];
@@ -1180,7 +1180,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   // LOGIC
 
-  toggleDetail(task: any) {
+  toggleDetail(task: any, event?: MouseEvent) {
+    if (event) {
+      event.stopPropagation();
+    }
     if (task.booking_id) {
       if (task.grouped_tasks && task.grouped_tasks.length > 1) {
         //Open Modal grouped courses
@@ -1215,7 +1218,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleBlock(block: any) {
+  toggleBlock(block: any, event?: MouseEvent) {
+    if (event) {
+      event.stopPropagation();
+    }
     this.idBlock = block.block_id;
     this.blockDetail = block;
     this.hideDetail();
@@ -1264,7 +1270,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
         if (userConfirmed) {
 
-          const clientIds = this.taskDetail.all_clients.map((client) => client.id);
+          const clientIds = (this.taskDetail.all_clients || []).map((client) => client.id);
 
           const data = {
             sportId: this.taskDetail.sport_id,
@@ -1763,13 +1769,26 @@ export class TimelineComponent implements OnInit, OnDestroy {
     });
   }
 
-  onMonitorAssignmentScopeChange(scope: 'single' | 'from' | 'range'): void {
+  onMonitorAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range'): void {
     this.monitorAssignmentScope = scope;
     const defaultDate = this.taskDetail?.date || null;
 
     if (scope === 'single') {
       this.monitorAssignmentStartDate = defaultDate;
       this.monitorAssignmentEndDate = defaultDate;
+      return;
+    }
+
+    // NEW: Handle interval scope
+    if (scope === 'interval') {
+      const intervalDates = this.getIntervalDatesForTask(this.taskDetail);
+      if (intervalDates.length > 0) {
+        this.monitorAssignmentStartDate = intervalDates[0];
+        this.monitorAssignmentEndDate = intervalDates[intervalDates.length - 1];
+      } else {
+        this.monitorAssignmentStartDate = defaultDate;
+        this.monitorAssignmentEndDate = defaultDate;
+      }
       return;
     }
 
@@ -1819,12 +1838,64 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
   }
 
+
+  /**
+   * Get all dates that belong to the same interval as the given task
+   */
+  private getIntervalDatesForTask(task: any): string[] {
+    if (!task || !task.course_subgroup_id) {
+      return [];
+    }
+
+    // Find all tasks with the same course_subgroup_id (same interval)
+    const intervalTasks = this.plannerTasks.filter(t => 
+      t.course_subgroup_id === task.course_subgroup_id
+    );
+
+    // Extract and sort unique dates
+    const dates = Array.from(new Set(
+      intervalTasks
+        .map(t => t.date)
+        .filter(date => !!date)
+    )).sort();
+
+    return dates;
+  }
+
+  /**
+   * Check if the current task's course has multiple intervals
+   */
+  hasMultipleIntervals(): boolean {
+    if (!this.taskDetail) {
+      return false;
+    }
+    
+    // Check if there are multiple unique subgroups for this course
+    const courseId = this.taskDetail.course_id;
+    if (!courseId) {
+      return false;
+    }
+    
+    const subgroups = new Set(
+      this.plannerTasks
+        .filter(t => t.course_id === courseId && t.course_subgroup_id)
+        .map(t => t.course_subgroup_id)
+    );
+    
+    return subgroups.size > 1;
+  }
   private resolveAssignmentDateRange(): { start: moment.Moment, end: moment.Moment } {
     const fallbackDate = this.taskDetail?.date || moment().format('YYYY-MM-DD');
     let startDate = this.monitorAssignmentStartDate || fallbackDate;
     let endDate = this.monitorAssignmentEndDate || startDate;
 
-    if (this.monitorAssignmentScope === 'from') {
+    if (this.monitorAssignmentScope === 'interval') {
+      const intervalDates = this.getIntervalDatesForTask(this.taskDetail);
+      if (intervalDates.length > 0) {
+        startDate = intervalDates[0];
+        endDate = intervalDates[intervalDates.length - 1];
+      }
+    } else if (this.monitorAssignmentScope === 'from') {
       const last = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || endDate;
       endDate = last;
     } else if (this.monitorAssignmentScope === 'single') {
@@ -1843,7 +1914,6 @@ export class TimelineComponent implements OnInit, OnDestroy {
       end: moment(endDate, 'YYYY-MM-DD')
     };
   }
-
   private collectBookingUserIdsForAssignment(): number[] {
     const baseTask = this.taskDetail;
     if (!baseTask) {
@@ -2507,7 +2577,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     this.loadingMonitors = true;
 
-    const clientIds = this.taskDetail.all_clients.map((client) => client.id);
+    const clientIds = (this.taskDetail.all_clients || []).map((client) => client.id);
     const data = {
       sportId: this.taskDetail.sport_id,
       minimumDegreeId: this.taskDetail.degree_id || this.taskDetail.degree.id,
@@ -2598,6 +2668,38 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
 
+
+  /**
+   * Handle click events on the document to close modals when clicking outside
+   */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+
+    // Close grouped tasks modal (left sidebar) if clicking outside
+    if (this.showGrouped) {
+      const groupedModal = target.closest('.modal-grouped');
+      if (!groupedModal) {
+        this.hideGrouped();
+      }
+    }
+
+    // Close detail modal (right sidebar) if clicking outside
+    if (this.showDetail) {
+      const detailModal = target.closest('.col-right, .box-detail-timeline');
+      if (!detailModal) {
+        this.hideDetail();
+      }
+    }
+
+    // Close block detail modal if clicking outside
+    if (this.showBlock) {
+      const blockModal = target.closest('.box-detail-timeline');
+      if (!blockModal) {
+        this.hideBlock();
+      }
+    }
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

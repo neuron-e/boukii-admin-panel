@@ -279,7 +279,7 @@
   "from": "From",
   "to": "Until",
   "in": "in",
-  "interval": "Week",
+  "interval": "Interval",
   "all_intervals": "All intervals",
   "price": "Price",
   "price_per_date": "Price per date",

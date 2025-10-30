@@ -273,7 +273,7 @@
               <ng-container *ngFor="let task of plannerTasks">
                 <!--DAY-->
                 <div *ngIf="timelineView == 'day'"
-                     (click)="task.block_id ? toggleBlock(task) : toggleDetail(task)"
+                     (click)="task.block_id ? toggleBlock(task, $event) : toggleDetail(task, $event)"
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ?
                      $event.preventDefault() : toggleDetailMove(task, $event)"
                      class="task-wrapper cursor-pointer" [ngClass]="[
@@ -299,11 +299,18 @@
                       {{ task.name }}
                     </div>
                     <div *ngIf="task.type === 'collective'">{{ task.name
+                      <span *ngIf="task.interval_name" class="interval-badge"
+                            [style.background-color]="task.interval_color || '#6b7280'"
+                            [title]="task.interval_name">{{ task.interval_name }}</span>
                       }}</div>
                     <div
                       *ngIf="(task.type === 'private' || task.type === 'activity')">{{
                         task.all_clients[0].client.first_name}} {{
-                        task.all_clients[0].client.last_name}}</div>
+                        task.all_clients[0].client.last_name}}
+                      <span *ngIf="task.interval_name" class="interval-badge"
+                            [style.background-color]="task.interval_color || '#6b7280'"
+                            [title]="task.interval_name">{{ task.interval_name }}</span>
+                    </div>
                     <div
                       *ngIf="(task.type === 'private' || task.type === 'activity')">{{getLanguageById(task.all_clients[0].client.language1_id)}}
                       ·{{getBirthYears(task.all_clients[0].client.birth_date)}}
@@ -350,7 +357,7 @@
                 </div>
                 <!--WEEK-->
                 <div *ngIf="timelineView == 'week'"
-                     (click)="task.block_id ? toggleBlock(task) : toggleDetail(task)"
+                     (click)="task.block_id ? toggleBlock(task, $event) : toggleDetail(task, $event)"
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ? $event.preventDefault() : toggleDetailMove(task, $event)"
                      class="task-wrapper-week cursor-pointer" [ngClass]="[
                                 (task.booking_id && ((idDetail == task.booking_id && hourDetail == task.hour_start
@@ -372,6 +379,9 @@
                       *ngIf="!task.grouped_tasks || !(task.grouped_tasks.length > 1)">
                       <div class="task-block-level-week" *ngIf="task.degree"
                            [ngStyle]="{'background': task.degree.color}">{{task.degree.annotation}}
+                      <div *ngIf="task.interval_name" class="task-block-level-week"
+                           [ngStyle]="{'background': task.interval_color || '#6b7280'}">
+                        {{task.interval_name}}</div>
                         {{task.subgroup_number}}</div>
                       <div *ngIf="task.type=='collective'"
                            class="task-block-people-week">{{task.clients_number}}/{{task.max_participants}}</div>
@@ -528,7 +538,7 @@
                 <ng-container *ngFor="let task of plannerTasks">
                 <!--MONTH-->
                 <div class="task-wrapper-week cursor-pointer"
-                     (click)="task.block_id ? toggleBlock(task) : toggleDetail(task)"
+                     (click)="task.block_id ? toggleBlock(task, $event) : toggleDetail(task, $event)"
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ? $event.preventDefault() : toggleDetailMove(task, $event)"
                      [ngClass]="[
                                 (task.booking_id && ((idDetail == task.booking_id && hourDetail == task.hour_start
@@ -591,7 +601,7 @@
           <mat-icon class="cursor-pointer" svgIcon="mat:close"
                     (click)="hideGrouped()"></mat-icon>
         </div>
-        <div *ngFor="let task of groupedTasks" (click)="toggleDetail(task)"
+        <div *ngFor="let task of groupedTasks" (click)="toggleDetail(task, $event)"
              class="modal-grouped-task-wrapper cursor-pointer"
              (contextmenu)="toggleDetailMove(task, $event)" [ngClass]="[
                     (task.booking_id && (idDetail == task.booking_id && hourDetail == task.hour_start && dateDetail == task.date && monitorDetail == task.monitor_id && subgroupDetail == task.course_subgroup_id)) ?
@@ -1029,6 +1039,9 @@
                     <mat-option value="single">
                       {{'monitor_assignment.scope.single' | translate}}
                     </mat-option>
+                    <mat-option value="interval" *ngIf="hasMultipleIntervals()">
+                      {{'monitor_assignment.scope.interval' | translate}}
+                    </mat-option>
                     <mat-option value="from" *ngIf="monitorAssignmentDates.length > 1">
                       {{'monitor_assignment.scope.from' | translate}}
                     </mat-option>
@@ -1038,7 +1051,7 @@
                   </mat-select>
                 </mat-form-field>
                 <div class="bulk-date-row"
-                     *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentDates.length > 1">
+                     *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentScope !== 'interval' && monitorAssignmentDates.length > 1">
                   <mat-form-field appearance="outline" class="flex-auto">
                     <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
                     <mat-select [(ngModel)]="monitorAssignmentStartDate"

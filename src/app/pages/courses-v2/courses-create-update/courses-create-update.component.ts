@@ -2604,9 +2604,22 @@ export class CoursesCreateUpdateComponent implements OnInit {
         });
       });
 
-      // Actualizar settings con la configuraci├│n de intervalos
+      // Parse settings if it's a string to avoid spread operator issues
+      let currentSettings = {};
+      if (typeof courseFormGroup.settings === 'string') {
+        try {
+          currentSettings = JSON.parse(courseFormGroup.settings);
+        } catch (e) {
+          console.warn('Failed to parse settings string, using empty object', e);
+          currentSettings = {};
+        }
+      } else if (typeof courseFormGroup.settings === 'object' && courseFormGroup.settings !== null) {
+        currentSettings = courseFormGroup.settings;
+      }
+
+      // Actualizar settings con la configuración de intervalos
       courseFormGroup.settings = {
-        ...courseFormGroup.settings,
+        ...currentSettings,
         multipleIntervals: true,
         intervals: Array.isArray(this.intervals) ? this.intervals : [],
         mustStartFromFirst: this.mustStartFromFirst,
@@ -2643,7 +2656,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
       });
     }
     courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value)
-    courseFormGroup.course_type === 1 ? courseFormGroup.settings : courseFormGroup.settings = this.courses.courseFormGroup.controls['settings'].value
+    
+    // Convert settings to JSON string for all course types
+    if (courseFormGroup.course_type === 1) {
+      courseFormGroup.settings = JSON.stringify(courseFormGroup.settings);
+    } else {
+      courseFormGroup.settings = JSON.stringify(this.courses.courseFormGroup.controls['settings'].value);
+    }
 
     // DEBUG: Verificar que price_range est├® incluido
 

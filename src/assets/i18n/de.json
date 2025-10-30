@@ -279,7 +279,7 @@
   "from": "Aus",
   "to": "Bis",
   "in": "In",
-  "interval": "Woche",
+  "interval": "Intervall",
   "all_intervals": "Alle Intervalle",
   "price": "Preis",
   "price_per_date": "Preis pro Datum",
