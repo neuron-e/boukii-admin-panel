@@ -68,7 +68,7 @@
           <div class="card-gradient">
             <div class="card-header">
               <mat-icon class="gift-icon">card_giftcard</mat-icon>
-              <span class="voucher-amount">{{ voucher.quantity | currency:'EUR':'symbol':'1.0-0' }}</span>
+              <span class="voucher-amount">{{ voucher.quantity | currency:currencySymbol:'symbol':'1.0-0' }}</span>
             </div>
 
             <div class="card-content">
@@ -85,9 +85,12 @@
 
             <div class="card-footer">
               <div class="code-section">
-                <span class="code-label">Código:</span>
+                <span class="code-label">{{ 'code' | translate }}:</span>
                 <span class="code-value">{{ voucher.code }}</span>
-                <button mat-icon-button (click)="copyCode(voucher.code)" class="copy-btn">
+                <button mat-icon-button
+                        (click)="copyCode(voucher.code)"
+                        [matTooltip]="'copy_code' | translate"
+                        class="copy-btn">
                   <mat-icon>content_copy</mat-icon>
                 </button>
               </div>
@@ -96,28 +99,30 @@
                 <span>{{ voucher.created_at | date:'dd/MM/yyyy' }}</span>
               </div>
               <div class="status-badge" [ngClass]="voucher.payed ? 'status-used' : 'status-active'">
-                {{ voucher.payed ? 'Usado' : 'Activo' }}
+                {{ voucher.payed ? ('used' | translate) : ('active' | translate) }}
               </div>
             </div>
           </div>
 
           <mat-card-actions>
-            <button mat-icon-button [matMenuTriggerFor]="menu">
+            <button mat-icon-button
+                    [matMenuTriggerFor]="menu"
+                    [matTooltip]="'actions' | translate">
               <mat-icon>more_vert</mat-icon>
             </button>
             <mat-menu #menu="matMenu">
               <button mat-menu-item (click)="viewVoucher(voucher)">
                 <mat-icon>visibility</mat-icon>
-                <span>Ver detalles</span>
+                <span>{{ 'view_details' | translate }}</span>
               </button>
               <button mat-menu-item (click)="editVoucher(voucher)">
                 <mat-icon>edit</mat-icon>
-                <span>Editar</span>
+                <span>{{ 'edit' | translate }}</span>
               </button>
               <button mat-menu-item (click)="openTransferDialog(voucher)"
                       [disabled]="!voucher.is_transferable || voucher.transferred_at">
                 <mat-icon>send</mat-icon>
-                <span>Transferir</span>
+                <span>{{ 'transfer' | translate }}</span>
               </button>
             </mat-menu>
           </mat-card-actions>
@@ -130,10 +135,13 @@
 
           <!-- Code Column -->
           <ng-container matColumnDef="code">
-            <th mat-header-cell *matHeaderCellDef>{{ 'ID' }}</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'code' | translate }}</th>
             <td mat-cell *matCellDef="let voucher" class="font-medium">
               {{ voucher.code }}
-              <button mat-icon-button (click)="copyCode(voucher.code)" class="copy-btn-small">
+              <button mat-icon-button
+                      (click)="copyCode(voucher.code)"
+                      [matTooltip]="'copy_code' | translate"
+                      class="copy-btn-small">
                 <mat-icon>content_copy</mat-icon>
               </button>
             </td>
@@ -154,7 +162,7 @@
           <!-- Amount Column -->
           <ng-container matColumnDef="quantity">
             <th mat-header-cell *matHeaderCellDef>{{ 'amount' | translate }}</th>
-            <td mat-cell *matCellDef="let voucher">{{ voucher.quantity | currency:'EUR':'symbol':'1.0-0' }}</td>
+            <td mat-cell *matCellDef="let voucher">{{ voucher.quantity | currency:currencySymbol:'symbol':'1.0-0' }}</td>
           </ng-container>
 
           <!-- Status Column -->

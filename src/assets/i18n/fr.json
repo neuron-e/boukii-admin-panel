@@ -1705,5 +1705,10 @@
   "buyer": "Acheteur",
   "recipient": "Destinataire",
   "creation_date": "Date de création",
-  "transfer": "Transférer"
+  "transfer": "Transférer",
+  "code": "Code",
+  "copy_code": "Copier le code",
+  "create_gift_voucher": "Créer bon cadeau",
+  "no_gift_vouchers_found": "Aucun bon cadeau trouvé",
+  "purchase_vouchers": "Bons d'achat"
 }

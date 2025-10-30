@@ -1703,5 +1703,10 @@
   "buyer": "Buyer",
   "recipient": "Recipient",
   "creation_date": "Creation Date",
-  "transfer": "Transfer"
+  "transfer": "Transfer",
+  "code": "Code",
+  "copy_code": "Copy code",
+  "create_gift_voucher": "Create gift voucher",
+  "no_gift_vouchers_found": "No gift vouchers found",
+  "purchase_vouchers": "Purchase Vouchers"
 }

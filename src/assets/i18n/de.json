@@ -1705,5 +1705,10 @@
   "buyer": "Käufer",
   "recipient": "Empfänger",
   "creation_date": "Erstellungsdatum",
-  "transfer": "Übertragen"
+  "transfer": "Übertragen",
+  "code": "Code",
+  "copy_code": "Code kopieren",
+  "create_gift_voucher": "Geschenkgutschein erstellen",
+  "no_gift_vouchers_found": "Keine Geschenkgutscheine gefunden",
+  "purchase_vouchers": "Kaufgutscheine"
 }

@@ -9,6 +9,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { DiscountsCreateUpdateComponent } from '../discounts/discounts-create-update/discounts-create-update.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Clipboard } from '@angular/cdk/clipboard';
+import { SchoolService } from 'src/service/school.service';
 
 @Component({
   selector: 'vex-bonuses',
@@ -56,6 +57,9 @@ export class BonusesComponent implements OnInit {
   currentTitle = 'purchase_vouchers';
   searchParams = '&is_gift=0';
 
+  // Currency symbol from school settings
+  currencySymbol: string = 'EUR';
+
   // Gift vouchers data
   giftVouchers: any[] = [];
   giftVouchersViewMode: 'cards' | 'table' = 'cards'; // Toggle between card and table view
@@ -79,18 +83,36 @@ export class BonusesComponent implements OnInit {
     private translateService: TranslateService,
     private route: ActivatedRoute,
     private router: Router,
-    private clipboard: Clipboard
+    private clipboard: Clipboard,
+    private schoolService: SchoolService
   ) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
   }
 
   ngOnInit() {
+    // Load currency symbol from school settings
+    this.loadCurrencySymbol();
+
     // Check for initial navigation from /discounts route
     const tabParam = (this.route.snapshot.queryParamMap.get('tab') || '').toLowerCase();
     if (tabParam === 'discounts') {
       this.selectedTab = this.TAB_DISCOUNTS;
     }
     this.configureTab(this.selectedTab);
+  }
+
+  private loadCurrencySymbol() {
+    this.schoolService.getSchoolData().subscribe({
+      next: (response: any) => {
+        if (response?.data?.taxes?.currency) {
+          this.currencySymbol = response.data.taxes.currency;
+        }
+      },
+      error: (error) => {
+        console.error('Error loading school settings:', error);
+        // Keep default EUR if error
+      }
+    });
   }
 
   onTabChange(tabIndex: number) {

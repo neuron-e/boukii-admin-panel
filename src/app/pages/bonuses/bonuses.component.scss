@@ -106,6 +106,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 16px;
+      padding-right: 40px; // Space for the actions button
 
       .gift-icon {
         font-size: 36px;
@@ -178,14 +179,22 @@
 
         .copy-btn {
           margin-left: auto;
-          width: 32px;
-          height: 32px;
-          line-height: 32px;
+          width: 36px;
+          height: 36px;
+          line-height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background-color 0.2s;
+
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+          }
 
           mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
             color: white;
           }
         }
@@ -266,15 +275,23 @@
           font-weight: 500;
 
           .copy-btn-small {
-            width: 28px;
-            height: 28px;
-            line-height: 28px;
+            width: 32px;
+            height: 32px;
+            line-height: 32px;
             margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+
+            &:hover {
+              background-color: rgba(0, 0, 0, 0.04);
+            }
 
             mat-icon {
-              font-size: 16px;
-              width: 16px;
-              height: 16px;
+              font-size: 18px;
+              width: 18px;
+              height: 18px;
             }
           }
         }
