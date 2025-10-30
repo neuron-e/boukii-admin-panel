@@ -47,10 +47,47 @@
             </mat-form-field>
 
           </div>
+      </div>
+    </div>
+
+    <!-- Section: Buyer Contact -->
+    <div class="card">
+      <div class="px-6 py-4 border-b">
+        <h3 class="title m-0">2��?��� {{'bonus.buyer_details' | translate}}</h3>
+      </div>
+      <div class="px-6 py-4" [formGroup]="form">
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col sm:flex-row gap-4">
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'bonus.buyer_name' | translate}}</mat-label>
+              <input formControlName="buyer_name" matInput>
+              <mat-icon matPrefix svgIcon="mat:person"></mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'bonus.buyer_email' | translate}}</mat-label>
+              <input formControlName="buyer_email" matInput type="email">
+              <mat-icon matPrefix svgIcon="mat:mail"></mat-icon>
+              <mat-error *ngIf="form.get('buyer_email')?.hasError('email')">
+                {{'error.email' | translate}}
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="w-full sm:w-1/2">
+            <mat-label>{{'bonus.buyer_phone' | translate}}</mat-label>
+            <input formControlName="buyer_phone" matInput>
+            <mat-icon matPrefix svgIcon="mat:phone"></mat-icon>
+          </mat-form-field>
+
+          <p class="text-xs text-gray-500">
+            {{'bonus.buyer_details_helper' | translate}}
+          </p>
         </div>
       </div>
+    </div>
 
-      <!-- Section 2: Template and Message (NEW) -->
+    <!-- Section 2: Template and Message (NEW) -->
       <div class="card" *ngIf="form.get('is_gift')?.value">
         <div class="px-6 py-4 border-b">
           <h3 class="title m-0">2️⃣ {{'Plantilla y Mensaje' | translate}}</h3>
@@ -216,10 +253,46 @@
             </div>
 
           </div>
+      </div>
+    </div>
+
+    <!-- Recipient contact -->
+    <div class="card" *ngIf="form.get('is_gift')?.value">
+      <div class="px-6 py-4 border-b">
+        <h3 class="title m-0">5��?��� {{'bonus.recipient_details' | translate}}</h3>
+      </div>
+      <div class="px-6 py-4" [formGroup]="form">
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col sm:flex-row gap-4">
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'bonus.recipient_name' | translate}}</mat-label>
+              <input formControlName="recipient_name" matInput>
+              <mat-icon matPrefix svgIcon="mat:person_outline"></mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="flex-auto">
+              <mat-label>{{'bonus.recipient_email' | translate}}</mat-label>
+              <input formControlName="recipient_email" matInput type="email">
+              <mat-icon matPrefix svgIcon="mat:mail_outline"></mat-icon>
+              <mat-error *ngIf="form.get('recipient_email')?.hasError('email')">
+                {{'error.email' | translate}}
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="w-full sm:w-1/2">
+            <mat-label>{{'bonus.recipient_phone' | translate}}</mat-label>
+            <input formControlName="recipient_phone" matInput>
+            <mat-icon matPrefix svgIcon="mat:phone_in_talk"></mat-icon>
+          </mat-form-field>
+
+          <p class="text-xs text-gray-500">
+            {{'bonus.recipient_details_helper' | translate}}
+          </p>
         </div>
       </div>
+    </div>
 
-      <!-- Section 4: Additional Options -->
+    <!-- Section 4: Additional Options -->
       <div class="card">
         <div class="px-6 py-4 border-b">
           <h3 class="title m-0">{{form.get('is_gift')?.value ? '4️⃣' : '3️⃣'}} {{'Opciones Adicionales' | translate}}</h3>

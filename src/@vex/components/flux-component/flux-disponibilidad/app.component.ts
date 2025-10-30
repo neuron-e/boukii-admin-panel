@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -12,13 +12,14 @@ import { MonitorsService } from 'src/service/monitors.service';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class FluxDisponibilidadComponent implements OnInit {
+export class FluxDisponibilidadComponent implements OnInit, OnChanges {
   cambiarModal: boolean = false
   @Input() mode: 'create' | 'update' = "create"
   @Input() courseFormGroup!: UntypedFormGroup
   @Input() level!: any
   @Input() group!: any
   @Input() subgroup_index!: number
+  @Input() interval_id?: string | null = null // Optional interval filter
 
   @Output() monitorSelect = new EventEmitter<any>()
   @Output() viewTimes = new EventEmitter<any>()
@@ -146,6 +147,14 @@ export class FluxDisponibilidadComponent implements OnInit {
     return this.courseFormGroup?.controls?.['course_dates']?.value || [];
   }
 
+  private resolveIntervalId(date: any): any {
+    if (!date) {
+      return null;
+    }
+    return date.interval_id ?? date.intervalId ?? date.interval?.id ?? date.course_interval_id ?? date.courseIntervalId ?? null;
+  }
+
+
   selectUser: any[] = []
   async getAvail(item: any) {
     const monitor = await this.getAvailable({ date: item.date, endTime: item.hour_end, minimumDegreeId: this.level.id, sportId: this.courseFormGroup.controls['sport_id'].value, startTime: item.hour_start })
@@ -258,6 +267,19 @@ export class FluxDisponibilidadComponent implements OnInit {
       if (dateId && subgroupDateId && subgroupDateId !== dateId) {
         return;
       }
+
+      // Filter by interval_id if provided
+      if (this.interval_id != null) {
+        const currentIntervalId = this.resolveIntervalId(date);
+        if (this.interval_id === '__null__') {
+          if (currentIntervalId != null) {
+            return;
+          }
+        } else if (String(currentIntervalId ?? '') !== String(this.interval_id)) {
+          return;
+        }
+      }
+
       result.push({ date, index });
     });
 
@@ -320,7 +342,7 @@ export class FluxDisponibilidadComponent implements OnInit {
       }
 
       // Obtener todos los interval_id Ãºnicos
-      const intervalIds = new Set(courseDates.map(date => date.interval_id).filter(id => id != null));
+      const intervalIds = new Set(courseDates.map(date => String(this.resolveIntervalId(date) ?? 'null')));
       return intervalIds.size > 1;
     } catch (error) {
       return false;
@@ -342,20 +364,23 @@ export class FluxDisponibilidadComponent implements OnInit {
         return [];
       }
 
-      const selectedIntervalId = selectedDate.interval_id;
+      const selectedIntervalId = this.resolveIntervalId(selectedDate);
 
       // Si no hay interval_id, considerar todas las fechas del mismo horario
       if (selectedIntervalId == null) {
         return courseDates
           .map((date, index) => ({ date, index }))
-          .filter(item => item.date.interval_id == null)
+          .filter(item => this.resolveIntervalId(item.date) == null)
           .map(item => item.index);
       }
 
       // Obtener todas las fechas con el mismo interval_id
       return courseDates
         .map((date, index) => ({ date, index }))
-        .filter(item => item.date.interval_id === selectedIntervalId || String(item.date.interval_id) === String(selectedIntervalId))
+        .filter(item => {
+          const itemIntervalId = this.resolveIntervalId(item.date);
+          return itemIntervalId === selectedIntervalId || String(itemIntervalId) === String(selectedIntervalId);
+        })
         .map(item => item.index);
     } catch (error) {
       return [];
@@ -385,28 +410,30 @@ export class FluxDisponibilidadComponent implements OnInit {
 
       const intervals = this.extractIntervals();
       const headers: Array<{ name: string; colspan: number }> = [];
-      let currentIntervalId: any = null;
+      let currentIntervalKey: string | null = null;
       let currentCount = 0;
       let currentIntervalName = '';
 
-      datesForSubgroup.forEach((entry, idx) => {
+      datesForSubgroup.forEach((entry) => {
         const date = entry.date;
-        const intervalId = date.interval_id;
+        const intervalId = this.resolveIntervalId(date);
+        const intervalKey = String(intervalId ?? 'null');
 
-        if (intervalId !== currentIntervalId) {
+        if (intervalKey !== currentIntervalKey) {
           // Guardar el grupo anterior si existe
           if (currentCount > 0) {
             headers.push({ name: currentIntervalName, colspan: currentCount });
           }
 
           // Iniciar nuevo grupo
-          currentIntervalId = intervalId;
+          currentIntervalKey = intervalKey;
           currentCount = 1;
 
           // Buscar el nombre del intervalo
-          const interval = intervals.find((i: any) =>
-            String(i.id) === String(intervalId) || i.id === intervalId
-          );
+          const interval = intervals.find((i: any) => {
+            const candidate = i?.id ?? i?.intervalId ?? i?.interval_id ?? null;
+            return String(candidate ?? 'null') === intervalKey;
+          });
           currentIntervalName = interval?.name || `Semana ${headers.length + 1}`;
         } else {
           currentCount++;
@@ -424,6 +451,13 @@ export class FluxDisponibilidadComponent implements OnInit {
       console.error('Error generating interval headers:', error);
       this._cachedIntervalHeaders = [];
       return [];
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Invalidate cache when interval_id changes
+    if (changes['interval_id']) {
+      this.invalidateDatesCache();
     }
   }
 
@@ -743,6 +777,7 @@ export class FluxDisponibilidadComponent implements OnInit {
     return ids;
   }
 }
+
 
 
 

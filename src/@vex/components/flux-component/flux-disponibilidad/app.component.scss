@@ -9,7 +9,9 @@
   background-color: rgba(0, 0, 0, 0.4);
 }
 
-:root {
+:host {
+  --flux-panel-width: clamp(10.5rem, 18vw, 11.5rem);
+  --flux-date-width: clamp(4.25rem, 6vw, 4.75rem);
   --white: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);
   --grey: var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7);
 }
@@ -58,29 +60,28 @@
 }
 
 table {
-  table-layout: fixed;
-  min-width: 100%;
+  width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+
   td {
-    min-width: 90px;
-    min-height: 48px;
+    width: var(--flux-date-width);
+    min-height: 3rem;
     text-align-last: center;
+    padding: 0.375rem 0.125rem;
   }
-  tr > td:first-child {
-    min-width: 100px;
+
+  thead td {
+    cursor: pointer;
   }
-  thead {
-    td {
-      cursor: pointer;
-    }
-  }
-  tbody {
-    td {
-      padding-left: 10px;
-    }
+
+  tbody td {
+    padding-left: 0.625rem;
   }
 }
+
 table td + td {
-  border-left: 1px solid #dee6ea;
+  border-left: 0.0625rem solid #dee6ea;
 }
 .flexicon {
   display: flex;
@@ -116,7 +117,32 @@ td:hover {
   background-color: var(--color-grey5);
 }
 
-// Controles compactos para asignación de monitor
+.monitor-header-cell,
+.monitor-column-cell {
+  width: var(--flux-panel-width);
+  min-width: var(--flux-panel-width);
+  max-width: var(--flux-panel-width);
+  text-align: left;
+  padding-left: 0.75rem;
+}
+
+.date-header-cell,
+.monitor-status-cell,
+.student-count-cell,
+.attendance-cell {
+  width: var(--flux-date-width);
+  min-width: var(--flux-date-width);
+  max-width: var(--flux-date-width);
+}
+
+.monitor-status-cell,
+.student-count-cell,
+.attendance-cell {
+  padding: 0.375rem 0.25rem;
+  text-align: center;
+}
+
+// Compact monitor assignment controls
 .monitor-assignment-compact {
   margin-bottom: 10px;
 
@@ -167,7 +193,7 @@ td:hover {
           border-color: rgba(0, 0, 0, 0.12);
         }
 
-        // Opciones del dropdown con buen tamaño
+        // Dropdown option sizing
         .mat-mdc-option {
           font-size: 13px;
           min-height: 40px;
@@ -184,33 +210,5 @@ td:hover {
   }
 }
 
-// Estilos para los headers de intervalos
-.interval-headers-row {
-  .interval-header-cell {
-    position: relative;
-    user-select: none;
 
-    // Separador visual entre intervalos
-    &:not(:last-child)::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      height: 60%;
-      width: 2px;
-      background-color: rgba(233, 30, 99, 0.3);
-    }
 
-    // Desactivar hover en headers de intervalos
-    &:hover {
-      background-color: var(--is-light-theme, #f0f4f8) var(--is-dark-theme, #2a2a2a) !important;
-      cursor: default;
-    }
-  }
-
-  // Primera celda (columna de monitor) sin hover
-  td:first-child:hover {
-    background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black) !important;
-  }
-}

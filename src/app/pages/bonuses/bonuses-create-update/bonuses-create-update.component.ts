@@ -26,6 +26,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
     payed: false,
     is_gift: false,
     client_id: null,
+    buyer_name: null,
+    buyer_email: null,
+    buyer_phone: null,
+    recipient_name: null,
+    recipient_email: null,
+    recipient_phone: null,
     school_id: null,
     course_type_id: null,
     expires_at: null,
@@ -112,6 +118,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
       remaining_balance:[null],
       payed:[false, Validators.required],
       is_gift:[false, Validators.required],
+      buyer_name:[null],
+      buyer_email:[null, Validators.email],
+      buyer_phone:[null],
+      recipient_name:[null],
+      recipient_email:[null, Validators.email],
+      recipient_phone:[null],
       course_type_id:[null],
       expires_at:[null],
       max_uses:[null],
@@ -172,6 +184,23 @@ export class BonusesCreateUpdateComponent implements OnInit {
     }
 
     const formValue = this.form.value;
+    const buyerName = formValue.buyer_name ? formValue.buyer_name.trim() : null;
+    const buyerEmail = formValue.buyer_email ? formValue.buyer_email.trim() : null;
+    const buyerPhone = formValue.buyer_phone ? formValue.buyer_phone.trim() : null;
+    const recipientName = formValue.recipient_name ? formValue.recipient_name.trim() : null;
+    const recipientEmail = formValue.recipient_email ? formValue.recipient_email.trim() : null;
+    const recipientPhone = formValue.recipient_phone ? formValue.recipient_phone.trim() : null;
+
+    if (this.isGenericVoucher && (!buyerName || !buyerEmail)) {
+      this.snackbar.open(this.translateService.instant('bonus.error_buyer_required'), 'OK', { duration: 3000 });
+      return;
+    }
+
+    if (formValue.is_gift && (!recipientName || !recipientEmail)) {
+      this.snackbar.open(this.translateService.instant('bonus.error_recipient_required'), 'OK', { duration: 3000 });
+      return;
+    }
+
     const data: any = {
       code: formValue.code === null ? "BOU-"+this.generateRandomNumber() : formValue.code,
       name: formValue.name,
@@ -181,6 +210,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
       payed: formValue.payed,
       is_gift: formValue.is_gift,
       client_id: this.isGenericVoucher ? null : selectedClient?.id,
+      buyer_name: buyerName,
+      buyer_email: buyerEmail,
+      buyer_phone: buyerPhone,
+      recipient_name: recipientName,
+      recipient_email: recipientEmail,
+      recipient_phone: recipientPhone,
       school_id: this.user.schools[0].id,
       course_type_id: formValue.course_type_id,
       expires_at: formValue.expires_at,
@@ -206,6 +241,24 @@ export class BonusesCreateUpdateComponent implements OnInit {
   update() {
     const formValue = this.form.value;
     const selectedClient = this.clientsForm.value;
+    const buyerName = formValue.buyer_name ? formValue.buyer_name.trim() : null;
+    const buyerEmail = formValue.buyer_email ? formValue.buyer_email.trim() : null;
+    const buyerPhone = formValue.buyer_phone ? formValue.buyer_phone.trim() : null;
+    const recipientName = formValue.recipient_name ? formValue.recipient_name.trim() : null;
+    const recipientEmail = formValue.recipient_email ? formValue.recipient_email.trim() : null;
+    const recipientPhone = formValue.recipient_phone ? formValue.recipient_phone.trim() : null;
+
+    const hasAssignedClient = !!(selectedClient?.id || this.defaults.client_id?.id);
+
+    if (!hasAssignedClient && (!buyerName || !buyerEmail)) {
+      this.snackbar.open(this.translateService.instant('bonus.error_buyer_required'), 'OK', { duration: 3000 });
+      return;
+    }
+
+    if (formValue.is_gift && (!recipientName || !recipientEmail)) {
+      this.snackbar.open(this.translateService.instant('bonus.error_recipient_required'), 'OK', { duration: 3000 });
+      return;
+    }
 
     const data: any = {
       code: formValue.code,
@@ -216,6 +269,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
       payed: formValue.payed,
       is_gift: formValue.is_gift,
       client_id: selectedClient?.id || this.defaults.client_id?.id || null,
+      buyer_name: buyerName,
+      buyer_email: buyerEmail,
+      buyer_phone: buyerPhone,
+      recipient_name: recipientName,
+      recipient_email: recipientEmail,
+      recipient_phone: recipientPhone,
       school_id: this.user.schools[0].id,
       course_type_id: formValue.course_type_id,
       expires_at: formValue.expires_at,
@@ -287,6 +346,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
           remaining_balance: this.defaults.remaining_balance,
           payed: this.defaults.payed,
           is_gift: this.defaults.is_gift,
+          buyer_name: this.defaults.buyer_name,
+          buyer_email: this.defaults.buyer_email,
+          buyer_phone: this.defaults.buyer_phone,
+          recipient_name: this.defaults.recipient_name,
+          recipient_email: this.defaults.recipient_email,
+          recipient_phone: this.defaults.recipient_phone,
           course_type_id: this.defaults.course_type_id,
           expires_at: this.defaults.expires_at,
           max_uses: this.defaults.max_uses,

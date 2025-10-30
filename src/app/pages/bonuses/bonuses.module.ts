@@ -31,6 +31,8 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCardModule } from '@angular/material/card';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatTableModule } from '@angular/material/table';
 import { TranslateModule } from '@ngx-translate/core';
 import { DiscountsCreateUpdateModule } from '../discounts/discounts-create-update/discounts-create-update.module';
 
@@ -70,6 +72,8 @@ import { DiscountsCreateUpdateModule } from '../discounts/discounts-create-updat
     MatTabsModule,
     MatCardModule,
     MatMenuModule,
+    MatButtonToggleModule,
+    MatTableModule,
     TranslateModule
   ]
 })

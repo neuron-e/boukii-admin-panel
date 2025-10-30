@@ -43,13 +43,26 @@
     <div *ngIf="selectedTab === 2" class="gift-vouchers-container">
       <div class="header-section">
         <h2 class="title">{{ 'gift_vouchers' | translate }}</h2>
-        <button mat-raised-button color="primary" (click)="createGiftVoucher()">
-          <mat-icon class="mr-2">add</mat-icon>
-          {{ 'create_gift_voucher' | translate }}
-        </button>
+        <div class="header-actions">
+          <mat-button-toggle-group [value]="giftVouchersViewMode" (change)="toggleGiftVouchersView()" class="view-toggle">
+            <mat-button-toggle value="cards">
+              <mat-icon>view_module</mat-icon>
+              {{ 'card_view' | translate }}
+            </mat-button-toggle>
+            <mat-button-toggle value="table">
+              <mat-icon>view_list</mat-icon>
+              {{ 'table_view' | translate }}
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+          <button mat-raised-button color="primary" (click)="createGiftVoucher()">
+            <mat-icon class="mr-2">add</mat-icon>
+            {{ 'create_gift_voucher' | translate }}
+          </button>
+        </div>
       </div>
 
-      <div class="cards-grid" *ngIf="giftVouchers && giftVouchers.length > 0">
+      <!-- Cards View -->
+      <div class="cards-grid" *ngIf="giftVouchersViewMode === 'cards' && giftVouchers && giftVouchers.length > 0">
         <mat-card *ngFor="let voucher of giftVouchers" class="gift-card"
                   [ngClass]="'gift-card-' + (voucher.id % 4)">
           <div class="card-gradient">
@@ -109,6 +122,85 @@
             </mat-menu>
           </mat-card-actions>
         </mat-card>
+      </div>
+
+      <!-- Table View -->
+      <div class="table-view" *ngIf="giftVouchersViewMode === 'table' && giftVouchers && giftVouchers.length > 0">
+        <table mat-table [dataSource]="giftVouchers" class="gift-vouchers-table mat-elevation-z2">
+
+          <!-- Code Column -->
+          <ng-container matColumnDef="code">
+            <th mat-header-cell *matHeaderCellDef>{{ 'ID' }}</th>
+            <td mat-cell *matCellDef="let voucher" class="font-medium">
+              {{ voucher.code }}
+              <button mat-icon-button (click)="copyCode(voucher.code)" class="copy-btn-small">
+                <mat-icon>content_copy</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <!-- Buyer Name Column -->
+          <ng-container matColumnDef="buyer_name">
+            <th mat-header-cell *matHeaderCellDef>{{ 'buyer' | translate }}</th>
+            <td mat-cell *matCellDef="let voucher">{{ voucher.buyer_name || '-' }}</td>
+          </ng-container>
+
+          <!-- Recipient Name Column -->
+          <ng-container matColumnDef="recipient_name">
+            <th mat-header-cell *matHeaderCellDef>{{ 'recipient' | translate }}</th>
+            <td mat-cell *matCellDef="let voucher">{{ voucher.recipient_name || '-' }}</td>
+          </ng-container>
+
+          <!-- Amount Column -->
+          <ng-container matColumnDef="quantity">
+            <th mat-header-cell *matHeaderCellDef>{{ 'amount' | translate }}</th>
+            <td mat-cell *matCellDef="let voucher">{{ voucher.quantity | currency:'EUR':'symbol':'1.0-0' }}</td>
+          </ng-container>
+
+          <!-- Status Column -->
+          <ng-container matColumnDef="payed">
+            <th mat-header-cell *matHeaderCellDef>{{ 'status' | translate }}</th>
+            <td mat-cell *matCellDef="let voucher">
+              <span class="status-badge-table" [ngClass]="voucher.payed ? 'status-used' : 'status-active'">
+                {{ voucher.payed ? ('used' | translate) : ('active' | translate) }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Date Column -->
+          <ng-container matColumnDef="created_at">
+            <th mat-header-cell *matHeaderCellDef>{{ 'creation_date' | translate }}</th>
+            <td mat-cell *matCellDef="let voucher">{{ voucher.created_at | date:'dd/MM/yyyy' }}</td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>{{ 'actions' | translate }}</th>
+            <td mat-cell *matCellDef="let voucher">
+              <button mat-icon-button [matMenuTriggerFor]="tableMenu">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #tableMenu="matMenu">
+                <button mat-menu-item (click)="viewVoucher(voucher)">
+                  <mat-icon>visibility</mat-icon>
+                  <span>{{ 'view_details' | translate }}</span>
+                </button>
+                <button mat-menu-item (click)="editVoucher(voucher)">
+                  <mat-icon>edit</mat-icon>
+                  <span>{{ 'edit' | translate }}</span>
+                </button>
+                <button mat-menu-item (click)="openTransferDialog(voucher)"
+                        [disabled]="!voucher.is_transferable || voucher.transferred_at">
+                  <mat-icon>send</mat-icon>
+                  <span>{{ 'transfer' | translate }}</span>
+                </button>
+              </mat-menu>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedGiftColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedGiftColumns;"></tr>
+        </table>
       </div>
 
       <div class="empty-state" *ngIf="!giftVouchers || giftVouchers.length === 0">

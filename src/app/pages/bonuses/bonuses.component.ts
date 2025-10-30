@@ -23,9 +23,9 @@ export class BonusesComponent implements OnInit {
 
   private readonly voucherColumns: TableColumn<any>[] = [
     { label: 'ID', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
-    { label: 'Nombre del bono', property: 'name', type: 'text', visible: true },
     { label: 'Valor', property: 'quantity', type: 'currency', visible: true },
     { label: 'Cliente asignado', property: 'client', type: 'client', visible: true },
+    { label: 'Comprador', property: 'buyer_name', type: 'text', visible: true },
     { label: 'Estado', property: 'payed', type: 'badge', visible: true },
     { label: 'Fecha creación', property: 'created_at', type: 'date', visible: true },
     { label: 'Acciones', property: 'actions', type: 'button', visible: true }
@@ -33,6 +33,7 @@ export class BonusesComponent implements OnInit {
 
   private readonly discountColumns: TableColumn<any>[] = [
     { label: 'Código', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
+    { label: 'Nombre', property: 'name', type: 'text', visible: true },
     { label: 'Tipo', property: 'discount_type', type: 'text', visible: true },
     { label: 'Valor', property: 'discount_value', type: 'currency', visible: true },
     { label: 'Aplicable a', property: 'applicable_to', type: 'text', visible: true },
@@ -57,6 +58,19 @@ export class BonusesComponent implements OnInit {
 
   // Gift vouchers data
   giftVouchers: any[] = [];
+  giftVouchersViewMode: 'cards' | 'table' = 'cards'; // Toggle between card and table view
+
+  // Gift vouchers table columns
+  giftVouchersTableColumns: TableColumn<any>[] = [
+    { label: 'ID', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
+    { label: 'Comprador', property: 'buyer_name', type: 'text', visible: true },
+    { label: 'Destinatario', property: 'recipient_name', type: 'text', visible: true },
+    { label: 'Monto', property: 'quantity', type: 'currency', visible: true },
+    { label: 'Estado', property: 'payed', type: 'badge', visible: true },
+    { label: 'Fecha creación', property: 'created_at', type: 'date', visible: true },
+    { label: 'Acciones', property: 'actions', type: 'button', visible: true }
+  ];
+  displayedGiftColumns: string[] = ['code', 'buyer_name', 'recipient_name', 'quantity', 'payed', 'created_at', 'actions'];
 
   constructor(
     private dialog: MatDialog,
@@ -238,6 +252,10 @@ export class BonusesComponent implements OnInit {
       'OK',
       { duration: 2000 }
     );
+  }
+
+  toggleGiftVouchersView() {
+    this.giftVouchersViewMode = this.giftVouchersViewMode === 'cards' ? 'table' : 'cards';
   }
 
   exportDiscounts() {

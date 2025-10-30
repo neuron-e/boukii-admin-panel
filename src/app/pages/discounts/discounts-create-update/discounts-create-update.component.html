@@ -44,9 +44,13 @@
           <!-- Name -->
           <mat-form-field appearance="outline" class="w-full">
             <mat-label>{{'discount.name' | translate}}</mat-label>
-            <input formControlName="name" matInput required>
-            <mat-error *ngIf="form.get('name')?.hasError('required')">
-              {{'error.required' | translate}}
+            <input
+              formControlName="name"
+              matInput
+              maxlength="255"
+              [placeholder]="'discount.name_placeholder' | translate">
+            <mat-error *ngIf="form.get('name')?.hasError('maxlength')">
+              {{'errors.maxlength' | translate:{ requiredLength: 255 } }}
             </mat-error>
           </mat-form-field>
 

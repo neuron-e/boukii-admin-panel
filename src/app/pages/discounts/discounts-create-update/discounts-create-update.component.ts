@@ -130,7 +130,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
 
     this.form = this.fb.group({
       code: [null, Validators.required],
-      name: [null, Validators.required],
+      name: [null, [Validators.maxLength(255)]],
       description: [null],
       discount_type: ['percentage', Validators.required],
       discount_value: [null, [Validators.required, discountValueValidator]],

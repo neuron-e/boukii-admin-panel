@@ -10,10 +10,17 @@
     <div class="card body">
         <ng-content select="[body]"></ng-content>
     </div>
-    <div class="hide" style="width: 30px;"> </div>
-    <div class="card resum hide">
+    <div class="card resum hide" *ngIf="showSidebar">
+        <div class="sidebar-header">
+            <button class="close-sidebar-btn" (click)="toggleSidebar()" title="Ocultar leyenda">
+                <mat-icon>chevron_right</mat-icon>
+            </button>
+        </div>
         <ng-content select="[card]"></ng-content>
     </div>
+    <button class="open-sidebar-btn" *ngIf="!showSidebar" (click)="toggleSidebar()" title="Mostrar leyenda">
+        <mat-icon>chevron_left</mat-icon>
+    </button>
     <div class="modal" *ngIf="ShowCard">
         <div class="modal-content resum card">
             <span class="close" (click)="ShowCard=false">&times;</span>

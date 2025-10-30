@@ -1,4 +1,4 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import {AbstractControl, FormArray, FormGroup, UntypedFormBuilder, UntypedFormGroup, Validators} from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import {map, forkJoin, mergeMap, throwError, catchError} from 'rxjs';
@@ -116,12 +116,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
   intervalGroups: IntervalGroupsState[] = [];
   selectedIntervalIndexForGroups = 0;
   selectedIntervalKeyForGroups: string | null = null;
-  selectedIntervalTabIndex = 0; // Para las pestañas en la sección de detalles
 
   // Caché para optimizar las funciones de subgrupos
   private _uniqueSubgroupsCache = new Map<string, any[]>();
   private _subgroupDatesCache = new Map<string, any[]>();
   private _lastCourseDatesLength = 0;
+  private readonly NULL_INTERVAL_SENTINEL = '__null__';
+  private selectedIntervalForSubgroup: Record<string, string> = {};
   selectedIntervalFilterIndex = 0; // 0 = all intervals, 1+ = specific interval (index - 1)
   private intervalSubgroupKeySeed = 0;
 
@@ -292,19 +293,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private getCurrentSettingsObject(): any {
-    try {
-      const rawSettings = this.courses.courseFormGroup?.get('settings')?.value;
-      if (!rawSettings) {
-        return {};
-      }
-
-      return typeof rawSettings === 'string'
-        ? JSON.parse(rawSettings)
-        : { ...rawSettings };
-    } catch (error) {
-      console.warn('Unable to parse current settings', error);
-      return {};
-    }
+    const rawSettings = this.courses.courseFormGroup?.get('settings')?.value;
+    return this.normalizeSettingsValue(rawSettings);
   }
 
   private translateKey(key: string, fallback: string): string {
@@ -1084,9 +1074,38 @@ export class CoursesCreateUpdateComponent implements OnInit {
     return allGroups;
   }
 
-  // Manejar cambio de tab de intervalo
-  onIntervalTabChange(index: number): void {
-    this.selectedIntervalTabIndex = index;
+  // Manejar cambio de tab de intervalo para un subgrupo concreto
+  onIntervalTabChange(level: any, subgroupIndex: number, tabIndex: number): void {
+    const intervals = this.getIntervalsForSubgroup(level, subgroupIndex);
+    if (intervals[tabIndex]) {
+      const intervalId = intervals[tabIndex]?.id ?? null;
+      this.setSelectedIntervalForSubgroup(
+        level,
+        subgroupIndex,
+        intervalId != null ? String(intervalId) : this.NULL_INTERVAL_SENTINEL
+      );
+    }
+  }
+
+  private normalizeSettingsValue(rawSettings: any): Record<string, any> {
+    if (!rawSettings) {
+      return {};
+    }
+
+    if (typeof rawSettings === 'string') {
+      try {
+        return JSON.parse(rawSettings);
+      } catch (error) {
+        console.warn('Unable to parse settings string, returning empty object.', error);
+        return {};
+      }
+    }
+
+    if (typeof rawSettings === 'object') {
+      return { ...rawSettings };
+    }
+
+    return {};
   }
 
   // Cache para getAllSubgroupsForLevel
@@ -1493,6 +1512,117 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   /**
+   * Obtiene la lista de intervalos disponibles para un subgrupo concreto.
+   * Prioriza la metadata de this.intervals y recurre a los course_dates si es necesario.
+   */
+  getIntervalsForSubgroup(level: any, subgroupIndex: number): any[] {
+    const rawIntervals = Array.isArray(this.intervals) ? this.intervals : [];
+    console.log('[tabs-debug] getIntervalsForSubgroup start', {
+      levelId: level?.id ?? level?.degree_id,
+      subgroupIndex,
+      rawIntervalsCount: rawIntervals.length,
+      intervalsIds: rawIntervals.map((interval: any) => interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null)
+    });
+
+    const normalized = rawIntervals.reduce((acc: any[], interval: any) => {
+      const intervalId = interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null;
+      if (intervalId != null && this.subgroupHasDatesInInterval(level, subgroupIndex, intervalId)) {
+        acc.push({
+          ...interval,
+          id: intervalId
+        });
+      }
+      return acc;
+    }, []);
+
+    if (normalized.length > 0) {
+      console.log('[tabs-debug] normalized intervals used', normalized);
+      return normalized;
+    }
+
+    const courseDates = this.getCourseDatesForLevelSubgroupIndex(level, subgroupIndex);
+    if (!Array.isArray(courseDates) || courseDates.length === 0) {
+      return [];
+    }
+
+    const seen = new Set<string>();
+    const fallback: any[] = [];
+
+    courseDates.forEach(cd => {
+      const subgroup = this.getSubgroupFromCourseDate(level, subgroupIndex, cd);
+      const rawId =
+        cd?.interval_id ??
+        cd?.intervalId ??
+        cd?.course_interval_id ??
+        cd?.courseIntervalId ??
+        subgroup?.interval_id ??
+        subgroup?.intervalId ??
+        subgroup?.course_interval_id ??
+        subgroup?.courseIntervalId ??
+        null;
+
+      const key = String(rawId ?? this.NULL_INTERVAL_SENTINEL);
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      fallback.push({
+        id: rawId != null ? rawId : this.NULL_INTERVAL_SENTINEL
+      });
+    });
+
+    console.log('[tabs-debug] fallback intervals', fallback);
+    return fallback;
+  }
+
+  subgroupHasMultipleIntervals(level: any, subgroupIndex: number): boolean {
+    const intervals = this.getIntervalsForSubgroup(level, subgroupIndex);
+    const result = intervals.length > 1;
+    console.log('[tabs-debug] subgroupHasMultipleIntervals', {
+      levelId: level?.id ?? level?.degree_id,
+      subgroupIndex,
+      intervals,
+      result
+    });
+    return result;
+  }
+
+  getSelectedIntervalForSubgroup(level: any, subgroupIndex: number): string {
+    const levelId = level?.id ?? level?.degree_id;
+    const key = `${levelId}_${subgroupIndex}`;
+
+    if (!this.selectedIntervalForSubgroup[key]) {
+      const intervals = this.getIntervalsForSubgroup(level, subgroupIndex);
+      if (intervals.length > 0) {
+        const defaultId = intervals[0]?.id ?? this.NULL_INTERVAL_SENTINEL;
+        this.selectedIntervalForSubgroup[key] = String(defaultId);
+      } else {
+        this.selectedIntervalForSubgroup[key] = this.NULL_INTERVAL_SENTINEL;
+      }
+    }
+
+    return this.selectedIntervalForSubgroup[key];
+  }
+
+  getSelectedIntervalIndexForSubgroup(level: any, subgroupIndex: number): number {
+    const intervals = this.getIntervalsForSubgroup(level, subgroupIndex);
+    const selectedId = this.getSelectedIntervalForSubgroup(level, subgroupIndex);
+
+    const index = intervals.findIndex(interval => {
+      const intervalId = interval?.id ?? this.NULL_INTERVAL_SENTINEL;
+      return String(intervalId) === selectedId;
+    });
+
+    return index >= 0 ? index : 0;
+  }
+
+  setSelectedIntervalForSubgroup(level: any, subgroupIndex: number, intervalId: string): void {
+    const levelId = level?.id ?? level?.degree_id;
+    const key = `${levelId}_${subgroupIndex}`;
+    this.selectedIntervalForSubgroup[key] = intervalId;
+  }
+
+  /**
    * Obtiene las fechas (course_dates) que tienen un subgrupo específico (por índice) para un nivel
    * HYBRID: Try both structures
    */
@@ -1534,12 +1664,78 @@ export class CoursesCreateUpdateComponent implements OnInit {
     return result;
   }
 
+  private getSubgroupFromCourseDate(level: any, subgroupIndex: number, courseDate: any): any | null {
+    if (!courseDate || level == null) {
+      return null;
+    }
+    const levelId = level?.id ?? level?.degree_id;
+    const dateId = courseDate?.id ?? null;
+
+    const dateLevelSubgroups = this.toArray(courseDate?.course_subgroups || courseDate?.courseSubgroups)
+      .filter((sg: any) => (sg?.degree_id ?? sg?.degreeId) === levelId)
+      .filter((sg: any) => {
+        const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
+        return !dateId || !sgDateId || sgDateId === dateId;
+      });
+    if (dateLevelSubgroups.length > subgroupIndex) {
+      return dateLevelSubgroups[subgroupIndex];
+    }
+
+    const group = this.toArray(courseDate?.course_groups || courseDate?.courseGroups)
+      .find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+    const groupSubgroups = this.toArray(group?.course_subgroups || group?.courseSubgroups)
+      .filter((sg: any) => {
+        const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
+        return !dateId || !sgDateId || sgDateId === dateId;
+      });
+    if (groupSubgroups.length > subgroupIndex) {
+      return groupSubgroups[subgroupIndex];
+    }
+
+    return null;
+  }
+
+  private toArray<T = any>(val: any): T[] {
+    if (Array.isArray(val)) {
+      return val;
+    }
+    if (val === null || val === undefined) {
+      return [];
+    }
+    return [val];
+  }
+
   /**
    * Verifica si un subgrupo específico tiene fechas en un intervalo dado
    */
   subgroupHasDatesInInterval(level: any, subgroupIndex: number, intervalId: any): boolean {
     const dates = this.getCourseDatesForLevelSubgroupIndex(level, subgroupIndex);
-    return dates.some(cd => cd.interval_id === intervalId || cd.intervalId === intervalId);
+    if (!Array.isArray(dates) || dates.length === 0) {
+      return false;
+    }
+
+    const targetKey = intervalId != null ? String(intervalId) : this.NULL_INTERVAL_SENTINEL;
+
+    return dates.some(cd => {
+      const subgroup = this.getSubgroupFromCourseDate(level, subgroupIndex, cd);
+      const rawId =
+        cd?.interval_id ??
+        cd?.intervalId ??
+        cd?.course_interval_id ??
+        cd?.courseIntervalId ??
+        subgroup?.interval_id ??
+        subgroup?.intervalId ??
+        subgroup?.course_interval_id ??
+        subgroup?.courseIntervalId ??
+        null;
+      const currentKey = rawId != null ? String(rawId) : this.NULL_INTERVAL_SENTINEL;
+
+      if (targetKey === this.NULL_INTERVAL_SENTINEL) {
+        return currentKey === this.NULL_INTERVAL_SENTINEL;
+      }
+
+      return currentKey === targetKey;
+    });
   }
 
   getIntervalLabel(interval: any, index: number): string {
@@ -1701,18 +1897,33 @@ export class CoursesCreateUpdateComponent implements OnInit {
             const settings = typeof this.detailData.settings === 'string'
               ? JSON.parse(this.detailData.settings)
               : this.detailData.settings;
+            this.detailData.settings = settings;
 
-            if (settings.multipleIntervals) {
+            const configuredUseMultiple =
+              settings.useMultipleIntervals ?? settings.intervalConfiguration?.useMultipleIntervals;
+            const hasMultipleIntervalsSetting = Boolean(
+              settings.multipleIntervals
+              || settings.useMultipleIntervals
+              || settings.intervalConfiguration?.useMultipleIntervals
+            );
+
+            if (hasMultipleIntervalsSetting) {
               hasMultipleIntervals = true;
               this.useMultipleIntervals = true;
-              this.mustBeConsecutive = settings.mustBeConsecutive || false;
-              this.mustStartFromFirst = settings.mustStartFromFirst || false;
+              this.mustBeConsecutive = settings.mustBeConsecutive
+                || settings.intervalConfiguration?.mustBeConsecutive
+                || false;
+              this.mustStartFromFirst = settings.mustStartFromFirst
+                || settings.intervalConfiguration?.mustStartFromFirst
+                || false;
             }
 
             // Restore interval configuration if available (from new or old format)
             const intervalsSource = settings.intervals || settings.intervalConfiguration?.intervals;
             if (intervalsSource && Array.isArray(intervalsSource)) {
-              this.useMultipleIntervals = settings.useMultipleIntervals || settings.intervalConfiguration?.useMultipleIntervals || false;
+              if (configuredUseMultiple != null) {
+                this.useMultipleIntervals = !!configuredUseMultiple;
+              }
               this.intervals = intervalsSource.map(interval => ({
                 ...interval,
                 // Ensure weeklyPattern exists
@@ -3593,14 +3804,34 @@ export class CoursesCreateUpdateComponent implements OnInit {
     // Comprobar si el curso tiene configuraci├│n de intervalos m├║ltiples
     if (courseData.settings) {
       try {
-        const settings = courseData.settings;
+        const rawSettings = courseData.settings;
+        const settings = typeof rawSettings === 'string'
+          ? JSON.parse(rawSettings)
+          : rawSettings || {};
+        courseData.settings = settings;
+
+        const intervalsDefinition = Array.isArray(settings.intervals)
+          ? settings.intervals
+          : Array.isArray(settings.intervalConfiguration?.intervals)
+            ? settings.intervalConfiguration.intervals
+            : [];
+
+        const hasMultipleIntervalsSetting = Boolean(
+          settings.multipleIntervals
+          || settings.useMultipleIntervals
+          || settings.intervalConfiguration?.useMultipleIntervals
+        );
 
         // Si tiene configuraci├│n de intervalos m├║ltiples
-        if (settings.multipleIntervals) {
+        if (hasMultipleIntervalsSetting) {
           // Activar el switch en el componente
           component.useMultipleIntervals = true;
-          component.mustBeConsecutive = settings.mustBeConsecutive || false;
-          component.mustStartFromFirst = settings.mustStartFromFirst || false;
+          component.mustBeConsecutive = settings.mustBeConsecutive
+            || settings.intervalConfiguration?.mustBeConsecutive
+            || false;
+          component.mustStartFromFirst = settings.mustStartFromFirst
+            || settings.intervalConfiguration?.mustStartFromFirst
+            || false;
 
           // Agrupar las fechas por intervalos
           const courseDates = courseData.course_dates || [];
@@ -3608,10 +3839,16 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
           // Agrupar por interval_id
           courseDates.forEach(date => {
-            const intervalId = String(date.interval_id || 'default');
+            const intervalId = date?.interval_id != null
+              ? String(date.interval_id)
+              : component.NULL_INTERVAL_SENTINEL;
 
             if (!intervalMap[intervalId]) {
-              const matchingInterval = settings.intervals?.find(i => String(i.id) === intervalId);
+              const matchingInterval = intervalsDefinition.find(i => {
+                const rawId = i?.id ?? i?.intervalId ?? null;
+                const key = rawId != null ? String(rawId) : component.NULL_INTERVAL_SENTINEL;
+                return key === intervalId;
+              });
 
               intervalMap[intervalId] = {
                 id: intervalId,

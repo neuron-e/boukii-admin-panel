@@ -14,6 +14,25 @@
       margin: 0;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .view-toggle {
+        mat-button-toggle {
+          font-size: 13px;
+
+          mat-icon {
+            margin-right: 6px;
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+          }
+        }
+      }
+    }
+
     button {
       mat-icon {
         margin-right: 8px;
@@ -218,6 +237,74 @@
 
       button {
         color: white;
+      }
+    }
+  }
+
+  // Table View
+  .table-view {
+    margin-bottom: 24px;
+
+    .gift-vouchers-table {
+      width: 100%;
+      background: white;
+      border-radius: 8px;
+
+      th {
+        background: #f5f5f5;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 16px;
+      }
+
+      td {
+        padding: 12px 16px;
+        font-size: 14px;
+
+        &.font-medium {
+          font-family: monospace;
+          font-weight: 500;
+
+          .copy-btn-small {
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            margin-left: 8px;
+
+            mat-icon {
+              font-size: 16px;
+              width: 16px;
+              height: 16px;
+            }
+          }
+        }
+      }
+
+      .status-badge-table {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+
+        &.status-active {
+          background: #e8f5e9;
+          color: #2e7d32;
+          border: 1px solid #81c784;
+        }
+
+        &.status-used {
+          background: #f5f5f5;
+          color: #757575;
+          border: 1px solid #bdbdbd;
+        }
+      }
+
+      tr {
+        &:hover {
+          background: #fafafa;
+        }
       }
     }
   }
