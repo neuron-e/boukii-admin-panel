@@ -1623,6 +1623,17 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   /**
+   * Helper method to convert interval ID to the format expected by vex-flux-disponibilidad
+   * Returns '__null__' for null/sentinel values, otherwise returns the ID as string
+   */
+  getIntervalIdForFlux(intervalId: any): string {
+    if (intervalId === this.NULL_INTERVAL_SENTINEL || intervalId === '__null__' || intervalId == null) {
+      return '__null__';
+    }
+    return String(intervalId);
+  }
+
+  /**
    * Obtiene las fechas (course_dates) que tienen un subgrupo específico (por índice) para un nivel
    * HYBRID: Try both structures
    */
