@@ -256,7 +256,7 @@
             <div *ngIf="useMultipleIntervals"
               style="width: 100%; background-color: var(--color-grey4); height: 60px; border-top: 1px solid #C7D0D3; padding: 0 24px; align-content: space-evenly; display: flex; justify-content: space-between; align-items: center;">
               <span>
-                {{('interval' | translate) + ' ' + (i + 1) }}
+                {{('block' | translate) + ' ' + (i + 1) }}
               </span>
               <div style="display: flex; align-items: center; gap: 10px;">
                 <mat-icon *ngIf="useMultipleIntervals && intervals.length > 1"
@@ -561,7 +561,7 @@
                         <mat-tab *ngFor="let interval of getIntervalsForSubgroup(level, uniqueSubgroup._index); index as intervalIdx">
                           <ng-template mat-tab-label>
                             <span class="interval-tab-label">
-                              {{ interval.name || (('interval' | translate) + ' ' + (intervalIdx + 1)) }}
+                              {{ interval.name || (('block' | translate) + ' ' + (intervalIdx + 1)) }}
                             </span>
                           </ng-template>
 

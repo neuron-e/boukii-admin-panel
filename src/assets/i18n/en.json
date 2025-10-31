@@ -280,6 +280,7 @@
   "to": "Until",
   "in": "in",
   "interval": "Interval",
+  "block": "Block",
   "all_intervals": "All intervals",
   "price": "Price",
   "price_per_date": "Price per date",

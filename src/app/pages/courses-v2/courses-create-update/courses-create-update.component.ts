@@ -1517,16 +1517,45 @@ export class CoursesCreateUpdateComponent implements OnInit {
    */
   getIntervalsForSubgroup(level: any, subgroupIndex: number): any[] {
     const rawIntervals = Array.isArray(this.intervals) ? this.intervals : [];
-    console.log('[tabs-debug] getIntervalsForSubgroup start', {
-      levelId: level?.id ?? level?.degree_id,
+    const levelId = level?.id ?? level?.degree_id;
+
+    console.log('🔍 [tabs-debug] getIntervalsForSubgroup START', {
+      levelId,
+      levelName: level?.name,
       subgroupIndex,
       rawIntervalsCount: rawIntervals.length,
-      intervalsIds: rawIntervals.map((interval: any) => interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null)
+      rawIntervals: rawIntervals.map((interval: any) => ({
+        id: interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null,
+        name: interval?.name || 'Sin nombre'
+      }))
+    });
+
+    // Primero, verificar si tenemos fechas para este subgrupo
+    const courseDatesForSubgroup = this.getCourseDatesForLevelSubgroupIndex(level, subgroupIndex);
+    console.log('📅 [tabs-debug] courseDatesForSubgroup', {
+      levelId,
+      subgroupIndex,
+      datesCount: courseDatesForSubgroup?.length || 0,
+      sampleDates: courseDatesForSubgroup?.slice(0, 3).map(cd => ({
+        date: cd?.date,
+        interval_id: cd?.interval_id ?? cd?.intervalId ?? cd?.course_interval_id ?? 'NO_INTERVAL_ID',
+        allIntervalKeys: Object.keys(cd || {}).filter(k => k.toLowerCase().includes('interval'))
+      }))
     });
 
     const normalized = rawIntervals.reduce((acc: any[], interval: any) => {
       const intervalId = interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null;
-      if (intervalId != null && this.subgroupHasDatesInInterval(level, subgroupIndex, intervalId)) {
+      const hasDates = this.subgroupHasDatesInInterval(level, subgroupIndex, intervalId);
+
+      console.log('🔎 [tabs-debug] checking interval', {
+        intervalId,
+        intervalName: interval?.name,
+        hasDates,
+        levelId,
+        subgroupIndex
+      });
+
+      if (intervalId != null && hasDates) {
         acc.push({
           ...interval,
           id: intervalId
@@ -1536,12 +1565,18 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }, []);
 
     if (normalized.length > 0) {
-      console.log('[tabs-debug] normalized intervals used', normalized);
+      console.log('✅ [tabs-debug] normalized intervals found', {
+        count: normalized.length,
+        intervals: normalized.map(i => ({ id: i.id, name: i.name }))
+      });
       return normalized;
     }
 
+    console.log('⚠️ [tabs-debug] normalized empty, falling back to courseDates extraction');
+
     const courseDates = this.getCourseDatesForLevelSubgroupIndex(level, subgroupIndex);
     if (!Array.isArray(courseDates) || courseDates.length === 0) {
+      console.log('❌ [tabs-debug] no course dates found for subgroup');
       return [];
     }
 
@@ -1566,14 +1601,27 @@ export class CoursesCreateUpdateComponent implements OnInit {
         return;
       }
       seen.add(key);
+
+      // Buscar el nombre del intervalo en this.intervals
+      const matchingInterval = rawIntervals.find(interval => {
+        const id = interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null;
+        return id === rawId;
+      });
+
       fallback.push({
-        id: rawId != null ? rawId : this.NULL_INTERVAL_SENTINEL
+        id: rawId != null ? rawId : this.NULL_INTERVAL_SENTINEL,
+        name: matchingInterval?.name || `Bloque ${fallback.length + 1}`
       });
     });
 
-    console.log('[tabs-debug] fallback intervals', fallback);
+    console.log('📋 [tabs-debug] fallback intervals', {
+      count: fallback.length,
+      intervals: fallback
+    });
     return fallback;
   }
+
+
 
   subgroupHasMultipleIntervals(level: any, subgroupIndex: number): boolean {
     const intervals = this.getIntervalsForSubgroup(level, subgroupIndex);
