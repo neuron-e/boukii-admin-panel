@@ -298,11 +298,11 @@
                         *ngIf="task.type === 'block_no_payed'">BNP&nbsp;</ng-container>
                       {{ task.name }}
                     </div>
-                    <div *ngIf="task.type === 'collective'">{{ task.name
+                    <div *ngIf="task.type === 'collective'">{{ task.name }}
                       <span *ngIf="task.interval_name" class="interval-badge"
                             [style.background-color]="task.interval_color || '#6b7280'"
                             [title]="task.interval_name">{{ task.interval_name }}</span>
-                      }}</div>
+                      </div>
                     <div
                       *ngIf="(task.type === 'private' || task.type === 'activity')">{{
                         task.all_clients[0].client.first_name}} {{

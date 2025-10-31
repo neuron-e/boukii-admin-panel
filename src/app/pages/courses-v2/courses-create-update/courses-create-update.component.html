@@ -1004,16 +1004,50 @@
                     {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
                   </div>
 
-                  <!-- Componente de disponibilidad por subgrupo mostrando todas las fechas -->
+                  <!-- TABS DE INTERVALOS (si hay múltiples) -->
                   <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
-                    <vex-flux-disponibilidad
-                      [courseFormGroup]="courses.courseFormGroup"
-                      [level]="level"
-                      [group]="getGroupForLevel(level)"
-                      [subgroup_index]="uniqueSubgroup._index"
-                      (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
-                      (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
-                    </vex-flux-disponibilidad>
+                    
+                    <!-- Caso 1: Múltiples intervalos → Mostrar tabs -->
+                    <ng-container *ngIf="subgroupHasMultipleIntervals(level, uniqueSubgroup._index); else singleInterval">
+                      <mat-tab-group
+                        class="interval-tabs"
+                        [selectedIndex]="getSelectedIntervalIndexForSubgroup(level, uniqueSubgroup._index)"
+                        (selectedIndexChange)="onIntervalTabChange(level, uniqueSubgroup._index, $event)">
+                        
+                        <mat-tab *ngFor="let interval of getIntervalsForSubgroup(level, uniqueSubgroup._index); index as intervalIdx">
+                          <ng-template mat-tab-label>
+                            <span class="interval-tab-label">
+                              {{ interval.name || (('block' | translate) + ' ' + (intervalIdx + 1)) }}
+                            </span>
+                          </ng-template>
+
+                          <!-- Contenido del tab: vex-flux-disponibilidad filtrado por interval_id -->
+                          <div class="interval-content-wrapper" style="padding-top: 16px;">
+                            <vex-flux-disponibilidad
+                              [courseFormGroup]="courses.courseFormGroup"
+                              [level]="level"
+                              [group]="getGroupForLevel(level)"
+                              [subgroup_index]="uniqueSubgroup._index"
+                              [interval_id]="getIntervalIdForFlux(interval.id)"
+                              (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
+                              (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                            </vex-flux-disponibilidad>
+                          </div>
+                        </mat-tab>
+                      </mat-tab-group>
+                    </ng-container>
+
+                    <!-- Caso 2: Un solo intervalo → Vista simple sin tabs -->
+                    <ng-template #singleInterval>
+                      <vex-flux-disponibilidad
+                        [courseFormGroup]="courses.courseFormGroup"
+                        [level]="level"
+                        [group]="getGroupForLevel(level)"
+                        [subgroup_index]="uniqueSubgroup._index"
+                        (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
+                        (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                      </vex-flux-disponibilidad>
+                    </ng-template>
                   </div>
                 </ng-container>
               </ng-container>
@@ -1107,7 +1141,7 @@
               </td>
             </ng-container>
             <ng-container
-              *ngFor="let col of getNumberArray(courses.courseFormGroup.controls['max_participants'].value).slice(1)"
+              *ngFor="let col of getNumberArrayWithoutLabel(courses.courseFormGroup.controls['max_participants'].value)"
               [matColumnDef]="col">
               <th *matHeaderCellDef mat-header-cell>
                 {{col}}

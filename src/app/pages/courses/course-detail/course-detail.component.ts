@@ -1297,6 +1297,13 @@ export class CourseDetailComponent implements OnInit {
         delete dates.course_subgroups;
         dates.course_groups.forEach(dateGroup => {
           if (dateGroup.course_subgroups.length > 0) {
+            // Fix: Limpiar propiedad monitor de cada subgrupo si es un objeto
+            // Solo queremos enviar monitor_id al backend, no el objeto completo
+            dateGroup.course_subgroups.forEach(subgroup => {
+              if (subgroup.monitor && typeof subgroup.monitor !== 'string') {
+                delete subgroup.monitor;  // Eliminar objeto monitor, mantener solo monitor_id
+              }
+            });
             group.push(dateGroup);
           }
         });

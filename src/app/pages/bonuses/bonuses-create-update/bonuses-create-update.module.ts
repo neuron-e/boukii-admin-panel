@@ -16,10 +16,11 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatNativeDateModule } from '@angular/material/core';
 import {MatDatepickerModule} from '@angular/material/datepicker';
-import { MatListModule } from '@angular/material/list';
 import { NgxMatDatetimePickerModule, NgxMatTimepickerModule } from '@angular-material-components/datetime-picker';
 import {MatStepperModule} from '@angular/material/stepper';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatListModule } from '@angular/material/list';
 import { BreadcrumbsModule } from 'src/@vex/components/breadcrumbs/breadcrumbs.module';
 import { SecondaryToolbarModule } from 'src/@vex/components/secondary-toolbar/secondary-toolbar.module';
 import { MatTableModule } from '@angular/material/table';
@@ -54,6 +55,7 @@ import { TranslateModule } from '@ngx-translate/core';
     NgxMatTimepickerModule,
     MatStepperModule,
     MatSlideToggleModule,
+    MatCheckboxModule,
     BreadcrumbsModule,
     SecondaryToolbarModule,
     MatDialogModule,

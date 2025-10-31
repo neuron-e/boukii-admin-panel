@@ -52,6 +52,9 @@ export class BonusesCreateUpdateComponent implements OnInit {
   clientsForm = new FormControl<any>('');
   filteredOptions: Observable<any[]>;
   isGenericVoucher: boolean = false;
+  readOnly = false;
+  private initialClientId: number | null = null;
+  private selectedClientId: number | null = null;
 
   clients = [];
   courseTypes = [
@@ -66,31 +69,31 @@ export class BonusesCreateUpdateComponent implements OnInit {
   giftTemplates = [
     {
       id: 'birthday',
-      name: 'Cumpleaños',
+      nameKey: 'bonus.template.birthday',
       icon: 'cake',
-      message: '¡Feliz cumpleaños! Disfruta de tus clases.',
-      defaultName: 'Bono Regalo Cumpleaños'
+      messageKey: 'bonus.template.birthday_message',
+      defaultNameKey: 'bonus.template.birthday_default_name'
     },
     {
       id: 'anniversary',
-      name: 'Aniversario',
+      nameKey: 'bonus.template.anniversary',
       icon: 'favorite',
-      message: 'Feliz aniversario. Gracias por confiar en nosotros durante todo este tiempo.',
-      defaultName: 'Bono Aniversario'
+      messageKey: 'bonus.template.anniversary_message',
+      defaultNameKey: 'bonus.template.anniversary_default_name'
     },
     {
       id: 'welcome',
-      name: 'Bienvenida',
+      nameKey: 'bonus.template.welcome',
       icon: 'waving_hand',
-      message: 'Bienvenido a nuestra escuela. Esperamos que disfrutes de tus clases.',
-      defaultName: 'Bono Bienvenida'
+      messageKey: 'bonus.template.welcome_message',
+      defaultNameKey: 'bonus.template.welcome_default_name'
     },
     {
       id: 'custom',
-      name: 'Personalizado',
+      nameKey: 'bonus.template.custom',
       icon: 'edit',
-      message: '',
-      defaultName: 'Bono Regalo'
+      messageKey: 'bonus.template.custom_message',
+      defaultNameKey: 'bonus.template.custom_default_name'
     }
   ];
   selectedTemplate: string = 'custom';
@@ -107,8 +110,9 @@ export class BonusesCreateUpdateComponent implements OnInit {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
 
     // Set mode and id from dialog data
-    this.mode = data?.mode || 'create';
-    this.id = data?.id || null;
+    this.mode = data?.mode || (data?.voucher ? 'update' : 'create');
+    this.id = data?.id ?? data?.voucher?.id ?? null;
+    this.readOnly = data?.readOnly ?? data?.viewMode ?? false;
 
     this.form = this.fb.group({
       code:[null],
@@ -130,6 +134,44 @@ export class BonusesCreateUpdateComponent implements OnInit {
       is_transferable:[false],
       notes:[null]
     });
+
+    if (data?.voucher) {
+      const voucherData = data.voucher;
+      this.defaults = { ...this.defaults, ...voucherData };
+      this.selectedClientId = voucherData.client_id ?? voucherData.client?.id ?? null;
+      this.initialClientId = this.selectedClientId;
+      this.isGenericVoucher = !this.selectedClientId;
+
+      this.form.patchValue({
+        code: voucherData.code ?? null,
+        name: voucherData.name ?? null,
+        description: voucherData.description ?? null,
+        quantity: voucherData.quantity ?? null,
+        remaining_balance: voucherData.remaining_balance ?? null,
+        payed: voucherData.payed ?? false,
+        is_gift: voucherData.is_gift ?? false,
+        buyer_name: voucherData.buyer_name ?? null,
+        buyer_email: voucherData.buyer_email ?? null,
+        buyer_phone: voucherData.buyer_phone ?? null,
+        recipient_name: voucherData.recipient_name ?? null,
+        recipient_email: voucherData.recipient_email ?? null,
+        recipient_phone: voucherData.recipient_phone ?? null,
+        course_type_id: voucherData.course_type_id ?? null,
+        expires_at: voucherData.expires_at ?? null,
+        max_uses: voucherData.max_uses ?? null,
+        is_transferable: voucherData.is_transferable ?? false,
+        notes: voucherData.notes ?? null
+      });
+    }
+
+    if (data?.isGift) {
+      this.form.patchValue({ is_gift: true });
+    }
+
+    if (this.readOnly) {
+      this.form.disable({ emitEvent: false });
+      this.clientsForm.disable({ emitEvent: false });
+    }
   }
 
   ngOnInit() {
@@ -144,8 +186,9 @@ export class BonusesCreateUpdateComponent implements OnInit {
 
   onGenericVoucherChange() {
     if (this.isGenericVoucher) {
+      this.selectedClientId = null;
       this.defaults.client_id = null;
-      this.clientsForm.setValue('');
+      this.clientsForm.setValue('', { emitEvent: false });
     }
   }
 
@@ -154,9 +197,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
     const template = this.giftTemplates.find(t => t.id === templateId);
 
     if (template && this.mode === 'create') {
+      const defaultName = template.defaultNameKey ? this.translateService.instant(template.defaultNameKey) : this.form.get('name')?.value;
+      const message = template.messageKey ? this.translateService.instant(template.messageKey) : '';
+
       this.form.patchValue({
-        name: template.defaultName,
-        notes: template.message
+        name: defaultName || this.form.get('name')?.value,
+        notes: message
       });
     }
   }
@@ -248,7 +294,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
     const recipientEmail = formValue.recipient_email ? formValue.recipient_email.trim() : null;
     const recipientPhone = formValue.recipient_phone ? formValue.recipient_phone.trim() : null;
 
-    const hasAssignedClient = !!(selectedClient?.id || this.defaults.client_id?.id);
+    const hasAssignedClient = !!(selectedClient?.id || this.defaults.client_id);
 
     if (!hasAssignedClient && (!buyerName || !buyerEmail)) {
       this.snackbar.open(this.translateService.instant('bonus.error_buyer_required'), 'OK', { duration: 3000 });
@@ -268,7 +314,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
       remaining_balance: formValue.remaining_balance,
       payed: formValue.payed,
       is_gift: formValue.is_gift,
-      client_id: selectedClient?.id || this.defaults.client_id?.id || null,
+      client_id: selectedClient?.id || this.defaults.client_id || null,
       buyer_name: buyerName,
       buyer_email: buyerEmail,
       buyer_phone: buyerPhone,
@@ -311,31 +357,52 @@ export class BonusesCreateUpdateComponent implements OnInit {
   }
 
   getClients() {
-    this.crudService.list('/clients', 1, 10000, 'desc', 'id', '&school_id='+this.user.schools[0].id)
-      .subscribe((data: any) => {
-        this.clients = data.data;
-        this.filteredOptions = this.clientsForm.valueChanges.pipe(
-          startWith(''),
-          map((value: any) => typeof value === 'string' ? value : value?.name),
-          map(full_name => full_name ? this._filter(full_name) : this.clients.slice(0, 50))
-        );
+    this.crudService.list('/clients', 1, 10000, 'desc', 'id', '&school_id=' + this.user.schools[0].id)
+      .subscribe({
+        next: (data: any) => {
+          this.clients = data.data;
+          this.filteredOptions = this.clientsForm.valueChanges.pipe(
+            startWith(''),
+            map((value: any) => typeof value === 'string' ? value : value?.name),
+            map(full_name => full_name ? this._filter(full_name) : this.clients.slice(0, 50))
+          );
 
-        if (this.mode === 'update') {
-          const client = this.clients.find((c) => this.defaults.client_id === c.id);
-          this.defaults.client_id = client;
-          this.isGenericVoucher = !client;
-          if (client) {
-            this.clientsForm.setValue(client);
+          const targetClientId = this.selectedClientId ?? this.initialClientId ?? null;
+          if (targetClientId) {
+            const client = this.clients.find((c) => c.id === targetClientId);
+            if (client) {
+              this.clientsForm.setValue(client, { emitEvent: false });
+              this.isGenericVoucher = false;
+            } else {
+              this.isGenericVoucher = true;
+              this.clientsForm.setValue('', { emitEvent: false });
+            }
+          } else if (this.mode === 'update') {
+            this.isGenericVoucher = true;
+            this.clientsForm.setValue('', { emitEvent: false });
+          }
+
+          if (this.mode !== 'update') {
+            this.loading = false;
+          }
+        },
+        error: () => {
+          if (this.mode !== 'update') {
+            this.loading = false;
           }
         }
-        this.loading = false;
-      })
+      });
   }
 
   getVoucher() {
-    this.crudService.get('/vouchers/'+this.id)
+    this.crudService.get('/vouchers/' + this.id)
       .subscribe((data: any) => {
         this.defaults = data.data;
+
+        const resolvedClientId = this.defaults.client_id ?? this.defaults.client?.id ?? null;
+        this.selectedClientId = resolvedClientId;
+        this.initialClientId = this.initialClientId ?? resolvedClientId;
+        this.isGenericVoucher = !resolvedClientId;
 
         // Populate form with loaded data
         this.form.patchValue({
@@ -359,6 +426,11 @@ export class BonusesCreateUpdateComponent implements OnInit {
           notes: this.defaults.notes
         });
 
+        if (this.readOnly) {
+          this.form.disable({ emitEvent: false });
+          this.clientsForm.disable({ emitEvent: false });
+        }
+
         // Get voucher summary for additional info
         this.getVoucherSummary();
 
@@ -368,7 +440,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
         }
 
         this.getVoucherLogs();
-      })
+      });
   }
 
   getVoucherSummary() {

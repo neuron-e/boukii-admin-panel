@@ -1,393 +1,1548 @@
 <div *ngIf="!loading" class="px-6 py-6">
+
+
+
   <div class="flex items-center justify-between mb-6">
+
+
+
     <h2 mat-dialog-title class="m-0">
+
+
+
       {{(mode === 'create' ? 'bonus.new_bonus' : 'bonus.edit_bonus') | translate}}
+
+
+
     </h2>
+
+
+
     <button mat-icon-button (click)="close()" type="button">
+
+
+
       <mat-icon>close</mat-icon>
+
+
+
     </button>
+
+
+
   </div>
 
+
+
+
+
+
+
   <mat-dialog-content>
+
+
+
     <div class="flex flex-col gap-4">
 
-      <!-- Section 1: Basic Information -->
+
+
+
+
+
+
+
+
+
+
       <div class="card">
+
+
+
         <div class="px-6 py-4 border-b">
-          <h3 class="title m-0">1️⃣ {{'Información Básica' | translate}}</h3>
+
+
+
+          <h3 class="title m-0">1. {{'Basic Information' | translate}}</h3>
+
+
+
         </div>
+
+
+
         <div class="px-6 py-4" [formGroup]="form">
+
+
+
           <div class="flex flex-col gap-4">
+
+
+
+
+
+
 
             <!-- Code with generate button -->
+
+
+
             <div class="flex flex-col sm:flex-row gap-4">
+
+
+
               <mat-form-field appearance="outline" class="flex-auto">
+
+
+
                 <mat-label>{{'bonus.code' | translate}}</mat-label>
+
+
+
                 <input formControlName="code" matInput required [readonly]="mode === 'update'">
+
+
+
                 <mat-icon matPrefix svgIcon="mat:confirmation_number"></mat-icon>
+
+
+
               </mat-form-field>
+
+
+
+
+
+
 
               <button
+
+
+
                 *ngIf="mode === 'create'"
+
+
+
                 mat-raised-button
+
+
+
                 color="accent"
+
+
+
                 type="button"
+
+
+
                 (click)="generateRandomCode()"
+
+
+
                 style="height: 56px; min-width: 150px;">
+
+
+
                 <mat-icon>refresh</mat-icon>
+
+
+
                 {{'bonus.generate' | translate}}
+
+
+
               </button>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Name -->
+
+
+
             <mat-form-field appearance="outline" class="w-full">
+
+
+
               <mat-label>{{'Name' | translate}}</mat-label>
+
+
+
               <input formControlName="name" matInput>
+
+
+
               <mat-icon matPrefix svgIcon="mat:label"></mat-icon>
+
+
+
             </mat-form-field>
 
+
+
+
+
+
+
           </div>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
+
+
+
 
     <!-- Section: Buyer Contact -->
+
+
+
     <div class="card">
+
+
+
       <div class="px-6 py-4 border-b">
-        <h3 class="title m-0">2��?��� {{'bonus.buyer_details' | translate}}</h3>
+
+
+
+        <h3 class="title m-0">2. {{'bonus.buyer_details' | translate}}</h3>
+
+
+
       </div>
+
+
+
       <div class="px-6 py-4" [formGroup]="form">
+
+
+
         <div class="flex flex-col gap-4">
+
+
+
           <div class="flex flex-col sm:flex-row gap-4">
-            <mat-form-field appearance="outline" class="flex-auto">
-              <mat-label>{{'bonus.buyer_name' | translate}}</mat-label>
-              <input formControlName="buyer_name" matInput>
-              <mat-icon matPrefix svgIcon="mat:person"></mat-icon>
-            </mat-form-field>
+
+
 
             <mat-form-field appearance="outline" class="flex-auto">
-              <mat-label>{{'bonus.buyer_email' | translate}}</mat-label>
-              <input formControlName="buyer_email" matInput type="email">
-              <mat-icon matPrefix svgIcon="mat:mail"></mat-icon>
-              <mat-error *ngIf="form.get('buyer_email')?.hasError('email')">
-                {{'error.email' | translate}}
-              </mat-error>
+
+
+
+              <mat-label>{{'bonus.buyer_name' | translate}}</mat-label>
+
+
+
+              <input formControlName="buyer_name" matInput>
+
+
+
+              <mat-icon matPrefix svgIcon="mat:person"></mat-icon>
+
+
+
             </mat-form-field>
+
+
+
+
+
+
+
+            <mat-form-field appearance="outline" class="flex-auto">
+
+
+
+              <mat-label>{{'bonus.buyer_email' | translate}}</mat-label>
+
+
+
+              <input formControlName="buyer_email" matInput type="email">
+
+
+
+              <mat-icon matPrefix svgIcon="mat:mail"></mat-icon>
+
+
+
+              <mat-error *ngIf="form.get('buyer_email')?.hasError('email')">
+
+
+
+                {{'error.email' | translate}}
+
+
+
+              </mat-error>
+
+
+
+            </mat-form-field>
+
+
+
           </div>
 
+
+
+
+
+
+
           <mat-form-field appearance="outline" class="w-full sm:w-1/2">
+
+
+
             <mat-label>{{'bonus.buyer_phone' | translate}}</mat-label>
+
+
+
             <input formControlName="buyer_phone" matInput>
+
+
+
             <mat-icon matPrefix svgIcon="mat:phone"></mat-icon>
+
+
+
           </mat-form-field>
 
+
+
+
+
+
+
           <p class="text-xs text-gray-500">
+
+
+
             {{'bonus.buyer_details_helper' | translate}}
+
+
+
           </p>
+
+
+
         </div>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
+
+
+
 
     <!-- Section 2: Template and Message (NEW) -->
+
+
+
       <div class="card" *ngIf="form.get('is_gift')?.value">
+
+
+
         <div class="px-6 py-4 border-b">
-          <h3 class="title m-0">2️⃣ {{'Plantilla y Mensaje' | translate}}</h3>
+
+
+
+          <h3 class="title m-0">3. {{'Template and Message' | translate}}</h3>
+
+
+
         </div>
+
+
+
         <div class="px-6 py-4" [formGroup]="form">
+
+
+
           <div class="flex flex-col gap-4">
+
+
+
+
+
+
 
             <!-- Template Selector -->
+
+
+
             <div class="template-selector">
-              <label class="text-sm font-medium mb-2 block">{{'Seleccionar Plantilla' | translate}}</label>
+
+
+
+              <label class="text-sm font-medium mb-2 block">{{'Select Template' | translate}}</label>
+
+
+
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+
+
                 <div *ngFor="let template of giftTemplates"
+
+
+
                      class="template-card"
+
+
+
                      [class.selected]="selectedTemplate === template.id"
+
+
+
                      (click)="selectTemplate(template.id)">
+
+
+
                   <mat-icon [class.text-primary]="selectedTemplate === template.id">
+
+
+
                     {{template.icon}}
+
+
+
                   </mat-icon>
-                  <span class="template-name">{{template.name}}</span>
+
+
+
+                  <span class="template-name">{{template.nameKey | translate}}</span>
+
+
+
                 </div>
+
+
+
               </div>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Message with character counter -->
+
+
+
             <mat-form-field appearance="outline" class="w-full">
-              <mat-label>{{'Mensaje del Regalo' | translate}}</mat-label>
+
+
+
+              <mat-label>{{'Gift Message' | translate}}</mat-label>
+
+
+
               <textarea
+
+
+
                 formControlName="notes"
+
+
+
                 matInput
+
+
+
                 rows="4"
+
+
+
                 [maxlength]="maxNotesLength"></textarea>
+
+
+
               <mat-icon matPrefix svgIcon="mat:card_giftcard"></mat-icon>
+
+
+
               <mat-hint align="end">{{notesLength}} / {{maxNotesLength}}</mat-hint>
+
+
+
             </mat-form-field>
 
+
+
+
+
+
+
           </div>
+
+
+
         </div>
+
+
+
       </div>
+
+
+
+
+
+
 
       <!-- Section 3: Configuration -->
+
+
+
       <div class="card">
+
+
+
         <div class="px-6 py-4 border-b">
-          <h3 class="title m-0">{{form.get('is_gift')?.value ? '3️⃣' : '2️⃣'}} {{'Configuración' | translate}}</h3>
+
+
+
+          <h3 class="title m-0">{{form.get('is_gift')?.value ? '4.' : '3.'}} {{'Configuration' | translate}}</h3>
+
+
+
         </div>
+
+
+
         <div class="px-6 py-4" [formGroup]="form">
+
+
+
           <div class="flex flex-col gap-4">
+
+
+
+
+
+
 
             <!-- Is Gift Toggle -->
+
+
+
             <div class="flex items-center gap-4">
+
+
+
               <mat-slide-toggle formControlName="is_gift" color="accent">
+
+
+
                 {{'bookings_page.cancelations.gift_voucher' | translate}}
+
+
+
               </mat-slide-toggle>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Generic Voucher Checkbox (Create mode only) -->
+
+
+
             <div *ngIf="mode === 'create'" class="mb-2">
+
+
+
               <mat-checkbox [(ngModel)]="isGenericVoucher"
+
+
+
                 (change)="onGenericVoucherChange()"
+
+
+
                 [ngModelOptions]="{standalone: true}"
+
+
+
                 color="primary">
+
+
+
                 {{'Create as Generic Voucher (no client assigned)' | translate}}
+
+
+
               </mat-checkbox>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Generic Voucher Badge (Update mode) -->
+
+
+
             <div *ngIf="mode === 'update' && !defaults.client_id" class="p-3 rounded" style="background-color: #E3F2FD;">
+
+
+
               <div class="flex items-center">
+
+
+
                 <mat-icon class="text-blue-600 mr-2">card_giftcard</mat-icon>
+
+
+
                 <span class="text-sm font-medium" style="color: #1976D2;">
+
+
+
                   {{'Generic Voucher' | translate}}
+
+
+
                 </span>
+
+
+
               </div>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Client Selection -->
+
+
+
             <mat-form-field appearance="outline" class="w-full" *ngIf="!isGenericVoucher">
+
+
+
               <mat-label>{{'client' | translate}}</mat-label>
+
+
+
               <input
+
+
+
                 [formControl]="clientsForm"
+
+
+
                 [matAutocomplete]="auto"
+
+
+
                 type="text"
+
+
+
                 placeholder="{{'choose_client' | translate}}"
+
+
+
                 matInput>
+
+
+
               <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn">
+
+
+
                 <mat-option *ngFor="let client of filteredOptions | async" [value]="client">
+
+
+
                   {{client.first_name}} {{client.last_name}}
+
+
+
                 </mat-option>
+
+
+
               </mat-autocomplete>
+
+
+
               <mat-icon matPrefix svgIcon="mat:person"></mat-icon>
+
+
+
             </mat-form-field>
+
+
+
+
+
+
 
             <!-- Quantity (Create mode - single field) -->
+
+
+
             <mat-form-field *ngIf="mode === 'create'" appearance="outline" class="w-full">
+
+
+
               <mat-label>{{'quantity' | translate}}</mat-label>
+
+
+
               <input formControlName="quantity" type="number" matInput required>
+
+
+
               <mat-icon matPrefix svgIcon="mat:monetization_on"></mat-icon>
+
+
+
             </mat-form-field>
+
+
+
+
+
+
 
             <!-- Quantity and Remaining Balance (Update mode - two fields) -->
+
+
+
             <div *ngIf="mode === 'update'" class="flex flex-col sm:flex-row gap-4">
-              <mat-form-field appearance="outline" class="flex-auto">
-                <mat-label>{{'quantity' | translate}}</mat-label>
-                <input formControlName="quantity" type="number" matInput required>
-                <mat-icon matPrefix svgIcon="mat:monetization_on"></mat-icon>
-              </mat-form-field>
+
+
 
               <mat-form-field appearance="outline" class="flex-auto">
-                <mat-label>{{'quantity_res' | translate}}</mat-label>
-                <input formControlName="remaining_balance" type="number" matInput>
-                <mat-icon matPrefix svgIcon="mat:account_balance_wallet"></mat-icon>
+
+
+
+                <mat-label>{{'quantity' | translate}}</mat-label>
+
+
+
+                <input formControlName="quantity" type="number" matInput required>
+
+
+
+                <mat-icon matPrefix svgIcon="mat:monetization_on"></mat-icon>
+
+
+
               </mat-form-field>
+
+
+
+
+
+
+
+              <mat-form-field appearance="outline" class="flex-auto">
+
+
+
+                <mat-label>{{'quantity_res' | translate}}</mat-label>
+
+
+
+                <input formControlName="remaining_balance" type="number" matInput>
+
+
+
+                <mat-icon matPrefix svgIcon="mat:account_balance_wallet"></mat-icon>
+
+
+
+              </mat-form-field>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Course Type -->
+
+
+
             <mat-form-field appearance="outline" class="w-full">
+
+
+
               <mat-label>{{'Course Type' | translate}}</mat-label>
+
+
+
               <mat-select formControlName="course_type_id">
+
+
+
                 <mat-option [value]="null">{{'All Course Types' | translate}}</mat-option>
+
+
+
                 <mat-option *ngFor="let type of courseTypes" [value]="type.id">
+
+
+
                   {{type.name}}
+
+
+
                 </mat-option>
+
+
+
               </mat-select>
+
+
+
               <mat-icon matPrefix svgIcon="mat:category"></mat-icon>
+
+
+
             </mat-form-field>
+
+
+
+
+
+
 
             <!-- Expiration Date -->
+
+
+
             <mat-form-field appearance="outline" class="w-full">
+
+
+
               <mat-label>{{'Expiration Date' | translate}}</mat-label>
+
+
+
               <input
+
+
+
                 matInput
+
+
+
                 [matDatepicker]="expiresAtPicker"
+
+
+
                 formControlName="expires_at"
+
+
+
                 placeholder="{{'Select expiration date' | translate}}">
+
+
+
               <mat-datepicker-toggle matSuffix [for]="expiresAtPicker"></mat-datepicker-toggle>
+
+
+
               <mat-datepicker #expiresAtPicker></mat-datepicker>
+
+
+
               <mat-icon matPrefix svgIcon="mat:event"></mat-icon>
+
+
+
             </mat-form-field>
+
+
+
+
+
+
 
             <!-- Maximum Uses -->
+
+
+
             <mat-form-field appearance="outline" class="w-full">
+
+
+
               <mat-label>{{'Maximum Uses' | translate}}</mat-label>
+
+
+
               <input formControlName="max_uses" type="number" matInput>
+
+
+
               <mat-icon matPrefix svgIcon="mat:repeat"></mat-icon>
+
+
+
               <mat-hint>{{'Leave empty for unlimited uses' | translate}}</mat-hint>
+
+
+
             </mat-form-field>
+
+
+
+
+
+
 
             <!-- Usage Statistics (Update mode with max_uses) -->
+
+
+
             <div *ngIf="mode === 'update' && defaults.max_uses" class="p-4 rounded" style="background-color: #F5F5F5;">
+
+
+
               <div class="flex items-center justify-between mb-2">
+
+
+
                 <span class="text-sm font-medium">{{'Usage Statistics' | translate}}</span>
+
+
+
                 <span class="text-sm">{{defaults.uses_count}} / {{defaults.max_uses}}</span>
+
+
+
               </div>
+
+
+
               <div class="w-full bg-gray-300 rounded-full h-2">
+
+
+
                 <div class="bg-primary h-2 rounded-full" [style.width.%]="usagePercentage"></div>
+
+
+
               </div>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Used/Paid Toggle (Create mode) -->
+
+
+
             <div *ngIf="mode === 'create'" class="flex items-center gap-4">
+
+
+
               <mat-slide-toggle formControlName="payed" color="accent">
+
+
+
                 {{'used' | translate}}
+
+
+
               </mat-slide-toggle>
+
+
+
             </div>
 
+
+
+
+
+
+
           </div>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
+
+
+
 
     <!-- Recipient contact -->
+
+
+
     <div class="card" *ngIf="form.get('is_gift')?.value">
+
+
+
       <div class="px-6 py-4 border-b">
-        <h3 class="title m-0">5��?��� {{'bonus.recipient_details' | translate}}</h3>
+
+
+
+        <h3 class="title m-0">5. {{'bonus.recipient_details' | translate}}</h3>
+
+
+
       </div>
+
+
+
       <div class="px-6 py-4" [formGroup]="form">
+
+
+
         <div class="flex flex-col gap-4">
+
+
+
           <div class="flex flex-col sm:flex-row gap-4">
+
+
+
             <mat-form-field appearance="outline" class="flex-auto">
+
+
+
               <mat-label>{{'bonus.recipient_name' | translate}}</mat-label>
+
+
+
               <input formControlName="recipient_name" matInput>
+
+
+
               <mat-icon matPrefix svgIcon="mat:person_outline"></mat-icon>
+
+
+
             </mat-form-field>
+
+
+
             <mat-form-field appearance="outline" class="flex-auto">
+
+
+
               <mat-label>{{'bonus.recipient_email' | translate}}</mat-label>
+
+
+
               <input formControlName="recipient_email" matInput type="email">
+
+
+
               <mat-icon matPrefix svgIcon="mat:mail_outline"></mat-icon>
+
+
+
               <mat-error *ngIf="form.get('recipient_email')?.hasError('email')">
+
+
+
                 {{'error.email' | translate}}
+
+
+
               </mat-error>
+
+
+
             </mat-form-field>
+
+
+
           </div>
+
+
+
+
+
+
 
           <mat-form-field appearance="outline" class="w-full sm:w-1/2">
+
+
+
             <mat-label>{{'bonus.recipient_phone' | translate}}</mat-label>
+
+
+
             <input formControlName="recipient_phone" matInput>
+
+
+
             <mat-icon matPrefix svgIcon="mat:phone_in_talk"></mat-icon>
+
+
+
           </mat-form-field>
 
+
+
+
+
+
+
           <p class="text-xs text-gray-500">
+
+
+
             {{'bonus.recipient_details_helper' | translate}}
+
+
+
           </p>
+
+
+
         </div>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
+
+
+
 
     <!-- Section 4: Additional Options -->
+
+
+
       <div class="card">
+
+
+
         <div class="px-6 py-4 border-b">
-          <h3 class="title m-0">{{form.get('is_gift')?.value ? '4️⃣' : '3️⃣'}} {{'Opciones Adicionales' | translate}}</h3>
+
+
+
+          <h3 class="title m-0">{{form.get('is_gift')?.value ? '6.' : '4.'}} {{'Additional Options' | translate}}</h3>
+
+
+
         </div>
+
+
+
         <div class="px-6 py-4" [formGroup]="form">
+
+
+
           <div class="flex flex-col gap-4">
 
+
+
+
+
+
+
             <!-- Transferable Toggle -->
+
+
+
             <div class="flex flex-col gap-2">
+
+
+
               <div class="flex items-center gap-4">
+
+
+
                 <mat-slide-toggle
+
+
+
                   formControlName="is_transferable"
+
+
+
                   color="accent"
+
+
+
                   [disabled]="mode === 'update' && defaults.transferred_at">
+
+
+
                   {{'Transferable' | translate}}
+
+
+
                 </mat-slide-toggle>
+
+
+
               </div>
+
+
+
               <span class="text-xs text-gray-600 ml-2">
+
+
+
                 {{'Allow this voucher to be transferred to another client' | translate}}
+
+
+
               </span>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Description (only show if not gift) -->
+
+
+
             <mat-form-field *ngIf="!form.get('is_gift')?.value" appearance="outline" class="w-full">
+
+
+
               <mat-label>{{'Description' | translate}}</mat-label>
+
+
+
               <textarea formControlName="description" matInput rows="3"></textarea>
+
+
+
               <mat-icon matPrefix svgIcon="mat:description"></mat-icon>
+
+
+
             </mat-form-field>
 
+
+
+
+
+
+
             <!-- Transfer Information Card (Update mode) -->
+
+
+
             <div *ngIf="mode === 'update' && defaults.transferred_at"
+
+
+
               class="p-4 rounded"
+
+
+
               style="background-color: #FFF3E0; border-left: 4px solid #FF9800;">
+
+
+
               <div class="flex items-start">
+
+
+
                 <mat-icon class="text-orange-600 mr-2">swap_horiz</mat-icon>
+
+
+
                 <div class="flex-1">
+
+
+
                   <h4 class="font-medium mb-2">{{'Transfer Information' | translate}}</h4>
+
+
+
                   <p class="text-sm mb-1">
+
+
+
                     <strong>{{'Transferred to:' | translate}}</strong>
+
+
+
                     <span *ngIf="transferredToClient">
+
+
+
                       {{transferredToClient.first_name}} {{transferredToClient.last_name}}
+
+
+
                     </span>
+
+
+
                     <span *ngIf="!transferredToClient">
+
+
+
                       Client ID: {{defaults.transferred_to_client_id}}
+
+
+
                     </span>
+
+
+
                   </p>
+
+
+
                   <p class="text-sm">
+
+
+
                     <strong>{{'Transfer Date:' | translate}}</strong>
+
+
+
                     {{defaults.transferred_at | date:'dd/MM/yyyy HH:mm'}}
+
+
+
                   </p>
+
+
+
                 </div>
+
+
+
               </div>
+
+
+
             </div>
+
+
+
+
+
+
 
             <!-- Expiration Warning (Update mode) -->
+
+
+
             <div *ngIf="mode === 'update' && isExpired"
+
+
+
               class="p-4 rounded"
+
+
+
               style="background-color: #FFEBEE; border-left: 4px solid #F44336;">
+
+
+
               <div class="flex items-center">
+
+
+
                 <mat-icon class="text-red-600 mr-2">warning</mat-icon>
+
+
+
                 <span class="text-sm font-medium">{{'This voucher has expired' | translate}}</span>
+
+
+
               </div>
+
+
+
             </div>
 
+
+
+
+
+
+
           </div>
+
+
+
         </div>
+
+
+
       </div>
+
+
+
+
+
+
 
       <!-- Change History -->
+
+
+
       <div *ngIf="logs.length > 0 && mode === 'update'" class="card">
+
+
+
         <div class="px-6 py-4 border-b">
+
+
+
           <h3 class="title m-0">{{'change_history' | translate}}</h3>
+
+
+
         </div>
+
+
+
         <div class="px-6 py-4">
+
+
+
           <div class="flex flex-col gap-2">
+
+
+
             <div *ngFor="let item of logs" class="text-sm">
+
+
+
               <p *ngIf="item.amount > 0" class="mb-1">
+
+
+
                 {{item.created_at | date: 'dd-MM-yyyy HH:mm'}}h: {{'ispaid' | translate}}: {{item.amount}}
+
+
+
               </p>
+
+
+
               <p *ngIf="item.amount <= 0" class="mb-1">
+
+
+
                 {{item.created_at | date: 'dd-MM-yyyy HH:mm'}}h: {{'refund' | translate}}: {{item.amount}}
+
+
+
               </p>
+
+
+
             </div>
+
+
+
           </div>
+
+
+
         </div>
+
+
+
       </div>
 
+
+
+
+
+
+
     </div>
+
+
+
   </mat-dialog-content>
 
-  <mat-dialog-actions align="end" class="px-6 py-4">
+
+
+
+
+
+
+    <mat-dialog-actions align="end" class="px-6 py-4">
     <button (click)="close()" mat-button type="button">
       {{'cancel' | translate}}
     </button>
-    <button
+    <button *ngIf="!readOnly"
       [disabled]="form.invalid"
       (click)="save()"
       color="primary"
@@ -396,4 +1551,7 @@
       {{'save' | translate}}
     </button>
   </mat-dialog-actions>
+
+
+
 </div>

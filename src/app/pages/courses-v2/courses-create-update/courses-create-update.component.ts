@@ -125,6 +125,16 @@ export class CoursesCreateUpdateComponent implements OnInit {
   private selectedIntervalForSubgroup: Record<string, string> = {};
   selectedIntervalFilterIndex = 0; // 0 = all intervals, 1+ = specific interval (index - 1)
   private intervalSubgroupKeySeed = 0;
+  private degreesFetchInProgress = false;
+  private pendingDegreesRequestKey: string | null = null;
+  private lastLoadedDegreesKey: string | null = null;
+  private schoolSettingsCache: any = null;
+  private schoolSettingsCacheKey: string | null = null;
+  private cachedDurationsForTable: string[] = [];
+  private durationsCacheSignature: string | null = null;
+  private numberArrayCache = new Map<number, string[]>();
+  private numberArrayWithoutLabelCache = new Map<number, string[]>();
+  private _intervalsForSubgroupCache = new Map<string, any[]>();
 
   get canConfigureIntervalGroups(): boolean {
     return !!this.courses?.courseFormGroup?.controls?.['is_flexible']?.value
@@ -1118,9 +1128,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
     if (!level?.id) return [];
 
     // Usar cache para evitar búsquedas repetidas
-/*    if (this.allSubgroupsCache.has(level.id)) {
+    if (this.allSubgroupsCache.has(level.id)) {
       return this.allSubgroupsCache.get(level.id)!;
-    }*/
+    }
 
     const courseDates = this.courses?.courseFormGroup?.controls['course_dates']?.value || [];
     const subgroupsByIndex = new Map<number, any>();
@@ -1199,6 +1209,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
   private clearGroupCache(): void {
     this.groupForLevelCache.clear();
     this.allSubgroupsCache.clear();
+    this.clearIntervalsForSubgroupCache();
+  }
+
+  private clearIntervalsForSubgroupCache(): void {
+    this._intervalsForSubgroupCache.clear();
   }
 
   // ============================================
@@ -1426,6 +1441,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
   private clearSubgroupsCache(): void {
     this._uniqueSubgroupsCache.clear();
     this._subgroupDatesCache.clear();
+    this.clearIntervalsForSubgroupCache();
   }
 
   /**
@@ -1519,41 +1535,17 @@ export class CoursesCreateUpdateComponent implements OnInit {
     const rawIntervals = Array.isArray(this.intervals) ? this.intervals : [];
     const levelId = level?.id ?? level?.degree_id;
 
-    console.log('🔍 [tabs-debug] getIntervalsForSubgroup START', {
-      levelId,
-      levelName: level?.name,
-      subgroupIndex,
-      rawIntervalsCount: rawIntervals.length,
-      rawIntervals: rawIntervals.map((interval: any) => ({
-        id: interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null,
-        name: interval?.name || 'Sin nombre'
-      }))
-    });
+    const cacheKey = `${levelId ?? 'null'}|${subgroupIndex}`;
+    const cached = this._intervalsForSubgroupCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
-    // Primero, verificar si tenemos fechas para este subgrupo
     const courseDatesForSubgroup = this.getCourseDatesForLevelSubgroupIndex(level, subgroupIndex);
-    console.log('📅 [tabs-debug] courseDatesForSubgroup', {
-      levelId,
-      subgroupIndex,
-      datesCount: courseDatesForSubgroup?.length || 0,
-      sampleDates: courseDatesForSubgroup?.slice(0, 3).map(cd => ({
-        date: cd?.date,
-        interval_id: cd?.interval_id ?? cd?.intervalId ?? cd?.course_interval_id ?? 'NO_INTERVAL_ID',
-        allIntervalKeys: Object.keys(cd || {}).filter(k => k.toLowerCase().includes('interval'))
-      }))
-    });
 
     const normalized = rawIntervals.reduce((acc: any[], interval: any) => {
       const intervalId = interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null;
       const hasDates = this.subgroupHasDatesInInterval(level, subgroupIndex, intervalId);
-
-      console.log('🔎 [tabs-debug] checking interval', {
-        intervalId,
-        intervalName: interval?.name,
-        hasDates,
-        levelId,
-        subgroupIndex
-      });
 
       if (intervalId != null && hasDates) {
         acc.push({
@@ -1564,61 +1556,49 @@ export class CoursesCreateUpdateComponent implements OnInit {
       return acc;
     }, []);
 
+    let result: any[] = [];
+
     if (normalized.length > 0) {
-      console.log('✅ [tabs-debug] normalized intervals found', {
-        count: normalized.length,
-        intervals: normalized.map(i => ({ id: i.id, name: i.name }))
+      result = normalized;
+    } else if (Array.isArray(courseDatesForSubgroup) && courseDatesForSubgroup.length > 0) {
+      const seen = new Set<string>();
+      const fallback: any[] = [];
+
+      courseDatesForSubgroup.forEach(cd => {
+        const subgroup = this.getSubgroupFromCourseDate(level, subgroupIndex, cd);
+        const rawId =
+          cd?.interval_id ??
+          cd?.intervalId ??
+          cd?.course_interval_id ??
+          cd?.courseIntervalId ??
+          subgroup?.interval_id ??
+          subgroup?.intervalId ??
+          subgroup?.course_interval_id ??
+          subgroup?.courseIntervalId ??
+          null;
+
+        const key = String(rawId ?? this.NULL_INTERVAL_SENTINEL);
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+
+        const matchingInterval = rawIntervals.find(interval => {
+          const id = interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null;
+          return id === rawId;
+        });
+
+        fallback.push({
+          id: rawId != null ? rawId : this.NULL_INTERVAL_SENTINEL,
+          name: matchingInterval?.name || `Bloque ${fallback.length + 1}`
+        });
       });
-      return normalized;
+
+      result = fallback;
     }
 
-    console.log('⚠️ [tabs-debug] normalized empty, falling back to courseDates extraction');
-
-    const courseDates = this.getCourseDatesForLevelSubgroupIndex(level, subgroupIndex);
-    if (!Array.isArray(courseDates) || courseDates.length === 0) {
-      console.log('❌ [tabs-debug] no course dates found for subgroup');
-      return [];
-    }
-
-    const seen = new Set<string>();
-    const fallback: any[] = [];
-
-    courseDates.forEach(cd => {
-      const subgroup = this.getSubgroupFromCourseDate(level, subgroupIndex, cd);
-      const rawId =
-        cd?.interval_id ??
-        cd?.intervalId ??
-        cd?.course_interval_id ??
-        cd?.courseIntervalId ??
-        subgroup?.interval_id ??
-        subgroup?.intervalId ??
-        subgroup?.course_interval_id ??
-        subgroup?.courseIntervalId ??
-        null;
-
-      const key = String(rawId ?? this.NULL_INTERVAL_SENTINEL);
-      if (seen.has(key)) {
-        return;
-      }
-      seen.add(key);
-
-      // Buscar el nombre del intervalo en this.intervals
-      const matchingInterval = rawIntervals.find(interval => {
-        const id = interval?.id ?? interval?.intervalId ?? interval?.interval_id ?? null;
-        return id === rawId;
-      });
-
-      fallback.push({
-        id: rawId != null ? rawId : this.NULL_INTERVAL_SENTINEL,
-        name: matchingInterval?.name || `Bloque ${fallback.length + 1}`
-      });
-    });
-
-    console.log('📋 [tabs-debug] fallback intervals', {
-      count: fallback.length,
-      intervals: fallback
-    });
-    return fallback;
+    this._intervalsForSubgroupCache.set(cacheKey, result);
+    return result;
   }
 
 
@@ -1626,12 +1606,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
   subgroupHasMultipleIntervals(level: any, subgroupIndex: number): boolean {
     const intervals = this.getIntervalsForSubgroup(level, subgroupIndex);
     const result = intervals.length > 1;
-    console.log('[tabs-debug] subgroupHasMultipleIntervals', {
-      levelId: level?.id ?? level?.degree_id,
-      subgroupIndex,
-      intervals,
-      result
-    });
     return result;
   }
 
@@ -2198,70 +2172,149 @@ export class CoursesCreateUpdateComponent implements OnInit {
     mergeMap(stations => forkJoin(stations.map((element: any) => this.crudService.get('/stations/' + element.station_id).pipe(map(data => data.data)))))
   );
 
-  getDegrees = () => this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.courses.courseFormGroup.controls['school_id'].value + '&sport_id=' + this.courses.courseFormGroup.controls['sport_id'].value).subscribe((data) => {
-    // Initialize detailData if it doesn't exist
-    if (!this.detailData) {
-      this.detailData = {};
+  getDegrees = (forceRefresh: boolean = false) => {
+    const schoolControl = this.courses?.courseFormGroup?.controls?.['school_id'];
+    const sportControl = this.courses?.courseFormGroup?.controls?.['sport_id'];
+
+    if (!schoolControl || !sportControl) {
+      return;
     }
-    this.detailData.degrees = [];
-    data.data.forEach((element: any) => {
-      if (element.active) this.detailData.degrees.push({ ...element, }); //Subgrupo: this.getSubGroups(element.id)
-    });
 
-    // Obtener el estado actual de levelGrop para preservar selecciones
-    const currentLevelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
-    const currentStateMap = new Map<number, any>();
-    currentLevelGrop.forEach((level: any) => {
-      if (level?.id) {
-        currentStateMap.set(level.id, { active: level.active, max_participants: level.max_participants });
-      }
-    });
+    const schoolId = schoolControl.value;
+    const sportId = sportControl.value;
 
-    const levelGrop = this.detailData.degrees.map((level: any) => {
-      // Preservar el estado activo si ya existe
-      const currentState = currentStateMap.get(level.id);
-      return {
-        ...level,
-        active: currentState?.active ?? false,
-        max_participants: currentState?.max_participants ?? level.max_participants,
-      };
-    });
+    if (schoolId === null || schoolId === undefined || sportId === null || sportId === undefined) {
+      return;
+    }
 
-    // Solo actualizar desde course_dates si no hay estado previo
-    if (this.detailData.course_dates && Array.isArray(this.detailData.course_dates) && currentLevelGrop.length === 0) {
-      levelGrop.forEach((level: any) => {
-        this.detailData.course_dates.forEach((cs: any) => {
-          if (cs.course_groups && Array.isArray(cs.course_groups)) {
-            cs.course_groups.forEach((group: any) => {
-              if (group.degree_id === level.id) {
-                level.active = true;
-                level.old = true;
-                group.age_min = level.age_min;
-                group.age_max = level.age_max;
+    const requestKey = `${schoolId}|${sportId}`;
 
-                if (group.course_subgroups && Array.isArray(group.course_subgroups) && group.course_subgroups.length > 0) {
-                  level.max_participants = group.course_subgroups[0].max_participants;
-                  level.course_subgroups = group.course_subgroups;
-                }
+    if (!forceRefresh && this.degreesFetchInProgress && this.pendingDegreesRequestKey === requestKey) {
+      return;
+    }
 
-                level.visible = false;
-              }
-            });
+    if (!forceRefresh && this.lastLoadedDegreesKey === requestKey) {
+      return;
+    }
+
+    this.degreesFetchInProgress = true;
+    this.pendingDegreesRequestKey = requestKey;
+
+    this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + schoolId + '&sport_id=' + sportId).subscribe({
+      next: (data) => {
+        // Initialize detailData if it doesn't exist
+        if (!this.detailData) {
+          this.detailData = {};
+        }
+        this.detailData.degrees = [];
+        data.data.forEach((element: any) => {
+          if (element.active) this.detailData.degrees.push({ ...element, }); //Subgrupo: this.getSubGroups(element.id)
+        });
+
+        // Obtener el estado actual de levelGrop para preservar selecciones
+        const currentLevelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
+        const currentStateMap = new Map<number, any>();
+        currentLevelGrop.forEach((level: any) => {
+          if (level?.id) {
+            currentStateMap.set(level.id, { active: level.active, max_participants: level.max_participants });
           }
         });
-      });
 
-      levelGrop.sort((a: any) => (a.active ? -1 : 1));
+        const levelGrop = this.detailData.degrees.map((level: any) => {
+          // Preservar el estado activo si ya existe
+          const currentState = currentStateMap.get(level.id);
+          return {
+            ...level,
+            active: currentState?.active ?? false,
+            max_participants: currentState?.max_participants ?? level.max_participants,
+          };
+        });
+
+        // Solo actualizar desde course_dates si no hay estado previo
+        if (this.detailData.course_dates && Array.isArray(this.detailData.course_dates) && currentLevelGrop.length === 0) {
+          levelGrop.forEach((level: any) => {
+            this.detailData.course_dates.forEach((cs: any) => {
+              if (cs.course_groups && Array.isArray(cs.course_groups)) {
+                cs.course_groups.forEach((group: any) => {
+                  if (group.degree_id === level.id) {
+                    level.active = true;
+                    level.old = true;
+                    group.age_min = level.age_min;
+                    group.age_max = level.age_max;
+
+                    if (group.course_subgroups && Array.isArray(group.course_subgroups) && group.course_subgroups.length > 0) {
+                      level.max_participants = group.course_subgroups[0].max_participants;
+                      level.course_subgroups = group.course_subgroups;
+                    }
+
+                    level.visible = false;
+                  }
+                });
+              }
+            });
+          });
+
+          levelGrop.sort((a: any) => (a.active ? -1 : 1));
+        }
+
+        this.courses.courseFormGroup.patchValue({ levelGrop });
+
+        // Solo regenerar template si es la primera vez o si cambió el deporte/escuela
+        if (currentLevelGrop.length === 0) {
+          this.baseIntervalGroupTemplate = {};
+          this.ensureIntervalGroupsAlignment();
+        }
+
+        this.lastLoadedDegreesKey = requestKey;
+      },
+      error: (error) => {
+        console.error('Error loading degrees:', error);
+        this.degreesFetchInProgress = false;
+        this.pendingDegreesRequestKey = null;
+      },
+      complete: () => {
+        this.degreesFetchInProgress = false;
+        this.pendingDegreesRequestKey = null;
+      }
+    });
+  };
+
+  private getCurrentSchoolSettings(): any {
+    const schools = Array.isArray(this.user?.schools) ? this.user.schools : [];
+    const schoolId = this.courses?.courseFormGroup?.controls?.['school_id']?.value;
+    const selectedSchool = schools.find((school: any) => school?.id === schoolId) || schools[0] || null;
+    const rawSettings = selectedSchool?.settings ?? null;
+
+    const candidateKey = rawSettings == null
+      ? 'null'
+      : typeof rawSettings === 'string'
+        ? rawSettings
+        : JSON.stringify(rawSettings);
+
+    if (this.schoolSettingsCacheKey !== candidateKey) {
+      this.schoolSettingsCacheKey = candidateKey;
+      try {
+        this.schoolSettingsCache = typeof rawSettings === 'string'
+          ? JSON.parse(rawSettings)
+          : (rawSettings || {});
+      } catch (error) {
+        console.error('Error parsing school settings:', error);
+        this.schoolSettingsCache = {};
+      }
+      this.clearDurationsCache();
     }
 
-    this.courses.courseFormGroup.patchValue({ levelGrop });
+    return this.schoolSettingsCache || {};
+  }
 
-    // Solo regenerar template si es la primera vez o si cambió el deporte/escuela
-    if (currentLevelGrop.length === 0) {
-      this.baseIntervalGroupTemplate = {};
-      this.ensureIntervalGroupsAlignment();
+  private clearDurationsCache(): void {
+    if (!Array.isArray(this.cachedDurationsForTable)) {
+      this.cachedDurationsForTable = [];
+    } else {
+      this.cachedDurationsForTable.length = 0;
     }
-  });
+    this.durationsCacheSignature = null;
+  }
 
   Confirm(add: number) {
     this.courses.courseFormGroup.markAsUntouched()
@@ -2715,7 +2768,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
       });
     }
     courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value)
-    
+
     // Convert settings to JSON string for all course types
     if (courseFormGroup.course_type === 1) {
       courseFormGroup.settings = JSON.stringify(courseFormGroup.settings);
@@ -2769,11 +2822,52 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.snackBar.open(message, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
   }
 
-  getNumberArray = (num: number): any[] => ['intervalo', ...Array.from({ length: num }, (_, i) => `${i + 1}`)];
+  getNumberArray(num: number): string[] {
+    const parsed = Number(num);
+    const safeNum = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+
+    if (!this.numberArrayCache.has(safeNum)) {
+      const base = ['intervalo', ...Array.from({ length: safeNum }, (_, i) => `${i + 1}`)];
+      this.numberArrayCache.set(safeNum, base);
+      this.numberArrayWithoutLabelCache.set(safeNum, base.slice(1));
+    }
+
+    return this.numberArrayCache.get(safeNum) || ['intervalo'];
+  }
+
+  getNumberArrayWithoutLabel(num: number): string[] {
+    const parsed = Number(num);
+    const safeNum = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+
+    if (!this.numberArrayWithoutLabelCache.has(safeNum)) {
+      this.getNumberArray(safeNum);
+    }
+
+    return this.numberArrayWithoutLabelCache.get(safeNum) || [];
+  }
 
   getFilteredDurationsForTable(): string[] {
-    const settings = JSON.parse(this.user.schools[0].settings);
-    return this.courses.getFilteredDuration(settings);
+    if (!this.courses?.courseFormGroup) {
+      return this.cachedDurationsForTable;
+    }
+
+    const settings = this.getCurrentSchoolSettings();
+    const durationValue = this.courses.courseFormGroup.controls['duration']?.value ?? 'null';
+    const maxParticipantsValue = this.courses.courseFormGroup.controls['max_participants']?.value ?? 'null';
+    const cacheSignature = `${this.schoolSettingsCacheKey ?? 'null'}|${durationValue}|${maxParticipantsValue}`;
+
+    if (this.durationsCacheSignature !== cacheSignature) {
+      const result = this.courses.getFilteredDuration(settings);
+      this.cachedDurationsForTable.length = 0;
+      if (Array.isArray(result)) {
+        this.cachedDurationsForTable.push(...result);
+        this.durationsCacheSignature = cacheSignature;
+      } else {
+        this.durationsCacheSignature = null;
+      }
+    }
+
+    return this.cachedDurationsForTable;
   }
 
   generarIntervalos = (personas: number, intervalo: number, duracion: string[]): any[] => {
@@ -4762,44 +4856,31 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   get displayIntervals(): any[] {
-    // Si el modo multi-intervalo está desactivado, muestra solo el primer intervalo.
-    if (!this.useMultipleIntervals) {
-      return this.intervals.length > 0 ? [this.intervals[0]] : [];
-    }
-    // Si está activado, muéstralos todos.
-    return this.intervals;
+    return this.getDisplayIntervals();
   }
 
   // Cached display intervals to avoid recreating on every render
   private _displayIntervals: any[] = [];
-  private _lastIntervalState: any = null;
+  private _lastIntervalStateSignature: string | null = null;
 
   getDisplayIntervals(): any[] {
-    // Create a state signature to detect changes
-    const currentState = {
-      intervalsCount: this.intervals?.length || 0,
-      useMultipleIntervals: this.useMultipleIntervals,
-      intervalsHash: this.intervals?.map(i => i.id).join(',') || ''
-    };
+    if (!Array.isArray(this.intervals)) {
+      this.intervals = [];
+    }
 
-    // Only recalculate if state has changed
-    if (JSON.stringify(currentState) !== JSON.stringify(this._lastIntervalState)) {
-      // Ensure intervals array exists, but don't create new ones unnecessarily
-      if (!this.intervals || this.intervals.length === 0) {
-        this.intervals = [];
-        const defaultInterval = this.createDefaultInterval();
-        this.intervals.push(defaultInterval);
-      }
+    if (this.intervals.length === 0) {
+      const defaultInterval = this.createDefaultInterval();
+      this.intervals.push(defaultInterval);
+    }
 
-      if (this.useMultipleIntervals) {
-        // Return direct reference to intervals, not a copy, so ngModel bindings work
-        this._displayIntervals = this.intervals;
-      } else {
-        // FIXED: En modo intervalo ├║nico, solo mostrar el primer intervalo SIN modificar this.intervals
-        this._displayIntervals = this.intervals.length > 0 ? [this.intervals[0]] : [];
-      }
+    const signature = `${this.useMultipleIntervals ? 1 : 0}|${this.intervals.length}|${this.intervals.map((interval, idx) => this.resolveIntervalKey(interval, idx)).join(',')}`;
 
-      this._lastIntervalState = currentState;
+    if (this._lastIntervalStateSignature !== signature) {
+      this._displayIntervals = this.useMultipleIntervals
+        ? this.intervals
+        : (this.intervals.length > 0 ? [this.intervals[0]] : []);
+
+      this._lastIntervalStateSignature = signature;
     }
 
     return this._displayIntervals;
@@ -4807,7 +4888,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Helper method to invalidate display intervals cache when intervals change
   private invalidateDisplayIntervalsCache(): void {
-    this._lastIntervalState = null;
+    this._lastIntervalStateSignature = null;
+    this.clearIntervalsForSubgroupCache();
   }
 
   /**
@@ -4856,8 +4938,3 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.enforceIntervalGroupAvailability();
   }
 }
-
-
-
-
-

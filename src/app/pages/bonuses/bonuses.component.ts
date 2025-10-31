@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
+import { AioTableComponent } from 'src/@vex/components/aio-table/aio-table.component';
 import { BonusesCreateUpdateComponent } from './bonuses-create-update/bonuses-create-update.component';
 import { TransferVoucherDialogComponent } from './transfer-voucher-dialog/transfer-voucher-dialog.component';
 import { MatDialog } from '@angular/material/dialog';
@@ -63,18 +64,26 @@ export class BonusesComponent implements OnInit {
   // Gift vouchers data
   giftVouchers: any[] = [];
   giftVouchersViewMode: 'cards' | 'table' = 'cards'; // Toggle between card and table view
+  private readonly giftVouchersCardsPerPage = 50;
 
-  // Gift vouchers table columns
+  @ViewChild('giftVouchersTableRef') giftVouchersTable?: AioTableComponent;
+
+  // Gift vouchers table configuration
   giftVouchersTableColumns: TableColumn<any>[] = [
-    { label: 'ID', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
-    { label: 'Comprador', property: 'buyer_name', type: 'text', visible: true },
-    { label: 'Destinatario', property: 'recipient_name', type: 'text', visible: true },
-    { label: 'Monto', property: 'quantity', type: 'currency', visible: true },
-    { label: 'Estado', property: 'payed', type: 'badge', visible: true },
-    { label: 'Fecha creación', property: 'created_at', type: 'date', visible: true },
-    { label: 'Acciones', property: 'actions', type: 'button', visible: true }
+    { label: 'code', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
+    { label: 'buyer', property: 'buyer_name', type: 'text', visible: true },
+    { label: 'recipient', property: 'recipient_name', type: 'text', visible: true },
+    { label: 'amount', property: 'quantity', type: 'currency', visible: true },
+    { label: 'status', property: 'payed', type: 'badge', visible: true },
+    { label: 'creation_date', property: 'created_at', type: 'date', visible: true },
+    { label: 'actions', property: 'actions', type: 'button', visible: true }
   ];
-  displayedGiftColumns: string[] = ['code', 'buyer_name', 'recipient_name', 'quantity', 'payed', 'created_at', 'actions'];
+  giftVouchersTableEntity = '/vouchers';
+  giftVouchersTableDeleteEntity = '/vouchers';
+  giftVouchersTableRoute = 'vouchers';
+  giftVouchersCreateComponent: any = BonusesCreateUpdateComponent;
+  giftVouchersTableWith: any = ['client'];
+  giftVouchersTableSearch = '&is_gift=1';
 
   constructor(
     private dialog: MatDialog,
@@ -208,15 +217,40 @@ export class BonusesComponent implements OnInit {
   }
 
   // Gift vouchers card view methods
-  loadGiftVouchers() {
-    const params = `?with[]=client&is_gift=1`;
-    this.crudService.list('/vouchers' + params).subscribe({
+  loadGiftVouchers(page = 1) {
+    const schoolId = this.user?.schools?.[0]?.id;
+    let searchQuery = '&is_gift=1';
+
+    if (schoolId) {
+      searchQuery += `&school_id=${schoolId}`;
+    }
+
+    this.crudService.list(
+      '/vouchers',
+      page,
+      this.giftVouchersCardsPerPage,
+      'desc',
+      'id',
+      searchQuery,
+      '',
+      null,
+      '',
+      ['client']
+    ).subscribe({
       next: (response: any) => {
-        this.giftVouchers = response.data || [];
+        const rawData = response?.data;
+        const rawVouchers = Array.isArray(rawData)
+          ? rawData
+          : Array.isArray(rawData?.data)
+            ? rawData.data
+            : [];
+        this.giftVouchers = rawVouchers.map((voucher: any) => this.normalizeGiftVoucher(voucher));
+        this.refreshGiftVouchersTable();
       },
       error: (error) => {
         console.error('Error loading gift vouchers:', error);
         this.giftVouchers = [];
+        this.refreshGiftVouchersTable();
       }
     });
   }
@@ -225,7 +259,7 @@ export class BonusesComponent implements OnInit {
     const dialogRef = this.dialog.open(BonusesCreateUpdateComponent, {
       width: '800px',
       height: '90vh',
-      data: { isGift: true }
+      data: { mode: 'create', isGift: true }
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -244,7 +278,13 @@ export class BonusesComponent implements OnInit {
     const dialogRef = this.dialog.open(BonusesCreateUpdateComponent, {
       width: '800px',
       height: '90vh',
-      data: { voucher, viewMode: true }
+      data: {
+        mode: 'update',
+        id: voucher?.id,
+        voucher,
+        readOnly: true,
+        viewMode: true
+      }
     });
   }
 
@@ -252,7 +292,11 @@ export class BonusesComponent implements OnInit {
     const dialogRef = this.dialog.open(BonusesCreateUpdateComponent, {
       width: '800px',
       height: '90vh',
-      data: { voucher }
+      data: {
+        mode: 'update',
+        id: voucher?.id,
+        voucher
+      }
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -276,8 +320,93 @@ export class BonusesComponent implements OnInit {
     );
   }
 
+  private refreshGiftVouchersTable(): void {
+    if (!this.giftVouchersTable) {
+      return;
+    }
+
+    const pageIndex = this.giftVouchersTable.pageIndex || 1;
+    const pageSize = this.giftVouchersTable.pageSize || 10;
+
+    this.giftVouchersTable.getData(pageIndex, pageSize);
+  }
+
+  private normalizeGiftVoucher(voucher: any): any {
+    if (!voucher) {
+      return voucher;
+    }
+
+    const client = voucher.client;
+    const buyerName =
+      voucher.buyer_name ??
+      voucher.sender_name ??
+      voucher.buyer?.name ??
+      voucher.buyerName ??
+      '';
+
+    const clientName = client
+      ? `${client.first_name ?? ''} ${client.last_name ?? ''}`.trim()
+      : '';
+
+    const recipientName =
+      voucher.recipient_name ??
+      voucher.recipientName ??
+      clientName;
+
+    const quantity =
+      voucher.quantity ??
+      voucher.amount ??
+      voucher.value ??
+      0;
+
+    let payedValue = voucher.payed;
+    if (typeof payedValue !== 'boolean') {
+      if (payedValue === 1 || payedValue === '1') {
+        payedValue = true;
+      } else if (payedValue === 0 || payedValue === '0') {
+        payedValue = false;
+      } else {
+        const status = (voucher.status || '').toString().toLowerCase();
+        if (status === 'used' || status === 'redeemed' || status === 'paid') {
+          payedValue = true;
+        } else if (status === 'pending' || status === 'active') {
+          payedValue = false;
+        } else if (typeof voucher.remaining_balance === 'number') {
+          payedValue = voucher.remaining_balance <= 0;
+        } else {
+          payedValue = Boolean(payedValue);
+        }
+      }
+    }
+
+    const createdAt =
+      voucher.created_at ??
+      voucher.createdAt ??
+      voucher.created_at_formatted ??
+      voucher.created_at_iso ??
+      voucher.created;
+
+    const notes = voucher.notes ?? voucher.description ?? voucher.message ?? '';
+
+    return {
+      ...voucher,
+      buyer_name: buyerName,
+      recipient_name: recipientName,
+      quantity,
+      payed: payedValue,
+      created_at: createdAt,
+      notes
+    };
+  }
+
   toggleGiftVouchersView() {
     this.giftVouchersViewMode = this.giftVouchersViewMode === 'cards' ? 'table' : 'cards';
+
+    if (this.giftVouchersViewMode === 'table') {
+      setTimeout(() => this.refreshGiftVouchersTable(), 0);
+    } else {
+      this.loadGiftVouchers();
+    }
   }
 
   exportDiscounts() {
