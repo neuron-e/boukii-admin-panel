@@ -1688,5 +1688,22 @@
   "copy_code": "Copia codice",
   "create_gift_voucher": "Crea buono regalo",
   "no_gift_vouchers_found": "Nessun buono regalo trovato",
-  "purchase_vouchers": "Buoni acquisto"
+  "select_interval_for_group": "Seleziona intervallo per il gruppo",
+  "select_interval_message_group": "Scegli a quale/quali intervallo/i vuoi aggiungere questo gruppo",
+  "group_added_to_all_intervals": "Gruppo aggiunto a tutti gli intervalli",
+  "group_added_to_interval_named": "Gruppo aggiunto a {{interval}}",
+  "select_interval_for_subgroup": "Seleziona intervallo per il sottogruppo",
+  "select_interval_message_subgroup": "Scegli a quale/quali intervallo/i vuoi aggiungere questo sottogruppo",
+  "subgroup_added_to_all_intervals": "Sottogruppo aggiunto a tutti gli intervalli",
+  "subgroup_added_to_interval_named": "Sottogruppo aggiunto a {{interval}}",
+  "delete_subgroup": "Elimina sottogruppo",
+  "subgroup_deleted": "Sottogruppo eliminato",
+  "subgroup_not_found": "Sottogruppo non trovato",
+  "subgroup_deleted_from_interval": "Sottogruppo eliminato da {{interval}}",
+  "subgroup_deleted_from_all_intervals": "Sottogruppo eliminato da tutti gli intervalli",
+  "select_interval_delete_subgroup": "Seleziona intervallo per eliminare il sottogruppo",
+  "select_interval_message_delete_subgroup": "Scegli da quale/quali intervallo/i vuoi eliminare questo sottogruppo",
+  "interval_discounts": "Sconti per intervallo",
+  "use_interval_specific_discounts": "Usa sconti specifici per intervallo",
+  "interval_discounts_explanation": "Configura sconti diversi per ciascun intervallo di date"
 }

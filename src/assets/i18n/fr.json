@@ -1727,5 +1727,22 @@
   "copy_code": "Copier le code",
   "create_gift_voucher": "Créer bon cadeau",
   "no_gift_vouchers_found": "Aucun bon cadeau trouvé",
-  "purchase_vouchers": "Bons d'achat"
+  "select_interval_for_group": "Sélectionner l'intervalle pour le groupe",
+  "select_interval_message_group": "Choisissez à quel(s) intervalle(s) vous souhaitez ajouter ce groupe",
+  "group_added_to_all_intervals": "Groupe ajouté à tous les intervalles",
+  "group_added_to_interval_named": "Groupe ajouté à {{interval}}",
+  "select_interval_for_subgroup": "Sélectionner l'intervalle pour le sous-groupe",
+  "select_interval_message_subgroup": "Choisissez à quel(s) intervalle(s) vous souhaitez ajouter ce sous-groupe",
+  "subgroup_added_to_all_intervals": "Sous-groupe ajouté à tous les intervalles",
+  "subgroup_added_to_interval_named": "Sous-groupe ajouté à {{interval}}",
+  "delete_subgroup": "Supprimer le sous-groupe",
+  "subgroup_deleted": "Sous-groupe supprimé",
+  "subgroup_not_found": "Sous-groupe introuvable",
+  "subgroup_deleted_from_interval": "Sous-groupe supprimé de {{interval}}",
+  "subgroup_deleted_from_all_intervals": "Sous-groupe supprimé de tous les intervalles",
+  "select_interval_delete_subgroup": "Sélectionner l'intervalle pour supprimer le sous-groupe",
+  "select_interval_message_delete_subgroup": "Choisissez de quel(s) intervalle(s) vous souhaitez supprimer ce sous-groupe",
+  "interval_discounts": "Remises d'intervalle",
+  "use_interval_specific_discounts": "Utiliser des remises spécifiques par intervalle",
+  "interval_discounts_explanation": "Configurez différentes remises pour chaque intervalle de dates"
 }

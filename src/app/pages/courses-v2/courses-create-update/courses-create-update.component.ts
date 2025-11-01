@@ -13,6 +13,7 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import { CourseTimingModalComponent } from '../course-timing-modal/course-timing-modal.component';
 import { CourseDateValidationService } from 'src/service/course-date-validation.service';
 import { CourseDateOverlapValidationService, CourseDateInfo, CourseDateValidationError } from 'src/service/course-date-overlap-validation.service';
+import { IntervalSelectorDialogComponent } from '../interval-selector-dialog/interval-selector-dialog.component';
 
 interface CourseDate {
   date: string;
@@ -173,6 +174,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
   // Discount system properties
   enableMultiDateDiscounts = false;
   discountsByDates: any[] = [];
+
+  // Discount per interval properties
+  use_interval_discounts = false;
+  intervalDiscountsMap: { [key: string]: any[] } = {};
 
   // Flag to prevent sync during bulk schedule application
   private _applyingBulkSchedule = false;
@@ -1408,6 +1413,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     state.subgroups = [...state.subgroups, newSubgroup];
 
+    // IMPORTANTE: Activar use_interval_groups para que se use intervalGroupsMap
+    if (this.useMultipleIntervals && this.intervals && this.intervals.length > 1) {
+      this.courses.courseFormGroup.patchValue({ use_interval_groups: true });
+    }
+
     this.syncIntervalGroupsArray();
     // Sincronizar INMEDIATAMENTE para evitar problemas de duplicación
     this.syncIntervalsToCourseFormGroup();
@@ -2492,7 +2502,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
   find = (array: any[], key: string, value: string | boolean) => array.find((a: any) => value ? a[key] === value : a[key])
   filter = (array: any[], key: string, value: string | boolean) => array.filter((a: any) => value ? a[key] === value : a[key])
 
-  selectLevel = (event: any, i: number) => {
+  selectLevel = async (event: any, i: number) => {
     const levelGrop = this.courses.courseFormGroup.controls['levelGrop'].value;
     const course_dates = this.courses.courseFormGroup.controls['course_dates'].value;
     let isActive: boolean;
@@ -2516,8 +2526,48 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
       // Si estamos configurando niveles DIFERENTES por intervalo, SOLO actualizar el mapa, NO course_dates
       if (this.configureLevelsByInterval) {
-        // No modificar course_dates directamente, solo el mapa
-        // La sincronización se encargará de generar los course_dates correctos
+        // Si hay múltiples intervalos, abrir modal para seleccionar
+        if (this.useMultipleIntervals && this.intervals && this.intervals.length > 1) {
+          const dialogRef = this.dialog.open(IntervalSelectorDialogComponent, {
+            width: '500px',
+            data: {
+              intervals: this.intervals,
+              title: 'select_interval_for_group',
+              message: 'select_interval_message_group'
+            }
+          });
+
+          const result = await dialogRef.afterClosed().toPromise();
+
+          if (result === null || result === undefined) {
+            // Usuario canceló - revertir activación
+            levelGrop[i].active = false;
+            this.courses.courseFormGroup.patchValue({ levelGrop });
+            return;
+          }
+
+          // Activar para intervalo(s) seleccionado(s)
+          if (result === 'all') {
+            this.activateLevelForIntervals('all', levelGrop[i]);
+            this.snackBar.open(
+              this.translateService.instant('group_added_to_all_intervals') || 'Grupo añadido a todos los intervalos',
+              'OK',
+              { duration: 3000 }
+            );
+          } else {
+            this.activateLevelForIntervals([result], levelGrop[i]);
+            const intervalName = this.intervals[result]?.name || `${this.translateService.instant('interval')} ${result + 1}`;
+            this.snackBar.open(
+              this.translateService.instant('group_added_to_interval_named', { interval: intervalName }) ||
+              `Grupo añadido a ${intervalName}`,
+              'OK',
+              { duration: 3000 }
+            );
+          }
+        } else {
+          // Un solo intervalo o modo simple - activar para todos
+          this.activateLevelForIntervals('all', levelGrop[i]);
+        }
       } else {
         // Si NO se configuran por intervalos, modificar course_dates directamente
         for (const course of course_dates) {
@@ -2555,29 +2605,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
       if (isActive) {
         this.addLevelSubgroup(levelGrop[i], 0, true);
       }
-    }
-
-    // Si configuramos por intervalos, actualizar el mapa
-    if (this.configureLevelsByInterval) {
-      this.invalidateIntervalGroupTemplate();
-      const intervalsCount = Array.isArray(this.intervals) ? this.intervals.length : 0;
-      for (let idx = 0; idx < intervalsCount; idx++) {
-        const state = this.ensureIntervalGroupState(idx, levelGrop[i]);
-        if (state) {
-          state.active = isActive;
-          if (isActive && (!state.subgroups || state.subgroups.length === 0)) {
-            state.subgroups = [
-              this.createIntervalSubgroupState(levelGrop[i].id, levelGrop[i].max_participants)
-            ];
-          }
-          if (!isActive) {
-            state.subgroups = (state.subgroups || []).map(subgroup => ({ ...subgroup, active: false }));
-          }
-        }
-      }
-      this.syncIntervalGroupsArray();
-      // Sincronizar INMEDIATAMENTE para que la UI vea los cambios
-      this.syncIntervalsToCourseFormGroup();
     }
 
     this.clearGroupCache();
@@ -2638,13 +2665,24 @@ export class CoursesCreateUpdateComponent implements OnInit {
       return;
     }
 
-    // Preguntar al usuario usando confirm (simple y efectivo)
-    const addToAll = confirm(
-      this.translateService.instant('add_subgroup_to_all_intervals_question') ||
-      '¿Deseas añadir el subgrupo a TODOS los intervalos?\n\nSí = Todos los intervalos\nNo = Solo intervalo actual'
-    );
+    // Abrir modal de selección de intervalo
+    const dialogRef = this.dialog.open(IntervalSelectorDialogComponent, {
+      width: '500px',
+      data: {
+        intervals: this.intervals,
+        title: 'select_interval_for_subgroup',
+        message: 'select_interval_message_subgroup'
+      }
+    });
 
-    if (addToAll) {
+    const result = await dialogRef.afterClosed().toPromise();
+
+    if (result === null || result === undefined) {
+      // Usuario canceló
+      return;
+    }
+
+    if (result === 'all') {
       // Añadir a todos los intervalos
       for (let i = 0; i < this.intervals.length; i++) {
         this.addIntervalLevelSubgroup(i, level);
@@ -2655,11 +2693,198 @@ export class CoursesCreateUpdateComponent implements OnInit {
         { duration: 3000 }
       );
     } else {
-      // Obtener el intervalo actualmente seleccionado
-      const currentIntervalIdx = this.getCurrentlySelectedIntervalIndex(level);
-      this.addIntervalLevelSubgroup(currentIntervalIdx, level);
+      // Añadir al intervalo específico
+      this.addIntervalLevelSubgroup(result, level);
+      const intervalName = this.intervals[result]?.name || `${this.translateService.instant('interval')} ${result + 1}`;
       this.snackBar.open(
-        this.translateService.instant('subgroup_added_to_interval') || `Subgrupo añadido al intervalo ${currentIntervalIdx + 1}`,
+        this.translateService.instant('subgroup_added_to_interval_named', { interval: intervalName }) ||
+        `Subgrupo añadido a ${intervalName}`,
+        'OK',
+        { duration: 3000 }
+      );
+    }
+  };
+
+  /**
+   * Activar un nivel en intervalos específicos
+   * @param intervalIndices - Array de índices de intervalos o 'all'
+   * @param level - El nivel a activar
+   */
+  private activateLevelForIntervals(intervalIndices: number[] | 'all', level: any): void {
+    this.invalidateIntervalGroupTemplate();
+
+    const intervalsToActivate: number[] = intervalIndices === 'all'
+      ? Array.from({ length: this.intervals?.length || 0 }, (_, i) => i)
+      : intervalIndices;
+
+    for (const idx of intervalsToActivate) {
+      const state = this.ensureIntervalGroupState(idx, level);
+      if (state) {
+        state.active = true;
+        if (!state.subgroups || state.subgroups.length === 0) {
+          state.subgroups = [
+            this.createIntervalSubgroupState(level.id, level.max_participants)
+          ];
+        }
+      }
+    }
+
+    // Activar use_interval_groups
+    if (this.useMultipleIntervals && this.intervals && this.intervals.length > 1) {
+      this.courses.courseFormGroup.patchValue({ use_interval_groups: true });
+    }
+
+    this.syncIntervalGroupsArray();
+    this.syncIntervalsToCourseFormGroup();
+    this.clearGroupCache();
+  }
+
+  /**
+   * Desactivar un nivel en intervalos específicos
+   * @param intervalIndices - Array de índices de intervalos o 'all'
+   * @param level - El nivel a desactivar
+   */
+  private deactivateLevelForIntervals(intervalIndices: number[] | 'all', level: any): void {
+    const intervalsToDeactivate: number[] = intervalIndices === 'all'
+      ? Array.from({ length: this.intervals?.length || 0 }, (_, i) => i)
+      : intervalIndices;
+
+    for (const idx of intervalsToDeactivate) {
+      const key = this.resolveIntervalKey(this.intervals[idx], idx);
+      const intervalState = this.intervalGroupsMap?.[key];
+      if (intervalState && intervalState[level.id]) {
+        intervalState[level.id].active = false;
+        intervalState[level.id].subgroups = [];
+      }
+    }
+
+    this.syncIntervalGroupsArray();
+    this.syncIntervalsToCourseFormGroup();
+    this.clearGroupCache();
+  }
+
+  /**
+   * Eliminar un subgrupo de intervalos específicos
+   * @param intervalIndices - Array de índices de intervalos o 'all'
+   * @param level - El nivel del subgrupo
+   * @param subgroupIndex - El índice del subgrupo a eliminar
+   */
+  private deleteSubgroupFromIntervals(intervalIndices: number[] | 'all', level: any, subgroupIndex: number): void {
+    const intervalsToUpdate: number[] = intervalIndices === 'all'
+      ? Array.from({ length: this.intervals?.length || 0 }, (_, i) => i)
+      : intervalIndices;
+
+    const levelId = level?.id ?? level?.degree_id;
+
+    for (const idx of intervalsToUpdate) {
+      const key = this.resolveIntervalKey(this.intervals[idx], idx);
+      const intervalState = this.intervalGroupsMap?.[key];
+
+      if (intervalState && intervalState[levelId]) {
+        const subgroups = intervalState[levelId].subgroups || [];
+        // Eliminar el subgrupo por índice posicional
+        intervalState[levelId].subgroups = subgroups.filter(
+          (sg: any, sgIdx: number) => sgIdx !== subgroupIndex
+        );
+      }
+    }
+
+    this.syncIntervalGroupsArray();
+    this.syncIntervalsToCourseFormGroup();
+    this.clearGroupCache();
+    this.clearSubgroupsCache();
+  }
+
+  /**
+   * Manejador para eliminar un subgrupo con modal de selección si hay múltiples intervalos
+   */
+  handleDeleteSubgroup = async (level: any, subgroupIndex: number) => {
+    // Si no hay múltiples intervalos, eliminar directamente
+    if (!this.useMultipleIntervals || !this.intervals || this.intervals.length <= 1) {
+      // Eliminar del único intervalo o modo simple
+      this.deleteSubgroupFromIntervals('all', level, subgroupIndex);
+      this.snackBar.open(
+        this.translateService.instant('subgroup_deleted') || 'Subgrupo eliminado',
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    // Verificar en qué intervalos existe este subgrupo
+    const intervalsWithSubgroup: number[] = [];
+    const levelId = level?.id ?? level?.degree_id;
+
+    for (let i = 0; i < this.intervals.length; i++) {
+      const key = this.resolveIntervalKey(this.intervals[i], i);
+      const intervalState = this.intervalGroupsMap?.[key];
+
+      if (intervalState && intervalState[levelId]) {
+        const subgroups = intervalState[levelId].subgroups || [];
+        // El subgroupIndex es la posición en el array, no una propiedad
+        if (subgroups.length > subgroupIndex && subgroups[subgroupIndex]) {
+          intervalsWithSubgroup.push(i);
+        }
+      }
+    }
+
+    if (intervalsWithSubgroup.length === 0) {
+      this.snackBar.open(
+        this.translateService.instant('subgroup_not_found') || 'Subgrupo no encontrado',
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    // Si solo existe en un intervalo, eliminar directamente
+    if (intervalsWithSubgroup.length === 1) {
+      this.deleteSubgroupFromIntervals(intervalsWithSubgroup, level, subgroupIndex);
+      const intervalName = this.intervals[intervalsWithSubgroup[0]]?.name ||
+        `${this.translateService.instant('interval')} ${intervalsWithSubgroup[0] + 1}`;
+      this.snackBar.open(
+        this.translateService.instant('subgroup_deleted_from_interval', { interval: intervalName }) ||
+        `Subgrupo eliminado de ${intervalName}`,
+        'OK',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    // Existe en múltiples intervalos - mostrar modal
+    const dialogRef = this.dialog.open(IntervalSelectorDialogComponent, {
+      width: '500px',
+      data: {
+        intervals: intervalsWithSubgroup.map(idx => this.intervals[idx]),
+        title: 'select_interval_delete_subgroup',
+        message: 'select_interval_message_delete_subgroup'
+      }
+    });
+
+    const result = await dialogRef.afterClosed().toPromise();
+
+    if (result === null || result === undefined) {
+      return; // Usuario canceló
+    }
+
+    if (result === 'all') {
+      // Eliminar de todos los intervalos
+      this.deleteSubgroupFromIntervals(intervalsWithSubgroup, level, subgroupIndex);
+      this.snackBar.open(
+        this.translateService.instant('subgroup_deleted_from_all_intervals') ||
+        'Subgrupo eliminado de todos los intervalos',
+        'OK',
+        { duration: 3000 }
+      );
+    } else {
+      // Eliminar del intervalo específico
+      const actualIntervalIndex = intervalsWithSubgroup[result];
+      this.deleteSubgroupFromIntervals([actualIntervalIndex], level, subgroupIndex);
+      const intervalName = this.intervals[actualIntervalIndex]?.name ||
+        `${this.translateService.instant('interval')} ${actualIntervalIndex + 1}`;
+      this.snackBar.open(
+        this.translateService.instant('subgroup_deleted_from_interval', { interval: intervalName }) ||
+        `Subgrupo eliminado de ${intervalName}`,
         'OK',
         { duration: 3000 }
       );
@@ -2739,8 +2964,39 @@ export class CoursesCreateUpdateComponent implements OnInit {
     } catch (e) {
       console.warn('Unable to sync/recalculate dates before save:', e);
     }
+    // Asegurar que los toggles de descuentos est�n reflejados en el form antes de serializar
+    this.syncDiscountsToForm();
 
     const courseFormGroup = this.courses.courseFormGroup.getRawValue()
+    const fallbackCourseId =
+      courseFormGroup.id ??
+      this.courses?.courseFormGroup?.get('id')?.value ??
+      this.id ??
+      null;
+
+    if (Array.isArray(courseFormGroup.course_dates)) {
+      courseFormGroup.course_dates.forEach((courseDate: any) => {
+        const courseDateId = courseDate?.id ?? courseDate?.course_date_id ?? null;
+        const groups = Array.isArray(courseDate?.course_groups) ? courseDate.course_groups : [];
+        groups.forEach((group: any) => {
+          if (fallbackCourseId != null && (group.course_id == null || group.course_id === '')) {
+            group.course_id = fallbackCourseId;
+          }
+          if (courseDateId != null && (group.course_date_id == null || group.course_date_id === '')) {
+            group.course_date_id = courseDateId;
+          }
+        });
+      });
+    }
+
+    if (Array.isArray(courseFormGroup.course_groups)) {
+      courseFormGroup.course_groups.forEach((group: any) => {
+        if (fallbackCourseId != null && (group.course_id == null || group.course_id === '')) {
+          group.course_id = fallbackCourseId;
+        }
+      });
+    }
+
     const conflicts = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(courseFormGroup.course_dates)
     );
@@ -2785,19 +3041,68 @@ export class CoursesCreateUpdateComponent implements OnInit {
         mustStartFromFirst: this.mustStartFromFirst,
         mustBeConsecutive: this.mustBeConsecutive
       };
+
+      if (this.use_interval_discounts && Array.isArray(this.intervals) && this.intervals.length > 0) {
+        const intervalDiscountsForSettings: Record<string, Array<{ dates: number; type: string; value: number }>> = {};
+        this.intervals.forEach((interval: any, idx: number) => {
+          const intervalId = interval?.id ?? null;
+          if (intervalId == null || intervalId === '') {
+            return;
+          }
+          const key = this.resolveIntervalKey(interval, idx);
+          const discounts = this.intervalDiscountsMap[key];
+          if (!Array.isArray(discounts) || discounts.length === 0) {
+            return;
+          }
+          intervalDiscountsForSettings[String(intervalId)] = discounts.map(discount => ({
+            dates: discount.dates,
+            type: discount.type,
+            value: discount.value
+          }));
+        });
+
+        if (Object.keys(intervalDiscountsForSettings).length > 0) {
+          (courseFormGroup.settings as any).interval_discounts = intervalDiscountsForSettings;
+        } else if (courseFormGroup.settings && typeof courseFormGroup.settings === 'object') {
+          delete (courseFormGroup.settings as any).interval_discounts;
+        }
+      } else if (courseFormGroup.settings && typeof courseFormGroup.settings === 'object') {
+        delete (courseFormGroup.settings as any).interval_discounts;
+      }
     }
 
     if (courseFormGroup.course_type === 1 && courseFormGroup.course_dates && courseFormGroup.levelGrop) {
+      const fallbackCourseId = courseFormGroup.id ?? this.id ?? null;
+
       courseFormGroup.course_dates.forEach((courseDate: any) => {
         if (courseDate.course_groups) {
+          const courseDateId =
+            courseDate.id ??
+            courseDate.course_date_id ??
+            null;
+
           // Transform course_groups to groups and course_subgroups to subgroups for backend compatibility
           courseDate.groups = courseDate.course_groups.map((group: any) => {
-            const transformedGroup = { ...group };
+          const transformedGroup = { ...group };
 
-            // Transform course_subgroups to subgroups
-            if (group.course_subgroups && Array.isArray(group.course_subgroups)) {
-              transformedGroup.subgroups = group.course_subgroups;
-              // Remove the old field name
+          if (fallbackCourseId != null && transformedGroup.course_id == null) {
+            transformedGroup.course_id = fallbackCourseId;
+          }
+          if (fallbackCourseId != null && group.course_id == null) {
+            group.course_id = fallbackCourseId;
+          }
+
+          if (courseDateId != null && transformedGroup.course_date_id == null) {
+            transformedGroup.course_date_id = courseDateId;
+          }
+          if (courseDateId != null && group.course_date_id == null) {
+            group.course_date_id = courseDateId;
+          }
+
+          // Transform course_subgroups to subgroups
+          if (group.course_subgroups && Array.isArray(group.course_subgroups)) {
+            transformedGroup.subgroups = group.course_subgroups;
+            // Remove the old field name
               delete transformedGroup.course_subgroups;
             }
 
@@ -3044,9 +3349,16 @@ export class CoursesCreateUpdateComponent implements OnInit {
         this.addIntervalUI(0);
       }
       // Si ya hay intervalos, no hacer nada para evitar duplicados
+
+      // Activar use_interval_groups cuando hay múltiples intervalos
+      if (this.intervals && this.intervals.length > 1) {
+        this.courses.courseFormGroup.patchValue({ use_interval_groups: true });
+      }
     } else {
       // Si se desactiva, mantener el array de course_dates normal y vaciar los intervalos
       this.resetToSingleInterval();
+      // Desactivar use_interval_groups cuando se vuelve a modo simple
+      this.courses.courseFormGroup.patchValue({ use_interval_groups: false });
     }
 
     // Sincronizar con course_dates
@@ -4258,7 +4570,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Discount management methods
   onMultiDateDiscountChange(): void {
+    debugger;
     if (this.enableMultiDateDiscounts) {
+      // Asegurar que discountsByDates sea un array
+      if (!Array.isArray(this.discountsByDates)) {
+        this.discountsByDates = [];
+      }
+
       // Initialize with a default discount
       if (this.discountsByDates.length === 0) {
         this.discountsByDates = [
@@ -4270,6 +4588,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   addNewDiscount(): void {
+    // Asegurar que discountsByDates sea un array
+    if (!Array.isArray(this.discountsByDates)) {
+      this.discountsByDates = [];
+    }
+
     const lastDiscount = this.discountsByDates[this.discountsByDates.length - 1];
     const newDates = lastDiscount ? lastDiscount.dates + 1 : 2;
 
@@ -4284,6 +4607,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   removeDiscount(index: number): void {
+    // Asegurar que discountsByDates sea un array
+    if (!Array.isArray(this.discountsByDates)) {
+      this.discountsByDates = [];
+      return;
+    }
+
     if (this.discountsByDates.length > 1) {
       this.discountsByDates.splice(index, 1);
       this.updateDiscountsInForm();
@@ -4291,6 +4620,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   validateDiscountDates(): void {
+    // Asegurar que discountsByDates sea un array
+    if (!Array.isArray(this.discountsByDates)) {
+      this.discountsByDates = [];
+      return;
+    }
+
     // Sort discounts by dates quantity to avoid conflicts
     this.discountsByDates.sort((a, b) => a.dates - b.dates);
 
@@ -4308,24 +4643,125 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private updateDiscountsInForm(): void {
-    if (this.enableMultiDateDiscounts && this.discountsByDates.length > 0) {
-      const discountsForDB = this.discountsByDates.map(discount => ({
-        date: discount.dates,
-        discount: discount.value,
-        type: discount.type === 'percentage' ? 1 : 2
-      }));
-
-      this.courses.courseFormGroup.patchValue({
-        discounts: JSON.stringify(discountsForDB)
-      });
-    } else {
-      this.courses.courseFormGroup.patchValue({
-        discounts: null
-      });
-    }
+    this.syncDiscountsToForm();
   }
 
   private loadDiscountsFromCourse(): void {
+    // Reset maps before loading
+    this.intervalDiscountsMap = {};
+
+    let rawIntervalDiscounts =
+      this.detailData?.interval_discounts ??
+      this.courses.courseFormGroup?.get('interval_discounts')?.value ??
+      null;
+
+    if (!rawIntervalDiscounts) {
+      const rawSettings =
+        this.detailData?.settings ??
+        this.courses.courseFormGroup?.get('settings')?.value ??
+        null;
+
+      let settingsObj: any = null;
+      if (rawSettings) {
+        if (typeof rawSettings === 'string') {
+          try {
+            settingsObj = JSON.parse(rawSettings);
+          } catch (error) {
+            console.warn('Could not parse settings JSON while reading interval discounts', error);
+            settingsObj = null;
+          }
+        } else if (typeof rawSettings === 'object') {
+          settingsObj = rawSettings;
+        }
+      }
+
+      if (settingsObj && settingsObj.interval_discounts) {
+        rawIntervalDiscounts = settingsObj.interval_discounts;
+      }
+    }
+
+    let intervalDiscountsParsed: Record<string, any[]> | null = null;
+    if (rawIntervalDiscounts) {
+      if (typeof rawIntervalDiscounts === 'string') {
+        try {
+          intervalDiscountsParsed = JSON.parse(rawIntervalDiscounts);
+        } catch (error) {
+          console.warn('Could not parse interval_discounts JSON', error);
+          intervalDiscountsParsed = null;
+        }
+      } else if (typeof rawIntervalDiscounts === 'object') {
+        intervalDiscountsParsed = rawIntervalDiscounts;
+      }
+    }
+
+    if (intervalDiscountsParsed && typeof intervalDiscountsParsed === 'object') {
+      Object.keys(intervalDiscountsParsed).forEach(key => {
+        const discountsArray = intervalDiscountsParsed?.[key];
+        if (!Array.isArray(discountsArray)) {
+          return;
+        }
+
+        const normalized = discountsArray
+          .map(discount => {
+            const dates = Number(
+              discount?.date ??
+              discount?.dates ??
+              discount?.day ??
+              discount?.threshold ??
+              0
+            );
+            if (!dates || Number.isNaN(dates)) {
+              return null;
+            }
+
+            const rawType = discount?.type;
+            const type =
+              rawType === 1 ||
+              rawType === 'percentage' ||
+              rawType === 'percent'
+                ? 'percentage'
+                : 'fixed';
+
+            const value = Number(
+              discount?.discount ??
+              discount?.value ??
+              discount?.amount ??
+              0
+            );
+
+            return {
+              dates,
+              type,
+              value
+            };
+          })
+          .filter(Boolean);
+
+        if (normalized.length > 0) {
+          this.intervalDiscountsMap[key] = normalized;
+        }
+      });
+
+      if (Object.keys(this.intervalDiscountsMap).length > 0) {
+        this.enableMultiDateDiscounts = true;
+        this.use_interval_discounts = true;
+        // Aseguramos que el control reactive contenga el JSON normalizado
+        try {
+          this.courses.courseFormGroup.patchValue({
+            interval_discounts: JSON.stringify(intervalDiscountsParsed),
+            discounts: null
+          }, { emitEvent: false });
+        } catch {
+          // Si falla el stringify, al menos limpiamos el global
+          this.courses.courseFormGroup.patchValue({
+            interval_discounts: null,
+            discounts: null
+          }, { emitEvent: false });
+        }
+        return;
+      }
+    }
+
     if (this.detailData && this.detailData.discounts) {
       try {
         let discounts;
@@ -4335,20 +4771,151 @@ export class CoursesCreateUpdateComponent implements OnInit {
           discounts = this.detailData.discounts;
         }
 
-        if (discounts && discounts.length > 0) {
+        // Asegurar que discounts sea un array
+        if (Array.isArray(discounts) && discounts.length > 0) {
           this.enableMultiDateDiscounts = true;
           this.discountsByDates = discounts.map((discount: any) => ({
             dates: discount.date,
             type: discount.type === 1 ? 'percentage' : 'fixed',
             value: discount.discount
           }));
+        } else {
+          // Si no es un array válido, inicializar como array vacío
+          this.discountsByDates = [];
         }
       } catch (error) {
         console.error('Error parsing discounts:', error);
         this.enableMultiDateDiscounts = false;
-        this.discountsByDates = [{ dates: 2, type: 'percentage', value: 10 }];
+        this.discountsByDates = [];
       }
+    } else {
+      // Asegurar que siempre sea un array
+      this.discountsByDates = [];
     }
+  }
+
+  // Interval-specific discount methods
+  getDiscountsForInterval(intervalIdx: number): any[] {
+    if (!this.use_interval_discounts || !this.useMultipleIntervals) {
+      // Asegurarse de que siempre sea un array
+      if (!Array.isArray(this.discountsByDates)) {
+        return [];
+      }
+      return this.discountsByDates;
+    }
+
+    const key = this.resolveIntervalKey(this.intervals[intervalIdx], intervalIdx);
+    const intervalDiscounts = this.intervalDiscountsMap[key];
+
+    // Asegurarse de que siempre sea un array
+    if (!Array.isArray(intervalDiscounts)) {
+      return [];
+    }
+
+    return intervalDiscounts;
+  }
+
+  setDiscountsForInterval(intervalIdx: number, discounts: any[]): void {
+    const key = this.resolveIntervalKey(this.intervals[intervalIdx], intervalIdx);
+    this.intervalDiscountsMap[key] = discounts;
+    this.syncDiscountsToForm();
+  }
+
+  // Getter seguro para discountsByDates que siempre retorna un array
+  get safeDiscountsByDates(): any[] {
+    if (!Array.isArray(this.discountsByDates)) {
+      this.discountsByDates = [];
+    }
+    return this.discountsByDates;
+  }
+
+  private syncDiscountsToForm(): void {
+    if (this.use_interval_discounts && this.useMultipleIntervals && this.intervals && this.intervals.length > 0) {
+      // Guardar descuentos por intervalo en un formato que el backend pueda entender
+      const intervalDiscounts: Record<string, Array<{ date: number; discount: number; type: number }>> = {};
+      const intervalsArray = Array.isArray(this.intervals) ? this.intervals : [];
+
+      intervalsArray.forEach((interval, idx) => {
+        const intervalId = interval?.id ?? null;
+        if (intervalId == null || intervalId === '') {
+          return;
+        }
+
+        const key = this.resolveIntervalKey(interval, idx);
+        const discounts = this.intervalDiscountsMap[key];
+        if (!Array.isArray(discounts) || discounts.length === 0) {
+          return;
+        }
+
+        intervalDiscounts[String(intervalId)] = discounts.map(discount => ({
+          date: discount.dates,
+          discount: discount.value,
+          type: discount.type === 'percentage' ? 1 : 2
+        }));
+      });
+
+      this.courses.courseFormGroup.patchValue({
+        interval_discounts: Object.keys(intervalDiscounts).length > 0 ? JSON.stringify(intervalDiscounts) : null,
+        discounts: null
+      });
+    } else if (this.enableMultiDateDiscounts && Array.isArray(this.discountsByDates) && this.discountsByDates.length > 0) {
+      // Descuentos globales
+      const discountsForDB = this.discountsByDates.map(discount => ({
+        date: discount.dates,
+        discount: discount.value,
+        type: discount.type === 'percentage' ? 1 : 2
+      }));
+
+      this.courses.courseFormGroup.patchValue({
+        discounts: JSON.stringify(discountsForDB),
+        interval_discounts: null
+      });
+    } else {
+      this.courses.courseFormGroup.patchValue({
+        discounts: null,
+        interval_discounts: null
+      });
+    }
+  }
+
+  onUseIntervalDiscountsChange(): void {
+    if (this.use_interval_discounts && this.intervals && this.intervals.length > 0) {
+      // Inicializar descuentos para cada intervalo si no existen
+      this.intervals.forEach((interval: any, idx: number) => {
+        const key = this.resolveIntervalKey(interval, idx);
+        if (!this.intervalDiscountsMap[key] || this.intervalDiscountsMap[key].length === 0) {
+          this.intervalDiscountsMap[key] = [...this.discountsByDates];
+        }
+      });
+    }
+    this.syncDiscountsToForm();
+  }
+
+  addDiscountToInterval(intervalIdx: number): void {
+    const currentDiscounts = this.getDiscountsForInterval(intervalIdx);
+    const lastDiscount = currentDiscounts[currentDiscounts.length - 1];
+    const newDates = lastDiscount ? lastDiscount.dates + 1 : 2;
+
+    const newDiscounts = [...currentDiscounts, {
+      dates: newDates,
+      type: 'percentage',
+      value: 10
+    }];
+
+    this.setDiscountsForInterval(intervalIdx, newDiscounts);
+  }
+
+  removeDiscountFromInterval(intervalIdx: number, discountIdx: number): void {
+    const currentDiscounts = this.getDiscountsForInterval(intervalIdx);
+    if (currentDiscounts.length > 1) {
+      const newDiscounts = currentDiscounts.filter((_, i) => i !== discountIdx);
+      this.setDiscountsForInterval(intervalIdx, newDiscounts);
+    }
+  }
+
+  updateDiscountInInterval(intervalIdx: number): void {
+    // Simply trigger a sync
+    this.syncDiscountsToForm();
   }
 
   // Date generation methods

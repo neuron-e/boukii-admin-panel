@@ -60,6 +60,37 @@ export class CourseDetailCardComponent implements OnChanges {
     return [] as T[];
   }
 
+  // Normalize discount value for preview rendering
+  getDiscountLabel(item: any): string {
+    if (!item) {
+      return '';
+    }
+
+    const currency = this.courseFormGroup?.controls?.['currency']?.value || '';
+    const type = item.type;
+    const isFixed = type === 2 || type === 'fixed';
+    const value = item.reduccion ?? item.discount ?? item.value;
+
+    if (value === undefined || value === null || value === '') {
+      return '';
+    }
+
+    if (isFixed) {
+      return currency ? `${value} ${currency}` : `${value}`;
+    }
+
+    return `${value}%`;
+  }
+
+  // Resolve the day/quantity indicator for discount preview
+  getDiscountDay(item: any): string | number {
+    if (!item) {
+      return '';
+    }
+
+    return item.day ?? item.date ?? item.dates ?? item.total_dates ?? '';
+  }
+
   ngOnInit(): void {
     this.processCourseDates();
 

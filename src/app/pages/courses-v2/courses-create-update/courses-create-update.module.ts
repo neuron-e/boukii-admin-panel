@@ -48,6 +48,8 @@ import { CourseTimingModalModule } from '../course-timing-modal/course-timing-mo
 import { CourseIntervalsManagerComponent } from '../course-intervals-manager/course-intervals-manager.component';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { IntervalSelectorDialogComponent } from '../interval-selector-dialog/interval-selector-dialog.component';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @NgModule({
   imports: [
@@ -101,9 +103,10 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
     CourseTimingModalModule,
     CourseOpcionComponent,
     DragDropModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatTooltipModule
   ],
-  declarations: [CoursesCreateUpdateComponent, CourseIntervalsManagerComponent],
+  declarations: [CoursesCreateUpdateComponent, CourseIntervalsManagerComponent, IntervalSelectorDialogComponent],
   exports: [CoursesCreateUpdateComponent]
 })
 export class CoursesCreateUpdateModule { }

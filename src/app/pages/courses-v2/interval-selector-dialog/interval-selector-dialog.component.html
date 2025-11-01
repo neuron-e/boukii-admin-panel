@@ -1,0 +1,40 @@
+<div class="interval-selector-dialog">
+  <h2 mat-dialog-title>{{ data.title | translate }}</h2>
+
+  <mat-dialog-content>
+    <p class="dialog-message">{{ data.message | translate }}</p>
+
+    <mat-radio-group [(ngModel)]="selectedIntervalIndex" class="interval-radio-group">
+      <mat-radio-button
+        *ngFor="let interval of data.intervals; let i = index"
+        [value]="i"
+        class="interval-radio-option">
+        <div class="interval-option-content">
+          <mat-icon class="interval-icon">date_range</mat-icon>
+          <span class="interval-label">
+            {{ interval.name || (('interval' | translate) + ' ' + (i + 1)) }}
+          </span>
+          <span class="interval-dates" *ngIf="interval.startDate && interval.endDate">
+            {{ interval.startDate | date:'dd/MM/yyyy' }} - {{ interval.endDate | date:'dd/MM/yyyy' }}
+          </span>
+        </div>
+      </mat-radio-button>
+
+      <mat-radio-button value="all" class="interval-radio-option all-intervals">
+        <div class="interval-option-content">
+          <mat-icon class="interval-icon all-icon">done_all</mat-icon>
+          <span class="interval-label">{{ 'all_intervals' | translate }}</span>
+        </div>
+      </mat-radio-button>
+    </mat-radio-group>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()">
+      {{ 'cancel' | translate }}
+    </button>
+    <button mat-raised-button color="primary" (click)="onConfirm()">
+      {{ 'confirm' | translate }}
+    </button>
+  </mat-dialog-actions>
+</div>

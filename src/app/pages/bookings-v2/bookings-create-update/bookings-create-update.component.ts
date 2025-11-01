@@ -789,7 +789,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     };
   }
 
-  private parseFlexibleDiscounts(raw: any): Array<{ threshold: number; percentage: number }> {
+  private parseFlexibleDiscounts(raw: any): Array<{ threshold: number; value: number; type: number }> {
     if (!raw) {
       return [];
     }
@@ -810,10 +810,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     return parsed
       .map((item: any) => {
         const threshold = Number(item?.date ?? item?.count ?? item?.n ?? 0);
-        const percentage = Number(item?.percentage ?? item?.percent ?? item?.value ?? 0);
-        return { threshold, percentage };
+        const value = Number(item?.discount ?? item?.percentage ?? item?.percent ?? item?.value ?? 0);
+        const type = Number(item?.type ?? 1); // 1 = porcentaje, 2 = cantidad fija
+        return { threshold, value, type };
       })
-      .filter(item => item.threshold > 0 && !isNaN(item.percentage));
+      .filter(item => item.threshold > 0 && !isNaN(item.value) && item.value > 0);
   }
 
   private applyFlexibleDiscount(baseTotal: number, selectedDatesCount: number, rawDiscounts: any): number {
@@ -822,16 +823,26 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return Math.max(0, baseTotal);
     }
 
+    // Encontrar el descuento aplicable con el umbral más alto que cumpla la condición
     const applicable = discounts
       .filter(discount => selectedDatesCount >= discount.threshold)
-      .sort((a, b) => b.percentage - a.percentage)[0];
+      .sort((a, b) => b.threshold - a.threshold)[0];
 
-    if (!applicable || applicable.percentage <= 0) {
+    if (!applicable || applicable.value <= 0) {
       return Math.max(0, baseTotal);
     }
 
-    const boundedPercentage = Math.max(0, Math.min(100, applicable.percentage));
-    const discountedTotal = baseTotal * (1 - boundedPercentage / 100);
+    let discountedTotal = baseTotal;
+
+    if (applicable.type === 1) {
+      // Tipo 1: Descuento porcentual
+      const boundedPercentage = Math.max(0, Math.min(100, applicable.value));
+      discountedTotal = baseTotal * (1 - boundedPercentage / 100);
+    } else if (applicable.type === 2) {
+      // Tipo 2: Descuento de cantidad fija
+      discountedTotal = baseTotal - applicable.value;
+    }
+
     return Math.max(0, discountedTotal);
   }
 

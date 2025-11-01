@@ -1727,5 +1727,22 @@
   "copy_code": "Code kopieren",
   "create_gift_voucher": "Geschenkgutschein erstellen",
   "no_gift_vouchers_found": "Keine Geschenkgutscheine gefunden",
-  "purchase_vouchers": "Kaufgutscheine"
+  "select_interval_for_group": "Intervall für Gruppe auswählen",
+  "select_interval_message_group": "Wählen Sie aus, zu welchem Intervall/welchen Intervallen Sie diese Gruppe hinzufügen möchten",
+  "group_added_to_all_intervals": "Gruppe zu allen Intervallen hinzugefügt",
+  "group_added_to_interval_named": "Gruppe zu {{interval}} hinzugefügt",
+  "select_interval_for_subgroup": "Intervall für Untergruppe auswählen",
+  "select_interval_message_subgroup": "Wählen Sie aus, zu welchem Intervall/welchen Intervallen Sie diese Untergruppe hinzufügen möchten",
+  "subgroup_added_to_all_intervals": "Untergruppe zu allen Intervallen hinzugefügt",
+  "subgroup_added_to_interval_named": "Untergruppe zu {{interval}} hinzugefügt",
+  "delete_subgroup": "Untergruppe löschen",
+  "subgroup_deleted": "Untergruppe gelöscht",
+  "subgroup_not_found": "Untergruppe nicht gefunden",
+  "subgroup_deleted_from_interval": "Untergruppe aus {{interval}} gelöscht",
+  "subgroup_deleted_from_all_intervals": "Untergruppe aus allen Intervallen gelöscht",
+  "select_interval_delete_subgroup": "Intervall zum Löschen der Untergruppe auswählen",
+  "select_interval_message_delete_subgroup": "Wählen Sie aus, aus welchem Intervall/welchen Intervallen Sie diese Untergruppe löschen möchten",
+  "interval_discounts": "Intervall-Rabatte",
+  "use_interval_specific_discounts": "Intervallspezifische Rabatte verwenden",
+  "interval_discounts_explanation": "Konfigurieren Sie unterschiedliche Rabatte für jedes Datumsintervall"
 }

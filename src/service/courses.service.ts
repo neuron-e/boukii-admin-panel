@@ -71,6 +71,18 @@ export class CoursesService {
       : (data.settings || {});
     const course_extras = toArray((data as any).course_extras);
     const discounts = toArray((data as any).discounts);
+    let intervalDiscountsValue: string | null = null;
+    if ((data as any).interval_discounts != null) {
+      if (typeof (data as any).interval_discounts === 'string') {
+        intervalDiscountsValue = (data as any).interval_discounts as string;
+      } else {
+        try {
+          intervalDiscountsValue = JSON.stringify((data as any).interval_discounts);
+        } catch {
+          intervalDiscountsValue = null;
+        }
+      }
+    }
 
     this.courseFormGroup.patchValue({
       ...data,
@@ -80,6 +92,7 @@ export class CoursesService {
       levelGrop: data.degrees,
       settings: settingsObj,
       discounts,
+      interval_discounts: intervalDiscountsValue,
       course_extras,
       booking_users: (data as any).booking_users,
       // Extract interval configuration from settings
@@ -306,6 +319,7 @@ export class CoursesService {
       course_dates: [{ ...this.default_course_dates }],
       course_dates_prev: [],
       discounts: [[], Validators.required],
+      interval_discounts: [null],
       course_extras: [[], Validators.required],
       unique: [true],
       hour_min: [],
