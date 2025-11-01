@@ -1,0 +1,126 @@
+<div mat-dialog-title class="dialog-header">
+  <h2>{{'timing.student_times' | translate}}</h2>
+  <p class="subtitle">{{groupLevel?.annotation}} - {{groupLevel?.name}} - {{'subgroup' | translate}} {{getSubgroupOrder()}}</p>
+</div>
+
+<mat-dialog-content class="dialog-content">
+  <div class="timing-container">
+    <!-- Date selector -->
+    <div class="date-selector mb-4">
+      <mat-form-field appearance="outline" style="width: 300px;">
+        <mat-label>{{'date' | translate}}</mat-label>
+        <mat-select [(value)]="selectedDate" (selectionChange)="onDateChange()">
+          <mat-option *ngFor="let date of courseDates" [value]="date">
+            {{date.date | date:'dd/MM/yyyy'}} - {{date.hour_start}}h - {{date.hour_end}}h
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <!-- Students and times table -->
+    <div class="students-times" *ngIf="selectedDate">
+      <mat-spinner *ngIf="loading" class="center-spinner"></mat-spinner>
+      
+      <div *ngIf="!loading" class="table-container">
+        <table class="timing-table">
+          <thead>
+            <tr>
+              <th class="student-col">{{'students' | translate}}</th>
+              <th class="lap1-col">{{'timing.lap' | translate}} 1</th>
+              <th class="lap2-col">{{'timing.lap' | translate}} 2</th>
+              <th class="lap3-col">{{'timing.lap' | translate}} 3</th>
+              <th class="best-col">{{'timing.best_time' | translate}}</th>
+              <th class="actions-col">{{'actions' | translate}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let student of students; let i = index" class="student-row">
+              <td class="student-info">
+                <img [src]="student.image || '../../../../assets/img/avatar.png'" 
+                     class="student-avatar" alt="Student avatar">
+                <div class="student-details">
+                  <div class="student-name">{{student.first_name}} {{student.last_name}}</div>
+                  <div class="student-meta">
+                    {{getAge(student.birth_date)}} años · {{getCountryName(student.country)}}
+                  </div>
+                </div>
+              </td>
+              <td class="time-cell">
+                <ng-container *ngIf="getStudentTimeByLap(student.id, 1) as lap1">
+                  <div *ngIf="lap1" class="time-display">
+                    <span [ngClass]="getStatusClass(lap1.status)">{{formatTime(lap1.time_ms)}}</span>
+                    <div class="time-actions">
+                      <button mat-icon-button size="small" (click)="editTime(lap1)">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button size="small" color="warn" (click)="deleteTime(lap1.id)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                  <button *ngIf="!lap1" mat-button class="add-time-btn" (click)="addTime(student.id, 1)">
+                    <mat-icon>add</mat-icon> {{'timing.add_time' | translate}}
+                  </button>
+                </ng-container>
+              </td>
+              <td class="time-cell">
+                <ng-container *ngIf="getStudentTimeByLap(student.id, 2) as lap2">
+                  <div *ngIf="lap2" class="time-display">
+                    <span [ngClass]="getStatusClass(lap2.status)">{{formatTime(lap2.time_ms)}}</span>
+                    <div class="time-actions">
+                      <button mat-icon-button size="small" (click)="editTime(lap2)">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button size="small" color="warn" (click)="deleteTime(lap2.id)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                  <button *ngIf="!lap2" mat-button class="add-time-btn" (click)="addTime(student.id, 2)">
+                    <mat-icon>add</mat-icon> {{'timing.add_time' | translate}}
+                  </button>
+                </ng-container>
+              </td>
+              <td class="time-cell">
+                <ng-container *ngIf="getStudentTimeByLap(student.id, 3) as lap3">
+                  <div *ngIf="lap3" class="time-display">
+                    <span [ngClass]="getStatusClass(lap3.status)">{{formatTime(lap3.time_ms)}}</span>
+                    <div class="time-actions">
+                      <button mat-icon-button size="small" (click)="editTime(lap3)">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button size="small" color="warn" (click)="deleteTime(lap3.id)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                  <button *ngIf="!lap3" mat-button class="add-time-btn" (click)="addTime(student.id, 3)">
+                    <mat-icon>add</mat-icon> {{'timing.add_time' | translate}}
+                  </button>
+                </ng-container>
+              </td>
+              <td class="best-time">
+                <span class="best-time-value">{{getBestTime(student.id)}}</span>
+              </td>
+              <td class="actions-cell">
+                <button mat-button (click)="addTime(student.id)" class="add-more">
+                  <mat-icon>add</mat-icon> {{'timing.add_time' | translate}}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">{{'cancel' | translate}}</button>
+  <button mat-button color="accent" (click)="exportTimes()" [disabled]="!selectedDate || !hasTimesToExport()">
+    <mat-icon>download</mat-icon> {{'timing.export_csv' | translate}}
+  </button>
+  <button mat-raised-button color="primary" (click)="saveAllTimes()" [disabled]="!hasUnsavedChanges()">
+    <mat-icon>save</mat-icon> {{'save' | translate}}
+  </button>
+</mat-dialog-actions>

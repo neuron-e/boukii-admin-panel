@@ -15,6 +15,8 @@ import {MatSelectModule} from '@angular/material/select';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import {FormsModule} from '@angular/forms';
+import { CancelBookginModalModule } from '../cancel-booking/cancel-booking.module';
+import { CancelPartialBookginModalModule } from '../cancel-partial-booking/cancel-partial-booking.module';
 
 @NgModule({
   declarations: [
@@ -35,7 +37,9 @@ import {FormsModule} from '@angular/forms';
     MatSelectModule,
     MatCardModule,
     MatIconModule,
-    FormsModule
+    FormsModule,
+    CancelBookginModalModule,
+    CancelPartialBookginModalModule
   ],
   exports: [
     BookingDetailV2Component

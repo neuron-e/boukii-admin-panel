@@ -30,7 +30,7 @@ import {MatOptionModule} from '@angular/material/core';
 import {MatSelectModule} from '@angular/material/select';
 import { TimelineModule } from '../../timeline/timeline.module';
 import { MatDialogModule } from '@angular/material/dialog';
-import { CourseTimingModalModule } from '../../courses/course-timing-modal/course-timing-modal.module';
+import { CourseTimingModalModule } from '../course-timing-modal/course-timing-modal.module';
 
 @NgModule({
   declarations: [CourseDetailComponent],

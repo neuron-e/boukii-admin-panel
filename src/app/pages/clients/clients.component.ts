@@ -7,10 +7,8 @@ import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { MOCK_PROVINCES } from 'src/app/static-data/province-data';
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
-import { BookingsCreateUpdateModalComponent } from '../bookings/bookings-create-update-modal/bookings-create-update-modal.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { BookingsCreateUpdateComponent } from '../bookings/bookings-create-update/bookings-create-update.component';
 import {BookingsCreateUpdateV2Component} from '../bookings-v2/bookings-create-update/bookings-create-update.component';
 
 @Component({

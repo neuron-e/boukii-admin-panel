@@ -16,10 +16,10 @@ import { MatDialog } from '@angular/material/dialog';
 import { ConfirmModalComponent } from './confirm-dialog/confirm-dialog.component';
 import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import { CalendarEditComponent } from './calendar/calendar-edit/calendar-edit.component';
-import { CourseDetailModalComponent } from '../../courses/course-detail-modal/course-detail-modal.component';
+import { CourseDetailModalComponent } from '../../courses-v2/pendiente/course-detail-modal/course-detail-modal.component';
 import { addDays, getDay, startOfWeek, endOfWeek, addWeeks, subWeeks, format, isSameMonth, startOfMonth, endOfMonth, addMonths, subMonths, max, min } from 'date-fns';
 import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
-import { BookingDetailModalComponent } from '../../bookings/booking-detail-modal/booking-detail-modal.component';
+import { BookingDetailV2Component } from '../../bookings-v2/booking-detail/booking-detail.component';
 import { CourseUserTransferTimelineComponent } from '../../timeline/course-user-transfer-timeline/course-user-transfer-timeline.component';
 import { TranslateService } from '@ngx-translate/core';
 import { DateAdapter } from '@angular/material/core';
@@ -2383,13 +2383,14 @@ export class MonitorDetailComponent {
   */
 
   detailBooking() {
-    const dialogRef = this.dialog.open(BookingDetailModalComponent, {
+    const dialogRef = this.dialog.open(BookingDetailV2Component, {
       width: '100%',
       height: '1200px',
       maxWidth: '90vw',
       panelClass: 'full-screen-dialog',
       data: {
         id: this.taskDetailTimeline.booking_id,
+        isModal: true
       }
     });
 

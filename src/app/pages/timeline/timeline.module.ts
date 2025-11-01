@@ -28,7 +28,7 @@ import { TimelineComponent } from './timeline.component';
 import { TimelineRoutingModule } from './timeline-routing.module';
 import { ComponentsCustomModule } from '../../components/components-custom.module';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { BookingDetailModalModule } from '../bookings/booking-detail-modal/booking-detail-modal.module';
+import { BookingDetailModule } from '../bookings-v2/booking-detail/booking-detail.module';
 import { CourseUserTransferTimelineModalModule } from './course-user-transfer-timeline/course-user-transfer-timeline.module';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { TranslateModule } from '@ngx-translate/core';
@@ -70,7 +70,7 @@ import { EditDateComponent } from './edit-date/edit-date.component';
     ComponentsModule,
     ComponentsCustomModule,
     MatProgressSpinnerModule,
-    BookingDetailModalModule,
+    BookingDetailModule,
     CourseUserTransferTimelineModalModule,
     TranslateModule,
     MatDatepickerModule,

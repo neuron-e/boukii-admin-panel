@@ -10,7 +10,7 @@ import { SchoolService } from 'src/service/school.service';
 import { CoursesService } from 'src/service/courses.service';
 import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
-import { CourseTimingModalComponent } from '../../courses/course-timing-modal/course-timing-modal.component';
+import { CourseTimingModalComponent } from '../course-timing-modal/course-timing-modal.component';
 import { CourseDateValidationService } from 'src/service/course-date-validation.service';
 import { CourseDateOverlapValidationService, CourseDateInfo, CourseDateValidationError } from 'src/service/course-date-overlap-validation.service';
 
@@ -2629,6 +2629,54 @@ export class CoursesCreateUpdateComponent implements OnInit {
     // NO sincronizar con el mapa aquí, esta función es solo para modificación directa
     // La sincronización del mapa se hace en selectLevel si es necesario
   };
+
+  // Método que maneja la adición de subgrupos con selección de intervalo
+  handleAddSubgroup = async (level: any) => {
+    // Si no hay múltiples intervalos, usar el método tradicional
+    if (!this.useMultipleIntervals || !this.intervals || this.intervals.length <= 1) {
+      this.addLevelSubgroup(level, 0, true);
+      return;
+    }
+
+    // Preguntar al usuario usando confirm (simple y efectivo)
+    const addToAll = confirm(
+      this.translateService.instant('add_subgroup_to_all_intervals_question') ||
+      '¿Deseas añadir el subgrupo a TODOS los intervalos?\n\nSí = Todos los intervalos\nNo = Solo intervalo actual'
+    );
+
+    if (addToAll) {
+      // Añadir a todos los intervalos
+      for (let i = 0; i < this.intervals.length; i++) {
+        this.addIntervalLevelSubgroup(i, level);
+      }
+      this.snackBar.open(
+        this.translateService.instant('subgroup_added_to_all_intervals') || 'Subgrupo añadido a todos los intervalos',
+        'OK',
+        { duration: 3000 }
+      );
+    } else {
+      // Obtener el intervalo actualmente seleccionado
+      const currentIntervalIdx = this.getCurrentlySelectedIntervalIndex(level);
+      this.addIntervalLevelSubgroup(currentIntervalIdx, level);
+      this.snackBar.open(
+        this.translateService.instant('subgroup_added_to_interval') || `Subgrupo añadido al intervalo ${currentIntervalIdx + 1}`,
+        'OK',
+        { duration: 3000 }
+      );
+    }
+  };
+
+  // Método helper para obtener el índice del intervalo actualmente seleccionado
+  private getCurrentlySelectedIntervalIndex(level: any): number {
+    // Si hay subgrupos existentes, usar el intervalo del primer subgrupo
+    const uniqueSubgroups = this.getAllUniqueSubgroupsForLevel(level);
+    if (uniqueSubgroups && uniqueSubgroups.length > 0) {
+      const firstSubgroup = uniqueSubgroups[0];
+      return this.getSelectedIntervalIndexForSubgroup(level, firstSubgroup._index);
+    }
+    // Por defecto, usar el primer intervalo
+    return 0;
+  }
 
   selectExtra = (event: any, item: any, i: number) => {
     if (this.courses.courseFormGroup.controls['course_type'].value === 3) {

@@ -9,8 +9,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { BookingDialogComponent } from '../bookings-create-update/components/booking-dialog/booking-dialog.component';
 import {
   CancelPartialBookingModalComponent
-} from '../../bookings/cancel-partial-booking/cancel-partial-booking.component';
-import {CancelBookingModalComponent} from '../../bookings/cancel-booking/cancel-booking.component';
+} from '../cancel-partial-booking/cancel-partial-booking.component';
+import {CancelBookingModalComponent} from '../cancel-booking/cancel-booking.component';
 import {BookingDetailDialogComponent} from './components/booking-dialog/booking-dialog.component';
 import { SchoolService } from 'src/service/school.service';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
