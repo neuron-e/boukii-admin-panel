@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+﻿import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -31,7 +31,24 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
   ISODate = (n: number) => new Date(new Date().getTime() + n * 24 * 60 * 60 * 1000).toLocaleString()
   find = (array: any[], key: string, value: string) => array.find((a: any) => a[key] === value)
 
-  displayFn = (value: any): string => value
+  displayFn = (value: any): string => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+
+    if (value.first_name || value.last_name) {
+      return `${value.first_name ?? ''} ${value.last_name ?? ''}`.trim();
+    }
+
+    if (value.name || value.full_name || value.title) {
+      return value.name || value.full_name || value.title || '';
+    }
+
+    if (value.monitor?.first_name || value.monitor?.last_name) {
+      return `${value.monitor.first_name ?? ''} ${value.monitor.last_name ?? ''}`.trim();
+    }
+
+    return '';
+  }
   selectDate: number = 0
   assignmentScope: 'single' | 'interval' | 'from' | 'range' = 'single';
   assignmentStartIndex = 0;
@@ -63,7 +80,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
   async getAvailable(data: any) {
     return await firstValueFrom(this.crudService.post('/admin/monitors/available', data))
   }
-  monitors: any = null
+  monitors: any[] | null = null
 
   private getUserSubgroupId(user: any): number | null {
     return (user?.course_subgroup_id ??
@@ -82,6 +99,153 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
       null) as number | null;
   }
 
+  private getSubgroupsArray(source: any): any[] {
+    if (!source) {
+      return [];
+    }
+    return this.toArray(
+      source?.course_subgroups ||
+      source?.courseSubgroups ||
+      source?.subgroups ||
+      source?.course_interval_subgroups ||
+      source?.intervalSubgroups
+    );
+  }
+
+  private resolveSubgroupIdFromDate(index: number): number | null {
+    const courseDates = this.getCourseDates();
+    const date = courseDates[index];
+    if (!date || !this.level?.id) {
+      return null;
+    }
+
+    const resolvedSubgroup = this.getSubgroupForDate(date);
+    const resolvedId = this.extractSubgroupId(resolvedSubgroup);
+    if (resolvedId != null) {
+      return resolvedId;
+    }
+
+    const degreeId = this.level.id;
+    const courseGroups = this.toArray(date?.course_groups);
+    const subgroupCandidates = this.getSubgroupsArray(date);
+    if (subgroupCandidates.length > this.subgroup_index) {
+      const candidate = subgroupCandidates[this.subgroup_index];
+      const id = this.extractSubgroupId(candidate);
+      if (id != null) {
+        return id;
+      }
+    }
+    for (const group of courseGroups) {
+      if ((group?.degree_id ?? group?.degreeId) !== degreeId) {
+        continue;
+      }
+
+      const candidates = this.getSubgroupsArray(group);
+      if (this.subgroup_index < candidates.length) {
+        const candidate = candidates[this.subgroup_index];
+        const id = this.extractSubgroupId(candidate);
+        if (id != null) {
+          return id;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private extractSubgroupId(subgroup: any): number | null {
+    if (!subgroup) {
+      return null;
+    }
+
+    const candidates = [
+      subgroup.id,
+      subgroup.course_subgroup_id,
+      subgroup.courseSubgroupId,
+      subgroup.subgroup_id,
+      subgroup.course_sub_group_id,
+      subgroup.course_sub_group?.id,
+      subgroup._id,
+      subgroup.temp_id
+    ].filter(value => value !== undefined && value !== null && value !== '');
+
+    if (!candidates.length) {
+      return null;
+    }
+
+    const numeric = Number(candidates[0]);
+    if (Number.isNaN(numeric)) {
+      return null;
+    }
+
+    return numeric > 0 ? numeric : null;
+  }
+
+  private hydrateSubgroupIdentity(target: any, fallback: any, group: any, date: any): void {
+    if (!target) {
+      return;
+    }
+
+    const existingId = this.extractSubgroupId(target);
+    const fallbackId = this.extractSubgroupId(fallback);
+
+    if (existingId == null && fallbackId != null) {
+      if (target.id == null) target.id = fallbackId;
+      if (target.course_subgroup_id == null) target.course_subgroup_id = fallbackId;
+      if (target.courseSubgroupId == null) target.courseSubgroupId = fallbackId;
+      if (target.subgroup_id == null) target.subgroup_id = fallbackId;
+      if (target.temp_id == null) target.temp_id = fallbackId;
+    }
+
+    const groupId =
+      target?.course_group_id ??
+      target?.courseGroupId ??
+      fallback?.course_group_id ??
+      fallback?.courseGroupId ??
+      fallback?.course_group?.id ??
+      group?.id ??
+      null;
+    if (groupId != null) {
+      target.course_group_id = groupId;
+      target.courseGroupId = groupId;
+    }
+
+    const resolvedDegree =
+      target?.degree_id ??
+      target?.degreeId ??
+      fallback?.degree_id ??
+      fallback?.degreeId ??
+      this.level?.id ??
+      null;
+    if (resolvedDegree != null) {
+      target.degree_id = resolvedDegree;
+      target.degreeId = resolvedDegree;
+    }
+
+    const resolvedDateId =
+      target?.course_date_id ??
+      target?.courseDateId ??
+      fallback?.course_date_id ??
+      fallback?.courseDateId ??
+      date?.id ??
+      null;
+    if (resolvedDateId != null) {
+      target.course_date_id = resolvedDateId;
+      target.courseDateId = resolvedDateId;
+    }
+
+    const maxParticipants =
+      target?.max_participants ??
+      fallback?.max_participants ??
+      group?.max_participants ??
+      this.level?.max_participants ??
+      this.courseFormGroup?.controls?.['max_participants']?.value ??
+      null;
+    if (maxParticipants != null) {
+      target.max_participants = maxParticipants;
+    }
+  }
+
   private toArray<T = any>(val: any): T[] {
     if (!val) return [];
     if (Array.isArray(val)) return val as T[];
@@ -95,14 +259,18 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
     }
     if (typeof val === 'object') {
       const values = Object.values(val);
+      if (values.length === 0) {
+        return [];
+      }
       if (values.every(v => typeof v === 'string' && (v as string).length <= 2)) {
         try {
           const parsed = JSON.parse(values.join(''));
-          return Array.isArray(parsed) ? parsed as T[] : [];
+          return Array.isArray(parsed) ? parsed as T[] : values as T[];
         } catch {
-          return [];
+          return values as T[];
         }
       }
+      return values as T[];
     }
     return [];
   }
@@ -158,7 +326,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
   selectUser: any[] = []
   async getAvail(item: any) {
     const monitor = await this.getAvailable({ date: item.date, endTime: item.hour_end, minimumDegreeId: this.level.id, sportId: this.courseFormGroup.controls['sport_id'].value, startTime: item.hour_start })
-    this.monitors = monitor.data
+    this.monitors = Array.isArray(monitor?.data) ? monitor.data : [];
   }
   booking_users: any
   onAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range'): void {
@@ -296,22 +464,29 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
     const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
     const dates = this.getCourseDates();
     const result = new Set<number>();
-    const levelId = this.level?.id;
 
     indexes.forEach(idx => {
       const date = dates[idx];
       if (!date) {
         return;
       }
+
       const subgroup = this.getSubgroupForDate(date);
-      const subgroupId = subgroup?.id;
+      const subgroupId = this.extractSubgroupId(subgroup) ?? this.resolveSubgroupIdFromDate(idx);
       if (!subgroupId) {
         return;
       }
+
+      const currentDateId = date?.id ?? null;
+
       bookingUsers.forEach((user: any) => {
         const userCourseDateId = this.getUserCourseDateId(user);
         const userSubgroupId = this.getUserSubgroupId(user);
-        if (userCourseDateId === date?.id && userSubgroupId === subgroupId && user?.id != null) {
+        if (
+          user?.id != null &&
+          (currentDateId == null || userCourseDateId === currentDateId) &&
+          userSubgroupId === subgroupId
+        ) {
           result.add(user.id);
         }
       });
@@ -320,10 +495,92 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
     return Array.from(result);
   }
 
+  private getMonitorIdAt(index: number): number | null {
+    const dates = this.getCourseDates();
+    const date = dates[index];
+    if (!date) {
+      return null;
+    }
+
+    const subgroup = this.getSubgroupForDate(date);
+    if (subgroup) {
+      const monitorId =
+        subgroup?.monitor_id ??
+        subgroup?.monitorId ??
+        subgroup?.monitor?.id ??
+        null;
+      if (monitorId !== null && monitorId !== undefined && monitorId !== '') {
+        const numeric = Number(monitorId);
+        if (!Number.isNaN(numeric)) {
+          return numeric;
+        }
+      }
+    }
+
+    const fallbackGroupSubgroups = this.getSubgroupsArray(this.group);
+    const fallbackSubgroup = fallbackGroupSubgroups.length > this.subgroup_index
+      ? fallbackGroupSubgroups[this.subgroup_index]
+      : null;
+    if (fallbackSubgroup) {
+      const fallbackMonitorId =
+        fallbackSubgroup?.monitor_id ??
+        fallbackSubgroup?.monitorId ??
+        fallbackSubgroup?.monitor?.id ??
+        null;
+      if (fallbackMonitorId !== null && fallbackMonitorId !== undefined && fallbackMonitorId !== '') {
+        const numeric = Number(fallbackMonitorId);
+        if (!Number.isNaN(numeric)) {
+          return numeric;
+        }
+      }
+    }
+
+    return null;
+  }
+
   private resolveFallbackSubgroupId(index: number): number | null {
     const date = this.getCourseDates()[index];
-    const subgroup = this.getSubgroupForDate(date);
-    return subgroup?.id ?? null;
+    const dateSubgroup = this.getSubgroupForDate(date);
+
+    // Si el subgroup de la fecha tiene ID, usarlo
+    const dateSubgroupId = this.extractSubgroupId(dateSubgroup);
+    if (dateSubgroupId != null) {
+      console.log('[resolveFallbackSubgroupId] Found subgroup ID from date:', dateSubgroupId);
+      return dateSubgroupId;
+    }
+
+    const dateDerivedId = this.resolveSubgroupIdFromDate(index);
+    if (dateDerivedId != null) {
+      console.log('[resolveFallbackSubgroupId] Found subgroup ID from course date data:', dateDerivedId);
+      return dateDerivedId;
+    }
+
+    // Si no, usar el subgroup del group (que tiene los IDs guardados)
+    const groupSubgroups = this.getSubgroupsArray(this.group);
+    const matchingSubgroup = groupSubgroups.find((sg: any) =>
+      (sg?.degree_id ?? sg?.degreeId) === this.level?.id
+    );
+
+    const matchingSubgroupId = this.extractSubgroupId(matchingSubgroup);
+    if (matchingSubgroupId != null) {
+      console.log('[resolveFallbackSubgroupId] Found subgroup ID from group:', matchingSubgroupId);
+      return matchingSubgroupId;
+    }
+
+    // Si hay múltiples subgrupos del mismo nivel, usar el índice
+    const levelSubgroups = groupSubgroups.filter((sg: any) =>
+      (sg?.degree_id ?? sg?.degreeId) === this.level?.id
+    );
+    if (levelSubgroups.length > this.subgroup_index) {
+      const subgroupId = this.extractSubgroupId(levelSubgroups[this.subgroup_index]);
+      if (subgroupId != null) {
+        console.log('[resolveFallbackSubgroupId] Found subgroup ID by index:', subgroupId);
+        return subgroupId;
+      }
+    }
+
+    console.warn('[resolveFallbackSubgroupId] No subgroup ID found. date:', date, 'dateSubgroup:', dateSubgroup, 'group:', this.group);
+    return null;
   }
 
   getAssignmentSelectedDays(): number {
@@ -530,55 +787,174 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
   }
 
   openTransferModal(){
-    this.selectedSubgroup = this.group.course_subgroups[this.subgroup_index];
+    const groupSubgroups = this.getSubgroupsArray(this.group);
+    this.selectedSubgroup = groupSubgroups.length > this.subgroup_index ? groupSubgroups[this.subgroup_index] : null;
     this.cambiarModal = true;
   }
 
   Date = (v: string): Date => new Date(v)
 
   async SelectMonitor(event: any, selectDate: number) {
-    const selectedMonitor = event?.option?.value ?? null;
-    const monitorId = selectedMonitor ? selectedMonitor.id : null;
+    const monitorCandidate = this.normalizeMonitorSelection(event?.option?.value ?? event ?? null);
+    const monitorIdRaw = monitorCandidate?.id ?? monitorCandidate?.monitor_id ?? null;
+    const monitorId = monitorIdRaw !== null && monitorIdRaw !== undefined && monitorIdRaw !== ''
+      ? Number(monitorIdRaw)
+      : null;
     const courseDates = this.getCourseDates();
     const baseSubgroup = this.getSubgroupForDate(courseDates?.[selectDate]);
 
-    if (baseSubgroup && baseSubgroup.monitor_id === monitorId) {
+    console.log('[SelectMonitor] Start:', { monitorCandidate, monitorId, selectDate, baseSubgroup });
+
+    if (monitorId == null || Number.isNaN(monitorId)) {
+      console.warn('[SelectMonitor] Unable to resolve monitor ID from selection:', event);
+      this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+      return;
+    }
+
+    if (monitorCandidate && monitorId != null && !Number.isNaN(monitorId)) {
+      monitorCandidate.id = monitorId;
+    }
+    const baseMonitorIdRaw = baseSubgroup?.monitor_id ?? baseSubgroup?.monitorId ?? baseSubgroup?.monitor?.id ?? null;
+    const baseMonitorId = baseMonitorIdRaw !== null && baseMonitorIdRaw !== undefined && baseMonitorIdRaw !== ''
+      ? Number(baseMonitorIdRaw)
+      : null;
+
+    if (baseMonitorId !== null && !Number.isNaN(baseMonitorId) && baseMonitorId === monitorId) {
+      console.log('[SelectMonitor] Monitor already assigned, skipping');
       return;
     }
 
     const { startIndex, endIndex } = this.resolveAssignmentIndexes(selectDate);
     const targetIndexes = this.buildTargetIndexes(startIndex, endIndex);
-    const bookingUserIds = this.collectBookingUserIds(targetIndexes);
-
-    let subgroupId: number | null = null;
-    if (!bookingUserIds.length && targetIndexes.length === 1) {
-      subgroupId = this.resolveFallbackSubgroupId(targetIndexes[0]);
+    if (targetIndexes.length === 0) {
+      console.warn('[SelectMonitor] No target indexes resolved for assignment.');
+      this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+      return;
     }
 
-    const payload = {
-      monitor_id: monitorId,
-      booking_users: bookingUserIds,
-      subgroup_id: subgroupId
+    const bookingUserIds = this.collectBookingUserIds(targetIndexes);
+
+    console.log('[SelectMonitor] Indexes and users:', { startIndex, endIndex, targetIndexes, bookingUserIds });
+
+    const applyLocalUpdate = () => {
+      const changeStates: Record<number, 'assigned' | 'modified'> = {};
+      targetIndexes.forEach(idx => {
+        const existingMonitorId = this.getMonitorIdAt(idx);
+        let changeState: 'assigned' | 'modified' = 'assigned';
+        if (existingMonitorId !== null) {
+          if (monitorId === null || monitorId !== existingMonitorId) {
+            changeState = 'modified';
+          }
+        }
+        changeStates[idx] = changeState;
+        this.modified[idx] = changeState === 'modified';
+      });
+      this.monitorSelect.emit({
+        monitor: monitorCandidate,
+        indexes: [...targetIndexes],
+        scope: this.assignmentScope,
+        changeStates
+      });
+      this.invalidateDatesCache();
     };
 
+    const isUpdateMode = this.mode === 'update';
+    let callsMade = 0;
+    let apiError: any = null;
+    let unresolvedSubgroups = false;
+
     try {
-      await firstValueFrom(this.monitorsService.transferMonitor(payload));
+      if (isUpdateMode) {
+        const primarySubgroupId = this.resolveFallbackSubgroupId(targetIndexes[0]);
+        if (!primarySubgroupId && bookingUserIds.length > 0) {
+          console.warn('[SelectMonitor] Unable to resolve subgroup ID for monitor re-assignment with booking users.');
+          unresolvedSubgroups = true;
+        }
 
-      targetIndexes.forEach(idx => {
-        this.monitorSelect.emit({ monitor: selectedMonitor, i: idx });
-        this.modified[idx] = true;
-      });
+        if (bookingUserIds.length > 0 && primarySubgroupId != null) {
+          const payload = {
+            monitor_id: monitorId,
+            booking_users: bookingUserIds,
+            subgroup_id: primarySubgroupId
+          };
+          console.log('[SelectMonitor] Calling API with users:', payload);
+          await firstValueFrom(this.monitorsService.transferMonitor(payload));
+          callsMade++;
+        } else if (bookingUserIds.length === 0) {
+          console.log('[SelectMonitor] No users, will call API per subgroup');
+          for (const idx of targetIndexes) {
+            const subgroupId = this.resolveFallbackSubgroupId(idx);
+            console.log('[SelectMonitor] Processing index:', idx, 'subgroupId:', subgroupId);
+            if (subgroupId != null) {
+              const payload = {
+                monitor_id: monitorId,
+                booking_users: [],
+                subgroup_id: subgroupId
+              };
+              console.log('[SelectMonitor] Calling API for subgroup:', payload);
+              await firstValueFrom(this.monitorsService.transferMonitor(payload));
+              callsMade++;
+            } else {
+              console.warn('[SelectMonitor] No subgroup ID for index:', idx);
+              unresolvedSubgroups = true;
+            }
+          }
+        } else if (bookingUserIds.length > 0) {
+          unresolvedSubgroups = true;
+        }
+      }
 
-      this.invalidateDatesCache();
-      this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+      console.log('[SelectMonitor] Total API calls made:', callsMade);
     } catch (error) {
-      console.error('Error occurred while assigning monitor:', error);
+      apiError = error;
+      console.error('[SelectMonitor] Error occurred while assigning monitor:', error);
       if (error?.error?.message && error.error.message.includes('Overlap')) {
         this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
       } else {
         this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
       }
     }
+
+    if (!apiError) {
+      applyLocalUpdate();
+      if (callsMade > 0) {
+        this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+      }
+      if (unresolvedSubgroups) {
+        this.snackbar.open('Guarda el curso primero para que este monitor se sincronice con la base de datos.', 'OK', { duration: 4000 });
+      }
+    }
+  }
+
+  private normalizeMonitorSelection(rawValue: any): any | null {
+    if (rawValue == null) {
+      return null;
+    }
+
+    const monitorList = Array.isArray(this.monitors) ? this.monitors : [];
+
+    if (typeof rawValue === 'object') {
+      if (rawValue.monitor && typeof rawValue.monitor === 'object') {
+        return rawValue.monitor;
+      }
+      return rawValue;
+    }
+
+    const numericId = Number(rawValue);
+    if (!Number.isNaN(numericId)) {
+      const found =
+        monitorList.find((monitor: any) => Number(monitor?.id) === numericId) ??
+        monitorList.find((monitor: any) => Number(monitor?.monitor_id) === numericId) ??
+        monitorList.find((monitor: any) => Number(monitor?.monitor?.id) === numericId)?.monitor;
+
+      if (found) {
+        return found.monitor ? found.monitor : found;
+      }
+
+      return { id: numericId };
+    }
+
+    return null;
   }
 
   /**
@@ -588,7 +964,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
   onTimingClick(): void {
     const courseDates = this.getCourseDates();
     const selectedDateObj = courseDates?.[this.selectDate] || courseDates?.[0] || null;
-    const subGroup = this.getSubgroupForDate(selectedDateObj) ?? this.group.course_subgroups?.[this.subgroup_index];
+    const fallbackSubgroups = this.getSubgroupsArray(this.group);
+    const subGroup = this.getSubgroupForDate(selectedDateObj) ?? (fallbackSubgroups.length > this.subgroup_index ? fallbackSubgroups[this.subgroup_index] : null);
 
     const subgroupIds = this.getSubgroupIdsAcrossDates();
     const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
@@ -613,10 +990,13 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
     if (!studentsInSubgroup.length) {
       courseDates.forEach(date => {
         const subgroup = this.getSubgroupForDate(date);
-        if (!subgroup?.id) return;
+      const subgroupId = this.extractSubgroupId(subgroup);
+        if (subgroupId == null) {
+          return;
+        }
         this.toArray(date?.booking_users_active).forEach(user => {
           const userSubgroupId = this.getUserSubgroupId(user);
-          if (userSubgroupId === subgroup.id) {
+          if (userSubgroupId === subgroupId) {
             pushStudent(user);
           }
         });
@@ -646,9 +1026,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
       const courseDates = this.getCourseDates();
       for (const date of courseDates) {
         const subgroup = this.getSubgroupForDate(date);
-        if (!subgroup) continue;
+      const subgroupId = this.extractSubgroupId(subgroup);
+        if (subgroupId == null) continue;
         const bookingUsersActive = this.toArray(date?.booking_users_active);
-        if (bookingUsersActive.some((user: any) => this.getUserSubgroupId(user) === subgroup.id)) {
+        if (bookingUsersActive.some((user: any) => this.getUserSubgroupId(user) === subgroupId)) {
           return true;
         }
         const embeddedUsers = this.toArray(subgroup?.booking_users);
@@ -664,7 +1045,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
         if (userSubgroupId == null) return false;
         return courseDates.some(date => {
           const subgroup = this.getSubgroupForDate(date);
-          return subgroup?.id === userSubgroupId;
+        const subgroupId = this.extractSubgroupId(subgroup);
+          return subgroupId === userSubgroupId;
         });
       });
     } catch (error) {
@@ -708,24 +1090,28 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
   getStudentCount(dateItem: any): string {
     try {
       const subgroup = this.getSubgroupForDate(dateItem);
-      if (!subgroup) {
-        return '-';
+      const bookingUsersActive = this.toArray(dateItem?.booking_users_active);
+      const fallbackGroupSubgroups = this.getSubgroupsArray(this.group);
+      const fallbackSubgroup = fallbackGroupSubgroups.length > this.subgroup_index ? fallbackGroupSubgroups[this.subgroup_index] : null;
+      const fallbackSubgroupId = this.extractSubgroupId(fallbackSubgroup);
+      const subgroupId = this.extractSubgroupId(subgroup) ?? fallbackSubgroupId;
+
+      let currentCount = 0;
+      if (subgroupId != null) {
+        currentCount = bookingUsersActive.filter((user: any) => {
+          const userSubgroupId = this.getUserSubgroupId(user);
+          return userSubgroupId === subgroupId;
+        }).length;
       }
 
-      const bookingUsersActive = this.toArray(dateItem?.booking_users_active);
-      let currentCount = bookingUsersActive.filter((user: any) => {
-        const userSubgroupId = this.getUserSubgroupId(user);
-        return userSubgroupId === subgroup.id;
-      }).length;
-
       if (currentCount === 0) {
-        const embeddedUsers = this.toArray(subgroup?.booking_users);
+        const embeddedUsers = this.toArray(subgroup?.booking_users ?? fallbackSubgroup?.booking_users);
         currentCount = embeddedUsers.length;
       }
 
       const maxCapacity =
         subgroup?.max_participants ??
-        this.group?.course_subgroups?.[this.subgroup_index]?.max_participants ??
+        fallbackSubgroup?.max_participants ??
         this.level?.max_participants ??
         this.courseFormGroup?.controls?.['max_participants']?.value ??
         0;
@@ -741,25 +1127,32 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
     const degreeId = this.level.id;
 
     const dateId = date?.id ?? null;
-    const dateLevelSubgroups = this.toArray(date?.course_subgroups || date?.courseSubgroups)
+    const dateLevelSubgroups = this.getSubgroupsArray(date)
       .filter((sg: any) => (sg?.degree_id ?? sg?.degreeId) === degreeId)
       .filter((sg: any) => {
-        const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
+        const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? sg?.date_id ?? null;
         return !dateId || !sgDateId || sgDateId === dateId;
       });
-    if (dateLevelSubgroups.length > this.subgroup_index) {
-      return dateLevelSubgroups[this.subgroup_index];
-    }
 
     const group = (date?.course_groups || [])
       .find((g: any) => (g?.degree_id ?? g?.degreeId) === degreeId);
-    const groupSubgroups = this.toArray(group?.course_subgroups || group?.courseSubgroups)
+    const groupSubgroups = this.getSubgroupsArray(group)
       .filter((sg: any) => {
-        const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
+        const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? sg?.date_id ?? null;
         return !dateId || !sgDateId || sgDateId === dateId;
       });
+
+    if (dateLevelSubgroups.length > this.subgroup_index) {
+      const candidate = dateLevelSubgroups[this.subgroup_index];
+      const fallback = groupSubgroups.length > this.subgroup_index ? groupSubgroups[this.subgroup_index] : null;
+      this.hydrateSubgroupIdentity(candidate, fallback, group, date);
+      return candidate;
+    }
+
     if (groupSubgroups.length > this.subgroup_index) {
-      return groupSubgroups[this.subgroup_index];
+      const candidate = groupSubgroups[this.subgroup_index];
+      this.hydrateSubgroupIdentity(candidate, candidate, group, date);
+      return candidate;
     }
 
     return null;
@@ -770,8 +1163,9 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
     const courseDates = this.getCourseDates();
     courseDates.forEach(date => {
       const subgroup = this.getSubgroupForDate(date);
-      if (subgroup?.id != null) {
-        ids.add(subgroup.id);
+      const subgroupId = this.extractSubgroupId(subgroup);
+      if (subgroupId != null) {
+        ids.add(subgroupId);
       }
     });
     return ids;

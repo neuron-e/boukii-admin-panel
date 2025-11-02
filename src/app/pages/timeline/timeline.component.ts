@@ -138,7 +138,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   filteredUsers: Observable<any[]>;
   filteredMonitorsO: Observable<any[]>;
 
-  monitorAssignmentScope: 'single' | 'interval' | 'from' | 'range' = 'single';
+  monitorAssignmentScope: 'single' | 'interval' | 'all' | 'from' | 'range' = 'single';
   monitorAssignmentStartDate: string | null = null;
   monitorAssignmentEndDate: string | null = null;
   monitorAssignmentDates: { value: string, label: string }[] = [];
@@ -1769,7 +1769,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     });
   }
 
-  onMonitorAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range'): void {
+  onMonitorAssignmentScopeChange(scope: 'single' | 'interval' | 'all' | 'from' | 'range'): void {
     this.monitorAssignmentScope = scope;
     const defaultDate = this.taskDetail?.date || null;
 
@@ -1794,6 +1794,13 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     const firstDate = this.monitorAssignmentDates[0]?.value || defaultDate;
     const lastDate = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || defaultDate;
+
+    // NEW: Handle all (todo el curso)
+    if (scope === 'all') {
+      this.monitorAssignmentStartDate = firstDate;
+      this.monitorAssignmentEndDate = lastDate;
+      return;
+    }
 
     if (scope === 'from') {
       this.monitorAssignmentStartDate = defaultDate ?? firstDate;
@@ -2676,10 +2683,13 @@ export class TimelineComponent implements OnInit, OnDestroy {
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
 
+    // Excluir clicks en overlays de Material Angular (dropdowns, datepickers, etc.)
+    const isMaterialOverlay = target.closest('.mat-select-panel, .cdk-overlay-pane, .mat-menu-panel, .mat-datepicker-popup, .mat-autocomplete-panel');
+
     // Close grouped tasks modal (left sidebar) if clicking outside
     if (this.showGrouped) {
       const groupedModal = target.closest('.modal-grouped');
-      if (!groupedModal) {
+      if (!groupedModal && !isMaterialOverlay) {
         this.hideGrouped();
       }
     }
@@ -2687,7 +2697,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     // Close detail modal (right sidebar) if clicking outside
     if (this.showDetail) {
       const detailModal = target.closest('.col-right, .box-detail-timeline');
-      if (!detailModal) {
+      if (!detailModal && !isMaterialOverlay) {
         this.hideDetail();
       }
     }
@@ -2695,7 +2705,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     // Close block detail modal if clicking outside
     if (this.showBlock) {
       const blockModal = target.closest('.box-detail-timeline');
-      if (!blockModal) {
+      if (!blockModal && !isMaterialOverlay) {
         this.hideBlock();
       }
     }

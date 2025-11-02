@@ -248,7 +248,8 @@
       "single": "Solo questa sessione",
       "interval": "Per questo intervallo",
       "from": "Dalla data selezionata in poi",
-      "range": "Tra due date"
+      "range": "Tra due date",
+      "all": "Tutto il corso"
     },
     "start_date": "Data inizio",
     "end_date": "Data fine"

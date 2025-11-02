@@ -1042,6 +1042,9 @@
                     <mat-option value="interval" *ngIf="hasMultipleIntervals()">
                       {{'monitor_assignment.scope.interval' | translate}}
                     </mat-option>
+                    <mat-option value="all" *ngIf="monitorAssignmentDates.length > 1">
+                      {{'monitor_assignment.scope.all' | translate}}
+                    </mat-option>
                     <mat-option value="from" *ngIf="monitorAssignmentDates.length > 1">
                       {{'monitor_assignment.scope.from' | translate}}
                     </mat-option>
@@ -1051,7 +1054,7 @@
                   </mat-select>
                 </mat-form-field>
                 <div class="bulk-date-row"
-                     *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentScope !== 'interval' && monitorAssignmentDates.length > 1">
+                     *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentScope !== 'interval' && monitorAssignmentScope !== 'all' && monitorAssignmentDates.length > 1">
                   <mat-form-field appearance="outline" class="flex-auto">
                     <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
                     <mat-select [(ngModel)]="monitorAssignmentStartDate"

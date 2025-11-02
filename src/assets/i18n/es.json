@@ -248,6 +248,7 @@
     "scope": {
       "single": "Sólo esta sesión",
       "interval": "Para este intervalo",
+      "all": "Todo el curso",
       "from": "Desde la fecha seleccionada",
       "range": "Intervalo de fechas"
     },

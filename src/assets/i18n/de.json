@@ -248,7 +248,8 @@
       "single": "Nur diesen Termin",
       "interval": "Für dieses Intervall",
       "from": "Ab ausgewähltem Datum",
-      "range": "Zwischen zwei Daten"
+      "range": "Zwischen zwei Daten",
+      "all": "Gesamter Kurs"
     },
     "start_date": "Startdatum",
     "end_date": "Enddatum"

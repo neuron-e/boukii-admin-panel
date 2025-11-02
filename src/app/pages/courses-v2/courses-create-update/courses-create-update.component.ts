@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+﻿import { Component, OnInit } from '@angular/core';
 import {AbstractControl, FormArray, FormGroup, UntypedFormBuilder, UntypedFormGroup, Validators} from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import {map, forkJoin, mergeMap, throwError, catchError} from 'rxjs';
@@ -27,11 +27,15 @@ interface CourseDate {
 
 interface IntervalSubgroupState {
   id?: number | string;
+  temp_id?: number | string;
   degree_id?: number | string;
   max_participants?: number;
   active: boolean;
   monitor?: any;
   monitor_id?: number;
+   monitor_change_state?: 'assigned' | 'modified' | null;
+   monitor_modified?: boolean;
+   monitor_previous_id?: number | string | null;
   key: string;
 }
 
@@ -126,6 +130,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
   private selectedIntervalForSubgroup: Record<string, string> = {};
   selectedIntervalFilterIndex = 0; // 0 = all intervals, 1+ = specific interval (index - 1)
   private intervalSubgroupKeySeed = 0;
+  private tempSubgroupIdSeed = -1;
+
+  private generateTempSubgroupId(): number {
+    return this.tempSubgroupIdSeed--;
+  }
   private degreesFetchInProgress = false;
   private pendingDegreesRequestKey: string | null = null;
   private lastLoadedDegreesKey: string | null = null;
@@ -325,13 +334,44 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private createSubgroupState(subgroup: any, levelId: number | string, index: number): IntervalSubgroupState {
-    const subgroupId = subgroup?.id;
-    const key = subgroupId != null
-      ? `id-${subgroupId}`
-      : subgroup?.key || `level-${levelId}-sg-${index}`;
+    const resolveCandidateId = (): number => {
+      const candidates = [
+        subgroup?.id,
+        subgroup?.course_subgroup_id,
+        subgroup?.courseSubgroupId,
+        subgroup?.subgroup_id,
+        subgroup?.course_sub_group_id,
+        subgroup?.temp_id,
+        subgroup?.course_sub_group?.id
+      ].filter(candidate => candidate !== undefined && candidate !== null && candidate !== '');
+
+      for (const candidate of candidates) {
+        const numeric = Number(candidate);
+        if (!Number.isNaN(numeric) && numeric > 0) {
+          return numeric;
+        }
+      }
+
+      if (candidates.length > 0) {
+        const numeric = Number(candidates[0]);
+        if (!Number.isNaN(numeric)) {
+          return numeric;
+        }
+      }
+
+      return this.generateTempSubgroupId();
+    };
+
+    const resolvedId = resolveCandidateId();
+    if (subgroup && (subgroup.temp_id === undefined || subgroup.temp_id === null || subgroup.temp_id === '')) {
+      subgroup.temp_id = resolvedId;
+    }
+
+    const key = subgroup?.key || `level-${levelId}-sg-${index}`;
 
     return {
-      id: subgroupId ?? subgroup?.subgroup_id ?? undefined,
+      id: resolvedId,
+      temp_id: subgroup?.temp_id ?? resolvedId,
       degree_id: subgroup?.degree_id ?? levelId,
       max_participants: subgroup?.max_participants ?? undefined,
       active: subgroup?.active !== false,
@@ -1142,21 +1182,29 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Recorrer todas las fechas para encontrar el número máximo de subgrupos
     courseDates.forEach((courseDate: any) => {
-      if (courseDate.course_groups) {
-        const levelGroup = this.find(courseDate.course_groups, 'degree_id', level.id);
-        if (levelGroup && levelGroup.course_subgroups) {
-          levelGroup.course_subgroups.forEach((subgroup: any, index: number) => {
-            // La clave es SOLO el índice - esto agrupa subgrupos por posición
-            if (!subgroupsByIndex.has(index)) {
-              subgroupsByIndex.set(index, {
-                ...subgroup,
-                _index: index,
-                _levelId: level.id
-              });
-            }
+      if (!courseDate?.course_groups) {
+        return;
+      }
+
+      this.ensureCourseDateSubgroupsNormalized(courseDate);
+
+      const levelGroup = this.find(courseDate.course_groups, 'degree_id', level.id);
+      if (!levelGroup || !levelGroup.course_subgroups) {
+        return;
+      }
+
+      this.ensureGroupSubgroupsNormalized(levelGroup, courseDate);
+
+      levelGroup.course_subgroups.forEach((subgroup: any, index: number) => {
+        // La clave es SOLO el índice - esto agrupa subgrupos por posición
+        if (!subgroupsByIndex.has(index)) {
+          subgroupsByIndex.set(index, {
+            ...subgroup,
+            _index: index,
+            _levelId: level.id
           });
         }
-      }
+      });
     });
 
     // Convertir a array ordenado por índice
@@ -1182,6 +1230,449 @@ export class CoursesCreateUpdateComponent implements OnInit {
     });
   }
 
+  private normalizeSubgroupIdentity(subgroup: any, courseDate: any, levelId: number | string, subgroupIndex: number): any {
+    if (!subgroup) {
+      return subgroup;
+    }
+
+    const normalized: any = subgroup;
+    const ensureValue = (value: any) => value !== undefined && value !== null && value !== '';
+
+    if (!ensureValue(normalized.id)) {
+      const candidateIds = [
+        normalized.course_subgroup_id,
+        normalized.courseSubgroupId,
+        normalized.subgroup_id,
+        normalized.temp_id,
+        normalized.id,
+        normalized.key,
+        normalized._clientKey
+      ];
+      const found = candidateIds.find(ensureValue);
+      if (ensureValue(found)) {
+        normalized.id = found;
+      }
+    }
+
+    if (!ensureValue(normalized.id)) {
+      const tempId = this.generateTempSubgroupId();
+      normalized.id = tempId;
+      normalized.temp_id = tempId;
+    } else {
+      const numericId = Number(normalized.id);
+      if (!Number.isNaN(numericId)) {
+        normalized.id = numericId;
+      }
+      if (!ensureValue(normalized.temp_id)) {
+        normalized.temp_id = normalized.id;
+      }
+    }
+
+    if (!ensureValue(normalized.course_id)) {
+      normalized.course_id = this.courses.courseFormGroup.controls['id']?.value ?? null;
+    }
+
+    const courseDateId = courseDate?.id ?? courseDate?.course_date_id ?? null;
+    if (!ensureValue(normalized.course_date_id) && ensureValue(courseDateId)) {
+      normalized.course_date_id = courseDateId;
+    }
+
+    const groups = this.toArray(courseDate?.course_groups || courseDate?.courseGroups);
+    const matchingGroup = groups.find((g: any) => (g?.degree_id ?? g?.degreeId) === (levelId ?? normalized.degree_id));
+    if (!ensureValue(normalized.course_group_id) && matchingGroup?.id != null) {
+      normalized.course_group_id = matchingGroup.id;
+    }
+
+    if (!ensureValue(normalized.max_participants) && matchingGroup) {
+      const subgroups = this.getSubgroupsArray(matchingGroup);
+      if (subgroupIndex < subgroups.length) {
+        const sourceSubgroup = subgroups[subgroupIndex] ?? null;
+        if (ensureValue(sourceSubgroup?.max_participants)) {
+          normalized.max_participants = sourceSubgroup.max_participants;
+        }
+      }
+    }
+
+    return normalized;
+  }
+
+  private getSubgroupsArray(source: any): any[] {
+    if (!source) {
+      return [];
+    }
+    const rawSubgroups =
+      source?.course_subgroups ??
+      source?.courseSubgroups ??
+      source?.subgroups ??
+      [];
+    return this.toArray(rawSubgroups);
+  }
+
+  private ensureGroupSubgroupsNormalized(group: any, courseDate: any): void {
+    if (!group) {
+      return;
+    }
+    const levelId = group?.degree_id ?? group?.degreeId ?? group?.id ?? null;
+    if (levelId == null) {
+      return;
+    }
+
+    const subgroupsArray = this.getSubgroupsArray(group);
+    subgroupsArray.forEach((subgroup: any, idx: number) => {
+      const normalized = this.normalizeSubgroupIdentity(subgroup, courseDate, levelId, idx);
+      if (Array.isArray(group.course_subgroups) && idx < group.course_subgroups.length) {
+        group.course_subgroups[idx] = normalized;
+      }
+      if (Array.isArray(group.subgroups) && idx < group.subgroups.length) {
+        group.subgroups[idx] = normalized;
+      }
+    });
+  }
+
+  private ensureCourseDateSubgroupsNormalized(courseDate: any): void {
+    if (!courseDate) {
+      return;
+    }
+
+    const levelGroups = this.toArray(courseDate?.course_groups || courseDate?.courseGroups);
+    levelGroups.forEach(group => this.ensureGroupSubgroupsNormalized(group, courseDate));
+
+    const dateSubgroups = this.toArray(courseDate?.course_subgroups || courseDate?.courseSubgroups);
+    if (dateSubgroups.length === 0) {
+      return;
+    }
+
+    dateSubgroups.forEach((subgroup: any, idx: number) => {
+      const degreeId = subgroup?.degree_id ?? subgroup?.degreeId ?? null;
+      const levelGroup = degreeId != null
+        ? levelGroups.find((group: any) => (group?.degree_id ?? group?.degreeId ?? group?.id) === degreeId)
+        : null;
+      const groupSubgroups = levelGroup ? this.getSubgroupsArray(levelGroup) : [];
+      const subgroupIndex = groupSubgroups.indexOf(subgroup);
+      const normalized = this.normalizeSubgroupIdentity(
+        subgroup,
+        courseDate,
+        degreeId ?? levelGroup?.degree_id ?? levelGroup?.degreeId ?? levelGroup?.id ?? null,
+        subgroupIndex >= 0 ? subgroupIndex : idx
+      );
+
+      if (Array.isArray(courseDate.course_subgroups) && idx < courseDate.course_subgroups.length) {
+        courseDate.course_subgroups[idx] = normalized;
+      }
+      if (Array.isArray(courseDate.courseSubgroups) && idx < courseDate.courseSubgroups.length) {
+        courseDate.courseSubgroups[idx] = normalized;
+      }
+    });
+  }
+
+  private normalizeCourseDatesInForm(): void {
+    const control = this.courses?.courseFormGroup?.get('course_dates');
+    const courseDates = control?.value;
+    if (!Array.isArray(courseDates)) {
+      return;
+    }
+
+    courseDates.forEach((courseDate: any) => this.ensureCourseDateSubgroupsNormalized(courseDate));
+    control?.updateValueAndValidity({ onlySelf: true, emitEvent: false });
+  }
+
+  private applyMonitorToSubgroup(subgroup: any, monitor: any, changeState?: 'assigned' | 'modified'): void {
+    if (!subgroup) {
+      return;
+    }
+
+    const previousMonitorId =
+      subgroup?.monitor_id ??
+      subgroup?.monitorId ??
+      subgroup?.monitor?.id ??
+      null;
+
+    const resolvedMonitorId = monitor?.id ?? monitor?.monitor_id ?? monitor?.monitorId ?? null;
+    subgroup.monitor = monitor ?? null;
+    subgroup.monitor_id = resolvedMonitorId;
+    subgroup.monitorId = resolvedMonitorId;
+
+    if (changeState) {
+      subgroup.monitor_change_state = changeState;
+      subgroup.monitor_modified = changeState === 'modified';
+      if (changeState === 'modified' && previousMonitorId != null && resolvedMonitorId !== previousMonitorId) {
+        subgroup.monitor_previous_id = previousMonitorId;
+      } else if (changeState === 'assigned') {
+        subgroup.monitor_previous_id = null;
+      }
+    }
+
+    if (Array.isArray(subgroup.booking_users)) {
+      subgroup.booking_users = subgroup.booking_users.map((bookingUser: any) => ({
+        ...bookingUser,
+        monitor_id: resolvedMonitorId ?? bookingUser?.monitor_id ?? bookingUser?.monitorId ?? null,
+        monitorId: resolvedMonitorId ?? bookingUser?.monitorId ?? bookingUser?.monitor_id ?? null
+      }));
+    }
+  }
+
+  private extractPersistedSubgroupId(subgroup: any): number | null {
+    if (!subgroup) {
+      return null;
+    }
+
+    const candidates = [
+      subgroup?.id,
+      subgroup?.course_subgroup_id,
+      subgroup?.courseSubgroupId,
+      subgroup?.subgroup_id,
+      subgroup?.course_sub_group_id,
+      subgroup?.course_sub_group?.id
+    ].filter(candidate => candidate !== undefined && candidate !== null && candidate !== '');
+
+    for (const candidate of candidates) {
+      const numeric = Number(candidate);
+      if (!Number.isNaN(numeric) && numeric > 0) {
+        return numeric;
+      }
+    }
+
+    return null;
+  }
+
+  private getUserSubgroupId(user: any): number | null {
+    if (!user) {
+      return null;
+    }
+
+    const candidates = [
+      user?.course_subgroup_id,
+      user?.courseSubgroupId,
+      user?.course_sub_group_id,
+      user?.course_sub_group?.id
+    ].filter(candidate => candidate !== undefined && candidate !== null && candidate !== '');
+
+    for (const candidate of candidates) {
+      const numeric = Number(candidate);
+      if (!Number.isNaN(numeric) && numeric > 0) {
+        return numeric;
+      }
+    }
+
+    return null;
+  }
+
+  private updateBookingUsersMonitor(
+    list: any,
+    subgroupId: number | null,
+    monitor: any,
+    changeState?: 'assigned' | 'modified'
+  ): void {
+    if (!Array.isArray(list) || subgroupId == null) {
+      return;
+    }
+
+    const monitorId = monitor?.id ?? monitor?.monitor_id ?? monitor?.monitorId ?? null;
+
+    list.forEach((user: any) => {
+      if (!user) {
+        return;
+      }
+      const userSubgroupId = this.getUserSubgroupId(user);
+      if (userSubgroupId !== subgroupId) {
+        return;
+      }
+      user.monitor = monitor ?? null;
+      user.monitor_id = monitorId;
+      user.monitorId = monitorId;
+      if (changeState) {
+        user.monitor_change_state = changeState;
+        user.monitor_modified = changeState === 'modified';
+      }
+      if (user.course_sub_group) {
+        user.course_sub_group.monitor = monitor ?? null;
+        user.course_sub_group.monitor_id = monitorId;
+      }
+    });
+  }
+
+  private resolveMonitorChangeState(level: any, subgroupIndex: number, courseDate: any, monitor: any): 'assigned' | 'modified' {
+    const subgroup = this.getSubgroupFromCourseDate(level, subgroupIndex, courseDate);
+    const existingMonitorIdRaw =
+      subgroup?.monitor_id ??
+      subgroup?.monitorId ??
+      subgroup?.monitor?.id ??
+      null;
+
+    if (existingMonitorIdRaw === null || existingMonitorIdRaw === undefined || existingMonitorIdRaw === '') {
+      return 'assigned';
+    }
+
+    const resolvedExisting = Number(existingMonitorIdRaw);
+    const newMonitorIdRaw = monitor?.id ?? monitor?.monitor_id ?? monitor?.monitorId ?? null;
+    const resolvedNew = newMonitorIdRaw != null ? Number(newMonitorIdRaw) : null;
+
+    if (resolvedNew !== null && !Number.isNaN(resolvedNew) && !Number.isNaN(resolvedExisting) && resolvedNew === resolvedExisting) {
+      return 'assigned';
+    }
+
+    return 'modified';
+  }
+
+  private updateIntervalMonitorState(courseDate: any, level: any, subgroupIndex: number, monitor: any, changeState?: 'assigned' | 'modified'): void {
+    if (!Array.isArray(this.intervals) || this.intervals.length === 0) {
+      return;
+    }
+
+    const intervalIdRaw =
+      courseDate?.interval_id ??
+      courseDate?.intervalId ??
+      courseDate?.course_interval_id ??
+      courseDate?.courseIntervalId ??
+      null;
+
+    if (intervalIdRaw == null) {
+      return;
+    }
+
+    const intervalIndex = this.intervals.findIndex(interval => {
+      const key = interval?.id ?? (interval as any)?.__clientKey ?? (interval as any)?.key ?? null;
+      return key != null && String(key) === String(intervalIdRaw);
+    });
+
+    if (intervalIndex < 0) {
+      return;
+    }
+
+    const state = this.ensureIntervalGroupState(intervalIndex, level);
+    if (!state) {
+      return;
+    }
+
+    if (!Array.isArray(state.subgroups)) {
+      state.subgroups = [];
+    }
+
+    while (state.subgroups.length <= subgroupIndex) {
+      state.subgroups.push(
+        this.createIntervalSubgroupState(level?.id ?? level?.degree_id, level?.max_participants)
+      );
+    }
+
+    const current = state.subgroups[subgroupIndex];
+    const resolvedSubgroup = this.getSubgroupFromCourseDate(level, subgroupIndex, courseDate);
+    const persistedId = this.extractPersistedSubgroupId(resolvedSubgroup) ?? this.extractPersistedSubgroupId(current);
+    const tempId = resolvedSubgroup?.temp_id ?? current?.temp_id ?? persistedId ?? current?.id ?? null;
+    const degreeId = current?.degree_id ?? resolvedSubgroup?.degree_id ?? level?.id ?? level?.degree_id;
+    const resolvedMonitorId = monitor?.id ?? monitor?.monitor_id ?? monitor?.monitorId ?? null;
+    const key = current?.key ?? (persistedId != null ? `id-${persistedId}` : current?.key ?? `cfg-${degreeId}-${subgroupIndex}`);
+
+    state.subgroups[subgroupIndex] = {
+      ...current,
+      id: persistedId ?? current?.id ?? null,
+      temp_id: tempId,
+      degree_id: degreeId,
+      monitor: monitor ?? null,
+      monitor_id: resolvedMonitorId,
+      active: current?.active !== false,
+      key,
+      monitor_change_state: changeState ?? current?.monitor_change_state ?? null,
+      monitor_modified: changeState ? changeState === 'modified' : current?.monitor_modified ?? false,
+      monitor_previous_id: changeState === 'modified'
+        ? (current?.monitor_previous_id ?? current?.monitor_id ?? null)
+        : current?.monitor_previous_id ?? null
+    };
+
+    this.syncIntervalGroupsArray();
+    this.scheduleIntervalGroupsSync();
+  }
+
+  private syncBookingUsersBeforeSave(courseFormGroup: any): void {
+    if (!courseFormGroup) {
+      return;
+    }
+
+    const subgroupEntries = new Map<number, { monitor: any; changeState?: 'assigned' | 'modified' | null }>();
+
+    const registerSubgroup = (subgroup: any) => {
+      if (!subgroup) {
+        return;
+      }
+      const subgroupId = this.extractPersistedSubgroupId(subgroup);
+      if (subgroupId == null) {
+        return;
+      }
+      const monitorId =
+        subgroup?.monitor_id ??
+        subgroup?.monitorId ??
+        subgroup?.monitor?.id ??
+        null;
+      const monitorObj = subgroup?.monitor ?? (monitorId != null ? { id: monitorId } : null);
+      const changeState = subgroup?.monitor_change_state ?? null;
+
+      subgroupEntries.set(subgroupId, { monitor: monitorObj, changeState });
+
+      if (Array.isArray(subgroup.booking_users)) {
+        this.updateBookingUsersMonitor(subgroup.booking_users, subgroupId, monitorObj, changeState ?? undefined);
+      }
+      if (Array.isArray(subgroup.booking_users_active)) {
+        this.updateBookingUsersMonitor(subgroup.booking_users_active, subgroupId, monitorObj, changeState ?? undefined);
+      }
+    };
+
+    const processGroup = (group: any) => {
+      if (!group) {
+        return;
+      }
+      const subgroups = Array.isArray(group.course_subgroups)
+        ? group.course_subgroups
+        : Array.isArray(group.subgroups)
+          ? group.subgroups
+          : [];
+      subgroups.forEach(registerSubgroup);
+    };
+
+    const courseDates = Array.isArray(courseFormGroup.course_dates) ? courseFormGroup.course_dates : [];
+    courseDates.forEach((courseDate: any) => {
+      const groups = Array.isArray(courseDate?.course_groups)
+        ? courseDate.course_groups
+        : Array.isArray(courseDate?.groups)
+          ? courseDate.groups
+          : [];
+      groups.forEach(processGroup);
+
+      if (Array.isArray(courseDate?.course_subgroups)) {
+        courseDate.course_subgroups.forEach(registerSubgroup);
+      }
+      if (Array.isArray(courseDate?.subgroups)) {
+        courseDate.subgroups.forEach(registerSubgroup);
+      }
+    });
+
+    const syncList = (list: any[] | null | undefined) => {
+      if (!Array.isArray(list)) {
+        return;
+      }
+      subgroupEntries.forEach((entry, subgroupId) => {
+        this.updateBookingUsersMonitor(list, subgroupId, entry.monitor, entry.changeState ?? undefined);
+      });
+    };
+
+    syncList(courseFormGroup.booking_users);
+    syncList(courseFormGroup.booking_users_active);
+
+    const bookingUsersControl = this.courses.courseFormGroup.controls['booking_users'];
+    if (bookingUsersControl) {
+      syncList(bookingUsersControl.value);
+    }
+    const bookingUsersActiveControl = this.courses.courseFormGroup.controls['booking_users_active'];
+    if (bookingUsersActiveControl) {
+      syncList(bookingUsersActiveControl.value);
+    }
+
+    if (bookingUsersControl && Array.isArray(bookingUsersControl.value)) {
+      courseFormGroup.booking_users = bookingUsersControl.value;
+    }
+    if (bookingUsersActiveControl && Array.isArray(bookingUsersActiveControl.value)) {
+      courseFormGroup.booking_users_active = bookingUsersActiveControl.value;
+    }
+  }
+
   // Cache para getGroupForLevel
   private groupForLevelCache: Map<number, any> = new Map();
 
@@ -1198,8 +1689,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     for (const courseDate of courseDates) {
       if (courseDate.course_groups) {
+        this.ensureCourseDateSubgroupsNormalized(courseDate);
         const levelGroup = this.find(courseDate.course_groups, 'degree_id', level.id);
         if (levelGroup) {
+          this.ensureGroupSubgroupsNormalized(levelGroup, courseDate);
           this.groupForLevelCache.set(level.id, levelGroup);
           return levelGroup;
         }
@@ -1353,7 +1846,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   private createIntervalSubgroupState(levelId: number | string, maxParticipants?: number): IntervalSubgroupState {
     const key = `cfg-${levelId}-${Date.now()}-${this.intervalSubgroupKeySeed++}`;
+    const tempId = this.generateTempSubgroupId();
     return {
+      id: tempId,
+      temp_id: tempId,
       degree_id: levelId,
       max_participants: maxParticipants ?? undefined,
       active: true,
@@ -1501,14 +1997,17 @@ export class CoursesCreateUpdateComponent implements OnInit {
     for (let i = 0; i < maxSubgroupsCount; i++) {
       // Buscar el primer subgrupo en este índice que tenga datos
       for (const cd of courseDates) {
+        this.ensureCourseDateSubgroupsNormalized(cd);
+
         // Try new structure first
         const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
         const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
           (sg?.degree_id ?? sg?.degreeId) === levelId
         );
         if (dateLevelSubgroups[i]) {
+          const normalized = this.normalizeSubgroupIdentity(dateLevelSubgroups[i], cd, levelId, i);
           uniqueSubgroups.push({
-            ...dateLevelSubgroups[i],
+            ...normalized,
             _index: i,
             _level: level
           });
@@ -1519,10 +2018,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
         const group = (cd?.course_groups || cd?.courseGroups || []).find((g: any) =>
           (g?.degree_id ?? g?.degreeId) === levelId
         );
+        if (group) {
+          this.ensureGroupSubgroupsNormalized(group, cd);
+        }
         const subgroup = (group?.course_subgroups || group?.courseSubgroups || [])[i];
         if (subgroup) {
+          const normalized = this.normalizeSubgroupIdentity(subgroup, cd, levelId, i);
           uniqueSubgroups.push({
-            ...subgroup,
+            ...normalized,
             _index: i,
             _level: level
           });
@@ -1996,6 +2499,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
           this.PeriodoFecha = 0; // Default to uniperiod for single period, but user can switch
         }
         this.courses.settcourseFormGroup(this.detailData);
+        this.normalizeCourseDatesInForm();
+        this.clearGroupCache();
+        this.clearSubgroupsCache();
         this.courses.courseFormGroup.patchValue({ extras: this.detailData.course_extras || [] });
         this.getDegrees();
         // Si tiene intervalos m├║ltiples, cargarlos
@@ -3120,6 +3626,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
         }
       });
     }
+
+    this.syncBookingUsersBeforeSave(courseFormGroup);
+
     courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value)
 
     // Convert settings to JSON string for all course types
@@ -3651,23 +4160,28 @@ export class CoursesCreateUpdateComponent implements OnInit {
         const duration = dateObj.duration;
         const computedHourEnd = dateObj.hour_end || this.courses.addMinutesToTime(dateObj.hour_start, duration ?? 0);
         const courseGroups = this.cloneCourseGroups(baseGroups);
-        const groupsPayload = courseGroups.map(group => {
-          const { course_subgroups, subgroups, ...rest } = group;
-          return {
-            ...rest,
-            subgroups: (course_subgroups || subgroups || []).map((subgroup: any) => ({ ...subgroup }))
-          };
-        });
-
-        courseDates.push({
+        const courseDatePayload = {
           ...dateObj,
           hour_end: computedHourEnd,
           duration: duration,
           interval_id: interval.id,
           order: dateObj.order,
           course_groups: courseGroups,
-          groups: groupsPayload
+          groups: [] as any[]
+        };
+
+        this.ensureCourseDateSubgroupsNormalized(courseDatePayload);
+
+        courseDatePayload.groups = courseGroups.map(group => {
+          const { course_subgroups, subgroups, ...rest } = group;
+          const normalizedSubgroups = this.getSubgroupsArray(group).map((subgroup: any) => ({ ...subgroup }));
+          return {
+            ...rest,
+            subgroups: normalizedSubgroups
+          };
         });
+
+        courseDates.push(courseDatePayload);
       });
     });
 
@@ -3711,6 +4225,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
       this.courses.courseFormGroup.patchValue({
         course_dates: generatedCourseDates
       });
+      this.normalizeCourseDatesInForm();
+      this.clearGroupCache();
+      this.clearSubgroupsCache();
 
       setTimeout(() => {
         this.courses.courseFormGroup.controls['course_dates'].updateValueAndValidity();
@@ -4478,11 +4995,82 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
   }
 
-  monitorSelect(event: any, level: any, j: number) {
-    let course_dates = this.courses.courseFormGroup.controls['course_dates'].value
-    course_dates[event.i].course_groups[course_dates[event.i].course_groups.findIndex((a: any) => a.degree_id === level.id)].course_subgroups[j].monitor = event.monitor
-    course_dates[event.i].course_groups[course_dates[event.i].course_groups.findIndex((a: any) => a.degree_id === level.id)].course_subgroups[j].monitor_id = event.monitor.id
-    this.courses.courseFormGroup.patchValue({ course_dates })
+  monitorSelect(event: any, level: any, subgroupIndex: number) {
+    const courseDatesControl = this.courses.courseFormGroup.controls['course_dates'];
+    const courseDates: any[] = Array.isArray(courseDatesControl.value) ? courseDatesControl.value : [];
+    const monitorPayload = event?.monitor;
+
+    const indexes: number[] = Array.isArray(event?.indexes) && event.indexes.length
+      ? event.indexes.filter((idx: any) => typeof idx === 'number' && idx >= 0)
+      : (event?.i !== undefined ? [event.i] : []);
+
+    if (!indexes.length) {
+      return;
+    }
+
+    const changeStates: Record<number, 'assigned' | 'modified'> = event?.changeStates ?? {};
+    const scope: 'single' | 'interval' | 'from' | 'range' = event?.scope ?? 'single';
+    const shouldUpdateIntervalState = scope === 'interval';
+    const levelId = level?.id ?? level?.degree_id;
+    const bookingUsersControl = this.courses.courseFormGroup.controls['booking_users'];
+
+    indexes.forEach((idx: number) => {
+      const courseDate = courseDates[idx];
+      if (!courseDate) {
+        return;
+      }
+
+      const changeState = changeStates?.[idx] ?? this.resolveMonitorChangeState(level, subgroupIndex, courseDate, monitorPayload);
+
+      const courseGroups = Array.isArray(courseDate.course_groups) ? courseDate.course_groups : [];
+      const groupIndex = courseGroups.findIndex((group: any) => (group?.degree_id ?? group?.degreeId) === levelId);
+      if (groupIndex >= 0) {
+        const targetGroup = courseGroups[groupIndex];
+        const groupSubgroups = this.getSubgroupsArray(targetGroup);
+        if (groupSubgroups[subgroupIndex]) {
+          this.applyMonitorToSubgroup(groupSubgroups[subgroupIndex], monitorPayload, changeState);
+        }
+        if (Array.isArray(targetGroup.course_subgroups) && targetGroup.course_subgroups[subgroupIndex]) {
+          this.applyMonitorToSubgroup(targetGroup.course_subgroups[subgroupIndex], monitorPayload, changeState);
+        }
+        if (Array.isArray(targetGroup.subgroups) && targetGroup.subgroups[subgroupIndex]) {
+          this.applyMonitorToSubgroup(targetGroup.subgroups[subgroupIndex], monitorPayload, changeState);
+        }
+      }
+
+      const targetDateSubgroup = this.getSubgroupFromCourseDate(level, subgroupIndex, courseDate);
+      let persistedSubgroupId: number | null = null;
+      if (targetDateSubgroup) {
+        this.applyMonitorToSubgroup(targetDateSubgroup, monitorPayload, changeState);
+        persistedSubgroupId = this.extractPersistedSubgroupId(targetDateSubgroup);
+      }
+
+      if (Array.isArray(courseDate.booking_users_active)) {
+        this.updateBookingUsersMonitor(courseDate.booking_users_active, persistedSubgroupId, monitorPayload, changeState);
+      }
+      if (Array.isArray(courseDate.booking_users)) {
+        this.updateBookingUsersMonitor(courseDate.booking_users, persistedSubgroupId, monitorPayload, changeState);
+      }
+      if (bookingUsersControl?.value) {
+        this.updateBookingUsersMonitor(bookingUsersControl.value, persistedSubgroupId, monitorPayload, changeState);
+      }
+
+      if (Array.isArray(courseDate.course_subgroups) && courseDate.course_subgroups[subgroupIndex]) {
+        this.applyMonitorToSubgroup(courseDate.course_subgroups[subgroupIndex], monitorPayload, changeState);
+      }
+      if (Array.isArray(courseDate.subgroups) && courseDate.subgroups[subgroupIndex]) {
+        this.applyMonitorToSubgroup(courseDate.subgroups[subgroupIndex], monitorPayload, changeState);
+      }
+
+      if (shouldUpdateIntervalState) {
+        this.updateIntervalMonitorState(courseDate, level, subgroupIndex, monitorPayload, changeState);
+      }
+    });
+
+    this.courses.courseFormGroup.patchValue({ course_dates: [...courseDates] });
+    courseDatesControl.markAsDirty();
+    this.clearGroupCache();
+    this.clearSubgroupsCache();
   }
   async deleteCourseDate(i: number) {
     const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
