@@ -294,119 +294,105 @@ export class BookingService {
   }
 
   setCart(normalizedDates, bookingData: BookingCreateData) {
-    let cart = [];
-    let group_id = 0;
-    normalizedDates.forEach(item => {
-      group_id++;
-      // Inicializar variables para el cálculo del precio
-      let totalExtrasPrice = 0;
-      item.utilizers.forEach(utilizer => {
-        item.dates.forEach(date => {
-          let bookingUser: any = {};
-          bookingUser.client_id = utilizer.id;
-          bookingUser.group_id = group_id;
-          bookingUser.monitor_id = item.monitor ? item.monitor.id : null;
+    const cart: any[] = [];
+    let groupId = 0;
+    const safeDates = Array.isArray(normalizedDates) ? normalizedDates : [];
 
-          // Obtener los valores desde bookingData
-          let reduction = bookingData.price_reduction || 0;
-          let cancellationInsurance = bookingData.price_cancellation_insurance || 0;
-          let boukiiCare =bookingData.price_boukii_care || 0;
-          let tva = bookingData.price_tva || 0;
+    safeDates.forEach(item => {
+      groupId += 1;
+      const utilizers = Array.isArray(item?.utilizers) ? item.utilizers : [];
+      const dates = Array.isArray(item?.dates) ? item.dates : [];
 
-          // Calcular el valor total de los vouchers
-          let totalVoucherDiscount = 0;
-          if (bookingData.vouchers && bookingData.vouchers.length > 0) {
-            bookingData.vouchers.forEach(voucher => {
-              if (voucher.bonus && voucher.bonus.reducePrice) {
-                totalVoucherDiscount += parseFloat(voucher.bonus.reducePrice || 0); // Asumimos que 'reducePrice' contiene el monto del descuento
-              }
+      utilizers.forEach(utilizer => {
+        dates.forEach(date => {
+          const bookingUser: any = {
+            client_id: utilizer?.id ?? null,
+            group_id: groupId,
+            monitor_id: item?.monitor?.id ?? null,
+            price_base: parseFloat(item?.totalSinExtras ?? '0'),
+            extra_price: parseFloat(item?.extrasTotal ?? '0'),
+            price: parseFloat(String(item?.total ?? '0').replace(/[^\d.-]/g, '')),
+            currency: item?.course?.currency ?? null,
+            course_id: item?.course?.id ?? null,
+            course_name: item?.course?.name ?? null,
+            notes_school: item?.schoolObs ?? '',
+            notes: item?.clientObs ?? '',
+            course_type: item?.course?.course_type ?? null,
+            degree_id: item?.sportLevel?.id ?? null,
+            hour_start: date?.startHour ?? null,
+            hour_end: date?.endHour ?? null
+          };
+
+          const courseDate = item?.course?.course_dates?.find(d =>
+            moment(d?.date).format('YYYY-MM-DD') === moment(date?.date).format('YYYY-MM-DD')
+          );
+
+          bookingUser.course_date_id = courseDate?.id ?? null;
+
+          const extras: any[] = [];
+
+          if (item?.course?.course_type === 2) {
+            const utilizerExtras = date?.utilizers?.find(u =>
+              u?.first_name === utilizer?.first_name && u?.last_name === utilizer?.last_name
+            );
+            const extraList = Array.isArray(utilizerExtras?.extras) ? utilizerExtras.extras : [];
+            extraList.forEach(extra => {
+              const extraPrice = parseFloat(extra?.price ?? '0');
+              const quantity = Number(extra?.quantity ?? 1) || 1;
+              extras.push({
+                course_extra_id: extra?.id ?? null,
+                name: extra?.name ?? '',
+                quantity,
+                price: Number.isNaN(extraPrice) ? 0 : extraPrice
+              });
+            });
+          } else {
+            const extraList = Array.isArray(date?.extras) ? date.extras : [];
+            extraList.forEach(extra => {
+              const extraPrice = parseFloat(extra?.price ?? '0');
+              const quantity = Number(extra?.quantity ?? 1) || 1;
+              extras.push({
+                course_extra_id: extra?.id ?? null,
+                name: extra?.name ?? '',
+                quantity,
+                price: Number.isNaN(extraPrice) ? 0 : extraPrice
+              });
             });
           }
 
-          let extras = [];
+          bookingUser.extras = extras;
 
-          // Recolectar los extras y calcular su precio total
-          if (item.course.course_type == 2) {
-            let utilizers =  date.utilizers.find(u =>
-              u.first_name == utilizer.first_name && u.last_name == utilizer.last_name);
-            if(utilizers && utilizers.extras && utilizers.extras.length) {
-              utilizers.extras.forEach(extra => {
-                const extraPrice = parseFloat(extra.price ?? '0');
-                const quantity = Number(extra.quantity ?? 1) || 1;
-                const totalExtra = (isNaN(extraPrice) ? 0 : extraPrice) * quantity;
-                totalExtrasPrice += totalExtra;
-                extras.push({
-                  course_extra_id: extra.id,
-                  name: extra.name,
-                  quantity: quantity,
-                  price: extraPrice
-                });
+          if (bookingData?.school_id === 15) {
+            const courseGroups = Array.isArray(courseDate?.course_groups) ? courseDate.course_groups : [];
+            const matchingGroup = courseGroups.find(group => group?.degree_id === item?.sportLevel?.id);
+
+            if (matchingGroup) {
+              bookingUser.group = matchingGroup.id;
+              bookingUser.group_name = matchingGroup.name;
+
+              const courseSubgroups = Array.isArray(matchingGroup?.course_subgroups)
+                ? matchingGroup.course_subgroups
+                : [];
+              const availableSubgroup = courseSubgroups.find(subgroup => {
+                const currentParticipants = Array.isArray(subgroup?.booking_users)
+                  ? subgroup.booking_users.length
+                  : 0;
+                const maxParticipants = typeof subgroup?.max_participants === 'number'
+                  ? subgroup.max_participants
+                  : Number.POSITIVE_INFINITY;
+                return currentParticipants < maxParticipants;
               });
-            }
-          } else {
-            if(date.extras &&  date.extras.length) {
-              date.extras.forEach(extra => {
-                const extraPrice = parseFloat(extra.price ?? '0');
-                const quantity = Number(extra.quantity ?? 1) || 1;
-                const totalExtra = (isNaN(extraPrice) ? 0 : extraPrice) * quantity;
-                totalExtrasPrice += totalExtra;
-                extras.push({
-                  course_extra_id: extra.id,
-                  name: extra.name,
-                  quantity: quantity,
-                  price: extraPrice
-                });
-              });
-            }
-          }
 
-          // Asignar valores al objeto de usuario de la reserva
-          bookingUser.price_base = parseFloat(item.totalSinExtras); // Precio base calculado
-          bookingUser.extra_price = parseFloat(item.extrasTotal); // Precio base calculado
-          bookingUser.price = parseFloat(item.total.replace(/[^\d.-]/g, '')); // Precio total (base + extras)
-          bookingUser.currency = item.course.currency;
-          bookingUser.course_id = item.course.id;
-          bookingUser.course_name = item.course.name;
-          bookingUser.notes_school = item.schoolObs;
-          bookingUser.notes = item.clientObs;
-          bookingUser.course_type = item.course.course_type;
-          bookingUser.currency = item.course.currency;
-          bookingUser.degree_id = item.sportLevel.id;
-          bookingUser.course_date_id = item.course.course_dates.find(d =>
-            moment(d.date).format('YYYY-MM-DD') == moment(date.date).format('YYYY-MM-DD')).id;
-          bookingUser.hour_start = date.startHour;
-          bookingUser.hour_end = date.endHour;
-
-          // Add school-specific fields for school 15
-          if (bookingData.school_id === 15) {
-            const courseDate = item.course.course_dates.find(d =>
-              moment(d.date).format('YYYY-MM-DD') == moment(date.date).format('YYYY-MM-DD'));
-            
-            if (courseDate && courseDate.course_groups) {
-              const matchingGroup = courseDate.course_groups.find(group => group.degree_id === item.sportLevel.id);
-              if (matchingGroup) {
-                bookingUser.group = matchingGroup.id;
-                bookingUser.group_name = matchingGroup.name;
-                
-                const availableSubgroup = matchingGroup.course_subgroups.find(subgroup =>
-                  subgroup.booking_users.length < subgroup.max_participants
-                );
-                if (availableSubgroup) {
-                  bookingUser.subgroup = availableSubgroup.id;
-                  bookingUser.subgroup_name = availableSubgroup.name;
-                }
+              if (availableSubgroup) {
+                bookingUser.subgroup = availableSubgroup.id;
+                bookingUser.subgroup_name = availableSubgroup.name;
               }
             }
           }
 
-          // Asignar los extras al usuario de la reserva
-          bookingUser.extras = extras;
-
-          // Añadir el usuario con la reserva completa al carrito
           cart.push(bookingUser);
         });
       });
-
     });
 
     return cart;

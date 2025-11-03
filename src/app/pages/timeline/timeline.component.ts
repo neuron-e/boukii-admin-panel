@@ -16,7 +16,7 @@ import {
   subWeeks
 } from 'date-fns';
 import {ApiCrudService} from 'src/service/crud.service';
-import {MonitorsService} from 'src/service/monitors.service';
+import {MonitorTransferPayload, MonitorsService} from 'src/service/monitors.service';
 import {LEVELS} from 'src/app/static-data/level-data';
 import {MOCK_COUNTRIES} from 'src/app/static-data/countries-data';
 import {MatDialog} from '@angular/material/dialog';
@@ -31,13 +31,18 @@ import {
 } from './course-user-transfer-timeline/course-user-transfer-timeline.component';
 import {TranslateService} from '@ngx-translate/core';
 import {ConfirmUnmatchMonitorComponent} from './confirm-unmatch-monitor/confirm-unmatch-monitor.component';
-import {firstValueFrom, Observable, Subject} from 'rxjs';
+import {firstValueFrom, Observable, of, Subject} from 'rxjs';
 import {map, startWith, takeUntil} from 'rxjs/operators';
 import {FormControl} from '@angular/forms';
 import {DateAdapter} from '@angular/material/core';
 import {Router} from '@angular/router';
 import {EditDateComponent} from './edit-date/edit-date.component';
 import {BookingDetailV2Component} from '../bookings-v2/booking-detail/booking-detail.component';
+import {
+  MonitorAssignmentDialogComponent,
+  MonitorAssignmentDialogResult,
+  MonitorAssignmentScope
+} from './monitor-assignment-dialog/monitor-assignment-dialog.component';
 
 moment.locale('fr');
 
@@ -1212,6 +1217,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
         this.taskDetail = task;
         this.showDetail = true;
         this.initializeMonitorAssignment(task);
+
+      // Cargar disponibles para el selector del preview:
+        this.checkAvailableMonitors();
       }
       this.hideBlock();
       this.hideEditBlock();
@@ -1259,6 +1267,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   toggleDetailMove(task: any, event: any) {
     this.moving = true;
     this.taskDetail = task;
+    this.initializeMonitorAssignment(task);
     event.preventDefault();
     if (task.booking_id) {
       const dialogRef = this.dialog.open(ConfirmModalComponent, {
@@ -1315,297 +1324,175 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
   }
 
-  checkMonitorSport(monitor) {
-    let ret = false;
-    if (this.taskMoved && monitor && monitor.id) {
-
-      monitor.sports.forEach(element => {
-        if (element.id === this.taskMoved.sport_id) {
-          ret = true;
-        }
-      });
-
+  moveMonitor(monitor: any, event: MouseEvent): void {
+    if (!this.taskDetail) {
+      return;
     }
-    return ret;
+
+    if (this.moveTask && this.taskMoved && this.taskMoved.monitor_id === monitor.id) {
+      this.moveTask = false;
+      this.taskMoved = null;
+      return;
+    }
+
+    const availabilityPayload = {
+      sportId: this.taskDetail?.sport_id,
+      minimumDegreeId: this.taskDetail?.degree_id || this.taskDetail?.degree?.id,
+      startTime: this.taskDetail?.hour_start,
+      endTime: this.taskDetail?.hour_end,
+      date: this.taskDetail?.date,
+      clientIds: (this.taskDetail?.all_clients || []).map((client: any) => client.id)
+    };
+
+    const fallbackSubgroupId = !this.taskDetail?.all_clients?.length ? (this.taskDetail?.booking_id ?? null) : null;
+
+    const proceedWithTransfer = () => {
+      this.crudService.post('/admin/monitors/available', availabilityPayload)
+        .subscribe((response) => {
+          this.monitorsForm = response.data;
+
+          if (this.moveTask && !this.monitorMatchesCurrentSport(monitor)) {
+            this.snackbar.open(this.translateService.instant('match_error_sport') + this.taskDetail.sport.name, 'OK', { duration: 3000 });
+            return;
+          }
+
+          if (this.moveTask && event) {
+            event.stopPropagation();
+          }
+
+          this.openMonitorAssignmentDialog(monitor)
+            .subscribe((selection) => {
+              if (!selection) {
+                return;
+              }
+
+              this.applyMonitorAssignmentSelection(selection);
+
+              const payload = this.buildMonitorTransferPayload(monitor?.id ?? null, fallbackSubgroupId);
+
+              if (!payload.booking_users.length && payload.subgroup_id === null) {
+                this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+                return;
+              }
+
+              this.monitorsService.transferMonitor(payload)
+                .subscribe(
+                  () => this.handleMonitorTransferSuccess(),
+                  (error) => this.handleMonitorTransferError(error)
+                );
+            });
+        }, (error) => {
+          console.error('Error occurred while checking monitor availability:', error);
+          this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+        });
+    };
+
+    this.matchTeacher(monitor.id).then((needsConfirmation) => {
+      if (needsConfirmation) {
+        const dialogRef = this.dialog.open(ConfirmUnmatchMonitorComponent, {
+          data: {
+            booking: this.taskDetail,
+            monitor,
+            school_id: this.activeSchool
+          }
+        });
+
+        dialogRef.afterClosed().subscribe((confirmed) => {
+          if (confirmed) {
+            proceedWithTransfer();
+          }
+        });
+      } else {
+        proceedWithTransfer();
+      }
+    });
   }
 
-  moveMonitor(monitor: any, event: MouseEvent): void {
+  private monitorMatchesCurrentSport(monitor: any): boolean {
+    if (!this.taskDetail) {
+      return false;
+    }
+    if (!monitor || !monitor.id) {
+      return true;
+    }
+    if (!Array.isArray(monitor.sports)) {
+      return false;
+    }
+    return monitor.sports.some((sport: any) => sport && sport.id === this.taskDetail.sport_id);
+  }
 
-    let ret = this.checkMonitorSport(monitor);
-    if (this.taskDetail) {
-      const clientIds = this.taskDetail?.all_clients?.map((client) => client.id);
+  private openMonitorAssignmentDialog(monitor: any): Observable<MonitorAssignmentDialogResult | undefined> {
+    if (!this.taskDetail) return of(undefined);
 
-      let subgroup_id = null;
-      if (!this.taskDetail?.all_clients?.length) {
-        subgroup_id = this.taskDetail?.booking_id;
+    // Inicializa arrays/estado para el diálogo
+    this.initializeMonitorAssignment(this.taskDetail); // <- tu método existente que carga monitorAssignmentDates, scope, etc.
+    const defaultDate = this.taskDetail?.date || null;
+
+    const dialogRef = this.dialog.open(MonitorAssignmentDialogComponent, {
+      width: '420px',
+      disableClose: true,
+      autoFocus: false,
+      data: {
+        monitor,
+        // YA SON OPCIONES {value,label} (no hay que remapear nada)
+        dates: this.monitorAssignmentDates, // <-- aquí estaba el bug (antes hacía ({ .option }))
+        defaultDate,
+        intervalDates: this.getIntervalDatesForTask(this.taskDetail),
+        hasMultipleIntervals: this.hasMultipleIntervals(),
+        allowAllOption: (this.monitorAssignmentDates?.length ?? 0) > 1,
+        initialScope: this.monitorAssignmentScope as MonitorAssignmentScope,
+        startDate: this.monitorAssignmentStartDate,
+        endDate: this.monitorAssignmentEndDate
       }
+    });
 
-      const data = {
-        sportId: this.taskDetail?.sport_id,
-        minimumDegreeId: this.taskDetail?.degree_id || this.taskDetail?.degree.id,
-        startTime: this.taskDetail?.hour_start,
-        endTime: this.taskDetail?.hour_end,
-        date: this.taskDetail?.date,
-        clientIds: clientIds
-      };
+    return dialogRef.afterClosed();
+  }
 
+  private applyMonitorAssignmentSelection(selection: MonitorAssignmentDialogResult): void {
+    this.monitorAssignmentScope = selection.scope;
+    this.monitorAssignmentStartDate = selection.startDate;
+    this.monitorAssignmentEndDate = selection.endDate;
+  }
 
-      this.matchTeacher(monitor.id).then((res) => {
-        if (res) {
+  private buildMonitorTransferPayload(monitorId: number | null, fallbackSubgroupId: number | null): MonitorTransferPayload {
+    const bookingUsers = this.collectBookingUserIdsForAssignment();
+    let subgroupId = fallbackSubgroupId;
 
-          const dialogRef = this.dialog.open(ConfirmUnmatchMonitorComponent, {
-            data: {
-              booking: this.taskDetail,
-              monitor: monitor,
-              school_id: this.activeSchool
-            }
-          });
-
-          dialogRef.afterClosed().subscribe((result) => {
-            if (result) {
-              this.crudService.post('/admin/monitors/available', data)
-                .subscribe((response) => {
-                  this.monitorsForm = response.data;
-
-                  ret = this.monitorsForm.find((m) => m.id === monitor.id);
-
-                  if (this.moveTask && ret) {
-                    event.stopPropagation();
-
-                    if (this.taskMoved && this.taskMoved.monitor_id != monitor.id) {
-                      let data: any;
-                      let all_booking_users = [];
-                      this.taskMoved.all_clients.forEach((client: any) => {
-                        all_booking_users.push(client.id);
-                      });
-                      data = {
-                        monitor_id: monitor.id,
-                        booking_users: all_booking_users,
-                        subgroup_id: subgroup_id
-                      };
-
-                      this.monitorsService.transferMonitor(data)
-                        .subscribe((data) => {
-                          this.moveTask = false;
-                          this.taskMoved = null;
-                          this.hideDetail();
-                          this.hideGrouped();
-                          this.loadBookings(this.currentDate);
-                          this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-                        },
-                          (error) => {
-                            // Error handling code
-                            this.moveTask = false;
-                            this.taskMoved = null;
-                            console.error('Error occurred:', error);
-                            if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-                              this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-                            }
-                            else {
-                              this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-                            }
-                          })
-
-                    }
-                    else {
-                      this.moveTask = false;
-                      this.taskMoved = null;
-                    }
-                  } else {
-                    let sameSport = false;
-
-                    if (monitor.sports && monitor.sports.length) {
-                      monitor.sports.forEach(element => {
-                        if (element.id === this.taskDetail.sport_id) {
-                          sameSport = true;
-                        }
-                      });
-                    }
-
-                    if (!monitor.id) {
-                      sameSport = true;
-                    }
-
-                    if (this.moveTask && sameSport) {
-                      event.stopPropagation();
-
-                      if (this.taskMoved && this.taskMoved.monitor_id != monitor.id) {
-                        let data: any;
-                        let all_booking_users = [];
-                        this.taskMoved.all_clients.forEach((client: any) => {
-                          all_booking_users.push(client.id);
-                        });
-                        data = {
-                          monitor_id: monitor.id,
-                          booking_users: all_booking_users,
-                          subgroup_id: subgroup_id
-                        };
-
-
-                        this.monitorsService.transferMonitor(data)
-                          .subscribe((data) => {
-
-                            //this.getData();
-                            this.moveTask = false;
-                            this.taskMoved = null;
-                            this.hideDetail();
-                            this.hideGrouped();
-                            this.loadBookings(this.currentDate);
-                            this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-                          },
-                            (error) => {
-                              // Error handling code
-                              this.moveTask = false;
-                              this.taskMoved = null;
-                              console.error('Error occurred:', error);
-                              if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-                                this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-                              }
-                              else {
-                                this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-                              }
-                            })
-
-                      }
-                      else {
-                        this.moveTask = false;
-                        this.taskMoved = null;
-                      }
-                      //
-                    } else {
-                      if (this.moveTask) {
-
-                        this.snackbar.open(this.translateService.instant('match_error_sport') + this.taskDetail.sport.name, 'OK', { duration: 3000 });
-                      }
-                    }
-                  }
-                })
-            }
-          })
-        } else {
-          this.crudService.post('/admin/monitors/available', data)
-            .subscribe((response) => {
-              this.monitorsForm = response.data;
-
-              ret = this.monitorsForm.find((m) => m.id === monitor.id);
-
-              if (this.moveTask && ret) {
-                event.stopPropagation();
-
-                if (this.taskMoved && this.taskMoved.monitor_id != monitor.id) {
-                  let data: any;
-                  let all_booking_users = [];
-                  this.taskMoved.all_clients.forEach((client: any) => {
-                    all_booking_users.push(client.id);
-                  });
-                  data = {
-                    monitor_id: monitor.id,
-                    booking_users: all_booking_users,
-                    subgroup_id: subgroup_id
-                  };
-                  this.monitorsService.transferMonitor(data)
-                    .subscribe((data) => {
-                      this.moveTask = false;
-                      this.taskMoved = null;
-                      this.hideDetail();
-                      this.hideGrouped();
-                      this.loadBookings(this.currentDate);
-                      this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-                    },
-                      (error) => {
-                        // Error handling code
-                        this.moveTask = false;
-                        this.taskMoved = null;
-                        console.error('Error occurred:', error);
-                        if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-                          this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-                        }
-                        else {
-                          this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-                        }
-                      })
-
-                }
-                else {
-                  this.moveTask = false;
-                  this.taskMoved = null;
-                }
-              } else {
-                let sameSport = false;
-
-                if (monitor.sports && monitor.sports.length) {
-                  monitor.sports.forEach(element => {
-                    if (element.id === this.taskDetail.sport_id) {
-                      sameSport = true;
-                    }
-                  });
-                }
-
-                if (!monitor.id) {
-                  sameSport = true;
-                }
-
-                if (this.moveTask && sameSport) {
-                  event.stopPropagation();
-
-                  if (this.taskMoved && this.taskMoved.monitor_id != monitor.id) {
-                    let data: any;
-                    let all_booking_users = [];
-                    this.taskMoved.all_clients.forEach((client: any) => {
-                      all_booking_users.push(client.id);
-                    });
-                    data = {
-                      monitor_id: monitor.id,
-                      booking_users: all_booking_users,
-                      subgroup_id: subgroup_id
-                    };
-
-
-                    this.monitorsService.transferMonitor(data)
-                      .subscribe((data) => {
-
-                        this.moveTask = false;
-                        this.taskMoved = null;
-                        this.hideDetail();
-                        this.hideGrouped();
-                        this.loadBookings(this.currentDate);
-                        this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-                      },
-                        (error) => {
-                          // Error handling code
-                          this.moveTask = false;
-                          this.taskMoved = null;
-                          console.error('Error occurred:', error);
-                          if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-                            this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-                          }
-                          else {
-                            this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-                          }
-                        })
-
-                  }
-                  else {
-                    this.moveTask = false;
-                    this.taskMoved = null;
-                  }
-                  //
-                } else {
-                  if (this.moveTask) {
-
-                    this.snackbar.open(this.translateService.instant('match_error_sport') + this.taskDetail.sport.name, 'OK', { duration: 3000 });
-                  }
-                }
-              }
-            })
-        }
-      })
-
+    if (!bookingUsers.length) {
+      if (this.taskDetail?.course_subgroup_id) {
+        subgroupId = this.taskDetail.course_subgroup_id;
+      } else if (!this.taskDetail?.all_clients?.length && this.taskDetail?.booking_id) {
+        subgroupId = this.taskDetail.booking_id;
+      }
     }
 
+    return {
+      monitor_id: monitorId,
+      booking_users: bookingUsers,
+      subgroup_id: subgroupId
+    };
+  }
 
+  private handleMonitorTransferSuccess(): void {
+    this.moveTask = false;
+    this.taskMoved = null;
+    this.hideDetail();
+    this.hideGrouped();
+    this.loadBookings(this.currentDate);
+    this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+  }
 
-
+  private handleMonitorTransferError(error: any): void {
+    this.moveTask = false;
+    this.taskMoved = null;
+    console.error('Error occurred:', error);
+    const message = error?.error?.message;
+    if (message && message.includes('Overlap detected')) {
+      this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
+    } else {
+      this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
+    }
   }
 
   getDateFormatLong(date: string) {
@@ -1709,11 +1596,11 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   private initializeMonitorAssignment(task: any): void {
-    this.monitorAssignmentDates = this.buildMonitorAssignmentDates(task);
+    this.monitorAssignmentDates = this.collectCourseDateOptionsForTask(task);
     const defaultDate = task?.date || null;
-    this.monitorAssignmentScope = 'single';
-    this.monitorAssignmentStartDate = defaultDate;
-    this.monitorAssignmentEndDate = defaultDate;
+    this.monitorAssignmentScope = 'single'; // por defecto
+    this.monitorAssignmentStartDate = task?.date ? String(task.date).slice(0, 10) : this.monitorAssignmentDates?.[0]?.value ?? null;
+    this.monitorAssignmentEndDate = null;
   }
 
   private resetMonitorAssignmentState(): void {
@@ -1723,17 +1610,49 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorAssignmentDates = [];
   }
 
+  /** Extrae fechas del curso con tolerancia a distintos campos (date, date_full, etc.) */
+  private getDateStrFromAny(item: any): string | null {
+    if (!item) return null;
+    // formato preferente YYYY-MM-DD en 'date'
+    if (typeof item.date === 'string' && item.date.length >= 10) return item.date.slice(0, 10);
+    // a veces viene 'date_full' en ISO con 'Z'
+    if (typeof item.date_full === 'string' && item.date_full.length >= 10) return item.date_full.slice(0, 10);
+    // por si llega como string directo
+    if (typeof item === 'string' && item.length >= 10) return item.slice(0, 10);
+    return null;
+  }
+
   private buildMonitorAssignmentDates(task: any): { value: string, label: string }[] {
     if (!task) {
       return [];
     }
-    const relatedTasks = this.getRelatedTasks(task);
-    const uniqueDates = Array.from(new Set(
-      relatedTasks
-        .map((related: any) => related?.date)
-        .filter((date: string) => !!date)
-    ));
 
+    debugger;
+
+    const dateSet = new Set<string>();
+    const relatedTasks = this.getRelatedTasks(task);
+
+    relatedTasks
+      .map((related: any) => related?.date)
+      .filter((date: string) => !!date)
+      .forEach((date: string) => dateSet.add(date));
+
+    if (task?.date) {
+      dateSet.add(task.date);
+    }
+
+    if (dateSet.size === 0) {
+      this.collectCourseDatesForTask(task).forEach(date => dateSet.add(date));
+      this.collectGroupedTaskDates(task).forEach(date => dateSet.add(date));
+    }
+
+    if (dateSet.size === 0 && task?.booking?.course_dates) {
+      (task.booking.course_dates as any[])
+        .filter(item => item?.date)
+        .forEach(item => dateSet.add(item.date));
+    }
+
+    const uniqueDates = Array.from(dateSet).filter(Boolean);
     uniqueDates.sort((a, b) => a.localeCompare(b));
 
     return uniqueDates.map(date => ({
@@ -1743,9 +1662,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   private getRelatedTasks(task: any): any[] {
-    if (!task) {
-      return [];
-    }
+    if (!task) return [];
 
     const courseId = task.course_id;
     const subgroupId = task.course_subgroup_id;
@@ -1753,18 +1670,17 @@ export class TimelineComponent implements OnInit, OnDestroy {
     const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
 
     return tasksSource.filter(candidate => {
-      if (!candidate) {
-        return false;
-      }
-      if (subgroupId) {
-        return candidate.course_subgroup_id === subgroupId;
-      }
-      if (bookingId && candidate.booking_id) {
-        return candidate.booking_id === bookingId;
-      }
-      if (courseId) {
-        return candidate.course_id === courseId;
-      }
+      if (!candidate) return false;
+
+      // 1) mismo intervalo / subgrupo
+      if (subgroupId && candidate.course_subgroup_id === subgroupId) return true;
+
+      // 2) mismo curso (todas las fechas del curso)
+      if (courseId && candidate.course_id === courseId) return true;
+
+      // 3) misma sesión (fallback)
+      if (bookingId && candidate.booking_id && candidate.booking_id === bookingId) return true;
+
       return false;
     });
   }
@@ -1845,17 +1761,95 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
   }
 
+  private collectCourseDatesFromCourse(task: any): string[] {
+    const set = new Set<string>();
+
+    // 1) curso anidado en la tarea
+    const arr = task?.course?.course_dates ?? [];
+    if (Array.isArray(arr) && arr.length) {
+      arr.forEach((cd: any) => {
+        const d = this.getDateStrFromAny(cd);
+        if (d) set.add(d);
+      });
+    }
+
+    // 2) por seguridad añade la propia fecha de la tarea
+    const selfDate = this.getDateStrFromAny(task);
+    if (selfDate) set.add(selfDate);
+
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  private collectCourseDatesForTask(task: any): string[] {
+    const courseDates = this.collectCourseDatesFromCourse(task);
+    if (courseDates.length > 1) return courseDates; // ya tenemos todas las del curso
+
+    // Fallback: planner por mismo curso (por si en algún caso no vino el array)
+    const set = new Set<string>(courseDates);
+    const courseId = task?.course_id ?? task?.course?.id;
+    if (courseId && Array.isArray(this.plannerTasks)) {
+      this.plannerTasks
+        .filter(t => t?.course_id === courseId && !!t?.date)
+        .forEach(t => set.add(String(t.date).slice(0, 10)));
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  private collectCourseDateOptionsForTask(task: any): Array<{ value: string; label: string }> {
+    const dates = this.collectCourseDatesForTask(task);
+    return dates.map(d => ({ value: d, label: d })); // formatea si quieres a locale
+  }
+
+/*  private collectCourseDateOptionsForTask(task: any): Array<{ value: string; label: string }> {
+    const dateSet = new Set<string>();
+
+    // 1) Fechas desde task.course.course_dates (admin)
+    const courseDates = task?.course?.course_dates ?? [];
+    courseDates.forEach((cd: any) => {
+      if (cd?.date) dateSet.add(cd.date);
+    });
+
+    // 2) Fechas desde booking.course_dates (si viene de una reserva concreta)
+    const bookingDates = task?.booking?.course_dates ?? [];
+    bookingDates.forEach((bd: any) => {
+      if (bd?.date) dateSet.add(bd.date);
+    });
+
+    // 3) Fechas visibles en planner para ese curso (por si no llegaron anidadas)
+    const courseId = task?.course_id ?? task?.course?.id;
+    if (courseId && Array.isArray(this.plannerTasks)) {
+      this.plannerTasks
+        .filter(t => t.course_id === courseId && !!t.date)
+        .forEach(t => dateSet.add(t.date));
+    }
+
+    const uniqueDates = Array.from(dateSet).sort();
+    return uniqueDates.map(d => ({ value: d, label: d })); // Si quieres, formatea el label a locale
+  }*/
+
+  private collectGroupedTaskDates(task: any): string[] {
+    if (task?.course_subgroup_id) {
+      const set = new Set<string>();
+      (this.plannerTasks ?? [])
+        .filter(t => t?.course_subgroup_id === task.course_subgroup_id && !!t?.date)
+        .forEach(t => set.add(String(t.date).slice(0, 10)));
+      const grouped = Array.from(set).sort((a, b) => a.localeCompare(b));
+      if (grouped.length) return grouped;
+    }
+    // sin subgrupo → usa todas las del curso
+    return this.collectCourseDatesForTask(task);
+  }
 
   /**
    * Get all dates that belong to the same interval as the given task
    */
   private getIntervalDatesForTask(task: any): string[] {
     if (!task || !task.course_subgroup_id) {
-      return [];
+      return this.collectCourseDatesForTask(task);
     }
 
     // Find all tasks with the same course_subgroup_id (same interval)
-    const intervalTasks = this.plannerTasks.filter(t => 
+    const intervalTasks = this.plannerTasks.filter(t =>
       t.course_subgroup_id === task.course_subgroup_id
     );
 
@@ -1865,6 +1859,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
         .map(t => t.date)
         .filter(date => !!date)
     )).sort();
+
+    if (dates.length === 0) {
+      return this.collectCourseDatesForTask(task);
+    }
 
     return dates;
   }
@@ -1876,20 +1874,46 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (!this.taskDetail) {
       return false;
     }
-    
+
     // Check if there are multiple unique subgroups for this course
     const courseId = this.taskDetail.course_id;
     if (!courseId) {
       return false;
     }
-    
+
     const subgroups = new Set(
       this.plannerTasks
         .filter(t => t.course_id === courseId && t.course_subgroup_id)
         .map(t => t.course_subgroup_id)
     );
-    
-    return subgroups.size > 1;
+
+    if (subgroups.size > 1) {
+      return true;
+    }
+
+    const course = this.taskDetail.course;
+    if (!course || !Array.isArray(course.course_dates)) {
+      return false;
+    }
+
+    const courseSubgroupIds = new Set<number>();
+    course.course_dates.forEach((courseDate: any) => {
+      if (!Array.isArray(courseDate?.course_groups)) {
+        return;
+      }
+      courseDate.course_groups.forEach((group: any) => {
+        if (!Array.isArray(group?.course_subgroups)) {
+          return;
+        }
+        group.course_subgroups.forEach((subgroup: any) => {
+          if (subgroup?.id) {
+            courseSubgroupIds.add(subgroup.id);
+          }
+        });
+      });
+    });
+
+    return courseSubgroupIds.size > 1;
   }
   private resolveAssignmentDateRange(): { start: moment.Moment, end: moment.Moment } {
     const fallbackDate = this.taskDetail?.date || moment().format('YYYY-MM-DD');

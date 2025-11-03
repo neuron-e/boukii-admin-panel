@@ -36,9 +36,10 @@ import { ConfirmUnmatchMonitorModule } from './confirm-unmatch-monitor/confirm-u
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { IconComponent } from 'src/@vex/components/icon/app.component';
 import { EditDateComponent } from './edit-date/edit-date.component';
+import { MonitorAssignmentDialogComponent } from './monitor-assignment-dialog/monitor-assignment-dialog.component';
 
 @NgModule({
-  declarations: [TimelineComponent, EditDateComponent],
+  declarations: [TimelineComponent, EditDateComponent, MonitorAssignmentDialogComponent],
   imports: [
     CommonModule,
     FormsModule,

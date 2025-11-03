@@ -1,14 +1,12 @@
-import { Component, Input, Output, EventEmitter } from "@angular/core";
-import {FormBuilder, FormGroup, Validators} from '@angular/forms';
-import { MOCK_COURSE_PRIVATE, MOCK_COURSE_COLECTIVE } from "../../mocks/course";
-import { MOCK_USER1, MOCK_USER2 } from "../../mocks/user";
+import { Component, Input, Output, EventEmitter, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 @Component({
   selector: "booking-step-details",
   templateUrl: "./step-details.component.html",
   styleUrls: ["./step-details.component.scss"],
 })
-export class StepDetailsComponent {
+export class StepDetailsComponent implements OnInit, OnChanges {
   @Input() initialData: any;
   @Input() course: any;
   @Input() date: any;
@@ -25,23 +23,47 @@ export class StepDetailsComponent {
   utilizer;
 
   constructor(private fb: FormBuilder) {
-
+    this.stepForm = this.fb.group({
+      course: [null, Validators.required]
+    });
   }
 
   ngOnInit(): void {
-    this.utilizer = this.utilizers?.[0];
-    if(!this.stepForm) {
-      this.stepForm = this.fb.group({
-        course: this.course
-      });
+    this.syncUtilizer();
+    this.syncCourseControl();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['utilizers']) {
+      this.syncUtilizer();
+    }
+
+    if (changes['course']) {
+      this.syncCourseControl();
     }
   }
 
-  get isFormValid() {
-    if(this.stepForm) {
-      return this.stepForm.valid;
+  private syncUtilizer(): void {
+    if (Array.isArray(this.utilizers) && this.utilizers.length > 0) {
+      this.utilizer = this.utilizers[0];
+    } else {
+      this.utilizer = null;
     }
-    return false;
+  }
+
+  private syncCourseControl(): void {
+    if (!this.stepForm) {
+      return;
+    }
+
+    const control = this.stepForm.get('course');
+    control?.setValue(this.course ?? null);
+    control?.markAsPristine();
+    control?.updateValueAndValidity({ emitEvent: false });
+  }
+
+  get isFormValid() {
+    return this.stepForm?.valid ?? false;
   }
 
   handlePrevStep() {

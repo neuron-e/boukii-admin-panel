@@ -1032,9 +1032,10 @@
                   translate}}</mat-card-title>
               </div>
               <div class="monitor-bulk-controls" *ngIf="monitorAssignmentDates.length">
+                {{monitorAssignmentDates.length}} - Nardos
                 <mat-form-field appearance="outline" class="flex-auto">
                   <mat-label>{{'monitor_assignment.scope_label' | translate}}</mat-label>
-                  <mat-select [(ngModel)]="monitorAssignmentScope"
+                  <mat-select [(ngModel)]="monitorAssignmentScope" [panelClass]="'monitor-scope-panel'"
                               (selectionChange)="onMonitorAssignmentScopeChange($event.value)">
                     <mat-option value="single">
                       {{'monitor_assignment.scope.single' | translate}}
@@ -1057,7 +1058,7 @@
                      *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentScope !== 'interval' && monitorAssignmentScope !== 'all' && monitorAssignmentDates.length > 1">
                   <mat-form-field appearance="outline" class="flex-auto">
                     <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
-                    <mat-select [(ngModel)]="monitorAssignmentStartDate"
+                    <mat-select [(ngModel)]="monitorAssignmentStartDate" [panelClass]="'monitor-scope-panel'"
                                 (selectionChange)="onMonitorAssignmentStartChange($event.value)">
                       <mat-option *ngFor="let option of monitorAssignmentDates"
                                   [value]="option.value">
