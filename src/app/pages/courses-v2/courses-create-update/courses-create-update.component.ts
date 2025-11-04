@@ -2427,6 +2427,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
       .get(`/admin/courses/${this.id}`, [
         "courseGroups.degree",
         "courseGroups.courseDates.courseSubgroups.bookingUsers.client",
+        "courseGroups.courseDates.courseSubgroups.monitor",
         "sport",
         "booking_users_active.client",
         "booking_users_active.course_sub_group",
@@ -3581,48 +3582,81 @@ export class CoursesCreateUpdateComponent implements OnInit {
       const fallbackCourseId = courseFormGroup.id ?? this.id ?? null;
 
       courseFormGroup.course_dates.forEach((courseDate: any) => {
-        if (courseDate.course_groups) {
-          const courseDateId =
-            courseDate.id ??
-            courseDate.course_date_id ??
-            null;
+        const courseDateId =
+          courseDate.id ??
+          courseDate.course_date_id ??
+          null;
 
-          // Transform course_groups to groups and course_subgroups to subgroups for backend compatibility
-          courseDate.groups = courseDate.course_groups.map((group: any) => {
-          const transformedGroup = { ...group };
+        if (this.mode === 'create') {
+          // CREATE: se mantiene la conversión a groups/subgroups (compatibilidad antigua)
+          if (Array.isArray(courseDate.course_groups)) {
+            courseDate.groups = courseDate.course_groups.map((group: any) => {
+              const transformedGroup: any = { ...group };
 
-          if (fallbackCourseId != null && transformedGroup.course_id == null) {
-            transformedGroup.course_id = fallbackCourseId;
+              if (fallbackCourseId != null && transformedGroup.course_id == null) {
+                transformedGroup.course_id = fallbackCourseId;
+              }
+              if (courseDateId != null && transformedGroup.course_date_id == null) {
+                transformedGroup.course_date_id = courseDateId;
+              }
+
+              // Transformar course_subgroups -> subgroups
+              if (Array.isArray(group.course_subgroups)) {
+                transformedGroup.subgroups = group.course_subgroups.map((sg: any) => {
+                  const out = { ...sg };
+                  // Normalizar monitor → monitor_id
+                  if (out.monitor && out.monitor.id && !out.monitor_id) {
+                    out.monitor_id = Number(out.monitor.id);
+                  }
+                  delete out.monitor;
+                  return out;
+                });
+                delete transformedGroup.course_subgroups;
+              }
+
+              // Enriquecer con límites de edad desde levelGrop
+              const matchingLevel = courseFormGroup.levelGrop.find((level: any) => level.id === group.degree_id);
+              if (matchingLevel) {
+                transformedGroup.age_min = parseInt(matchingLevel.age_min);
+                transformedGroup.age_max = parseInt(matchingLevel.age_max);
+              }
+
+              return transformedGroup;
+            });
+
+            // Eliminamos la clave antigua sólo en CREATE
+            delete courseDate.course_groups;
           }
-          if (fallbackCourseId != null && group.course_id == null) {
-            group.course_id = fallbackCourseId;
+        } else {
+          // UPDATE: NO RENOMBRAR CLAVES. Mantener course_groups/course_subgroups.
+          if (Array.isArray(courseDate.course_groups)) {
+            courseDate.course_groups = courseDate.course_groups.map((group: any) => {
+              const g: any = { ...group };
+
+              if (fallbackCourseId != null && g.course_id == null) g.course_id = fallbackCourseId;
+              if (courseDateId != null && g.course_date_id == null) g.course_date_id = courseDateId;
+
+              if (Array.isArray(g.course_subgroups)) {
+                g.course_subgroups = g.course_subgroups.map((sg: any) => {
+                  const out: any = { ...sg };
+
+                  if (fallbackCourseId != null && out.course_id == null) out.course_id = fallbackCourseId;
+                  if (courseDateId != null && out.course_date_id == null) out.course_date_id = courseDateId;
+                  if (g.id && out.course_group_id == null) out.course_group_id = g.id;
+
+                  // Normalizar monitor → monitor_id y limpiar objeto monitor
+                  if (out.monitor && out.monitor.id && !out.monitor_id) {
+                    out.monitor_id = Number(out.monitor.id);
+                  }
+                  delete out.monitor;
+
+                  return out;
+                });
+              }
+
+              return g;
+            });
           }
-
-          if (courseDateId != null && transformedGroup.course_date_id == null) {
-            transformedGroup.course_date_id = courseDateId;
-          }
-          if (courseDateId != null && group.course_date_id == null) {
-            group.course_date_id = courseDateId;
-          }
-
-          // Transform course_subgroups to subgroups
-          if (group.course_subgroups && Array.isArray(group.course_subgroups)) {
-            transformedGroup.subgroups = group.course_subgroups;
-            // Remove the old field name
-              delete transformedGroup.course_subgroups;
-            }
-
-            // Buscar en levelGrop el que tenga el mismo degree_id que el id del grupo
-            const matchingLevel = courseFormGroup.levelGrop.find((level: any) => level.id === group.degree_id);
-
-            if (matchingLevel) {
-              // Asignar los valores de age_min y age_max del levelGrop al grupo
-              transformedGroup.age_min = parseInt(matchingLevel.age_min);
-              transformedGroup.age_max = parseInt(matchingLevel.age_max);
-            }
-
-            return transformedGroup;
-          });
         }
       });
     }

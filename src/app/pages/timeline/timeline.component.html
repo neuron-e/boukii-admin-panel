@@ -1032,25 +1032,26 @@
                   translate}}</mat-card-title>
               </div>
               <div class="monitor-bulk-controls" *ngIf="monitorAssignmentDates.length">
-                {{monitorAssignmentDates.length}} - Nardos
                 <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>{{'monitor_assignment.scope_label' | translate}}</mat-label>
-                  <mat-select [(ngModel)]="monitorAssignmentScope" [panelClass]="'monitor-scope-panel'"
-                              (selectionChange)="onMonitorAssignmentScopeChange($event.value)">
+                  <mat-label>{{ 'monitor_assignment.scope_label' | translate }}</mat-label>
+                  <mat-select
+                    [(ngModel)]="monitorAssignmentScope"
+                    (selectionChange)="onMonitorAssignmentScopeChange($event.value)"
+                    [panelClass]="'monitor-assignment-panel'">   <!-- AÑADIDO -->
                     <mat-option value="single">
-                      {{'monitor_assignment.scope.single' | translate}}
+                      {{ 'monitor_assignment.scope.single' | translate }}
                     </mat-option>
                     <mat-option value="interval" *ngIf="hasMultipleIntervals()">
-                      {{'monitor_assignment.scope.interval' | translate}}
+                      {{ 'monitor_assignment.scope.interval' | translate }}
                     </mat-option>
                     <mat-option value="all" *ngIf="monitorAssignmentDates.length > 1">
-                      {{'monitor_assignment.scope.all' | translate}}
+                      {{ 'monitor_assignment.scope.all' | translate }}
                     </mat-option>
                     <mat-option value="from" *ngIf="monitorAssignmentDates.length > 1">
-                      {{'monitor_assignment.scope.from' | translate}}
+                      {{ 'monitor_assignment.scope.from' | translate }}
                     </mat-option>
                     <mat-option value="range" *ngIf="monitorAssignmentDates.length > 1">
-                      {{'monitor_assignment.scope.range' | translate}}
+                      {{ 'monitor_assignment.scope.range' | translate }}
                     </mat-option>
                   </mat-select>
                 </mat-form-field>

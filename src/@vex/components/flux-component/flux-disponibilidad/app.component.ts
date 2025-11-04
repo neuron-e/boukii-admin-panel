@@ -322,6 +322,31 @@ export class FluxDisponibilidadComponent implements OnInit, OnChanges {
     return date.interval_id ?? date.intervalId ?? date.interval?.id ?? date.course_interval_id ?? date.courseIntervalId ?? null;
   }
 
+   resolveSelectedMonitorObject(selectDate: number): any | null {
+    const id = this.getMonitorIdAt(selectDate); // ya existente
+    if (id == null || Number.isNaN(Number(id))) return null;
+
+    const list = Array.isArray(this.monitors) ? this.monitors : [];
+
+    // Busca en las distintas variantes que puedas tener
+    const found =
+      list.find((m: any) => Number(m?.id) === id) ??
+      list.find((m: any) => Number(m?.monitor_id) === id) ??
+      (list.find((m: any) => Number(m?.monitor?.id) === id)?.monitor);
+
+    if (found) return found;
+
+    // Fallback: si no está en la lista aún, construye algo mínimo para mostrar
+    const sg = this.getSubgroupForDate(this.getCourseDates()?.[selectDate]);
+    const full = sg?.monitor || {};
+    return {
+      id,
+      first_name: full.first_name ?? '',
+      last_name:  full.last_name ?? ''
+    };
+  }
+
+
 
   selectUser: any[] = []
   async getAvail(item: any) {
