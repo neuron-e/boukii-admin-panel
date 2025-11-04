@@ -155,15 +155,15 @@
             color="primary">
             <span style="font-weight: 500; color: #495057;">
               {{ (courses.courseFormGroup.controls['intervals_config_mode'].value === 'independent'
-                 ? 'independent_mode_label'
-                 : 'unified_mode_label') | translate }}
+              ? 'independent_mode_label'
+              : 'unified_mode_label') | translate }}
             </span>
           </mat-slide-toggle>
           <p style="font-size: 12px; color: #6c757d; margin-top: 8px; margin-bottom: 0; margin-left: 0;">
             <mat-icon style="font-size: 14px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
             {{ (courses.courseFormGroup.controls['intervals_config_mode'].value === 'independent'
-               ? 'independent_mode_description'
-               : 'unified_mode_description') | translate }}
+            ? 'independent_mode_description'
+            : 'unified_mode_description') | translate }}
           </p>
         </div>
       </div>
@@ -181,7 +181,7 @@
           <div class="row mb-3" style="display: flex; flex-direction: column; gap: 16px;">
             <div class="form-check-container" style="padding: 16px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
               <mat-checkbox [(ngModel)]="mustBeConsecutive" (change)="syncIntervalsToCourseFormGroup()"
-                           style="margin-bottom: 8px;">
+                            style="margin-bottom: 8px;">
                 <span style="font-weight: 500; color: #495057;">
                   {{'dates_must_be_consecutive' | translate }}
                 </span>
@@ -194,7 +194,7 @@
 
             <div class="form-check-container" style="padding: 16px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
               <mat-checkbox [(ngModel)]="mustStartFromFirst" (change)="syncIntervalsToCourseFormGroup()"
-                           style="margin-bottom: 8px;">
+                            style="margin-bottom: 8px;">
                 <span style="font-weight: 500; color: #495057;">
                   {{'must_start_from_first_day' | translate }}
                 </span>
@@ -336,7 +336,7 @@
           <!-- Lista de intervalos -->
           <div *ngFor="let interval of getDisplayIntervals(); let i = index">
             <div *ngIf="useMultipleIntervals"
-              style="width: 100%; background-color: var(--color-grey4); height: 60px; border-top: 1px solid #C7D0D3; padding: 0 24px; align-content: space-evenly; display: flex; justify-content: space-between; align-items: center;">
+                 style="width: 100%; background-color: var(--color-grey4); height: 60px; border-top: 1px solid #C7D0D3; padding: 0 24px; align-content: space-evenly; display: flex; justify-content: space-between; align-items: center;">
               <span>
                 {{('interval' | translate) + ' ' + (i + 1) }}
               </span>
@@ -885,7 +885,101 @@
 						</span>
           </div>
         </div>
-        <div class="level"
+        <div *ngIf="useMultipleIntervals && intervals && intervals.length > 1 && mode==='create'"
+             style="padding: 16px 20px; background: white; border-radius: 8px; margin-top: 16px;">
+          <mat-checkbox [(ngModel)]="configureLevelsByInterval"
+                        (change)="onConfigureLevelsByIntervalChange()"
+                        color="primary">
+            <span style="font-size: 14px; font-weight: 500;">
+              {{'configure_levels_by_interval' | translate}}
+            </span>
+          </mat-checkbox>
+          <p style="font-size: 12px; color: #666; margin: 8px 0 0 32px;">
+            {{'configure_levels_by_interval_description' | translate}}
+          </p>
+        </div>
+
+        <!-- Vista por intervalos (cuando está activado el flag) -->
+        <!-- Ocultar en modo UPDATE: usar vista unificada en su lugar -->
+        <div *ngIf="configureLevelsByInterval && useMultipleIntervals && intervals && intervals.length > 1 && mode==='create'"
+             style="margin-top: 16px;">
+          <mat-accordion>
+            <mat-expansion-panel *ngFor="let interval of intervals; let intervalIdx = index"
+                                 [expanded]="intervalIdx === 0">
+              <mat-expansion-panel-header>
+                <mat-panel-title style="font-weight: 600;">
+                  {{getIntervalLabel(interval, intervalIdx)}}
+                </mat-panel-title>
+                <mat-panel-description>
+                  {{interval.dates?.length || 0}} {{'dates' | translate}}
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+
+              <!-- Botón para copiar configuración de este intervalo a todos -->
+              <div style="margin-bottom: 16px; text-align: right;">
+                <button mat-flat-button color="primary"
+                        (click)="copyIntervalConfigToAll(intervalIdx)">
+                  <mat-icon>content_copy</mat-icon>
+                  {{'copy_to_all_intervals' | translate}}
+                </button>
+              </div>
+
+              <!-- Lista de niveles para este intervalo - EXACTAMENTE IGUAL A LA VISTA SIN INTERVALOS -->
+              <div class="level" style="display: flex;flex-direction: column;padding: 10px; border-radius: 8px; gap: 10px;">
+                <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
+                  <div style="display: flex;gap: 16px;align-items: center;">
+                    <mat-checkbox [style.backgroundColor]="isLevelActiveForInterval(intervalIdx, level)?level.color:level.color+'33'"
+                                  [style.color]="level.color"
+                                  [style.border]="'1px solid '+level.color"
+                                  [checked]="isLevelActiveForInterval(intervalIdx, level)"
+                                  (change)="onIntervalLevelToggle(intervalIdx, level, $event.checked)"
+                                  style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly;">
+                      {{level.annotation}} {{level.level}}
+                    </mat-checkbox>
+                  </div>
+
+                  <div *ngIf="isLevelActiveForInterval(intervalIdx, level)" style="display: flex;gap: 16px;">
+                    <app-form-input [required]="true" [value]="level.age_min" [max]="level.age_max"
+                                    (do)="level.age_min=$event.target.value;" style="width: calc(33.33% - 10px - 16px);"
+                                    name="courses.min_age" type="number" Suffix="years">
+                    </app-form-input>
+                    <app-form-input [required]="true" [value]="level.age_max" [min]="level.age_min"
+                                    (do)="level.age_max=$event.target.value;" name="courses.max_age"
+                                    style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="years">
+                    </app-form-input>
+                    <app-form-input [required]="true" [value]="level.max_participants"
+                                    (do)="level.max_participants=$event.target.value;" name="max_pax"
+                                    style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="paxes">
+                    </app-form-input>
+                    <mat-icon (click)="addIntervalLevelSubgroup(intervalIdx, level)" color="primary" style="color: white;
+                              height: 30px;
+                              min-width: 30px;
+                              border-radius: 15px;
+                              cursor: pointer;
+                              font-size: 30px;
+                              margin: auto 0;
+                              align-content: space-evenly;
+                              background-color: #E91E63;">
+                      add
+                    </mat-icon>
+                  </div>
+
+                  <!-- Subgrupos del nivel en este intervalo -->
+                  <ng-container *ngIf="isLevelActiveForInterval(intervalIdx, level) && getIntervalLevelSubgroups(intervalIdx, level).length > 0">
+                    <div *ngFor="let subgroup of getIntervalLevelSubgroups(intervalIdx, level); index as j"
+                         style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px;">
+                      {{level.annotation}} {{level.level}} {{("00"+(j+1)).slice(-2)}}
+                      <img *ngIf="j > 0" (click)="removeIntervalLevelSubgroup(intervalIdx, level, j)"
+                           src="assets/icons/icon/delete.png" alt class="icon20"
+                           style="cursor: pointer; font-size: 20px;align-content: space-evenly;">
+                    </div>
+                  </ng-container>
+                </ng-container>
+              </div>
+            </mat-expansion-panel>
+          </mat-accordion>
+        </div>
+        <div class="level"  *ngIf="!configureLevelsByInterval"
              style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
           <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i">
             <div style="display: flex;gap: 16px;align-items: center;">
@@ -989,6 +1083,7 @@
           </ng-container>
         </div>
       </ng-container>
+
       <ng-container *ngIf="courses.courseFormGroup.controls['course_type'].value===2">
         <div class="table-container" style="overflow: auto;max-height: 100vh;">
           <table #scrollContainer [dataSource]="getFilteredDurationsForTable()" mat-table class="mat-elevation-z8">

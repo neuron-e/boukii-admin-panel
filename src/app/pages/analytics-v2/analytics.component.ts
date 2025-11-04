@@ -347,8 +347,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       endDate = moment().month(4).endOf('month').format('YYYY-MM-DD');
     } else {
       // Noviembre a Mayo → temporada pasada fue Nov (2 años atrás) - Mayo (año pasado)
-      startDate = moment().subtract(2, 'year').month(10).startOf('month').format('YYYY-MM-DD');
-      endDate = moment().subtract(1, 'year').month(4).endOf('month').format('YYYY-MM-DD');
+      startDate = moment().subtract(1, 'year').month(10).startOf('month').format('YYYY-MM-DD');
+      endDate = moment().month(4).endOf('month').format('YYYY-MM-DD');
     }
 
     this.filterForm = this.fb.group({
