@@ -412,23 +412,33 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private loadSubscriberStats(): void {
-    // Load active clients (those with active bookings)
-    this.crudService.get('/admin/clients/stats').subscribe({
+    // Load subscriber stats from newsletter subscribers endpoint
+    this.crudService.get('/admin/newsletters/subscriber-stats').subscribe({
       next: (response) => {
         const data = response.data || {};
         this.subscriberStats = {
-          active: data.active || 0,
-          inactive: data.inactive || 0,
-          vip: data.vip || 0
+          active: data.active || data.active_count || 0,
+          inactive: data.inactive || data.inactive_count || 0,
+          vip: data.vip || data.vip_count || 0
         };
       },
       error: (error) => {
         console.error('Error loading subscriber stats:', error);
-        this.subscriberStats = {
-          active: 0,
-          inactive: 0,
-          vip: 0
-        };
+        // Fallback: try to calculate from clients endpoint
+        this.crudService.get('/admin/clients').subscribe({
+          next: (clientsResponse) => {
+            const clients = clientsResponse.data?.data || clientsResponse.data || [];
+            // Calculate stats from client list
+            const active = clients.filter((c: any) => c.active || c.accepts_newsletter).length;
+            const inactive = clients.filter((c: any) => !c.active && !c.accepts_newsletter).length;
+            const vip = clients.filter((c: any) => c.vip || c.is_vip).length;
+
+            this.subscriberStats = { active, inactive, vip };
+          },
+          error: () => {
+            this.subscriberStats = { active: 0, inactive: 0, vip: 0 };
+          }
+        });
       }
     });
   }
@@ -966,8 +976,15 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   showCreateTemplate = false;
   showNewsletterPreview = false;
   showTemplatePreview = false;
+  showSubscriberList = false;
   previewContent: any = {};
   templatePreviewContent: any = {};
+
+  // Subscriber list data
+  subscriberListType: string = 'all';
+  subscriberListTitle: string = '';
+  subscribersList: any[] = [];
+  loadingSubscribersList = false;
 
   // Handle message click to mark as read and show details
   onMessageClick(mail: any): void {
@@ -1409,11 +1426,63 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   viewSubscriberGroup(groupType: string): void {
-    this.snackBar.open(
-      this.translateService.instant('communications.viewing_subscriber_group', { group: groupType }),
-      'OK',
-      { duration: 2000 }
-    );
+    this.subscriberListType = groupType;
+    this.loadingSubscribersList = true;
+    this.showSubscriberList = true;
+
+    // Set title based on type
+    const titleKeys: { [key: string]: string } = {
+      'all': 'communications.all_subscribers',
+      'active': 'communications.active_subscribers',
+      'vip': 'communications.vip_subscribers',
+      'inactive': 'communications.inactive_subscribers'
+    };
+    this.subscriberListTitle = this.translateService.instant(titleKeys[groupType] || 'communications.subscribers');
+
+    // Load subscribers based on type
+    const endpoint = `/admin/newsletters/subscribers?type=${groupType}`;
+    this.crudService.get(endpoint).subscribe({
+      next: (response) => {
+        this.subscribersList = response.data?.data || response.data || [];
+        this.loadingSubscribersList = false;
+      },
+      error: (error) => {
+        console.error('Error loading subscriber list:', error);
+        this.loadingSubscribersList = false;
+
+        // Fallback: load from clients endpoint and filter
+        this.crudService.get('/admin/clients').subscribe({
+          next: (clientsResponse) => {
+            let clients = clientsResponse.data?.data || clientsResponse.data || [];
+
+            // Filter based on type
+            if (groupType === 'active') {
+              clients = clients.filter((c: any) => c.active || c.accepts_newsletter);
+            } else if (groupType === 'inactive') {
+              clients = clients.filter((c: any) => !c.active && !c.accepts_newsletter);
+            } else if (groupType === 'vip') {
+              clients = clients.filter((c: any) => c.vip || c.is_vip);
+            }
+            // 'all' returns all clients
+
+            this.subscribersList = clients;
+          },
+          error: () => {
+            this.subscribersList = [];
+            this.snackBar.open(
+              this.translateService.instant('communications.error_loading_subscribers'),
+              'OK',
+              { duration: 3000 }
+            );
+          }
+        });
+      }
+    });
+  }
+
+  closeSubscriberList(): void {
+    this.showSubscriberList = false;
+    this.subscribersList = [];
   }
 
   exportSubscribersList(): void {

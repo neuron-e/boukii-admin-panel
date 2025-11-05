@@ -1185,3 +1185,102 @@
     </div>
   </div>
 </div>
+
+<!-- Subscriber List Modal -->
+<div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center p-4"
+     *ngIf="showSubscriberList"
+     (click)="closeSubscriberList()"
+     style="z-index: 9999;">
+  <div class="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-6 border-b bg-white flex-shrink-0">
+      <h2 class="text-xl font-semibold text-gray-900">{{ subscriberListTitle }}</h2>
+      <div class="flex items-center space-x-3">
+        <span class="text-sm text-gray-600">{{ subscribersList.length }} {{ 'communications.subscribers' | translate }}</span>
+        <button mat-icon-button (click)="closeSubscriberList()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <!-- Loading state -->
+      <div *ngIf="loadingSubscribersList" class="flex items-center justify-center py-12">
+        <mat-spinner diameter="50"></mat-spinner>
+      </div>
+
+      <!-- Subscriber table -->
+      <div *ngIf="!loadingSubscribersList && subscribersList.length > 0" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {{ 'communications.name' | translate }}
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {{ 'communications.email' | translate }}
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {{ 'communications.status' | translate }}
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {{ 'communications.joined_date' | translate }}
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr *ngFor="let subscriber of subscribersList" class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0 h-10 w-10">
+                    <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span class="text-blue-600 font-medium">{{ (subscriber.name || subscriber.first_name || 'U')[0].toUpperCase() }}</span>
+                    </div>
+                  </div>
+                  <div class="ml-4">
+                    <div class="text-sm font-medium text-gray-900">
+                      {{ subscriber.name || (subscriber.first_name + ' ' + subscriber.last_name) || subscriber.email }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-900">{{ subscriber.email }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                      [ngClass]="{
+                        'bg-green-100 text-green-800': subscriber.active || subscriber.accepts_newsletter,
+                        'bg-gray-100 text-gray-800': !subscriber.active && !subscriber.accepts_newsletter,
+                        'bg-purple-100 text-purple-800': subscriber.vip || subscriber.is_vip
+                      }">
+                  <span *ngIf="subscriber.vip || subscriber.is_vip">{{ 'communications.vip' | translate }}</span>
+                  <span *ngIf="!(subscriber.vip || subscriber.is_vip) && (subscriber.active || subscriber.accepts_newsletter)">{{ 'communications.active' | translate }}</span>
+                  <span *ngIf="!(subscriber.vip || subscriber.is_vip) && !subscriber.active && !subscriber.accepts_newsletter">{{ 'communications.inactive' | translate }}</span>
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ subscriber.created_at || subscriber.subscribed_at | date:'short' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty state -->
+      <div *ngIf="!loadingSubscribersList && subscribersList.length === 0" class="text-center py-12">
+        <mat-icon class="text-6xl text-gray-300 mb-4">people_outline</mat-icon>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">{{ 'communications.no_subscribers' | translate }}</h3>
+        <p class="text-gray-600">{{ 'communications.no_subscribers_desc' | translate }}</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex justify-end items-center space-x-3 p-6 border-t bg-gray-50 flex-shrink-0">
+      <button mat-button (click)="closeSubscriberList()">
+        {{ 'communications.close' | translate }}
+      </button>
+    </div>
+  </div>
+</div>
