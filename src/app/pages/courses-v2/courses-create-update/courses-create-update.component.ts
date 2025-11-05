@@ -3870,6 +3870,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private loadDiscountsFromCourse(): void {
+    // Always initialize as an array to prevent ngFor errors
+    this.discountsByDates = [];
+
     if (this.detailData && this.detailData.discounts) {
       try {
         let discounts;
@@ -3879,7 +3882,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
           discounts = this.detailData.discounts;
         }
 
-        if (discounts && discounts.length > 0) {
+        if (discounts && Array.isArray(discounts) && discounts.length > 0) {
           this.enableMultiDateDiscounts = true;
           this.discountsByDates = discounts.map((discount: any) => ({
             dates: discount.date,
