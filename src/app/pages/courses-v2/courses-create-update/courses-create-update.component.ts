@@ -3936,6 +3936,61 @@ export class CoursesCreateUpdateComponent implements OnInit {
     );
   }
 
+  getIntervalDiscounts(intervalIndex: number): any[] {
+    if (!this.intervals || !this.intervals[intervalIndex]) {
+      return [];
+    }
+
+    if (!this.intervals[intervalIndex].discounts) {
+      this.intervals[intervalIndex].discounts = [
+        { dates: 2, type: 'percentage', value: 10 }
+      ];
+    }
+
+    return this.intervals[intervalIndex].discounts;
+  }
+
+  addIntervalDiscount(intervalIndex: number): void {
+    const discounts = this.getIntervalDiscounts(intervalIndex);
+    const lastDiscount = discounts[discounts.length - 1];
+    const newDates = lastDiscount ? lastDiscount.dates + 1 : 2;
+
+    discounts.push({
+      dates: newDates,
+      type: 'percentage',
+      value: 10
+    });
+
+    this.validateIntervalDiscountDates(intervalIndex);
+  }
+
+  removeIntervalDiscount(intervalIndex: number, discountIndex: number): void {
+    const discounts = this.getIntervalDiscounts(intervalIndex);
+    if (discounts.length > 1) {
+      discounts.splice(discountIndex, 1);
+    }
+  }
+
+  validateIntervalDiscountDates(intervalIndex: number): void {
+    const discounts = this.getIntervalDiscounts(intervalIndex);
+
+    // Sort by dates quantity
+    discounts.sort((a, b) => a.dates - b.dates);
+
+    // Remove duplicates
+    const datesSet = new Set();
+    const filtered = discounts.filter(discount => {
+      if (datesSet.has(discount.dates)) {
+        return false;
+      }
+      datesSet.add(discount.dates);
+      return true;
+    });
+
+    // Update the interval discounts array
+    this.intervals[intervalIndex].discounts = filtered;
+  }
+
   // Date generation methods
   toggleWeekday(day: string): void {
     this.weeklyPattern[day] = !this.weeklyPattern[day];

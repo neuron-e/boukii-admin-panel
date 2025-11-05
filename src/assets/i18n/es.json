@@ -1779,6 +1779,7 @@
   "no_hours_recorded": "No hay horas registradas",
   "monitor_no_data_message": "Este monitor no tiene horas registradas en el período seleccionado",
   "interval_specific_discounts": "Descuentos específicos por intervalo",
+  "interval_discounts": "Descuentos del intervalo",
   "interval_specific_discounts_help": "Configura descuentos diferentes para cada intervalo de fechas",
   "configure_by_interval": "Configurar por intervalo",
   "discounts_configured": "descuentos configurados",

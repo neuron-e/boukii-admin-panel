@@ -509,6 +509,80 @@
                 {{'schedule_will_apply_to_dates' | translate}}: {{interval?.dates?.length}} {{'dates' | translate}}
               </div>
             </div>
+
+            <!-- Descuentos del intervalo (solo visible cuando useIntervalSpecificDiscounts está activo) -->
+            <div *ngIf="enableMultiDateDiscounts && useIntervalSpecificDiscounts"
+                 style="margin: 20px; padding: 20px; background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border: 1px solid #ffb74d; border-radius: 8px; box-shadow: 0 2px 4px rgba(255,152,0,0.15);">
+
+              <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                <mat-icon style="color: #f57c00; margin-right: 8px; font-size: 20px;">local_offer</mat-icon>
+                <h4 style="margin: 0; color: #495057; font-size: 16px; font-weight: 600;">
+                  {{ 'interval_discounts' | translate }}
+                </h4>
+              </div>
+
+              <div class="alert alert-info" style="background-color: #fff3e0; border: 1px solid #ffb74d; color: #e65100; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;">
+                <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">info</mat-icon>
+                {{ 'multidate_discount_explanation' | translate }}
+              </div>
+
+              <!-- Lista de descuentos del intervalo -->
+              <div *ngFor="let discount of getIntervalDiscounts(i); let j = index" class="discount-item" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 12px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+                <div style="min-width: 120px;">
+                  <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ 'dates_quantity' | translate }}
+                  </label>
+                  <input type="number"
+                         [(ngModel)]="discount.dates"
+                         [ngModelOptions]="{standalone: true}"
+                         min="2"
+                         max="20"
+                         style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                         (change)="validateIntervalDiscountDates(i)">
+                </div>
+
+                <div style="min-width: 100px;">
+                  <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ 'discount_type' | translate }}
+                  </label>
+                  <select [(ngModel)]="discount.type"
+                          [ngModelOptions]="{standalone: true}"
+                          style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                    <option value="percentage">{{ 'percentage' | translate }}</option>
+                    <option value="fixed">{{ 'fixed_amount' | translate }}</option>
+                  </select>
+                </div>
+
+                <div style="min-width: 120px;">
+                  <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
+                  </label>
+                  <input type="number"
+                         [(ngModel)]="discount.value"
+                         [ngModelOptions]="{standalone: true}"
+                         [min]="discount.type === 'percentage' ? 1 : 0.01"
+                         [max]="discount.type === 'percentage' ? 100 : 9999"
+                         step="0.01"
+                         style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                </div>
+
+                <button type="button"
+                        *ngIf="getIntervalDiscounts(i).length > 1"
+                        (click)="removeIntervalDiscount(i, j)"
+                        style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; min-width: 36px; height: 36px;">
+                  <mat-icon style="font-size: 18px;">delete</mat-icon>
+                </button>
+              </div>
+
+              <!-- Botón para agregar más descuentos al intervalo -->
+              <button type="button"
+                      (click)="addIntervalDiscount(i)"
+                      style="border: 1px solid #f57c00; color: #f57c00; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px; margin-top: 8px;">
+                <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
+                {{ 'add_discount_by_date' | translate }}
+              </button>
+            </div>
+
           </div>
 
           <!-- Bot├│n para a├▒adir nuevo intervalo (solo en modo m├║ltiple) -->
