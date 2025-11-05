@@ -1777,5 +1777,11 @@
   "export_monitor": "Exportar Monitor",
   "loading_monitor_detail": "Cargando detalle del monitor...",
   "no_hours_recorded": "No hay horas registradas",
-  "monitor_no_data_message": "Este monitor no tiene horas registradas en el período seleccionado"
+  "monitor_no_data_message": "Este monitor no tiene horas registradas en el período seleccionado",
+  "interval_specific_discounts": "Descuentos específicos por intervalo",
+  "interval_specific_discounts_help": "Configura descuentos diferentes para cada intervalo de fechas",
+  "configure_by_interval": "Configurar por intervalo",
+  "discounts_configured": "descuentos configurados",
+  "using_global_discounts": "Usando descuentos globales",
+  "interval_discounts_feature_coming_soon": "La configuración de descuentos por intervalo estará disponible próximamente. Por ahora, se aplicarán los descuentos globales a todos los intervalos."
 }

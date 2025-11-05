@@ -3894,6 +3894,29 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
   }
 
+  // Interval-specific discount methods
+  configureIntervalDiscounts(): void {
+    // TODO: Open a modal or panel to configure discounts per interval
+    // For now, we'll show an alert explaining the feature
+    alert(this.translateService.instant('interval_discounts_feature_coming_soon'));
+
+    // Future implementation:
+    // 1. Open a dialog/modal with all intervals listed
+    // 2. For each interval, allow configuring specific discounts
+    // 3. Save discounts in interval.discounts property
+    // 4. Update the form with the new discount configuration
+  }
+
+  hasIntervalSpecificDiscounts(): boolean {
+    if (!this.intervals || this.intervals.length === 0) {
+      return false;
+    }
+
+    return this.intervals.some(interval =>
+      interval.discounts && interval.discounts.length > 0
+    );
+  }
+
   // Date generation methods
   toggleWeekday(day: string): void {
     this.weeklyPattern[day] = !this.weeklyPattern[day];
