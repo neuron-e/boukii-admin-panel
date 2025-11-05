@@ -109,7 +109,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     translate: 'yes',
     enableToolbar: true,
     showToolbar: true,
-    placeholder: 'Escribe aquí el contenido de tu newsletter...',
+    placeholder: this.translateService.instant('newsletter_editor_placeholder'),
     defaultParagraphSeparator: 'p',
     defaultFontName: 'Arial',
     defaultFontSize: '3',
@@ -1101,7 +1101,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     if (message.to) {
       recipients.push({
         type: 'client',
-        name: message.to_name || 'Cliente',
+        name: message.to_name || this.translateService.instant('client'),
         email: message.to
       });
     }
@@ -1111,7 +1111,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       recipients.push({
         type: 'client',
         name: message.client_name,
-        email: message.client_email || 'cliente@email.com'
+        email: message.client_email || this.translateService.instant('client_email_placeholder')
       });
     }
 
@@ -1124,43 +1124,32 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private getCourseParticipants(message: any): any[] {
+    // TODO API: This method should fetch real course participants from the API
+    // Endpoint needed: GET /admin/courses/{course_id}/participants or similar
+    // Should return: { participants: [{ name, email, type }] }
+    // Currently returning hardcoded placeholder data
+
     // Extract course info from message content or subject
     const courseInfo = this.extractCourseInfo(message);
     const participants = [];
 
-    // Generate realistic participants based on actual message content
-    if (courseInfo.isFlexidates) {
-      // Extract actual course details from content
-      const content = message.body || message.message || message.content || '';
+    // TEMPORARY: Using placeholder data until API endpoint is available
+    // This should be replaced with actual API call when backend is ready
+    if (message.course_id) {
+      // Once API is ready, use:
+      // this.crudService.get(`/admin/courses/${message.course_id}/participants`).subscribe(...)
 
-      // Try to extract actual names from the content
-      if (content.includes('Cher(s) client(s)')) {
-        participants.push(
-          { type: 'client', name: 'Clients Flexidates', email: 'flexidates@ess-veveyse.ch' }
-        );
-      }
-
-      // Add course participants based on course type mentioned
-      if (content.includes('Jardin des P\'tits Loups des Dimanches')) {
-        participants.push({ type: 'client', name: 'Familles Jardin P\'tits Loups Dim', email: 'familles.dimanche@ess-veveyse.ch' });
-      }
-      if (content.includes('Jardin des P\'tits Loups des Samedis')) {
-        participants.push({ type: 'client', name: 'Familles Jardin P\'tits Loups Sam', email: 'familles.samedi@ess-veveyse.ch' });
-      }
-      if (content.includes('Flexidates Samedi')) {
-        participants.push({ type: 'client', name: 'Clients Flexidates Samedi', email: 'flexidates.samedi@ess-veveyse.ch' });
-      }
-      if (content.includes('Flexidates Dimanche')) {
-        participants.push({ type: 'client', name: 'Clients Flexidates Dimanche', email: 'flexidates.dimanche@ess-veveyse.ch' });
-      }
-    }
-
-    // For other course-related emails
-    if (courseInfo.isCancellation || courseInfo.isUpdate) {
       participants.push({
         type: 'client',
-        name: 'Clients du cours concerné',
-        email: 'participants.cours@ess-veveyse.ch'
+        name: this.translateService.instant('course_participants'),
+        email: this.translateService.instant('course_participants_email_placeholder')
+      });
+    } else if (courseInfo.isFlexidates || courseInfo.isCancellation || courseInfo.isUpdate) {
+      // Fallback for messages without course_id
+      participants.push({
+        type: 'client',
+        name: this.translateService.instant('course_participants'),
+        email: this.translateService.instant('course_participants_email_placeholder')
       });
     }
 
@@ -1180,17 +1169,17 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private getSystemMessageRecipients(message: any): any[] {
-    // For system messages, return admins/staff who receive notifications
+    // TODO API: This should fetch system admins/notification recipients from API
+    // Endpoint needed: GET /admin/system-recipients or /admin/settings/notification-emails
+    // Should return: { recipients: [{ name, email, role }] }
+    // Currently returning placeholder data
+
+    // TEMPORARY: Using placeholder until API endpoint is available
     return [
       {
         type: 'system',
-        name: 'ESS Veveyse Admin',
-        email: 'admin@ess-veveyse.ch'
-      },
-      {
-        type: 'system',
-        name: 'Support Boukii',
-        email: 'support@boukii.com'
+        name: this.translateService.instant('system_admin'),
+        email: this.translateService.instant('system_admin_email_placeholder')
       }
     ];
   }
@@ -1371,8 +1360,8 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       recipients: newsletter.recipients,
       id: newsletter.id,
       from: newsletter.from || newsletter.sent_by || {
-        name: 'Sistema Boukii',
-        email: 'noreply@boukii.com'
+        name: this.translateService.instant('system_sender_name'),
+        email: this.translateService.instant('system_sender_email')
       }
     };
     this.closeSentNewsletters();
@@ -1606,9 +1595,9 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     if (!content) return '';
     // Replace known variables with sample data for preview only
     return content
-      .replace(/\{\{\s*name\s*\}\}/g, 'María García')
-      .replace(/\{\{\s*email\s*\}\}/g, 'maria@example.com')
-      .replace(/\{\{\s*school_name\s*\}\}/g, 'Boukii Escuela')
+      .replace(/\{\{\s*name\s*\}\}/g, this.translateService.instant('preview_sample_name'))
+      .replace(/\{\{\s*email\s*\}\}/g, this.translateService.instant('preview_sample_email'))
+      .replace(/\{\{\s*school_name\s*\}\}/g, this.translateService.instant('preview_sample_school'))
       .replace(/\{\{\s*date\s*\}\}/g, new Date().toLocaleDateString())
       .replace(/\{\{\s*cta_url\s*\}\}/g, '#');
   }

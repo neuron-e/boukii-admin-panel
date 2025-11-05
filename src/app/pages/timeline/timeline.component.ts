@@ -1324,6 +1324,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   moveMonitor(monitor: any, event: MouseEvent): void {
+    // Stop event propagation immediately if in move mode to prevent interference with preview/modal closing
+    if (this.moveTask) {
+      event.stopPropagation();
+    }
 
     let ret = this.checkMonitorSport(monitor);
     if (this.taskDetail) {
@@ -1764,6 +1768,11 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   onMonitorAssignmentScopeChange(scope: 'single' | 'from' | 'range'): void {
+    // Force 'single' scope for private courses (course_type !== 1)
+    if (this.taskDetail?.course?.course_type !== 1) {
+      scope = 'single';
+    }
+
     this.monitorAssignmentScope = scope;
     const defaultDate = this.taskDetail?.date || null;
 

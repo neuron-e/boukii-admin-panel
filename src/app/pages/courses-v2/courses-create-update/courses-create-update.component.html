@@ -569,7 +569,7 @@
           </div>
         </div>
 
-        <ng-container *ngIf="!useMultipleIntervals && !isSingleIntervalMode && courses.courseFormGroup.controls['course_type'].value !== 1">
+        <ng-container *ngIf="!useMultipleIntervals && !isSingleIntervalMode">
           <!-- Mantener el c├│digo existente para fechas individuales -->
           <div *ngFor="let item of courses.courseFormGroup.controls['course_dates'].value; index as i">
             <div

@@ -283,7 +283,7 @@ interface MonitorKPIs {
       </mat-card>
 
       <!-- ==================== MONITOR DETAIL SECTION ==================== -->
-      <mat-card *ngIf="selectedMonitor && monitorDetailData.length > 0" class="detail-card">
+      <mat-card *ngIf="selectedMonitor" class="detail-card">
         <mat-card-header>
           <div class="detail-header">
             <div class="detail-title-section">
@@ -296,7 +296,7 @@ interface MonitorKPIs {
               </mat-card-subtitle>
             </div>
             <div class="detail-actions">
-              <button mat-raised-button color="primary" (click)="exportMonitorDetail()" class="export-button">
+              <button mat-raised-button color="primary" (click)="exportMonitorDetail()" class="export-button" [disabled]="monitorDetailData.length === 0">
                 <mat-icon>download</mat-icon>
                 {{ 'export_monitor' | translate }}
               </button>
@@ -314,8 +314,15 @@ interface MonitorKPIs {
             <span>{{ 'loading_monitor_detail' | translate }}</span>
           </div>
 
+          <!-- Empty State -->
+          <div *ngIf="!loadingDetail && monitorDetailData.length === 0" class="empty-state">
+            <mat-icon>event_busy</mat-icon>
+            <p>{{ 'no_hours_recorded' | translate }}</p>
+            <small>{{ 'monitor_no_data_message' | translate }}</small>
+          </div>
+
           <!-- Detail Content -->
-          <div *ngIf="!loadingDetail" class="detail-content">
+          <div *ngIf="!loadingDetail && monitorDetailData.length > 0" class="detail-content">
 
             <!-- Detail KPIs -->
             <div class="detail-kpis">
