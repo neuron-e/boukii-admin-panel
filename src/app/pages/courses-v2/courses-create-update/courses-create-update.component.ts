@@ -1714,22 +1714,50 @@ export class CoursesCreateUpdateComponent implements OnInit {
             const intervalsSource = settings.intervals || settings.intervalConfiguration?.intervals;
             if (intervalsSource && Array.isArray(intervalsSource)) {
               this.useMultipleIntervals = settings.useMultipleIntervals || settings.intervalConfiguration?.useMultipleIntervals || false;
-              this.intervals = intervalsSource.map(interval => ({
-                ...interval,
-                // Ensure weeklyPattern exists
-                weeklyPattern: interval.weeklyPattern || {
-                  monday: false,
-                  tuesday: false,
-                  wednesday: false,
-                  thursday: false,
-                  friday: false,
-                  saturday: false,
-                  sunday: false
-                },
-                // Ensure schedule fields exist
-                scheduleStartTime: interval.scheduleStartTime || this.courses.hours?.[0] || '',
-                scheduleDuration: interval.scheduleDuration || this.courses.duration?.[0] || ''
-              }));
+              this.intervals = intervalsSource.map(interval => {
+                // Parse inline_discount if it's a JSON string
+                let discounts = [];
+                if (interval.inline_discount) {
+                  try {
+                    if (typeof interval.inline_discount === 'string') {
+                      const parsed = JSON.parse(interval.inline_discount);
+                      // Convert from backend format (date, discount, type) to frontend format (dates, value, type)
+                      discounts = Array.isArray(parsed) ? parsed.map(d => ({
+                        dates: d.date || d.dates || 2,
+                        value: d.discount || d.value || 10,
+                        type: d.type === 1 ? 'percentage' : (d.type === 2 ? 'fixed' : (d.type || 'percentage'))
+                      })) : [];
+                    } else if (Array.isArray(interval.inline_discount)) {
+                      discounts = interval.inline_discount;
+                    }
+                  } catch (e) {
+                    console.warn('Failed to parse inline_discount:', e);
+                    discounts = [];
+                  }
+                }
+
+                // Create a copy without inline_discount to avoid conflicts
+                const { inline_discount, ...intervalWithoutInlineDiscount } = interval;
+
+                return {
+                  ...intervalWithoutInlineDiscount,
+                  // Ensure weeklyPattern exists
+                  weeklyPattern: interval.weeklyPattern || {
+                    monday: false,
+                    tuesday: false,
+                    wednesday: false,
+                    thursday: false,
+                    friday: false,
+                    saturday: false,
+                    sunday: false
+                  },
+                  // Ensure schedule fields exist
+                  scheduleStartTime: interval.scheduleStartTime || this.courses.hours?.[0] || '',
+                  scheduleDuration: interval.scheduleDuration || this.courses.duration?.[0] || '',
+                  // Add parsed discounts
+                  discounts: discounts.length > 0 ? discounts : [{ dates: 2, type: 'percentage', value: 10 }]
+                };
+              });
             }
           } catch (error) {
             console.error("Error parsing settings:", error);
