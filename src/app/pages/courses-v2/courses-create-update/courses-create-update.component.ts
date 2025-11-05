@@ -1957,7 +1957,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
    */
   getAllUniqueSubgroupsForLevel(level: any): any[] {
     const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
+    console.log('getAllUniqueSubgroupsForLevel - courseDates:', courseDates);
+    console.log('getAllUniqueSubgroupsForLevel - level:', level);
+
     if (!Array.isArray(courseDates) || courseDates.length === 0) {
+      console.log('getAllUniqueSubgroupsForLevel - No courseDates found, returning empty array');
       return [];
     }
 
@@ -1969,6 +1973,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     const levelId = level?.id ?? level?.degree_id;
     const cacheKey = `level_${levelId}`;
+    console.log('getAllUniqueSubgroupsForLevel - levelId:', levelId, 'cacheKey:', cacheKey);
 
     // Verificar caché
     if (this._uniqueSubgroupsCache.has(cacheKey)) {
@@ -2037,6 +2042,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Guardar en caché
     this._uniqueSubgroupsCache.set(cacheKey, uniqueSubgroups);
+
+    console.log('getAllUniqueSubgroupsForLevel - uniqueSubgroups found:', uniqueSubgroups);
+    console.log('getAllUniqueSubgroupsForLevel - maxSubgroupsCount:', maxSubgroupsCount);
 
     return uniqueSubgroups;
   }
@@ -2530,6 +2538,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
         this.enforceIntervalGroupAvailability();
         this.refreshIntervalGroupStateFromSettings();
         this.configureLevelsByInterval = this.isIntervalGroupModeActive;
+
+        console.log('loadCourseData - DEBUG INFO:');
+        console.log('mode:', this.mode);
+        console.log('useMultipleIntervals:', this.useMultipleIntervals);
+        console.log('configureLevelsByInterval:', this.configureLevelsByInterval);
+        console.log('levelGrop:', this.courses.courseFormGroup.controls['levelGrop']?.value);
+        console.log('course_dates:', this.courses.courseFormGroup.controls['course_dates']?.value);
+
         if (this.configureLevelsByInterval) {
           this.invalidateIntervalGroupTemplate();
           this.ensureIntervalGroupsAlignment();
