@@ -5423,10 +5423,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
     }
 
-  private loadDiscountsFromCourse(): void {
-    // Always initialize as an array to prevent ngFor errors
-    this.discountsByDates = [];
-
+    // Fallback to global discounts
     if (this.detailData && this.detailData.discounts) {
       try {
         let discounts;
@@ -5444,7 +5441,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
             value: discount.discount
           }));
         } else {
-          // Si no es un array válido, inicializar como array vacío
           this.discountsByDates = [];
         }
       } catch (error) {
@@ -5453,7 +5449,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
         this.discountsByDates = [];
       }
     } else {
-      // Asegurar que siempre sea un array
       this.discountsByDates = [];
     }
   }

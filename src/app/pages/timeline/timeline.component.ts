@@ -1330,10 +1330,6 @@ export class TimelineComponent implements OnInit, OnDestroy {
       event.stopPropagation();
     }
 
-    let ret = this.checkMonitorSport(monitor);
-    if (this.taskDetail) {
-      const clientIds = this.taskDetail?.all_clients?.map((client) => client.id);
-
     if (this.moveTask && this.taskMoved && this.taskMoved.monitor_id === monitor.id) {
       this.moveTask = false;
       this.taskMoved = null;
@@ -1720,7 +1716,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     });
   }
 
-  onMonitorAssignmentScopeChange(scope: 'single' | 'from' | 'range'): void {
+  onMonitorAssignmentScopeChange(scope: MonitorAssignmentScope): void {
     // Force 'single' scope for private courses (course_type !== 1)
     if (this.taskDetail?.course?.course_type !== 1) {
       scope = 'single';

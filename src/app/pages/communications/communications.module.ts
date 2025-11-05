@@ -34,6 +34,7 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { AngularEditorModule } from '@kolkov/angular-editor';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 @NgModule({
   declarations: [CommunicationsComponent],
@@ -78,7 +79,8 @@ import { AngularEditorModule } from '@kolkov/angular-editor';
     MatSnackBarModule,
     MatTooltipModule,
     TranslateModule,
-    AngularEditorModule
+    AngularEditorModule,
+    MatProgressSpinnerModule
   ]
 })
 export class CommunicationsModule {
