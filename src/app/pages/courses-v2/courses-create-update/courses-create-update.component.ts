@@ -1676,6 +1676,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.refreshIntervalGroupStateFromSettings();
     this.enforceIntervalGroupAvailability();
 
+    // Sanitize intervals to ensure consistency
+    if (this.intervals && Array.isArray(this.intervals)) {
+      this.intervals = this.intervals.map(interval => this.sanitizeInterval(interval));
+    }
+
     this.Confirm(0);
     this.loading = false
    //setTimeout(() => (), 0);
@@ -1771,6 +1776,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
           this.ensureIntervalGroupsAlignment();
           this.scheduleIntervalGroupsSync();
         }
+
+        // CRITICAL: Sanitize all intervals to ensure inline_discount is parsed
+        // This must happen BEFORE Angular starts rendering to avoid NG0900 errors
+        if (this.intervals && Array.isArray(this.intervals)) {
+          this.intervals = this.intervals.map(interval => this.sanitizeInterval(interval));
+        }
+
         this.loading = false
        // setTimeout(() => (this.loading = false), 0);
       });
@@ -3622,28 +3634,32 @@ export class CoursesCreateUpdateComponent implements OnInit {
             if (!intervalMap[intervalId]) {
               const matchingInterval = settings.intervals?.find(i => String(i.id) === intervalId);
 
+              // Sanitize matching interval to parse inline_discount
+              const sanitizedInterval = matchingInterval ? this.sanitizeInterval(matchingInterval) : null;
+
               intervalMap[intervalId] = {
                 id: intervalId,
-                name: date.interval_name || matchingInterval?.name || 'Intervalo',
-                order: matchingInterval?.order || 0,
+                name: date.interval_name || sanitizedInterval?.name || 'Intervalo',
+                order: sanitizedInterval?.order || 0,
                 // PRESERVE configuration properties from settings
-                mustBeConsecutive: matchingInterval?.mustBeConsecutive ?? false,
-                mustStartFromFirst: matchingInterval?.mustStartFromFirst ?? false,
-                reservableStartDate: matchingInterval?.reservableStartDate || '',
-                reservableEndDate: matchingInterval?.reservableEndDate || '',
-                weeklyPattern: matchingInterval?.weeklyPattern || {
+                mustBeConsecutive: sanitizedInterval?.mustBeConsecutive ?? false,
+                mustStartFromFirst: sanitizedInterval?.mustStartFromFirst ?? false,
+                reservableStartDate: sanitizedInterval?.reservableStartDate || '',
+                reservableEndDate: sanitizedInterval?.reservableEndDate || '',
+                weeklyPattern: sanitizedInterval?.weeklyPattern || {
                   monday: false, tuesday: false, wednesday: false, thursday: false,
                   friday: false, saturday: false, sunday: false
                 },
-                scheduleStartTime: matchingInterval?.scheduleStartTime || this.courses.hours?.[0] || '',
-                scheduleDuration: matchingInterval?.scheduleDuration || this.courses.duration?.[0] || '',
-                startDate: matchingInterval?.startDate || '',
-                endDate: matchingInterval?.endDate || '',
-                dateGenerationMethod: matchingInterval?.dateGenerationMethod || 'manual',
-                consecutiveDaysCount: matchingInterval?.consecutiveDaysCount || 2,
-                selectedWeekdays: matchingInterval?.selectedWeekdays || [],
-                limitAvailableDates: matchingInterval?.limitAvailableDates ?? false,
-                maxSelectableDates: matchingInterval?.maxSelectableDates || 10,
+                scheduleStartTime: sanitizedInterval?.scheduleStartTime || this.courses.hours?.[0] || '',
+                scheduleDuration: sanitizedInterval?.scheduleDuration || this.courses.duration?.[0] || '',
+                startDate: sanitizedInterval?.startDate || '',
+                endDate: sanitizedInterval?.endDate || '',
+                dateGenerationMethod: sanitizedInterval?.dateGenerationMethod || 'manual',
+                consecutiveDaysCount: sanitizedInterval?.consecutiveDaysCount || 2,
+                selectedWeekdays: sanitizedInterval?.selectedWeekdays || [],
+                limitAvailableDates: sanitizedInterval?.limitAvailableDates ?? false,
+                maxSelectableDates: sanitizedInterval?.maxSelectableDates || 10,
+                discounts: sanitizedInterval?.discounts || [{ dates: 2, type: 'percentage', value: 10 }],
                 dates: []
               };
             }
@@ -4748,7 +4764,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
       return;
     }
 
-    this.intervals = intervals.map(interval => ({ ...interval }));
+    // Sanitize all intervals to parse inline_discount
+    this.intervals = intervals.map(interval => this.sanitizeInterval(interval));
     this.ensureIntervalGroupsAlignment();
     this.invalidateDisplayIntervalsCache();
     this.syncIntervalsToCourseFormGroup();
