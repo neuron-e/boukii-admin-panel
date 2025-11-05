@@ -992,7 +992,7 @@
 
         <!-- Vista simplificada de grupos y niveles (cuando NO está activado el flag por intervalos) -->
         <!-- Ocultar en modo UPDATE con múltiples intervalos -->
-        <div *ngIf="!configureLevelsByInterval && !(mode==='update' && useMultipleIntervals)"
+        <div *ngIf="(!configureLevelsByInterval || (mode==='update' && !useMultipleIntervals)) && !(mode==='update' && useMultipleIntervals)"
              class="level"
              style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
           <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
