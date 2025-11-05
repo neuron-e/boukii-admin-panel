@@ -1325,9 +1325,14 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   moveMonitor(monitor: any, event: MouseEvent): void {
-    if (!this.taskDetail) {
-      return;
+    // Stop event propagation immediately if in move mode to prevent interference with preview/modal closing
+    if (this.moveTask) {
+      event.stopPropagation();
     }
+
+    let ret = this.checkMonitorSport(monitor);
+    if (this.taskDetail) {
+      const clientIds = this.taskDetail?.all_clients?.map((client) => client.id);
 
     if (this.moveTask && this.taskMoved && this.taskMoved.monitor_id === monitor.id) {
       this.moveTask = false;
@@ -1715,7 +1720,12 @@ export class TimelineComponent implements OnInit, OnDestroy {
     });
   }
 
-  onMonitorAssignmentScopeChange(scope: 'single' | 'interval' | 'all' | 'from' | 'range'): void {
+  onMonitorAssignmentScopeChange(scope: 'single' | 'from' | 'range'): void {
+    // Force 'single' scope for private courses (course_type !== 1)
+    if (this.taskDetail?.course?.course_type !== 1) {
+      scope = 'single';
+    }
+
     this.monitorAssignmentScope = scope;
     const defaultDate = this.taskDetail?.date || null;
 

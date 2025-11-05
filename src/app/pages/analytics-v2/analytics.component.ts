@@ -341,12 +341,17 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     let startDate: string;
     let endDate: string;
 
-    if (currentMonth >= 5 && currentMonth <= 9) {
-      // Junio a Octubre → temporada pasada fue Nov (año anterior) - Mayo (este año)
+    // Temporada va de Noviembre a Mayo del siguiente año
+    if (currentMonth >= 10) {
+      // Noviembre o Diciembre → temporada ACTUAL: Nov (este año) - Mayo (año siguiente)
+      startDate = moment().month(10).startOf('month').format('YYYY-MM-DD');
+      endDate = moment().add(1, 'year').month(4).endOf('month').format('YYYY-MM-DD');
+    } else if (currentMonth <= 4) {
+      // Enero a Mayo → temporada ACTUAL: Nov (año anterior) - Mayo (este año)
       startDate = moment().subtract(1, 'year').month(10).startOf('month').format('YYYY-MM-DD');
       endDate = moment().month(4).endOf('month').format('YYYY-MM-DD');
     } else {
-      // Noviembre a Mayo → temporada pasada fue Nov (2 años atrás) - Mayo (año pasado)
+      // Junio a Octubre → fuera de temporada, mostrar temporada MÁS RECIENTE: Nov (año anterior) - Mayo (este año)
       startDate = moment().subtract(1, 'year').month(10).startOf('month').format('YYYY-MM-DD');
       endDate = moment().month(4).endOf('month').format('YYYY-MM-DD');
     }
