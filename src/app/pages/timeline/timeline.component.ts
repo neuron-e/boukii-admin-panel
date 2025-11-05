@@ -742,7 +742,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           date_start: moment(booking.course.date_start).format('YYYY-MM-DD'),
           created_at: booking.booking.created_at,
           date_end: moment(booking.course.date_end).format('YYYY-MM-DD'),
-          hour_start: booking.hour_start.substring(0, 5),
+          hour_start: booking.hour_start ? booking.hour_start.substring(0, 5) : '00:00',
           hour_end: booking.hour_end ? booking.hour_end.substring(0, 5) : this.hoursRange[this.hoursRange.length - 1],
           type: type,
           name: booking.course.name,
