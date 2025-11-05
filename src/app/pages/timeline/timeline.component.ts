@@ -454,7 +454,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       // Save all monitors
       if (item.monitor) {
         if (!this.areAllChecked()) {
-          hasAtLeastOne = item.monitor.sports.length > 0 && item.monitor.sports.some(sport => this.checkedSports.has(sport.id));
+          hasAtLeastOne = item.monitor.sports && item.monitor.sports.length > 0 && item.monitor.sports.some(sport => sport && sport.id && this.checkedSports.has(sport.id));
         }
 
         if (item.monitor.id && item.monitor.sports && Array.isArray(item.monitor.sports) && item.monitor.sports.length > 0) {
@@ -541,6 +541,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
           let bookingArrayComplete = [];
 
           if (Array.isArray(bookingArray) && bookingArray.length > 0) {
+            // Skip if first item doesn't have required structure
+            if (!bookingArray[0] || !bookingArray[0].course || !bookingArray[0].course.course_type) {
+              continue;
+            }
 
             //Check if private bookings have the the same hours - and group them
             if ((bookingArray[0].course.course_type === 2 || bookingArray[0].course.course_type === 3) && bookingArray.length > 1) {
@@ -562,6 +566,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
             //Do the same but for each separate group
             for (const groupedBookingArray of bookingArrayComplete) {
+              // Skip if doesn't have required structure
+              if (!groupedBookingArray[0] || !groupedBookingArray[0].course || !groupedBookingArray[0].course.sport_id) {
+                continue;
+              }
 
               if (!this.areAllChecked()) {
                 hasAtLeastOneBooking = this.checkedSports.has(groupedBookingArray[0].course.sport_id);
@@ -571,7 +579,16 @@ export class TimelineComponent implements OnInit, OnDestroy {
                   if ((this.filterCollective || groupedBookingArray[0].course.course_type !== 1) &&
                     (this.filterPrivate || groupedBookingArray[0].course.course_type !== 2) &&
                     (this.filterActivity || groupedBookingArray[0].course.course_type === 3)) {
-                    const firstBooking = { ...groupedBookingArray[0], bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
+                    // Assign correct field based on course type
+                    const firstBooking = {
+                      ...groupedBookingArray[0],
+                      bookings_number: groupedBookingArray.length
+                    };
+                    if (groupedBookingArray[0].course.course_type === 2 || groupedBookingArray[0].course.course_type === 3) {
+                      firstBooking.bookings_clients = groupedBookingArray;
+                    } else {
+                      firstBooking.booking_users = groupedBookingArray;
+                    }
                     allBookings.push(firstBooking);
                   }
                 }
@@ -580,7 +597,16 @@ export class TimelineComponent implements OnInit, OnDestroy {
                   if ((this.filterCollective || groupedBookingArray[0].course.course_type !== 1) &&
                     (this.filterPrivate || groupedBookingArray[0].course.course_type !== 2) &&
                     (this.filterActivity || groupedBookingArray[0].course.course_type === 3)) {
-                    const firstBooking = { ...groupedBookingArray[0], bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
+                    // Assign correct field based on course type
+                    const firstBooking = {
+                      ...groupedBookingArray[0],
+                      bookings_number: groupedBookingArray.length
+                    };
+                    if (groupedBookingArray[0].course.course_type === 2 || groupedBookingArray[0].course.course_type === 3) {
+                      firstBooking.bookings_clients = groupedBookingArray;
+                    } else {
+                      firstBooking.booking_users = groupedBookingArray;
+                    }
                     allBookings.push(firstBooking);
                   }
                 }
@@ -604,21 +630,28 @@ export class TimelineComponent implements OnInit, OnDestroy {
     allBookings.forEach(booking => {
       // Private or colective
       let usersToProcess = [];
+      if (!booking.course) {
+        return; // Skip if no course data
+      }
       if (booking.course.course_type === 2 || booking.course.course_type === 3) {
-        usersToProcess = booking.bookings_clients;
+        usersToProcess = booking.bookings_clients || [];
       } else if (booking.course.course_type === 1) {
-        usersToProcess = booking.booking_users;
+        usersToProcess = booking.booking_users || [];
       }
 
-      usersToProcess.forEach(userObj => {
-        const client = (userObj.client || userObj);
-        const clientInfo = { id: client.id, first_name: client.first_name, last_name: client.last_name };
-        const isExistingUser = allBookingUsers.some(user => user.id === clientInfo.id);
+      if (usersToProcess && Array.isArray(usersToProcess)) {
+        usersToProcess.forEach(userObj => {
+          const client = (userObj.client || userObj);
+          if (client && client.id && client.first_name && client.last_name) {
+            const clientInfo = { id: client.id, first_name: client.first_name, last_name: client.last_name };
+            const isExistingUser = allBookingUsers.some(user => user.id === clientInfo.id);
 
-        if (!isExistingUser) {
-          allBookingUsers.push(clientInfo);
-        }
-      });
+            if (!isExistingUser) {
+              allBookingUsers.push(clientInfo);
+            }
+          }
+        });
+      }
     });
 
     //Saved object to filter
@@ -632,14 +665,19 @@ export class TimelineComponent implements OnInit, OnDestroy {
     //filter the bookings if bookinguser
     if (this.filterBookingUser && this.filterBookingUser.id) {
       const filteredBookings = allBookings.filter(booking => {
+        if (!booking.course) {
+          return false; // Skip if no course data
+        }
         let usersToCheck = [];
         if (booking.course.course_type === 2 || booking.course.course_type === 3) {
-          usersToCheck = booking.bookings_clients.map(clientObj => clientObj.client);
+          const clients = booking.bookings_clients || [];
+          usersToCheck = clients.map(clientObj => clientObj.client || clientObj).filter(c => c);
         } else if (booking.course.course_type === 1) {
-          usersToCheck = booking.booking_users.map(clientObj => clientObj.client);
+          const users = booking.booking_users || [];
+          usersToCheck = users.map(clientObj => clientObj.client || clientObj).filter(c => c);
         }
 
-        return usersToCheck.some(user => user.id === this.filterBookingUser.id);
+        return usersToCheck.some(user => user && user.id === this.filterBookingUser.id);
       });
 
       allBookings = filteredBookings;
@@ -650,7 +688,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     allBookings.forEach(booking => {
       if (!booking.booking) {
         // Construct the booking object
-        const courseDate = booking.course.course_dates.find(date => date.id === booking.course_date_id);
+        const courseDate = booking.course?.course_dates?.find(date => date.id === booking.course_date_id);
 
         booking.booking = {
           id: booking.id
@@ -658,14 +696,24 @@ export class TimelineComponent implements OnInit, OnDestroy {
         booking.date = courseDate ? courseDate.date : null;
         booking.hour_start = courseDate ? courseDate.hour_start : null;
         booking.hour_end = courseDate ? courseDate.hour_end : null;
-        booking.bookings_number = booking.booking_users?.length;
-        booking.bookings_clients = booking.booking_users;
+
+        // Assign correct fields based on course type
+        if (booking.course?.course_type === 2 || booking.course?.course_type === 3) {
+          // For private/activity courses
+          booking.bookings_number = booking.bookings_clients?.length || 0;
+        } else {
+          // For collective courses
+          booking.bookings_number = booking.booking_users?.length || 0;
+          if (!booking.bookings_clients && booking.booking_users) {
+            booking.bookings_clients = booking.booking_users;
+          }
+        }
       }
     });
 
     let tasksCalendar: any = [
       //BOOKINGS
-      ...allBookings.map(booking => {
+      ...allBookings.filter(booking => booking && booking.course).map(booking => {
         let type;
         switch (booking.course.course_type) {
           case 1:
@@ -682,8 +730,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
         }
 
         const dateTotalAndIndex = (booking.course.course_type === 2 || booking.course.course_type === 3) ? { date_total: 0, date_index: 0 } : {
-          date_total: booking.course.course_dates.length,
-          date_index: this.getPositionDate(booking.course.course_dates, booking.course_date_id)
+          date_total: booking.course.course_dates?.length || 0,
+          date_index: booking.course.course_dates ? this.getPositionDate(booking.course.course_dates, booking.course_date_id) : 0
         };
 
         //Get Sport and Degree objects
@@ -740,7 +788,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           group_id: booking?.group_id,
           date_full: booking.date,
           date_start: moment(booking.course.date_start).format('YYYY-MM-DD'),
-          created_at: booking.booking.created_at,
+          created_at: booking?.booking?.created_at || null,
           date_end: moment(booking.course.date_end).format('YYYY-MM-DD'),
           hour_start: booking.hour_start ? booking.hour_start.substring(0, 5) : '00:00',
           hour_end: booking.hour_end ? booking.hour_end.substring(0, 5) : this.hoursRange[this.hoursRange.length - 1],
@@ -752,7 +800,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           degree: degree,
           degrees_sport: degrees_sport,
           clients_number: booking.bookings_number,
-          all_clients: booking.bookings_clients,
+          all_clients: (type === 'collective') ? (booking.booking_users || []) : (booking.bookings_clients || []),
           max_participants: booking.course.max_participants,
           monitor_id: booking.monitor_id,
           monitor: monitor,
