@@ -1715,34 +1715,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
             if (intervalsSource && Array.isArray(intervalsSource)) {
               this.useMultipleIntervals = settings.useMultipleIntervals || settings.intervalConfiguration?.useMultipleIntervals || false;
               this.intervals = intervalsSource.map(interval => {
-                // Parse inline_discount if it's a JSON string
-                let discounts = [];
-                if (interval.inline_discount) {
-                  try {
-                    if (typeof interval.inline_discount === 'string') {
-                      const parsed = JSON.parse(interval.inline_discount);
-                      // Convert from backend format (date, discount, type) to frontend format (dates, value, type)
-                      discounts = Array.isArray(parsed) ? parsed.map(d => ({
-                        dates: d.date || d.dates || 2,
-                        value: d.discount || d.value || 10,
-                        type: d.type === 1 ? 'percentage' : (d.type === 2 ? 'fixed' : (d.type || 'percentage'))
-                      })) : [];
-                    } else if (Array.isArray(interval.inline_discount)) {
-                      discounts = interval.inline_discount;
-                    }
-                  } catch (e) {
-                    console.warn('Failed to parse inline_discount:', e);
-                    discounts = [];
-                  }
-                }
-
-                // Create a copy without inline_discount to avoid conflicts
-                const { inline_discount, ...intervalWithoutInlineDiscount } = interval;
+                // Sanitize interval: parse inline_discount and remove it
+                const sanitized = this.sanitizeInterval(interval);
 
                 return {
-                  ...intervalWithoutInlineDiscount,
+                  ...sanitized,
                   // Ensure weeklyPattern exists
-                  weeklyPattern: interval.weeklyPattern || {
+                  weeklyPattern: sanitized.weeklyPattern || {
                     monday: false,
                     tuesday: false,
                     wednesday: false,
@@ -1752,10 +1731,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
                     sunday: false
                   },
                   // Ensure schedule fields exist
-                  scheduleStartTime: interval.scheduleStartTime || this.courses.hours?.[0] || '',
-                  scheduleDuration: interval.scheduleDuration || this.courses.duration?.[0] || '',
-                  // Add parsed discounts
-                  discounts: discounts.length > 0 ? discounts : [{ dates: 2, type: 'percentage', value: 10 }]
+                  scheduleStartTime: sanitized.scheduleStartTime || this.courses.hours?.[0] || '',
+                  scheduleDuration: sanitized.scheduleDuration || this.courses.duration?.[0] || ''
                 };
               });
             }
@@ -3023,6 +3000,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
       console.error('Error parsing existing settings:', error);
     }
 
+    // Serialize intervals for backend (convert discounts to inline_discount)
+    const serializedIntervals = this.intervals.map(interval => this.serializeIntervalForBackend(interval));
+
     const updatedSettings = {
       ...currentSettings,
       useMultipleIntervals: this.useMultipleIntervals,
@@ -3030,9 +3010,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
       mustBeConsecutive: this.mustBeConsecutive,
       mustStartFromFirst: this.mustStartFromFirst,
       intervals_config_mode: this.courses.courseFormGroup.get('intervals_config_mode')?.value || 'unified',
-      intervals: this.intervals,
+      intervals: serializedIntervals,
       intervalConfiguration: {
-        intervals: this.intervals,
+        intervals: serializedIntervals,
         useMultipleIntervals: this.useMultipleIntervals
       },
       intervalGroups: this.serializeIntervalGroupsAsArray(),
@@ -3931,10 +3911,16 @@ export class CoursesCreateUpdateComponent implements OnInit {
     if (this.useIntervalSpecificDiscounts) {
       // Initialize discounts array for each interval if not present
       if (this.intervals && this.intervals.length > 0) {
-        this.intervals.forEach(interval => {
-          if (!interval.discounts) {
-            interval.discounts = [];
+        this.intervals = this.intervals.map(interval => {
+          // Sanitize interval to parse inline_discount if present
+          const sanitized = this.sanitizeInterval(interval);
+
+          // Ensure discounts array exists
+          if (!sanitized.discounts || sanitized.discounts.length === 0) {
+            sanitized.discounts = [{ dates: 2, type: 'percentage', value: 10 }];
           }
+
+          return sanitized;
         });
       }
     }
@@ -3969,7 +3955,15 @@ export class CoursesCreateUpdateComponent implements OnInit {
       return [];
     }
 
-    if (!this.intervals[intervalIndex].discounts) {
+    const interval = this.intervals[intervalIndex];
+
+    // If interval has inline_discount but no discounts array, sanitize it
+    if (interval.inline_discount && (!interval.discounts || interval.discounts.length === 0)) {
+      this.intervals[intervalIndex] = this.sanitizeInterval(interval);
+    }
+
+    // Ensure discounts array exists
+    if (!this.intervals[intervalIndex].discounts || this.intervals[intervalIndex].discounts.length === 0) {
       this.intervals[intervalIndex].discounts = [
         { dates: 2, type: 'percentage', value: 10 }
       ];
@@ -4529,6 +4523,100 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.individualScheduleDuration = duration;
   }
 
+  /**
+   * Helper function to parse inline_discount from backend format to frontend format
+   * @param interval The interval object that may contain inline_discount
+   * @returns Parsed discounts array, or default discount if none exist
+   */
+  private parseIntervalDiscounts(interval: any): any[] {
+    if (!interval) {
+      return [{ dates: 2, type: 'percentage', value: 10 }];
+    }
+
+    // If discounts already exist as an array, use them
+    if (Array.isArray(interval.discounts) && interval.discounts.length > 0) {
+      return interval.discounts;
+    }
+
+    // Try to parse inline_discount
+    if (interval.inline_discount) {
+      try {
+        let parsed: any;
+        if (typeof interval.inline_discount === 'string') {
+          parsed = JSON.parse(interval.inline_discount);
+        } else if (Array.isArray(interval.inline_discount)) {
+          parsed = interval.inline_discount;
+        } else {
+          return [{ dates: 2, type: 'percentage', value: 10 }];
+        }
+
+        // Convert from backend format to frontend format
+        if (Array.isArray(parsed)) {
+          return parsed.map(d => ({
+            dates: d.date || d.dates || 2,
+            value: d.discount || d.value || 10,
+            type: d.type === 1 ? 'percentage' : (d.type === 2 ? 'fixed' : (d.type || 'percentage'))
+          }));
+        }
+      } catch (e) {
+        console.warn('Failed to parse inline_discount:', e);
+      }
+    }
+
+    // Return default discount
+    return [{ dates: 2, type: 'percentage', value: 10 }];
+  }
+
+  /**
+   * Sanitize interval by removing inline_discount and ensuring discounts array exists
+   * @param interval The interval to sanitize
+   * @returns Sanitized interval with discounts array
+   */
+  private sanitizeInterval(interval: any): any {
+    if (!interval) {
+      return interval;
+    }
+
+    // Parse and remove inline_discount
+    const discounts = this.parseIntervalDiscounts(interval);
+    const { inline_discount, ...sanitized } = interval;
+
+    return {
+      ...sanitized,
+      discounts
+    };
+  }
+
+  /**
+   * Serialize interval for backend storage, converting discounts array to inline_discount JSON
+   * @param interval The interval to serialize
+   * @returns Interval with inline_discount field in backend format
+   */
+  private serializeIntervalForBackend(interval: any): any {
+    if (!interval) {
+      return interval;
+    }
+
+    // Convert discounts to inline_discount format for backend
+    let inline_discount = null;
+    if (interval.discounts && Array.isArray(interval.discounts) && interval.discounts.length > 0) {
+      const backendFormat = interval.discounts.map(d => ({
+        date: d.dates || 2,
+        discount: d.value || 10,
+        type: d.type === 'percentage' ? 1 : 2
+      }));
+      inline_discount = JSON.stringify(backendFormat);
+    }
+
+    // Remove discounts field and add inline_discount
+    const { discounts, ...withoutDiscounts } = interval;
+
+    return {
+      ...withoutDiscounts,
+      ...(inline_discount && { inline_discount })
+    };
+  }
+
   private buildIntervalTemplate(): any {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -4558,7 +4646,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
         sunday: false
       },
       scheduleStartTime: this.courses.hours?.[0] || '',
-      scheduleDuration: this.courses.duration?.[0] || ''
+      scheduleDuration: this.courses.duration?.[0] || '',
+      discounts: [{ dates: 2, type: 'percentage', value: 10 }]
     };
   }
 
