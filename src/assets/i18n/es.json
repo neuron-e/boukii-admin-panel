@@ -1783,5 +1783,8 @@
   "configure_by_interval": "Configurar por intervalo",
   "discounts_configured": "descuentos configurados",
   "using_global_discounts": "Usando descuentos globales",
-  "interval_discounts_feature_coming_soon": "La configuración de descuentos por intervalo estará disponible próximamente. Por ahora, se aplicarán los descuentos globales a todos los intervalos."
+  "interval_discounts_feature_coming_soon": "La configuración de descuentos por intervalo estará disponible próximamente. Por ahora, se aplicarán los descuentos globales a todos los intervalos.",
+  "use_interval_specific_discounts": "Usar descuentos específicos por intervalo",
+  "no_discounts_configured": "No hay descuentos configurados",
+  "configuring_discounts_for": "Configurando descuentos para"
 }

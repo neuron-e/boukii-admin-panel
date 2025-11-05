@@ -162,6 +162,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
   // Discount system properties
   enableMultiDateDiscounts = false;
   discountsByDates: any[] = [];
+  useIntervalSpecificDiscounts = false;
 
   // Flag to prevent sync during bulk schedule application
   private _applyingBulkSchedule = false;
@@ -3895,14 +3896,29 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   // Interval-specific discount methods
-  configureIntervalDiscounts(): void {
-    // TODO: Open a modal or panel to configure discounts per interval
+  onIntervalSpecificDiscountsChange(): void {
+    if (this.useIntervalSpecificDiscounts) {
+      // Initialize discounts array for each interval if not present
+      if (this.intervals && this.intervals.length > 0) {
+        this.intervals.forEach(interval => {
+          if (!interval.discounts) {
+            interval.discounts = [];
+          }
+        });
+      }
+    }
+  }
+
+  configureIntervalDiscount(intervalIndex: number): void {
+    // TODO: Open a modal or panel to configure discounts for specific interval
     // For now, we'll show an alert explaining the feature
-    alert(this.translateService.instant('interval_discounts_feature_coming_soon'));
+    const interval = this.intervals[intervalIndex];
+    const message = `${this.translateService.instant('configuring_discounts_for')} ${this.translateService.instant('interval')} ${intervalIndex + 1}\n\n${this.translateService.instant('interval_discounts_feature_coming_soon')}`;
+    alert(message);
 
     // Future implementation:
-    // 1. Open a dialog/modal with all intervals listed
-    // 2. For each interval, allow configuring specific discounts
+    // 1. Open a dialog/modal for the specific interval
+    // 2. Allow configuring multiple discounts for this interval
     // 3. Save discounts in interval.discounts property
     // 4. Update the form with the new discount configuration
   }
