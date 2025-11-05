@@ -229,8 +229,6 @@
   "communications.active": "Activo",
   "communications.inactive": "Inactivo",
   "communications.vip": "VIP",
-  "communications.close": "Cerrar",
-  "communications.use": "Usar",
   "client": "Cliente",
   "client_email_placeholder": "cliente@email.com",
   "course_participants": "Participantes del curso",
