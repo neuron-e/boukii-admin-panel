@@ -183,54 +183,137 @@ export class FluxDisponibilidadComponent implements OnInit {
   booking_users: any
 
   /**
-   * Obtiene los usuarios que pertenecen al subgrupo actual, filtrando por:
+   * Obtiene los usuarios que pertenecen al subgrupo actual Y que tienen reservas en las fechas visibles
+   * Filtra por:
    * - level.id (degree_id)
    * - subgroup_index (el subgrupo específico de este componente)
    * - interval_id si está configurado
+   * - Que el usuario tenga reserva en alguna de las fechas visibles
    */
   getFilteredBookingUsers(): any[] {
     const allBookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
     const levelId = this.level?.id;
 
+    console.log('🔍 [getFilteredBookingUsers] START', {
+      totalUsers: allBookingUsers.length,
+      levelId,
+      interval_id: this.interval_id,
+      subgroup_index: this.subgroup_index
+    });
+
     if (!levelId) {
+      console.log('❌ No levelId, returning empty');
       return [];
     }
 
-    // Obtener los IDs de subgrupos válidos para ESTE subgroup_index específico en las fechas visibles
-    const validSubgroupIds = new Set<number>();
-    const courseDates = this.getDatesForSubgroup(); // Ya filtradas por interval_id
+    // Obtener las fechas visibles (ya filtradas por interval_id y subgroup_index)
+    const visibleDates = this.getDatesForSubgroup();
 
-    courseDates.forEach(({ date }) => {
+    console.log('📅 Visible dates:', visibleDates.map(({date, index}) => ({
+      index,
+      date_id: date.id,
+      date: date.date,
+      booking_users_active_count: this.toArray(date?.booking_users_active).length
+    })));
+
+    if (visibleDates.length === 0) {
+      console.log('❌ No visible dates, returning empty');
+      return [];
+    }
+
+    // Obtener los IDs de subgrupos válidos para estas fechas
+    const validSubgroupIds = new Set<number>();
+    const validDateIds = new Set<number>();
+
+    visibleDates.forEach(({ date }) => {
       const subgroup = this.getSubgroupForDate(date);
       if (subgroup?.id != null) {
         validSubgroupIds.add(subgroup.id);
       }
+      if (date?.id != null) {
+        validDateIds.add(date.id);
+      }
+    });
+
+    console.log('✅ Valid IDs:', {
+      validSubgroupIds: Array.from(validSubgroupIds),
+      validDateIds: Array.from(validDateIds)
     });
 
     // Si no hay subgrupos válidos, no hay usuarios
     if (validSubgroupIds.size === 0) {
+      console.log('❌ No valid subgroups, returning empty');
       return [];
     }
 
-    // Filtrar usuarios por degree_id y subgroup_id
+    // Filtrar usuarios que:
+    // 1. Pertenecen al nivel correcto
+    // 2. Pertenecen al subgrupo correcto
+    // 3. Tienen reserva en AL MENOS UNA de las fechas visibles
     const filteredUsers = allBookingUsers.filter((user: any) => {
+      const userName = `${user.client?.first_name || ''} ${user.client?.last_name || ''}`.trim();
+
       // Filtrar por nivel
       if (user.degree_id !== levelId) {
+        console.log(`❌ ${userName}: Wrong level (${user.degree_id} !== ${levelId})`);
         return false;
       }
 
-      // Filtrar por subgrupo - debe pertenecer a uno de los subgrupos válidos de ESTE componente
+      // Filtrar por subgrupo
       const userSubgroupId = this.getUserSubgroupId(user);
+      console.log(`🔍 ${userName}: subgroup_id=${userSubgroupId}, course_date_id=${this.getUserCourseDateId(user)}`);
+
       if (!userSubgroupId || !validSubgroupIds.has(userSubgroupId)) {
+        console.log(`❌ ${userName}: Wrong subgroup (${userSubgroupId} not in ${Array.from(validSubgroupIds)})`);
         return false;
       }
 
-      return true;
+      const currentUserClientId = user.client_id || user.client?.id;
+      if (!currentUserClientId) {
+        console.log(`❌ ${userName}: No client ID`);
+        return false;
+      }
+
+      // Verificar que el usuario tenga reserva en AL MENOS UNA de las fechas visibles
+      const userCourseDateId = this.getUserCourseDateId(user);
+
+      // Si tiene course_date_id, debe estar en las fechas visibles
+      if (userCourseDateId) {
+        const inValidDates = validDateIds.has(userCourseDateId);
+        console.log(`🔍 ${userName}: Has course_date_id=${userCourseDateId}, in validDateIds? ${inValidDates}`);
+        if (!inValidDates) {
+          console.log(`❌ ${userName}: course_date_id not in valid dates`);
+          return false; // Está en una fecha diferente, no mostrar
+        }
+        console.log(`✅ ${userName}: PASS (course_date_id match)`);
+        return true; // Está en una fecha visible
+      }
+
+      // Si NO tiene course_date_id, buscar en booking_users_active de las fechas visibles
+      console.log(`🔍 ${userName}: No course_date_id, checking booking_users_active...`);
+      const hasReservationInVisibleDates = visibleDates.some(({ date }) => {
+        const bookingUsersActive = this.toArray(date?.booking_users_active);
+        return bookingUsersActive.some((activeUser: any) => {
+          const activeUserClientId = activeUser.client_id || activeUser.client?.id;
+          const activeUserSubgroupId = this.getUserSubgroupId(activeUser);
+          const activeUserDateId = this.getUserCourseDateId(activeUser);
+
+          // Verificar que sea el mismo cliente, mismo subgrupo, y misma fecha
+          return activeUserClientId === currentUserClientId &&
+                 validSubgroupIds.has(activeUserSubgroupId) &&
+                 (!activeUserDateId || validDateIds.has(activeUserDateId));
+        });
+      });
+
+      console.log(`${hasReservationInVisibleDates ? '✅' : '❌'} ${userName}: ${hasReservationInVisibleDates ? 'PASS' : 'FAIL'} (booking_users_active check)`);
+      return hasReservationInVisibleDates;
     });
 
-    // Eliminar duplicados por client_id (un usuario puede aparecer en varias fechas pero solo lo mostramos una vez)
+    console.log('📊 Filtered users before deduplication:', filteredUsers.length);
+
+    // Eliminar duplicados por client_id
     const seen = new Set<number>();
-    return filteredUsers.filter((user: any) => {
+    const result = filteredUsers.filter((user: any) => {
       const clientId = user.client_id || user.client?.id;
       if (!clientId || seen.has(clientId)) {
         return false;
@@ -238,6 +321,13 @@ export class FluxDisponibilidadComponent implements OnInit {
       seen.add(clientId);
       return true;
     });
+
+    console.log('✅ [getFilteredBookingUsers] FINAL:', {
+      count: result.length,
+      users: result.map(u => `${u.client?.first_name} ${u.client?.last_name}`)
+    });
+
+    return result;
   }
 
   onAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range'): void {
@@ -336,6 +426,10 @@ export class FluxDisponibilidadComponent implements OnInit {
 
     const courseDates = this.getCourseDates();
     const result: Array<{ date: any, index: number }> = [];
+
+    console.log('🔍 [getDatesForSubgroup] this.interval_id =', this.interval_id);
+    console.log('🔍 [getDatesForSubgroup] this.subgroup_index =', this.subgroup_index);
+
     courseDates.forEach((date, index) => {
       const subgroup = this.getSubgroupForDate(date);
       if (!subgroup) {
@@ -350,18 +444,24 @@ export class FluxDisponibilidadComponent implements OnInit {
       // Filter by interval_id if provided
       if (this.interval_id != null) {
         const currentIntervalId = this.resolveIntervalId(date);
+        console.log(`  📅 Date ${index} (id=${date.id}): interval_id=${currentIntervalId}, target=${this.interval_id}, match=${String(currentIntervalId ?? '') === String(this.interval_id)}`);
+
         if (this.interval_id === '__null__') {
           if (currentIntervalId != null) {
+            console.log(`    ❌ Skipping (has interval when expecting null)`);
             return;
           }
         } else if (String(currentIntervalId ?? '') !== String(this.interval_id)) {
+          console.log(`    ❌ Skipping (wrong interval)`);
           return;
         }
+        console.log(`    ✅ Including`);
       }
 
       result.push({ date, index });
     });
 
+    console.log('✅ [getDatesForSubgroup] Final result:', result.length, 'dates');
     this._cachedDatesForSubgroup = result;
     return result;
   }

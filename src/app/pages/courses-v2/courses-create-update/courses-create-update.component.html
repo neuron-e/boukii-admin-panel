@@ -547,21 +547,37 @@
                 <!-- Subgrupos del nivel -->
                 <ng-container *ngIf="getAllUniqueSubgroupsForLevel(level).length > 0">
                   <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
+                    <!-- Header del subgrupo -->
                     <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
                       {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
                     </div>
 
-                    <!-- Componente de disponibilidad por subgrupo mostrando todas las fechas -->
-                    <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
-                      <vex-flux-disponibilidad
-                        [courseFormGroup]="courses.courseFormGroup"
-                        [level]="level"
-                        [group]="getGroupForLevel(level)"
-                        [subgroup_index]="uniqueSubgroup._index"
-                        (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
-                        (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
-                      </vex-flux-disponibilidad>
-                    </div>
+                    <!-- Tabs de intervalos (solo si hay múltiples intervalos) -->
+                    <mat-tab-group *ngIf="intervals && intervals.length > 1" style="margin-bottom: 20px;">
+                      <mat-tab *ngFor="let interval of intervals; let intervalIdx = index; trackBy: trackInterval"
+                               [label]="'Intervalo ' + (intervalIdx + 1)">
+                        <vex-flux-disponibilidad
+                          [courseFormGroup]="courses.courseFormGroup"
+                          [level]="level"
+                          [group]="getGroupForLevel(level)"
+                          [subgroup_index]="uniqueSubgroup._index"
+                          [intervalIndex]="intervalIdx"
+                          (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
+                          (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                        </vex-flux-disponibilidad>
+                      </mat-tab>
+                    </mat-tab-group>
+
+                    <!-- Si solo hay un intervalo o ninguno, mostrar directo -->
+                    <vex-flux-disponibilidad
+                      *ngIf="!intervals || intervals.length <= 1"
+                      [courseFormGroup]="courses.courseFormGroup"
+                      [level]="level"
+                      [group]="getGroupForLevel(level)"
+                      [subgroup_index]="uniqueSubgroup._index"
+                      (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
+                      (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                    </vex-flux-disponibilidad>
                   </ng-container>
                 </ng-container>
 

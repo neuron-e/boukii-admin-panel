@@ -184,9 +184,8 @@
 					{{getStudentCount(entry.date)}}
 					</td>
 			</tr>
-			<tr *ngFor="let user of booking_users || []; index as i">
-				<ng-container
-					*ngIf="user.degree_id === level.id && isUserInSubgroup(user)">
+			<tr *ngFor="let user of getFilteredBookingUsers(); index as i">
+				<ng-container>
 					<td
 						style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
 						<div class="flexicon" style="font-size: 12px; font-weight: 600;">
