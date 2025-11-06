@@ -371,7 +371,6 @@
   "no_payed": "Pas payé",
   "cancelled": "Annulé",
   "partial_cancelled": "Partiellement annulé",
-  "client": "Client",
   "clients": "Clients",
   "bonus": "Bons",
   "extras": "Options supplémentaires",
@@ -500,7 +499,7 @@
   "confirm_booking": "Confirmer la réservation",
   "confirm_email": "Confirmer par email",
   "remaining_balance": "Montant restant",
-  "applied": "Appliqué",
+  "applied": "appliquée",
   "users": "Participants",
   "user": "Participant",
   "general_data": "Données générales",
@@ -1759,6 +1758,7 @@
   "use_interval_specific_discounts": "Utiliser des remises spécifiques par intervalle",
   "interval_discounts_explanation": "Configurez différentes remises pour chaque intervalle de dates",
   "course_global_discounts": "Remises Globales du Cours",
-  "applied": "appliquée",
-  "from_interval": "de l'intervalle"
+  "from_interval": "de l'intervalle",
+  "remove_level": "Supprimer le niveau",
+  "remove_subgroup": "Supprimer le sous-groupe"
 }

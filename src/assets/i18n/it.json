@@ -456,7 +456,7 @@
   "apply_bonus": "Applica un bonus",
   "course_global_discounts": "Sconti Globali del Corso",
   "interval_discounts": "Sconti dell'Intervallo",
-  "applied": "applicato",
+  "applied": "Applicato",
   "from_interval": "dall'intervallo",
   "summary": "Guasto",
   "payment_direct": "Diretto",
@@ -491,7 +491,6 @@
   "confirm_booking": "Conferma la prenotazione",
   "confirm_email": "Conferma tramite e-mail",
   "remaining_balance": "Importo residuo",
-  "applied": "Applicato",
   "users": "Utenti",
   "user": "Partecipante",
   "general_data": "Dati generali",
@@ -1650,5 +1649,7 @@
   "detail_of": "Dettaglio di",
   "days_worked": "giorni lavorati",
   "export_monitor": "Esporta monitor",
-  "loading_monitor_detail": "Caricamento dettaglio monitor..."
+  "loading_monitor_detail": "Caricamento dettaglio monitor...",
+  "remove_level": "Rimuovi livello",
+  "remove_subgroup": "Rimuovi sottogruppo"
 }

@@ -145,8 +145,8 @@
           {{getStudentCount(entry.date)}}
         </td>
       </tr>
-      <tr *ngFor="let user of booking_users || []; index as i">
-        <ng-container *ngIf="user.degree_id === level.id">
+      <tr *ngFor="let user of getFilteredBookingUsers(); index as i">
+        <ng-container>
           <td class="monitor-column-cell"
             style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
             <div class="flexicon" style="font-size: 11px; font-weight: 600;">
@@ -199,7 +199,7 @@
           </td>
         </ng-container>
       </tr>
-      <tr *ngIf="!find(booking_users,'degree_id',level.id)">
+      <tr *ngIf="getFilteredBookingUsers().length === 0">
         <td class="monitor-column-cell"
           style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
           <div class="flexicon" style="font-size: 11px; font-weight: 600;">
@@ -216,33 +216,33 @@
   </table>
 </div>
 <vex-flux-modal *ngIf="cambiarModal" (Close)="cambiarModal=false" title="Cambiar nivel alumno">
-	<div body style="display: flex;flex-wrap: nowrap;">
-		<div style="width: 50%; display: flex;">
-			<div style="display: flex;
-            flex-direction: column;
-            gap: 16px;">
+	<div body style="display: flex; flex-wrap: wrap; max-height: 70vh; overflow-y: auto; gap: 20px; padding: 20px;">
+		<div style="flex: 1; min-width: 300px; display: flex;">
+			<div style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
 				<div class="flexicon">
 					<img src="assets/icons/icon/alumno.png" class="icon24">
 					{{"students" | translate}}
 				</div>
-				<mat-checkbox *ngFor="let item of selectedSubgroup?.booking_users; let i = index" [checked]="selectUser.includes(item)"
-					(change)="onCheckboxChange($event, item)" style="display: flex;">
-					<div style="display: flex; gap: 20px;">
-						<div>
-							<img [src]="item.client.image" style="height: 40px;height: 40px;">
-						</div>
-						<div>
-							<div class="flexicon" style="font-size: 12px;font-weight: 600;">
-								{{item.client.first_name}} {{item.client.last_name}}
+				<div style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+					<mat-checkbox *ngFor="let item of selectedSubgroup?.booking_users; let i = index" [checked]="selectUser.includes(item)"
+						(change)="onCheckboxChange($event, item)" style="display: flex;">
+						<div style="display: flex; gap: 20px;">
+							<div>
+								<img [src]="item.client.image" style="height: 40px; width: 40px; border-radius: 50%; object-fit: cover;">
 							</div>
-							<span style="font-size: 12px;">
-								{{getLanguage(item.client.language1_id)}}
-								&middot; {{getCountry(item.client.country)}} &middot;
-								{{calculateAge(item.client.birth_date)}} {{'years' | translate }}
-							</span>
+							<div>
+								<div class="flexicon" style="font-size: 12px;font-weight: 600;">
+									{{item.client.first_name}} {{item.client.last_name}}
+								</div>
+								<span style="font-size: 12px;">
+									{{getLanguage(item.client.language1_id)}}
+									&middot; {{getCountry(item.client.country)}} &middot;
+									{{calculateAge(item.client.birth_date)}} {{'years' | translate }}
+								</span>
+							</div>
 						</div>
-					</div>
-				</mat-checkbox>
+					</mat-checkbox>
+				</div>
 				<div *ngIf="selectedSubgroup?.booking_users?.length===0" style="text-align-last: start;">
 					<div class="flexicon" style="font-size: 12px;font-weight: 600;">
 						{{"no_user_reserved" | translate}}
@@ -250,13 +250,15 @@
 				</div>
 			</div>
 		</div>
-		<div style="width: 50%;">
+		<div style="flex: 1; min-width: 300px;">
 			<div class="flexicon" style="margin-bottom: 16px;">
 				<img src="assets/icons/icon/alumno.png" class="icon24">
 				{{'level' | translate}}
 			</div>
-			<vex-course-detail-nivel [checkbox]="true" [courseFormGroup]="courseFormGroup"  [selectedSubgroup]="selectedSubgroup"
-				(changeMonitor)="changeMonitor($event)"></vex-course-detail-nivel>
+			<div style="max-height: 400px; overflow-y: auto;">
+				<vex-course-detail-nivel [checkbox]="true" [courseFormGroup]="courseFormGroup"  [selectedSubgroup]="selectedSubgroup"
+					(changeMonitor)="changeMonitor($event)"></vex-course-detail-nivel>
+			</div>
 		</div>
 	</div>
 	<div footer style="display: flex;width: 100%;padding: 20px 20px 0;">

@@ -19,7 +19,28 @@ export class FluxDisponibilidadComponent implements OnInit {
   @Input() level!: any
   @Input() group!: any
   @Input() subgroup_index!: number
-  @Input() interval_id?: string | null = null
+  @Input() set interval_id(value: string | null | undefined) {
+    this._interval_id = value || null;
+    this.invalidateDatesCache();
+  }
+  get interval_id(): string | null | undefined {
+    return this._interval_id;
+  }
+  private _interval_id: string | null | undefined = null;
+
+  @Input() set intervalIndex(value: number | undefined) {
+    if (value !== undefined && value !== null) {
+      // Convertir intervalIndex al interval_id correspondiente
+      try {
+        const intervals = this.extractIntervals();
+        if (intervals && intervals.length > value && intervals[value]) {
+          this.interval_id = String(intervals[value].id);
+        }
+      } catch (error) {
+        console.warn('Error extracting intervals in intervalIndex setter:', error);
+      }
+    }
+  }
 
   @Output() monitorSelect = new EventEmitter<any>()
   @Output() viewTimes = new EventEmitter<any>()
@@ -160,6 +181,65 @@ export class FluxDisponibilidadComponent implements OnInit {
     this.monitors = monitor.data
   }
   booking_users: any
+
+  /**
+   * Obtiene los usuarios que pertenecen al subgrupo actual, filtrando por:
+   * - level.id (degree_id)
+   * - subgroup_index (el subgrupo específico de este componente)
+   * - interval_id si está configurado
+   */
+  getFilteredBookingUsers(): any[] {
+    const allBookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
+    const levelId = this.level?.id;
+
+    if (!levelId) {
+      return [];
+    }
+
+    // Obtener los IDs de subgrupos válidos para ESTE subgroup_index específico en las fechas visibles
+    const validSubgroupIds = new Set<number>();
+    const courseDates = this.getDatesForSubgroup(); // Ya filtradas por interval_id
+
+    courseDates.forEach(({ date }) => {
+      const subgroup = this.getSubgroupForDate(date);
+      if (subgroup?.id != null) {
+        validSubgroupIds.add(subgroup.id);
+      }
+    });
+
+    // Si no hay subgrupos válidos, no hay usuarios
+    if (validSubgroupIds.size === 0) {
+      return [];
+    }
+
+    // Filtrar usuarios por degree_id y subgroup_id
+    const filteredUsers = allBookingUsers.filter((user: any) => {
+      // Filtrar por nivel
+      if (user.degree_id !== levelId) {
+        return false;
+      }
+
+      // Filtrar por subgrupo - debe pertenecer a uno de los subgrupos válidos de ESTE componente
+      const userSubgroupId = this.getUserSubgroupId(user);
+      if (!userSubgroupId || !validSubgroupIds.has(userSubgroupId)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Eliminar duplicados por client_id (un usuario puede aparecer en varias fechas pero solo lo mostramos una vez)
+    const seen = new Set<number>();
+    return filteredUsers.filter((user: any) => {
+      const clientId = user.client_id || user.client?.id;
+      if (!clientId || seen.has(clientId)) {
+        return false;
+      }
+      seen.add(clientId);
+      return true;
+    });
+  }
+
   onAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range'): void {
     this.assignmentScope = scope;
     const total = this.getCourseDates().length;
@@ -517,12 +597,20 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
 
   openTransferModal(){
-    this.selectedSubgroup = this.group.course_subgroups[this.subgroup_index];
+    // Obtener el subgrupo de la fecha seleccionada actual
+    const courseDates = this.getCourseDates();
+    const selectedDate = courseDates[this.selectDate];
+    this.selectedSubgroup = this.getSubgroupForDate(selectedDate);
+
+    // Fallback al método anterior si no encontramos el subgrupo
+    if (!this.selectedSubgroup) {
+      this.selectedSubgroup = this.group?.course_subgroups?.[this.subgroup_index];
+    }
+
     this.cambiarModal = true;
   }
 
   Date = (v: string): Date => new Date(v)
-  @Input() intervalIndex!: number;
 
   async SelectMonitor(event: any, selectDate: number) {
     const selectedMonitor = event?.option?.value ?? null;

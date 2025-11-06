@@ -103,6 +103,14 @@ export class CoursesService {
       mustStartFromFirst: settingsObj.mustStartFromFirst || false,
     })
 
+    // Populate course_dates FormArray manually (patchValue doesn't work well with FormArrays)
+    const courseDatesArray = this.courseFormGroup.get('course_dates') as FormArray;
+    courseDatesArray.clear();
+    const courseDates = toArray(data.course_dates);
+    courseDates.forEach((dateData: any) => {
+      courseDatesArray.push(this.fb.control(dateData));
+    });
+
     // If booking_users is still empty, try to harvest from embedded subgroups across all dates
     try {
       const ensureArray = (v: any) => Array.isArray(v) ? v : ([] as any[]);
@@ -316,7 +324,7 @@ export class CoursesService {
       },
       school_id: [this.user.schools[0].id],
       station_id: [null],
-      course_dates: [{ ...this.default_course_dates }],
+      course_dates: this.fb.array([]),
       course_dates_prev: [],
       discounts: [[], Validators.required],
       interval_discounts: [null],

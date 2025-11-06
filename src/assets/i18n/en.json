@@ -456,7 +456,7 @@
   "apply_bonus": "Apply a bonus",
   "course_global_discounts": "Course Global Discounts",
   "interval_discounts": "Interval Discounts",
-  "applied": "applied",
+  "applied": "Applied",
   "from_interval": "from interval",
   "summary": "Breakdown",
   "payment_direct": "Direct",
@@ -491,7 +491,6 @@
   "confirm_booking": "Confirm reservation",
   "confirm_email": "Confirm by email",
   "remaining_balance": "Remaining amount",
-  "applied": "Applied",
   "users": "Users",
   "user": "User",
   "general_data": "General data",
@@ -1648,5 +1647,7 @@
   "detail_of": "Detail of",
   "days_worked": "days worked",
   "export_monitor": "Export Monitor",
-  "loading_monitor_detail": "Loading monitor detail..."
+  "loading_monitor_detail": "Loading monitor detail...",
+  "remove_level": "Remove level",
+  "remove_subgroup": "Remove subgroup"
 }

@@ -371,7 +371,6 @@
   "no_payed": "Nicht bezahlt",
   "cancelled": "Abgesagt",
   "partial_cancelled": "Teilweise storniert",
-  "client": "Kunde",
   "clients": "Kunden",
   "bonus": "Bindung",
   "extras": "Zusatzfunktionen",
@@ -500,7 +499,7 @@
   "confirm_booking": "Reservierung bestätigen",
   "confirm_email": "Per E-Mail bestätigen",
   "remaining_balance": "Restbetrag",
-  "applied": "Angewandt",
+  "applied": "angewendet",
   "users": "Benutzer",
   "user": "Benutzer",
   "general_data": "Allgemeine Daten",
@@ -1759,6 +1758,7 @@
   "use_interval_specific_discounts": "Intervallspezifische Rabatte verwenden",
   "interval_discounts_explanation": "Konfigurieren Sie unterschiedliche Rabatte für jedes Datumsintervall",
   "course_global_discounts": "Globale Kursrabatte",
-  "applied": "angewendet",
-  "from_interval": "vom Intervall"
+  "from_interval": "vom Intervall",
+  "remove_level": "Stufe entfernen",
+  "remove_subgroup": "Untergruppe entfernen"
 }

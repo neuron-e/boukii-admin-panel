@@ -151,6 +151,7 @@ export class EditDateComponent {
             hour_start: this.hourStart.replace(': 00', '').replace(':00', ''),
             hour_end: this.calculateHourEnd(this.hourStart, this.duration),
             date: moment(date.date).format('YYYY-MM-DD'),
+            degree_id: this.defaults.degree_id
           })
         });
         this.crudService.post('/admin/bookings/checkbooking', checkAval)
@@ -161,7 +162,8 @@ export class EditDateComponent {
                   hour_start: this.hourStart,
                   hour_end: this.calculateHourEnd(this.hourStart, this.duration) + ':00',
                   date: moment(date.date).format('YYYY-MM-DD'),
-                  course_date_id: date.id
+                  course_date_id: date.id,
+                  degree_id: this.defaults.degree_id
                 }, element.id))
             });
             forkJoin(updateBookingUserRQS)
