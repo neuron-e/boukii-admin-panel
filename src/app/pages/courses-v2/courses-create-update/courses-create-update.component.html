@@ -249,8 +249,8 @@
             </button>
           </div>
         </div>
-        <!-- Contenedor de intervalos (solo en modo create o cuando NO hay múltiples intervalos) -->
-        <div *ngIf="mode==='create' || !useMultipleIntervals">
+        <!-- Contenedor de intervalos -->
+        <div>
           <!-- Lista de intervalos -->
           <div *ngFor="let interval of displayIntervals; let i = index; trackBy: trackInterval">
             <div *ngIf="useMultipleIntervals"
