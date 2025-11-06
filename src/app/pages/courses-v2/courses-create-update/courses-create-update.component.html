@@ -61,9 +61,21 @@
          </mat-tab>-->
       </mat-tab-group>
       <div style="padding: 20px 20px 0;">
-        <mat-checkbox [disabled]="mode!=='update'" formControlName="is_flexible" (change)="setModalProgress()">
+        <mat-checkbox [disabled]="mode==='update'" formControlName="is_flexible" (change)="setModalProgress()">
           {{'flexidates' | translate }}
         </mat-checkbox>
+
+        <!-- Intervals Manager Component -->
+        <vex-course-intervals-manager
+          *ngIf="courses.courseFormGroup.controls['is_flexible'].value && id"
+          [courseId]="id"
+          [configMode]="courses.courseFormGroup.controls['intervals_config_mode'].value"
+          [courseStartDate]="courses.courseFormGroup.controls['date_start'].value"
+          [courseEndDate]="courses.courseFormGroup.controls['date_end'].value"
+          [isFlexible]="courses.courseFormGroup.controls['is_flexible'].value"
+          (intervalsChanged)="onIntervalsChanged($event)"
+          style="display: block; margin-top: 16px; margin-bottom: 16px;">
+        </vex-course-intervals-manager>
 
         <vex-flux-upload-img [imagePreviewUrl]="courses.courseFormGroup.controls['image'].value"
                              (upload)="courses.courseFormGroup.patchValue({image:$event})" [edit]="true" [width]="320"
@@ -237,8 +249,8 @@
             </button>
           </div>
         </div>
-        <!-- Contenedor de intervalos -->
-        <div>
+        <!-- Contenedor de intervalos (solo en modo create o cuando NO hay múltiples intervalos) -->
+        <div *ngIf="mode==='create' || !useMultipleIntervals">
           <!-- Lista de intervalos -->
           <div *ngFor="let interval of displayIntervals; let i = index; trackBy: trackInterval">
             <div *ngIf="useMultipleIntervals"
@@ -497,84 +509,6 @@
                 {{'schedule_will_apply_to_dates' | translate}}: {{interval?.dates?.length}} {{'dates' | translate}}
               </div>
             </div>
-
-            <!-- Descuentos por múltiples fechas para este intervalo -->
-            <div *ngIf="useMultipleIntervals" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
-              <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
-                <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">local_offer</mat-icon>
-                {{ 'multidate_discount' | translate }} - {{ 'interval' | translate }} {{i + 1}}
-              </h4>
-
-              <div *ngIf="!interval.discounts || interval.discounts.length === 0" style="margin-bottom: 16px;">
-                <button type="button"
-                        (click)="addIntervalDiscount(i)"
-                        style="border: 1px solid #007bff; color: #007bff; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px;">
-                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
-                  {{ 'add_discount_by_date' | translate }}
-                </button>
-              </div>
-
-              <div *ngIf="interval.discounts && interval.discounts.length > 0">
-                <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;">
-                  <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">info</mat-icon>
-                  {{ 'multidate_discount_explanation' | translate }}
-                </div>
-
-                <div *ngFor="let discount of interval.discounts; let j = index" class="discount-item" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 12px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
-                  <div style="min-width: 120px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ 'dates_quantity' | translate }}
-                    </label>
-                    <input type="number"
-                           [(ngModel)]="discount.dates"
-                           [ngModelOptions]="{standalone: true}"
-                           min="2"
-                           max="20"
-                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
-                           (change)="validateIntervalDiscounts(i)">
-                  </div>
-
-                  <div style="min-width: 100px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ 'discount_type' | translate }}
-                    </label>
-                    <select [(ngModel)]="discount.type"
-                            [ngModelOptions]="{standalone: true}"
-                            style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
-                      <option value="percentage">{{ 'percentage' | translate }}</option>
-                      <option value="fixed">{{ 'fixed_amount' | translate }}</option>
-                    </select>
-                  </div>
-
-                  <div style="min-width: 120px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
-                    </label>
-                    <input type="number"
-                           [(ngModel)]="discount.value"
-                           [ngModelOptions]="{standalone: true}"
-                           [min]="discount.type === 'percentage' ? 1 : 0.01"
-                           [max]="discount.type === 'percentage' ? 100 : 9999"
-                           step="0.01"
-                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
-                  </div>
-
-                  <button type="button"
-                          *ngIf="interval.discounts.length > 1"
-                          (click)="removeIntervalDiscount(i, j)"
-                          style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; min-width: 36px; height: 36px;">
-                    <mat-icon style="font-size: 18px;">delete</mat-icon>
-                  </button>
-                </div>
-
-                <button type="button"
-                        (click)="addIntervalDiscount(i)"
-                        style="border: 1px solid #007bff; color: #007bff; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px; margin-top: 8px;">
-                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
-                  {{ 'add_discount_by_date' | translate }}
-                </button>
-              </div>
-            </div>
           </div>
 
           <!-- Bot├│n para a├▒adir nuevo intervalo (solo en modo m├║ltiple) -->
@@ -586,6 +520,62 @@
               {{'add_new_interval' | translate}}
             </button>
 
+          </div>
+        </div>
+
+        <!-- Secci├│n unificada de niveles y subgrupos (para cursos con intervalos en modo update) -->
+        <div *ngIf="useMultipleIntervals && mode==='update'" style="background: white; border: 1px solid #DEE6EA; border-radius: 8px; margin-bottom: 20px;">
+          <div style="padding: 20px; background: #f8f9fa; border-bottom: 1px solid #DEE6EA;">
+            <h6 style="margin: 0; color: #495057; font-size: 14px; font-weight: 600;">
+              <mat-icon style="vertical-align: middle; margin-right: 4px; color: #9C27B0;">groups</mat-icon>
+              {{ 'levels_and_subgroups' | translate }}
+            </h6>
+          </div>
+
+          <div style="padding: 20px;">
+            <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []); index as levelIdx; trackBy: trackLevel">
+              <ng-container *ngIf="level.active">
+                <!-- Header del nivel -->
+                <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 16px;">
+                  <div [style.backgroundColor]="level.color"
+                       [style.border]="'1px solid '+level.color"
+                       style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500;">
+                    {{level.annotation}} {{level.level}}
+                  </div>
+                </div>
+
+                <!-- Subgrupos del nivel -->
+                <ng-container *ngIf="getAllUniqueSubgroupsForLevel(level).length > 0">
+                  <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
+                    <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
+                      {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
+                    </div>
+
+                    <!-- Componente de disponibilidad por subgrupo mostrando todas las fechas -->
+                    <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
+                      <vex-flux-disponibilidad
+                        [courseFormGroup]="courses.courseFormGroup"
+                        [level]="level"
+                        [group]="getGroupForLevel(level)"
+                        [subgroup_index]="uniqueSubgroup._index"
+                        (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
+                        (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                      </vex-flux-disponibilidad>
+                    </div>
+                  </ng-container>
+                </ng-container>
+
+                <!-- Botón para añadir subgrupo (solo para cursos flex con intervalos configurables) -->
+                <div *ngIf="canConfigureIntervalGroups" style="margin-bottom: 20px; margin-top: 10px;">
+                  <button (click)="editModal=true;setEditFunction('addIntervalLevelSubgroup',selectedIntervalIndexForGroups,level)"
+                          style="border: 1px solid #E91E63; color: #E91E63; background: transparent; border-radius: 3px; height: 38px; padding: 0 16px; cursor: pointer; display: flex; align-items: center; gap: 8px;"
+                          type="button">
+                    <mat-icon style="font-size: 18px; width: 18px; height: 18px;">add</mat-icon>
+                    <span>{{'add_subgroup' | translate}}</span>
+                  </button>
+                </div>
+              </ng-container>
+            </ng-container>
           </div>
         </div>
 
@@ -890,104 +880,112 @@
           </p>
         </div>
 
-        <!-- Vista unificada con configureLevelsByInterval activo -->
-        <!-- Los tabs de intervalos están DENTRO de cada subgrupo -->
-        <div *ngIf="configureLevelsByInterval && useMultipleIntervals"
-             class="level"
-             style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
+        <!-- Vista por intervalos (cuando está activado el flag) -->
+        <!-- Ocultar en modo UPDATE: usar vista unificada en su lugar -->
+        <div *ngIf="configureLevelsByInterval && useMultipleIntervals && intervals && intervals.length > 1 && mode==='create'"
+             style="margin-top: 16px;">
+          <mat-accordion>
+            <mat-expansion-panel *ngFor="let interval of intervals; let intervalIdx = index"
+                                 [expanded]="intervalIdx === 0">
+              <mat-expansion-panel-header>
+                <mat-panel-title style="font-weight: 600;">
+                  {{getIntervalLabel(interval, intervalIdx)}}
+                </mat-panel-title>
+                <mat-panel-description>
+                  {{interval.dates?.length || 0}} {{'dates' | translate}}
+                </mat-panel-description>
+              </mat-expansion-panel-header>
 
-          <!-- Sección para añadir/gestionar niveles -->
-          <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;">
-            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;">
-              {{'levels' | translate}}
-            </h3>
+              <!-- Botón para copiar configuración de este intervalo a todos -->
+              <div style="margin-bottom: 16px; text-align: right;">
+                <button mat-flat-button color="primary"
+                        (click)="copyIntervalConfigToAll(intervalIdx)">
+                  <mat-icon>content_copy</mat-icon>
+                  {{'copy_to_all_intervals' | translate}}
+                </button>
+              </div>
 
-            <!-- Lista de niveles disponibles para activar -->
-            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-              <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
-                <mat-checkbox *ngIf="!level.active"
-                              [style.backgroundColor]="level.color+'33'"
-                              [style.color]="level.color"
-                              [style.border]="'1px solid '+level.color"
-                              [(ngModel)]="level.active"
-                              (change)="onLevelToggleForIntervals(level, $event.checked)"
-                              style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly;">
-                  {{level.annotation}} {{level.level}}
-                </mat-checkbox>
-              </ng-container>
-            </div>
-          </div>
-
-          <mat-divider style="margin: 10px 0;"></mat-divider>
-
-          <!-- Niveles activos con sus subgrupos -->
-          <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
-            <ng-container *ngIf="level.active">
-              <!-- Header del nivel con botones de acción -->
-              <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 10px; justify-content: space-between;">
-                <div style="display: flex; gap: 16px; align-items: center;">
-                  <div [style.backgroundColor]="level.color"
-                       [style.border]="'1px solid '+level.color"
-                       style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500;">
-                    {{level.annotation}} {{level.level}}
+              <!-- Lista de niveles para este intervalo - EXACTAMENTE IGUAL A LA VISTA SIN INTERVALOS -->
+              <div class="level" style="display: flex;flex-direction: column;padding: 10px; border-radius: 8px; gap: 10px;">
+                <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
+                  <div style="display: flex;gap: 16px;align-items: center;">
+                    <mat-checkbox [style.backgroundColor]="isLevelActiveForInterval(intervalIdx, level)?level.color:level.color+'33'"
+                                  [style.color]="level.color"
+                                  [style.border]="'1px solid '+level.color"
+                                  [checked]="isLevelActiveForInterval(intervalIdx, level)"
+                                  (change)="onIntervalLevelToggle(intervalIdx, level, $event.checked)"
+                                  style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly;">
+                      {{level.annotation}} {{level.level}}
+                    </mat-checkbox>
                   </div>
 
-                  <!-- Botón para añadir subgrupo -->
-                  <button mat-mini-fab color="primary"
-                          (click)="addSubgroupToLevel(level)"
-                          [matTooltip]="'add_subgroup' | translate"
-                          style="background-color: #E91E63;">
-                    <mat-icon>add</mat-icon>
-                  </button>
-                </div>
+                  <div *ngIf="isLevelActiveForInterval(intervalIdx, level)" style="display: flex;gap: 16px;">
+                    <app-form-input [required]="true" [value]="level.age_min" [max]="level.age_max"
+                                    (do)="level.age_min=$event.target.value;" style="width: calc(33.33% - 10px - 16px);"
+                                    name="courses.min_age" type="number" Suffix="years">
+                    </app-form-input>
+                    <app-form-input [required]="true" [value]="level.age_max" [min]="level.age_min"
+                                    (do)="level.age_max=$event.target.value;" name="courses.max_age"
+                                    style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="years">
+                    </app-form-input>
+                    <app-form-input [required]="true" [value]="level.max_participants"
+                                    (do)="level.max_participants=$event.target.value;" name="max_pax"
+                                    style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="paxes">
+                    </app-form-input>
+                    <mat-icon (click)="addIntervalLevelSubgroup(intervalIdx, level)" color="primary" style="color: white;
+                              height: 30px;
+                              min-width: 30px;
+                              border-radius: 15px;
+                              cursor: pointer;
+                              font-size: 30px;
+                              margin: auto 0;
+                              align-content: space-evenly;
+                              background-color: #E91E63;">
+                      add
+                    </mat-icon>
+                  </div>
 
-                <!-- Botón para eliminar nivel (solo si está vacío) -->
-                <button mat-icon-button
-                        (click)="removeLevelFromIntervals(level)"
-                        [matTooltip]="'remove_level' | translate"
-                        color="warn">
-                  <mat-icon>delete</mat-icon>
-                </button>
+                  <!-- Subgrupos del nivel en este intervalo -->
+                  <ng-container *ngIf="isLevelActiveForInterval(intervalIdx, level) && getIntervalLevelSubgroups(intervalIdx, level).length > 0">
+                    <div *ngFor="let subgroup of getIntervalLevelSubgroups(intervalIdx, level); index as j"
+                         style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px;">
+                      {{level.annotation}} {{level.level}} {{("00"+(j+1)).slice(-2)}}
+                      <img *ngIf="j > 0" (click)="removeIntervalLevelSubgroup(intervalIdx, level, j)"
+                           src="assets/icons/icon/delete.png" alt class="icon20"
+                           style="cursor: pointer; font-size: 20px;align-content: space-evenly;">
+                    </div>
+                  </ng-container>
+                </ng-container>
+              </div>
+            </mat-expansion-panel>
+          </mat-accordion>
+        </div>
+
+        <!-- Vista unificada para modo UPDATE con configureLevelsByInterval activo -->
+        <div *ngIf="configureLevelsByInterval && useMultipleIntervals && mode==='update'"
+             class="level"
+             style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
+          <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
+            <ng-container *ngIf="level.active">
+              <!-- Header del nivel -->
+              <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 10px;">
+                <div [style.backgroundColor]="level.color"
+                     [style.border]="'1px solid '+level.color"
+                     style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500;">
+                  {{level.annotation}} {{level.level}}
+                </div>
               </div>
 
               <!-- Subgrupos del nivel -->
               <ng-container *ngIf="getAllUniqueSubgroupsForLevel(level).length > 0">
                 <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
                   <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
-                    <span>{{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}</span>
-
-                    <!-- Botón para eliminar subgrupo (solo si está vacío) -->
-                    <button mat-icon-button
-                            *ngIf="j > 0"
-                            (click)="removeSubgroupFromLevel(level, uniqueSubgroup._index)"
-                            [matTooltip]="'remove_subgroup' | translate"
-                            color="warn"
-                            style="width: 30px; height: 30px;">
-                      <mat-icon style="font-size: 20px;">delete</mat-icon>
-                    </button>
+                    {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
                   </div>
 
-                  <!-- Tabs de intervalos DENTRO del subgrupo -->
+                  <!-- Componente de disponibilidad por subgrupo mostrando todas las fechas -->
                   <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
-                    <mat-tab-group *ngIf="intervals && intervals.length > 1">
-                      <mat-tab *ngFor="let interval of intervals; let intervalIdx = index; trackBy: trackInterval"
-                               [label]="'Intervalo ' + (intervalIdx + 1)">
-                        <div style="padding: 10px;">
-                          <vex-flux-disponibilidad
-                            [courseFormGroup]="courses.courseFormGroup"
-                            [level]="level"
-                            [group]="getGroupForLevel(level)"
-                            [subgroup_index]="uniqueSubgroup._index"
-                            [intervalIndex]="intervalIdx"
-                            (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
-                            (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
-                          </vex-flux-disponibilidad>
-                        </div>
-                      </mat-tab>
-                    </mat-tab-group>
-
-                    <!-- Si solo hay un intervalo, mostrar directamente sin tabs -->
-                    <vex-flux-disponibilidad *ngIf="!intervals || intervals.length <= 1"
+                    <vex-flux-disponibilidad
                       [courseFormGroup]="courses.courseFormGroup"
                       [level]="level"
                       [group]="getGroupForLevel(level)"
@@ -1004,7 +1002,7 @@
 
         <!-- Vista simplificada de grupos y niveles (cuando NO está activado el flag por intervalos) -->
         <!-- Ocultar en modo UPDATE con múltiples intervalos -->
-        <div *ngIf="(!configureLevelsByInterval || (mode==='update' && !useMultipleIntervals)) && !(mode==='update' && useMultipleIntervals)"
+        <div *ngIf="!configureLevelsByInterval && !(mode==='update' && useMultipleIntervals)"
              class="level"
              style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
           <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">

@@ -1,25 +1,65 @@
 <div style="overflow-x: auto;overflow-y: hidden; height: 100%;">
-  <table>
-    <thead>
-      <tr style="height: 34px;">
-        <td class="monitor-header-cell">
-          <div class="flexicon">
-            <img src="assets/icons/icon/monitor.png" class="icon24">
-            {{'monitor' | translate}}
-          </div>
-        </td>
-        <td *ngFor="let entry of getDatesForSubgroup(); index as i"
-          class="date-header-cell"
-          [style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-          [style.borderTop]="selectDate===entry.index?'3px solid #E91E63':''"
-          (click)="onSelectDate(entry.index, entry.date)">
-          {{entry.date.date | date:'dd/MM/yy'}}
-        </td>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style="border-bottom: 3px solid #dee6ea;">
-        <td class="monitor-column-cell" style="background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
+	<table>
+		<thead>
+			<!-- Fila de headers de intervalos (solo si hay múltiples intervalos) -->
+			<tr *ngIf="hasMultipleIntervals()" class="interval-headers-row">
+				<td [attr.rowspan]="2"
+					style="color: var(--color-dark1);
+						font-size: 12px;
+						font-style: normal;
+						font-weight: 600;
+						line-height: 16px;
+						background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);
+						vertical-align: middle;">
+					<div class="flexicon">
+						<img src="assets/icons/icon/monitor.png" class="icon24">
+						{{'monitor' | translate}}
+					</div>
+				</td>
+				<td *ngFor="let header of getIntervalHeaders()"
+					[attr.colspan]="header.colspan"
+					class="interval-header-cell"
+					style="
+						text-align: center;
+						font-size: 13px;
+						font-weight: 700;
+						color: var(--color-dark1);
+						background-color: var(--is-light-theme, #f0f4f8) var(--is-dark-theme, #2a2a2a);
+						padding: 8px 4px;
+						border-bottom: 2px solid #E91E63;">
+					{{header.name}}
+				</td>
+			</tr>
+			<!-- Fila de fechas individuales -->
+			<tr style="height: 34px;">
+				<td *ngIf="!hasMultipleIntervals()"
+					style="color: var(--color-dark1);
+						font-size: 12px;
+						font-style: normal;
+						font-weight: 600;
+						line-height: 16px;">
+					<div class="flexicon">
+						<img src="assets/icons/icon/monitor.png" class="icon24">
+						{{'monitor' | translate}}
+					</div>
+				</td>
+				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					[style.borderTop]="selectDate===entry.index?'3px solid #E91E63':''" (click)="onSelectDate(entry.index, entry.date)"
+					style="
+			color: var(--color-dark1);
+			font-size: 12px;
+			font-family: DM Sans;
+			font-weight: 600;
+			line-height: 16px;
+			word-wrap: break-word">
+					{{entry.date.date | date:'dd-MM-yyyy'}}
+				</td>
+			</tr>
+		</thead>
+		<tbody>
+			<tr style="border-bottom: 3px solid #dee6ea;">
+				<td style="background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
           <div class="monitor-assignment-compact"
                *ngIf="courseFormGroup.controls['course_dates'].value?.length && getDatesForSubgroup().length > 1">
             <div class="assignment-inline">
@@ -51,7 +91,7 @@
                             (selectionChange)="onAssignmentStartIndexChange($event.value)">
                   <mat-option *ngFor="let entry of getDatesForSubgroup(); index as idx"
                               [value]="entry.index">
-                    {{entry.date.date | date:'dd/MM/yy'}}
+                    {{entry.date.date | date:'dd-MM-yyyy'}}
                   </mat-option>
                 </mat-select>
               </mat-form-field>
@@ -64,7 +104,7 @@
                             (selectionChange)="onAssignmentEndIndexChange($event.value)">
                   <mat-option *ngFor="let entry of getDatesForSubgroup(); index as idx"
                               [value]="entry.index">
-                    {{entry.date.date | date:'dd/MM/yy'}}
+                    {{entry.date.date | date:'dd-MM-yyyy'}}
                   </mat-option>
                 </mat-select>
               </mat-form-field>
@@ -90,7 +130,7 @@
             </mat-icon>
             <div>
               <span style="flex: 1 1 0; font-size: 14px; font-weight: 400; line-height: 18px; word-wrap: break-word;color: #666;">
-                {{'select_date_to_load_monitors' | translate}}
+                {{"select_date_to_load_monitors" | translate}}
               </span>
             </div>
           </div>
@@ -99,150 +139,158 @@
             <mat-icon style="color: #006fcb;" class="icon24">
               info
             </mat-icon>
-            <div>
-              <span
+            <div >
+          <span
                 style="flex: 1 1 0; font-size: 14px; font-weight: 700; line-height: 18px; word-wrap: break-word;color: red;">
-                {{'snackbar.booking.no_match' | translate}}!
-              </span>
+							{{"snackbar.booking.no_match" | translate}}!
+						</span>
             </div>
           </div>
-        </td>
-        <td *ngFor="let entry of getDatesForSubgroup(); index as i"
-          class="monitor-status-cell"
-          [style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':'var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-          [style.color]="getSubgroupForDate(entry.date)?.monitor ? (modified[entry.index] ? '#FFCF25' : '#31C044') : '#C7D0D3'"
-          (click)="onSelectDate(entry.index, entry.date)">
-          <mat-icon class="icon10">circle</mat-icon>
-        </td>
-      </tr>
-      <tr style="height: 34px;">
-        <td class="monitor-column-cell" style="background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
-          <div class="flexicon">
-            <img src="assets/icons/icon/alumno.png" class="icon24">
-            {{'students' | translate}}
-            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-              <button
-                mat-icon-button
-                class="icon-button-24"
-                color="primary"
-                (click)="onTimingClick(); $event.stopPropagation()"
-                [matTooltip]="hasStudents() ? ('timing.view_times' | translate) : ('no_user_reserved' | translate)">
-                <mat-icon class="small-16">schedule</mat-icon>
-              </button>
-              <img (click)="openTransferModal()"
-                   *ngIf="getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.booking_users?.length"
-                   src="assets/icons/icon/exc.png"
-                   class="icon24"
-                   style="cursor: pointer;">
+				</td>
+				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':'var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					[style.color]="getSubgroupForDate(entry.date)?.monitor ? (modified[entry.index] ? '#FFCF25' : '#31C044') : '#C7D0D3'"
+					(click)="onSelectDate(entry.index, entry.date)">
+					<mat-icon class="icon10">circle</mat-icon>
+				</td>
+			</tr>
+			<tr style="height: 34px;">
+				<td
+					style="font-size: 12px; font-weight: 600;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
+            <div class="flexicon"> 
+              <img src="assets/icons/icon/alumno.png" class="icon24">
+              {{"students" | translate}}
+              <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                <button
+                  mat-icon-button
+                  class="icon-button-24"
+                  color="primary"
+                  (click)="onTimingClick(); $event.stopPropagation()"
+                  [matTooltip]="hasStudents() ? ('timing.view_times' | translate) : ('no_user_reserved' | translate)">
+                  <mat-icon class="small-16">schedule</mat-icon>
+                </button>
+                <img (click)="openTransferModal()"
+                     *ngIf="getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.booking_users?.length"
+                     src="assets/icons/icon/exc.png"
+                     class="icon24"
+                     style="cursor: pointer;">
+              </div>
             </div>
-          </div>
-        </td>
-        <td *ngFor="let entry of getDatesForSubgroup(); index as i"
-          class="student-count-cell"
-          [style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-          (click)="onSelectDate(entry.index, entry.date)"
-          style="text-align: center; font-size: 11px; font-weight: 600; color: var(--color-dark1);">
-          {{getStudentCount(entry.date)}}
-        </td>
-      </tr>
-      <tr *ngFor="let user of getFilteredBookingUsers(); index as i">
-        <ng-container>
-          <td class="monitor-column-cell"
-            style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
-            <div class="flexicon" style="font-size: 11px; font-weight: 600;">
-              {{user.client?.first_name}} {{user.client?.last_name}}
-            </div>
-            <span style="font-size: 11px;">
-              {{getLanguage(user.client.language1_id)}}
-              &middot; {{getCountry(user.client.country)}} &middot;
-              {{calculateAge(user.client.birth_date)}} {{'years' | translate }}
-            </span>
           </td>
-          <td *ngFor="let entry of getDatesForSubgroup(); index as j"
-            class="attendance-cell"
-            [style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-            (click)="onSelectDate(entry.index, entry.date)">
+					<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					(click)="onSelectDate(entry.index, entry.date)"
+					style="text-align: center; font-size: 11px; font-weight: 600; color: var(--color-dark1);">
+					{{getStudentCount(entry.date)}}
+					</td>
+			</tr>
+			<tr *ngFor="let user of booking_users || []; index as i">
+				<ng-container
+					*ngIf="user.degree_id === level.id && isUserInSubgroup(user)">
+					<td
+						style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
+						<div class="flexicon" style="font-size: 12px; font-weight: 600;">
+							{{user.client?.first_name}} {{user.client?.last_name}}
+						</div>
+						<span style="font-size: 12px;">
+							{{getLanguage(user.client.language1_id)}}
+							· {{getCountry(user.client.country)}} ·
+							{{calculateAge(user.client.birth_date)}} {{'years' | translate }}
+						</span>
+					</td>
+					<td *ngFor="let entry of getDatesForSubgroup(); index as j"
+						[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+						(click)="onSelectDate(entry.index, entry.date)">
             <div style="display: flex; gap: 5px; justify-content: center;">
               <ng-container *ngIf="find(entry.date.booking_users_active,'client_id',user.client_id) as userInDate">
+                <!-- Verde: Presente el día del curso (attended=true) -->
                 <mat-icon class="icon10"
-                  *ngIf="userInDate?.attended"
-                  style="color: #31C044;"
-                  [matTooltip]="'present_course_day' | translate">
+                          *ngIf="userInDate?.attended"
+                          style="color: #31C044;"
+                          [matTooltip]="'present_course_day' | translate">
                   circle
                 </mat-icon>
+
+                <!-- Amarillo: Cambio de grupo -->
                 <mat-icon class="icon10"
-                  *ngIf="userInDate?.group_changed && !userInDate?.attended"
-                  style="color: #FFCF25;"
-                  [matTooltip]="'student_changed' | translate">
+                          *ngIf="userInDate?.group_changed && !userInDate?.attended"
+                          style="color: #FFCF25;"
+                          [matTooltip]="'student_changed' | translate">
                   circle
                 </mat-icon>
+
+                <!-- Rojo: Día pasado sin asistencia -->
                 <mat-icon class="icon10"
-                  *ngIf="Date(entry.date.date) < today && !userInDate?.attended && !userInDate?.group_changed"
-                  style="color: #E70F0F;"
-                  [matTooltip]="'not_presented' | translate">
+                          *ngIf="Date(entry.date.date) < today && !userInDate?.attended && !userInDate?.group_changed"
+                          style="color: #E70F0F;"
+                          [matTooltip]="'not_presented' | translate">
                   circle
                 </mat-icon>
+
+                <!-- Gris: Día futuro o sin estados especiales -->
                 <mat-icon class="icon10"
-                  *ngIf="!userInDate?.attended && !userInDate?.group_changed"
-                  style="color: #C7D0D3;"
-                  [matTooltip]="'upcoming_day' | translate">
+                          *ngIf="!userInDate?.attended && !userInDate?.group_changed"
+                          style="color: #C7D0D3;"
+                          [matTooltip]="'upcoming_day' | translate">
                   circle
                 </mat-icon>
               </ng-container>
+
+              <!-- Si no hay usuario para esta fecha, mostrar gris -->
               <mat-icon class="icon10"
-                *ngIf="!find(entry.date.booking_users_active,'client_id',user.client_id)"
-                style="color: #C7D0D3;"
-                [matTooltip]="'upcoming_day' | translate">
+                        *ngIf="!find(entry.date.booking_users_active,'client_id',user.client_id)"
+                        style="color: #C7D0D3;"
+                        [matTooltip]="'upcoming_day' | translate">
                 circle
               </mat-icon>
             </div>
-          </td>
-        </ng-container>
-      </tr>
-      <tr *ngIf="getFilteredBookingUsers().length === 0">
-        <td class="monitor-column-cell"
-          style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
-          <div class="flexicon" style="font-size: 11px; font-weight: 600;">
-            {{'no_user_reserved' | translate}}
-          </div>
-        </td>
-        <td *ngFor="let entry of getDatesForSubgroup(); index as i"
-          class="attendance-cell"
-          [style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
-          (click)="onSelectDate(entry.index, entry.date)">
-        </td>
-      </tr>
-    </tbody>
-  </table>
+					</td>
+				</ng-container>
+			</tr>
+			<tr
+				*ngIf="!hasStudents()">
+				<td
+					style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
+					<div class="flexicon" style="font-size: 12px; font-weight: 600;">
+						{{"no_user_reserved" | translate}}
+					</div>
+				</td>
+				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
+					(click)="onSelectDate(entry.index, entry.date)">
+				</td>
+			</tr>
+		</tbody>
+	</table>
 </div>
 <vex-flux-modal *ngIf="cambiarModal" (Close)="cambiarModal=false" title="Cambiar nivel alumno">
-	<div body style="display: flex; flex-wrap: wrap; max-height: 70vh; overflow-y: auto; gap: 20px; padding: 20px;">
-		<div style="flex: 1; min-width: 300px; display: flex;">
-			<div style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
+	<div body style="display: flex;flex-wrap: nowrap; max-height: 70vh; overflow: hidden;">
+		<div style="width: 50%; display: flex; overflow-y: auto; max-height: 70vh; padding-right: 8px;">
+			<div style="display: flex;
+            flex-direction: column;
+            gap: 16px; width: 100%;">
 				<div class="flexicon">
 					<img src="assets/icons/icon/alumno.png" class="icon24">
 					{{"students" | translate}}
 				</div>
-				<div style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
-					<mat-checkbox *ngFor="let item of selectedSubgroup?.booking_users; let i = index" [checked]="selectUser.includes(item)"
-						(change)="onCheckboxChange($event, item)" style="display: flex;">
-						<div style="display: flex; gap: 20px;">
-							<div>
-								<img [src]="item.client.image" style="height: 40px; width: 40px; border-radius: 50%; object-fit: cover;">
-							</div>
-							<div>
-								<div class="flexicon" style="font-size: 12px;font-weight: 600;">
-									{{item.client.first_name}} {{item.client.last_name}}
-								</div>
-								<span style="font-size: 12px;">
-									{{getLanguage(item.client.language1_id)}}
-									&middot; {{getCountry(item.client.country)}} &middot;
-									{{calculateAge(item.client.birth_date)}} {{'years' | translate }}
-								</span>
-							</div>
+				<mat-checkbox *ngFor="let item of selectedSubgroup?.booking_users; let i = index" [checked]="selectUser.includes(item)"
+					(change)="onCheckboxChange($event, item)" style="display: flex;">
+					<div style="display: flex; gap: 20px;">
+						<div>
+							<img [src]="item.client.image" style="height: 40px;height: 40px;">
 						</div>
-					</mat-checkbox>
-				</div>
+						<div>
+							<div class="flexicon" style="font-size: 12px;font-weight: 600;">
+								{{item.client.first_name}} {{item.client.last_name}}
+							</div>
+							<span style="font-size: 12px;">
+								{{getLanguage(item.client.language1_id)}}
+								· {{getCountry(item.client.country)}} ·
+								{{calculateAge(item.client.birth_date)}} {{'years' | translate }}
+							</span>
+						</div>
+					</div>
+				</mat-checkbox>
 				<div *ngIf="selectedSubgroup?.booking_users?.length===0" style="text-align-last: start;">
 					<div class="flexicon" style="font-size: 12px;font-weight: 600;">
 						{{"no_user_reserved" | translate}}
@@ -250,15 +298,13 @@
 				</div>
 			</div>
 		</div>
-		<div style="flex: 1; min-width: 300px;">
+		<div style="width: 50%; overflow-y: auto; max-height: 70vh; padding-left: 8px;">
 			<div class="flexicon" style="margin-bottom: 16px;">
 				<img src="assets/icons/icon/alumno.png" class="icon24">
 				{{'level' | translate}}
 			</div>
-			<div style="max-height: 400px; overflow-y: auto;">
-				<vex-course-detail-nivel [checkbox]="true" [courseFormGroup]="courseFormGroup"  [selectedSubgroup]="selectedSubgroup"
-					(changeMonitor)="changeMonitor($event)"></vex-course-detail-nivel>
-			</div>
+			<vex-course-detail-nivel [checkbox]="true" [courseFormGroup]="courseFormGroup"  [selectedSubgroup]="selectedSubgroup"
+				(changeMonitor)="changeMonitor($event)"></vex-course-detail-nivel>
 		</div>
 	</div>
 	<div footer style="display: flex;width: 100%;padding: 20px 20px 0;">
@@ -266,5 +312,12 @@
 			style="margin-top: 0px !important;height: 38px; width: 128px;margin-left: auto;" mat-button type="button">
 			{{'cancel' | translate }}
 		</button>
+		<!-- <button (click)="cambiarModal=false"
+			style="margin-top: 0px !important;height: 38px; width: 128px;margin-left: 20px;"
+			color="primary"
+			mat-raised-button
+			type="button">
+			{{'save' | translate }}
+		</button> -->
 	</div>
 </vex-flux-modal>

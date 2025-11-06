@@ -778,6 +778,43 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
 
   /**
+   * Check if a user belongs to this subgroup in any date
+   */
+  isUserInSubgroup(user: any): boolean {
+    try {
+      const courseDates = this.getCourseDates();
+      const subgroupIds = this.getSubgroupIdsAcrossDates();
+      const userSubgroupId = this.getUserSubgroupId(user);
+
+      if (userSubgroupId != null && subgroupIds.has(userSubgroupId)) {
+        return true;
+      }
+
+      // Check in each date's booking_users_active
+      for (const date of courseDates) {
+        const subgroup = this.getSubgroupForDate(date);
+        if (!subgroup) continue;
+
+        const bookingUsersActive = this.toArray(date?.booking_users_active);
+        const foundInActive = bookingUsersActive.some((u: any) =>
+          u.client_id === user.client_id && this.getUserSubgroupId(u) === subgroup.id
+        );
+
+        if (foundInActive) return true;
+
+        const embeddedUsers = this.toArray(subgroup?.booking_users);
+        if (embeddedUsers.some((u: any) => u.client_id === user.client_id)) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
    * Get student count for a specific date and subgroup
    * Returns format like "3/8" (current students / max capacity)
    */
@@ -797,6 +834,20 @@ export class FluxDisponibilidadComponent implements OnInit {
       if (currentCount === 0) {
         const embeddedUsers = this.toArray(subgroup?.booking_users);
         currentCount = embeddedUsers.length;
+      }
+
+      // Fallback: count from global booking_users if still 0
+      if (currentCount === 0) {
+        const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
+        const globalCount = bookingUsers.filter((u: any) => {
+          const userDegreeId = u?.degree_id ?? u?.degreeId;
+          const userCourseDateId = this.getUserCourseDateId(u);
+          const userSubgroupId = this.getUserSubgroupId(u);
+          return userDegreeId === this.level?.id &&
+                 userCourseDateId === dateItem?.id &&
+                 userSubgroupId === subgroup.id;
+        }).length;
+        currentCount = globalCount;
       }
 
       const maxCapacity =
