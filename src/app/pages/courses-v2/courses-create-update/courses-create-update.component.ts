@@ -2401,6 +2401,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
         mustStartFromFirst: this.mustStartFromFirst,
         mustBeConsecutive: this.mustBeConsecutive
       };
+
+      // Si hay descuentos por intervalos, eliminar la configuración global de descuentos
+      if (this.hasIntervalDiscounts()) {
+        courseFormGroup.discounts = null;
+        this.enableMultiDateDiscounts = false;
+        this.discountsByDates = [];
+      }
     }
 
     if (courseFormGroup.course_type === 1 && courseFormGroup.course_dates && courseFormGroup.levelGrop) {
@@ -3894,6 +3901,59 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
   }
 
+  // Interval discounts management methods
+  addIntervalDiscount(intervalIndex: number): void {
+    if (!this.intervals[intervalIndex].discounts) {
+      this.intervals[intervalIndex].discounts = [];
+    }
+
+    const lastDiscount = this.intervals[intervalIndex].discounts[this.intervals[intervalIndex].discounts.length - 1];
+    const newDates = lastDiscount ? lastDiscount.dates + 1 : 2;
+
+    this.intervals[intervalIndex].discounts.push({
+      dates: newDates,
+      type: 'percentage',
+      value: 10
+    });
+
+    this.validateIntervalDiscounts(intervalIndex);
+  }
+
+  removeIntervalDiscount(intervalIndex: number, discountIndex: number): void {
+    if (this.intervals[intervalIndex].discounts && this.intervals[intervalIndex].discounts.length > 1) {
+      this.intervals[intervalIndex].discounts.splice(discountIndex, 1);
+    }
+  }
+
+  validateIntervalDiscounts(intervalIndex: number): void {
+    if (!this.intervals[intervalIndex].discounts) {
+      return;
+    }
+
+    // Sort discounts by dates quantity to avoid conflicts
+    this.intervals[intervalIndex].discounts.sort((a, b) => a.dates - b.dates);
+
+    // Ensure no duplicate dates quantities
+    const datesSet = new Set();
+    this.intervals[intervalIndex].discounts = this.intervals[intervalIndex].discounts.filter(discount => {
+      if (datesSet.has(discount.dates)) {
+        return false;
+      }
+      datesSet.add(discount.dates);
+      return true;
+    });
+  }
+
+  hasIntervalDiscounts(): boolean {
+    if (!this.intervals || !Array.isArray(this.intervals)) {
+      return false;
+    }
+
+    return this.intervals.some(interval =>
+      interval.discounts && Array.isArray(interval.discounts) && interval.discounts.length > 0
+    );
+  }
+
   // Date generation methods
   toggleWeekday(day: string): void {
     this.weeklyPattern[day] = !this.weeklyPattern[day];
@@ -4433,7 +4493,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
         sunday: false
       },
       scheduleStartTime: this.courses.hours?.[0] || '',
-      scheduleDuration: this.courses.duration?.[0] || ''
+      scheduleDuration: this.courses.duration?.[0] || '',
+      discounts: [] // Array de descuentos por fechas para este intervalo específico
     };
   }
 

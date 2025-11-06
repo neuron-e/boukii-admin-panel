@@ -509,6 +509,84 @@
                 {{'schedule_will_apply_to_dates' | translate}}: {{interval?.dates?.length}} {{'dates' | translate}}
               </div>
             </div>
+
+            <!-- Descuentos por múltiples fechas para este intervalo -->
+            <div *ngIf="useMultipleIntervals" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
+              <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
+                <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">local_offer</mat-icon>
+                {{ 'multidate_discount' | translate }} - {{ 'interval' | translate }} {{i + 1}}
+              </h4>
+
+              <div *ngIf="!interval.discounts || interval.discounts.length === 0" style="margin-bottom: 16px;">
+                <button type="button"
+                        (click)="addIntervalDiscount(i)"
+                        style="border: 1px solid #007bff; color: #007bff; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px;">
+                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
+                  {{ 'add_discount_by_date' | translate }}
+                </button>
+              </div>
+
+              <div *ngIf="interval.discounts && interval.discounts.length > 0">
+                <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;">
+                  <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">info</mat-icon>
+                  {{ 'multidate_discount_explanation' | translate }}
+                </div>
+
+                <div *ngFor="let discount of interval.discounts; let j = index" class="discount-item" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 12px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+                  <div style="min-width: 120px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ 'dates_quantity' | translate }}
+                    </label>
+                    <input type="number"
+                           [(ngModel)]="discount.dates"
+                           [ngModelOptions]="{standalone: true}"
+                           min="2"
+                           max="20"
+                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                           (change)="validateIntervalDiscounts(i)">
+                  </div>
+
+                  <div style="min-width: 100px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ 'discount_type' | translate }}
+                    </label>
+                    <select [(ngModel)]="discount.type"
+                            [ngModelOptions]="{standalone: true}"
+                            style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                      <option value="percentage">{{ 'percentage' | translate }}</option>
+                      <option value="fixed">{{ 'fixed_amount' | translate }}</option>
+                    </select>
+                  </div>
+
+                  <div style="min-width: 120px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
+                    </label>
+                    <input type="number"
+                           [(ngModel)]="discount.value"
+                           [ngModelOptions]="{standalone: true}"
+                           [min]="discount.type === 'percentage' ? 1 : 0.01"
+                           [max]="discount.type === 'percentage' ? 100 : 9999"
+                           step="0.01"
+                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                  </div>
+
+                  <button type="button"
+                          *ngIf="interval.discounts.length > 1"
+                          (click)="removeIntervalDiscount(i, j)"
+                          style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; min-width: 36px; height: 36px;">
+                    <mat-icon style="font-size: 18px;">delete</mat-icon>
+                  </button>
+                </div>
+
+                <button type="button"
+                        (click)="addIntervalDiscount(i)"
+                        style="border: 1px solid #007bff; color: #007bff; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px; margin-top: 8px;">
+                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
+                  {{ 'add_discount_by_date' | translate }}
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Bot├│n para a├▒adir nuevo intervalo (solo en modo m├║ltiple) -->
@@ -520,52 +598,6 @@
               {{'add_new_interval' | translate}}
             </button>
 
-          </div>
-        </div>
-
-        <!-- Secci├│n unificada de niveles y subgrupos (para cursos con intervalos en modo update) -->
-        <div *ngIf="useMultipleIntervals && mode==='update'" style="background: white; border: 1px solid #DEE6EA; border-radius: 8px; margin-bottom: 20px;">
-          <div style="padding: 20px; background: #f8f9fa; border-bottom: 1px solid #DEE6EA;">
-            <h6 style="margin: 0; color: #495057; font-size: 14px; font-weight: 600;">
-              <mat-icon style="vertical-align: middle; margin-right: 4px; color: #9C27B0;">groups</mat-icon>
-              {{ 'levels_and_subgroups' | translate }}
-            </h6>
-          </div>
-
-          <div style="padding: 20px;">
-            <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []); index as levelIdx; trackBy: trackLevel">
-              <ng-container *ngIf="level.active">
-                <!-- Header del nivel -->
-                <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 16px;">
-                  <div [style.backgroundColor]="level.color"
-                       [style.border]="'1px solid '+level.color"
-                       style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500;">
-                    {{level.annotation}} {{level.level}}
-                  </div>
-                </div>
-
-                <!-- Subgrupos del nivel -->
-                <ng-container *ngIf="getAllUniqueSubgroupsForLevel(level).length > 0">
-                  <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
-                    <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
-                      {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
-                    </div>
-
-                    <!-- Componente de disponibilidad por subgrupo mostrando todas las fechas -->
-                    <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
-                      <vex-flux-disponibilidad
-                        [courseFormGroup]="courses.courseFormGroup"
-                        [level]="level"
-                        [group]="getGroupForLevel(level)"
-                        [subgroup_index]="uniqueSubgroup._index"
-                        (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
-                        (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
-                      </vex-flux-disponibilidad>
-                    </div>
-                  </ng-container>
-                </ng-container>
-              </ng-container>
-            </ng-container>
           </div>
         </div>
 
@@ -952,42 +984,59 @@
         </div>
 
         <!-- Vista unificada para modo UPDATE con configureLevelsByInterval activo -->
-        <div *ngIf="configureLevelsByInterval && useMultipleIntervals && mode==='update'"
-             class="level"
-             style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
-          <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
-            <ng-container *ngIf="level.active">
-              <!-- Header del nivel -->
-              <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 10px;">
-                <div [style.backgroundColor]="level.color"
-                     [style.border]="'1px solid '+level.color"
-                     style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500;">
-                  {{level.annotation}} {{level.level}}
-                </div>
-              </div>
+        <!-- Organizada por tabs de intervalos -->
+        <div *ngIf="configureLevelsByInterval && useMultipleIntervals && mode==='update'" style="margin-top: 16px;">
+          <mat-accordion multi displayMode="flat">
+            <mat-expansion-panel *ngFor="let interval of intervals; let intervalIdx = index; trackBy: trackInterval"
+                                 [expanded]="intervalIdx === 0">
+              <mat-expansion-panel-header>
+                <mat-panel-title style="font-weight: 600;">
+                  {{getIntervalLabel(interval, intervalIdx)}}
+                </mat-panel-title>
+                <mat-panel-description>
+                  {{interval.startDate | date:'dd/MM/yyyy'}} - {{interval.endDate | date:'dd/MM/yyyy'}}
+                </mat-panel-description>
+              </mat-expansion-panel-header>
 
-              <!-- Subgrupos del nivel -->
-              <ng-container *ngIf="getAllUniqueSubgroupsForLevel(level).length > 0">
-                <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
-                  <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
-                    {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
-                  </div>
+              <!-- Contenido del intervalo -->
+              <div class="level" style="display: flex;flex-direction: column;padding: 10px; border-radius: 8px; gap: 10px;">
+                <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
+                  <ng-container *ngIf="level.active && isLevelActiveForInterval(intervalIdx, level)">
+                    <!-- Header del nivel -->
+                    <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 10px;">
+                      <div [style.backgroundColor]="level.color"
+                           [style.border]="'1px solid '+level.color"
+                           style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500;">
+                        {{level.annotation}} {{level.level}}
+                      </div>
+                    </div>
 
-                  <!-- Componente de disponibilidad por subgrupo mostrando todas las fechas -->
-                  <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
-                    <vex-flux-disponibilidad
-                      [courseFormGroup]="courses.courseFormGroup"
-                      [level]="level"
-                      [group]="getGroupForLevel(level)"
-                      [subgroup_index]="uniqueSubgroup._index"
-                      (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
-                      (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
-                    </vex-flux-disponibilidad>
-                  </div>
+                    <!-- Subgrupos del nivel para este intervalo -->
+                    <ng-container *ngIf="getIntervalLevelSubgroups(intervalIdx, level).length > 0">
+                      <ng-container *ngFor="let subgroup of getIntervalLevelSubgroups(intervalIdx, level); index as j">
+                        <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
+                          {{level.annotation}} {{level.level}} {{("00"+(j+1)).slice(-2)}}
+                        </div>
+
+                        <!-- Componente de disponibilidad por subgrupo para este intervalo específico -->
+                        <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
+                          <vex-flux-disponibilidad
+                            [courseFormGroup]="courses.courseFormGroup"
+                            [level]="level"
+                            [group]="getGroupForLevel(level)"
+                            [subgroup_index]="j"
+                            [intervalIndex]="intervalIdx"
+                            (monitorSelect)="monitorSelect($event,level,j)"
+                            (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                          </vex-flux-disponibilidad>
+                        </div>
+                      </ng-container>
+                    </ng-container>
+                  </ng-container>
                 </ng-container>
-              </ng-container>
-            </ng-container>
-          </ng-container>
+              </div>
+            </mat-expansion-panel>
+          </mat-accordion>
         </div>
 
         <!-- Vista simplificada de grupos y niveles (cuando NO está activado el flag por intervalos) -->
