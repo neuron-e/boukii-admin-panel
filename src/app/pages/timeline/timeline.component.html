@@ -1078,7 +1078,7 @@
                     </mat-select>
                   </mat-form-field>
                 </div>
-                <div class="bulk-selection-summary" *ngIf="monitorAssignmentScope !== 'single'">
+                <div class="bulk-selection-summary" *ngIf="monitorAssignmentScope !== 'single' && taskDetail?.course?.course_type === 1">
                   {{ getSelectedAssignmentSessionCount() }} {{'days' | translate}}
                 </div>
               </div>
