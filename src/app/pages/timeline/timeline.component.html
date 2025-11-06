@@ -1022,7 +1022,8 @@
                   translate}}</mat-card-title>
               </div>
               <div class="monitor-bulk-controls" *ngIf="monitorAssignmentDates.length">
-                <mat-form-field appearance="outline" class="flex-auto">
+                <!-- Only show scope selector for collective courses (course_type === 1) -->
+                <mat-form-field appearance="outline" class="flex-auto" *ngIf="taskDetail?.course?.course_type === 1">
                   <mat-label>{{'monitor_assignment.scope_label' | translate}}</mat-label>
                   <mat-select [(ngModel)]="monitorAssignmentScope"
                               (selectionChange)="onMonitorAssignmentScopeChange($event.value)">
@@ -1061,7 +1062,7 @@
                     </mat-select>
                   </mat-form-field>
                 </div>
-                <div class="bulk-selection-summary" *ngIf="monitorAssignmentScope !== 'single'">
+                <div class="bulk-selection-summary" *ngIf="monitorAssignmentScope !== 'single' && taskDetail?.course?.course_type === 1">
                   {{ getSelectedAssignmentSessionCount() }} {{'days' | translate}}
                 </div>
               </div>
