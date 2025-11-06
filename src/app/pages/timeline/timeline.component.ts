@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, HostListener, OnDestroy, OnInit} from '@angular/core';
 import {
   addDays,
   addMonths,
@@ -16,7 +16,7 @@ import {
   subWeeks
 } from 'date-fns';
 import {ApiCrudService} from 'src/service/crud.service';
-import {MonitorsService} from 'src/service/monitors.service';
+import {MonitorTransferPayload, MonitorsService} from 'src/service/monitors.service';
 import {LEVELS} from 'src/app/static-data/level-data';
 import {MOCK_COUNTRIES} from 'src/app/static-data/countries-data';
 import {MatDialog} from '@angular/material/dialog';
@@ -143,7 +143,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   filteredUsers: Observable<any[]>;
   filteredMonitorsO: Observable<any[]>;
 
-  monitorAssignmentScope: MonitorAssignmentScope = 'single';
+  monitorAssignmentScope: 'single' | 'interval' | 'all' | 'from' | 'range' = 'single';
   monitorAssignmentStartDate: string | null = null;
   monitorAssignmentEndDate: string | null = null;
   monitorAssignmentDates: { value: string, label: string }[] = [];
@@ -1185,7 +1185,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   // LOGIC
 
-  toggleDetail(task: any) {
+  toggleDetail(task: any, event?: MouseEvent) {
+    if (event) {
+      event.stopPropagation();
+    }
     if (task.booking_id) {
       if (task.grouped_tasks && task.grouped_tasks.length > 1) {
         //Open Modal grouped courses
@@ -1214,13 +1217,19 @@ export class TimelineComponent implements OnInit, OnDestroy {
         this.taskDetail = task;
         this.showDetail = true;
         this.initializeMonitorAssignment(task);
+
+      // Cargar disponibles para el selector del preview:
+        this.checkAvailableMonitors();
       }
       this.hideBlock();
       this.hideEditBlock();
     }
   }
 
-  toggleBlock(block: any) {
+  toggleBlock(block: any, event?: MouseEvent) {
+    if (event) {
+      event.stopPropagation();
+    }
     this.idBlock = block.block_id;
     this.blockDetail = block;
     this.hideDetail();
@@ -1258,6 +1267,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   toggleDetailMove(task: any, event: any) {
     this.moving = true;
     this.taskDetail = task;
+    this.initializeMonitorAssignment(task);
     event.preventDefault();
     if (task.booking_id) {
       const dialogRef = this.dialog.open(ConfirmModalComponent, {
@@ -1269,7 +1279,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
         if (userConfirmed) {
 
-          const clientIds = this.taskDetail.all_clients.map((client) => client.id);
+          const clientIds = (this.taskDetail.all_clients || []).map((client) => client.id);
 
           const data = {
             sportId: this.taskDetail.sport_id,
@@ -1400,6 +1410,123 @@ export class TimelineComponent implements OnInit, OnDestroy {
     });
   }
 
+  private monitorMatchesCurrentSport(monitor: any): boolean {
+    if (!this.taskDetail) {
+      return false;
+    }
+    if (!monitor || !monitor.id) {
+      return true;
+    }
+    if (!Array.isArray(monitor.sports)) {
+      return false;
+    }
+    return monitor.sports.some((sport: any) => sport && sport.id === this.taskDetail.sport_id);
+  }
+
+  private openMonitorAssignmentDialog(monitor: any): Observable<MonitorAssignmentDialogResult | undefined> {
+    if (!this.taskDetail) return of(undefined);
+
+    if (this.taskDetail?.course?.course_type !== 1) {
+      const defaultDate = this.taskDetail?.date || null;
+      return of({
+        scope: 'single',
+        startDate: defaultDate,
+        endDate: defaultDate
+      });
+    }
+    // Inicializa arrays/estado para el diálogo
+    this.initializeMonitorAssignment(this.taskDetail); // <- tu método existente que carga monitorAssignmentDates, scope, etc.
+    const defaultDate = this.taskDetail?.date || null;
+
+    const dialogRef = this.dialog.open(MonitorAssignmentDialogComponent, {
+      width: '420px',
+      disableClose: true,
+      autoFocus: false,
+      data: {
+        monitor,
+        // YA SON OPCIONES {value,label} (no hay que remapear nada)
+        dates: this.monitorAssignmentDates, // <-- aquí estaba el bug (antes hacía ({ .option }))
+        defaultDate,
+        intervalDates: this.getIntervalDatesForTask(this.taskDetail),
+        hasMultipleIntervals: this.hasMultipleIntervals(),
+        allowAllOption: (this.monitorAssignmentDates?.length ?? 0) > 1,
+        initialScope: this.monitorAssignmentScope as MonitorAssignmentScope,
+        startDate: this.monitorAssignmentStartDate,
+        endDate: this.monitorAssignmentEndDate
+      }
+    });
+
+    return dialogRef.afterClosed();
+  }
+
+  private applyMonitorAssignmentSelection(selection: MonitorAssignmentDialogResult): void {
+    this.monitorAssignmentScope = selection.scope;
+    this.monitorAssignmentStartDate = selection.startDate;
+    this.monitorAssignmentEndDate = selection.endDate;
+  }
+
+  private buildMonitorTransferPayload(
+    monitorId: number | null,
+    fallbackSubgroupId: number | null
+  ): MonitorTransferPayload {
+    const bookingUsers = this.collectBookingUserIdsForAssignment();
+
+    // Scope y rango que vienen del modal / preview:
+    const scope = this.monitorAssignmentScope; // 'single' | 'interval' | 'all' | 'from' | 'range'
+    const { start, end } = this.resolveAssignmentDateRange();
+
+    // Contexto de la tarea actual
+    const ctx = this.taskDetail || {};
+    let subgroupId = fallbackSubgroupId;
+
+    if (!bookingUsers.length) {
+      if (ctx.course_subgroup_id) {
+        subgroupId = ctx.course_subgroup_id;
+      } else if (!ctx.all_clients?.length && ctx.booking_id) {
+        // mantiene tu fallback actual
+        subgroupId = ctx.booking_id;
+        ctx.booking_id = null;
+      }
+    }
+
+    return {
+      monitor_id: monitorId,
+      booking_users: bookingUsers,
+      subgroup_id: subgroupId,
+
+      // NUEVO:
+      scope,
+      start_date: start.format('YYYY-MM-DD'),
+      end_date:   end.format('YYYY-MM-DD'),
+
+      course_id: ctx.course_id ?? null,
+      booking_id: ctx.booking_id ?? null,
+      course_subgroup_id: ctx.course_subgroup_id ?? null,
+      course_date_id: ctx.course_date_id ?? null
+    };
+  }
+
+  private handleMonitorTransferSuccess(): void {
+    this.moveTask = false;
+    this.taskMoved = null;
+    this.hideDetail();
+    this.hideGrouped();
+    this.loadBookings(this.currentDate);
+    this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+  }
+
+  private handleMonitorTransferError(error: any): void {
+    this.moveTask = false;
+    this.taskMoved = null;
+    console.error('Error occurred:', error);
+    const message = error?.error?.message;
+    if (message && message.includes('Overlap detected')) {
+      this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
+    } else {
+      this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
+    }
+  }
+
   getDateFormatLong(date: string) {
     return moment(date).format('dddd, D MMMM YYYY');
   }
@@ -1501,11 +1628,19 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   private initializeMonitorAssignment(task: any): void {
-    this.monitorAssignmentDates = this.buildMonitorAssignmentDates(task);
-    const defaultDate = task?.date || null;
+    // 1) Construye TODAS las fechas del curso para el selector del modal
+    const courseDates = task?.course?.course_dates ?? [];
+    this.monitorAssignmentDates = courseDates.map((cd: any) => ({
+      value: cd.date,
+      label: cd.date
+    }));
+
+    // 2) Scope por defecto
     this.monitorAssignmentScope = 'single';
-    this.monitorAssignmentStartDate = defaultDate;
-    this.monitorAssignmentEndDate = defaultDate;
+
+    // 3) Rango por defecto (primera y última del curso)
+    this.monitorAssignmentStartDate = this.monitorAssignmentDates[0]?.value || null;
+    this.monitorAssignmentEndDate   = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || this.monitorAssignmentStartDate;
   }
 
   private resetMonitorAssignmentState(): void {
@@ -1515,17 +1650,49 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorAssignmentDates = [];
   }
 
+  /** Extrae fechas del curso con tolerancia a distintos campos (date, date_full, etc.) */
+  private getDateStrFromAny(item: any): string | null {
+    if (!item) return null;
+    // formato preferente YYYY-MM-DD en 'date'
+    if (typeof item.date === 'string' && item.date.length >= 10) return item.date.slice(0, 10);
+    // a veces viene 'date_full' en ISO con 'Z'
+    if (typeof item.date_full === 'string' && item.date_full.length >= 10) return item.date_full.slice(0, 10);
+    // por si llega como string directo
+    if (typeof item === 'string' && item.length >= 10) return item.slice(0, 10);
+    return null;
+  }
+
   private buildMonitorAssignmentDates(task: any): { value: string, label: string }[] {
     if (!task) {
       return [];
     }
-    const relatedTasks = this.getRelatedTasks(task);
-    const uniqueDates = Array.from(new Set(
-      relatedTasks
-        .map((related: any) => related?.date)
-        .filter((date: string) => !!date)
-    ));
 
+    debugger;
+
+    const dateSet = new Set<string>();
+    const relatedTasks = this.getRelatedTasks(task);
+
+    relatedTasks
+      .map((related: any) => related?.date)
+      .filter((date: string) => !!date)
+      .forEach((date: string) => dateSet.add(date));
+
+    if (task?.date) {
+      dateSet.add(task.date);
+    }
+
+    if (dateSet.size === 0) {
+      this.collectCourseDatesForTask(task).forEach(date => dateSet.add(date));
+      this.collectGroupedTaskDates(task).forEach(date => dateSet.add(date));
+    }
+
+    if (dateSet.size === 0 && task?.booking?.course_dates) {
+      (task.booking.course_dates as any[])
+        .filter(item => item?.date)
+        .forEach(item => dateSet.add(item.date));
+    }
+
+    const uniqueDates = Array.from(dateSet).filter(Boolean);
     uniqueDates.sort((a, b) => a.localeCompare(b));
 
     return uniqueDates.map(date => ({
@@ -1535,9 +1702,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   private getRelatedTasks(task: any): any[] {
-    if (!task) {
-      return [];
-    }
+    if (!task) return [];
 
     const courseId = task.course_id;
     const subgroupId = task.course_subgroup_id;
@@ -1545,23 +1710,27 @@ export class TimelineComponent implements OnInit, OnDestroy {
     const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
 
     return tasksSource.filter(candidate => {
-      if (!candidate) {
-        return false;
-      }
-      if (subgroupId) {
-        return candidate.course_subgroup_id === subgroupId;
-      }
-      if (bookingId && candidate.booking_id) {
-        return candidate.booking_id === bookingId;
-      }
-      if (courseId) {
-        return candidate.course_id === courseId;
-      }
+      if (!candidate) return false;
+
+      // 1) mismo intervalo / subgrupo
+      if (subgroupId && candidate.course_subgroup_id === subgroupId) return true;
+
+      // 2) mismo curso (todas las fechas del curso)
+      if (courseId && candidate.course_id === courseId) return true;
+
+      // 3) misma sesión (fallback)
+      if (bookingId && candidate.booking_id && candidate.booking_id === bookingId) return true;
+
       return false;
     });
   }
 
-  onMonitorAssignmentScopeChange(scope: 'single' | 'from' | 'range'): void {
+  onMonitorAssignmentScopeChange(scope: MonitorAssignmentScope): void {
+    // Force 'single' scope for private courses (course_type !== 1)
+    if (this.taskDetail?.course?.course_type !== 1) {
+      scope = 'single';
+    }
+
     this.monitorAssignmentScope = scope;
     const defaultDate = this.taskDetail?.date || null;
 
@@ -1571,8 +1740,28 @@ export class TimelineComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // NEW: Handle interval scope
+    if (scope === 'interval') {
+      const intervalDates = this.getIntervalDatesForTask(this.taskDetail);
+      if (intervalDates.length > 0) {
+        this.monitorAssignmentStartDate = intervalDates[0];
+        this.monitorAssignmentEndDate = intervalDates[intervalDates.length - 1];
+      } else {
+        this.monitorAssignmentStartDate = defaultDate;
+        this.monitorAssignmentEndDate = defaultDate;
+      }
+      return;
+    }
+
     const firstDate = this.monitorAssignmentDates[0]?.value || defaultDate;
     const lastDate = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || defaultDate;
+
+    // NEW: Handle all (todo el curso)
+    if (scope === 'all') {
+      this.monitorAssignmentStartDate = firstDate;
+      this.monitorAssignmentEndDate = lastDate;
+      return;
+    }
 
     if (scope === 'from') {
       this.monitorAssignmentStartDate = defaultDate ?? firstDate;
@@ -1617,12 +1806,178 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
   }
 
+  private collectCourseDatesFromCourse(task: any): string[] {
+    const set = new Set<string>();
+
+    // 1) curso anidado en la tarea
+    const arr = task?.course?.course_dates ?? [];
+    if (Array.isArray(arr) && arr.length) {
+      arr.forEach((cd: any) => {
+        const d = this.getDateStrFromAny(cd);
+        if (d) set.add(d);
+      });
+    }
+
+    // 2) por seguridad añade la propia fecha de la tarea
+    const selfDate = this.getDateStrFromAny(task);
+    if (selfDate) set.add(selfDate);
+
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  private collectCourseDatesForTask(task: any): any[] {
+    if (!task) return [];
+
+    // 1) si la tarea trae booking.course_dates
+    const datesFromBooking = (task.booking?.course_dates ?? [])
+      .map((d: any) => d?.date)
+      .filter((d: string) => !!d);
+
+    if (datesFromBooking.length) {
+      return Array.from(new Set(datesFromBooking)).sort();
+    }
+
+    // 2) si existen otras tasks del mismo curso en el planner
+    const courseId = task.course_id;
+    if (!courseId) return [];
+
+    const datesFromPlanner = (Array.isArray(this.plannerTasks) ? this.plannerTasks : [])
+      .filter(t => t?.course_id === courseId && t?.date)
+      .map(t => t.date);
+
+    return Array.from(new Set(datesFromPlanner)).sort();
+  }
+
+  private collectCourseDateOptionsForTask(task: any): Array<{ value: string; label: string }> {
+    const dates = this.collectCourseDatesForTask(task);
+    return dates.map(d => ({ value: d, label: d })); // formatea si quieres a locale
+  }
+
+/*  private collectCourseDateOptionsForTask(task: any): Array<{ value: string; label: string }> {
+    const dateSet = new Set<string>();
+
+    // 1) Fechas desde task.course.course_dates (admin)
+    const courseDates = task?.course?.course_dates ?? [];
+    courseDates.forEach((cd: any) => {
+      if (cd?.date) dateSet.add(cd.date);
+    });
+
+    // 2) Fechas desde booking.course_dates (si viene de una reserva concreta)
+    const bookingDates = task?.booking?.course_dates ?? [];
+    bookingDates.forEach((bd: any) => {
+      if (bd?.date) dateSet.add(bd.date);
+    });
+
+    // 3) Fechas visibles en planner para ese curso (por si no llegaron anidadas)
+    const courseId = task?.course_id ?? task?.course?.id;
+    if (courseId && Array.isArray(this.plannerTasks)) {
+      this.plannerTasks
+        .filter(t => t.course_id === courseId && !!t.date)
+        .forEach(t => dateSet.add(t.date));
+    }
+
+    const uniqueDates = Array.from(dateSet).sort();
+    return uniqueDates.map(d => ({ value: d, label: d })); // Si quieres, formatea el label a locale
+  }*/
+
+  private collectGroupedTaskDates(task: any): string[] {
+    if (!task?.booking_id) return [];
+    const bookingId = task.booking_id;
+
+    const dates = (Array.isArray(this.plannerTasks) ? this.plannerTasks : [])
+      .filter(t => t?.booking_id === bookingId && t?.date)
+      .map(t => t.date);
+
+    return Array.from(new Set(dates)).sort();
+  }
+
+  /**
+   * Get all dates that belong to the same interval as the given task
+   */
+  private getIntervalDatesForTask(task: any): string[] {
+    if (!task || !task.course_subgroup_id) {
+      return this.collectCourseDatesForTask(task);
+    }
+
+    // Find all tasks with the same course_subgroup_id (same interval)
+    const intervalTasks = this.plannerTasks.filter(t =>
+      t.course_subgroup_id === task.course_subgroup_id
+    );
+
+    // Extract and sort unique dates
+    const dates = Array.from(new Set(
+      intervalTasks
+        .map(t => t.date)
+        .filter(date => !!date)
+    )).sort();
+
+    if (dates.length === 0) {
+      return this.collectCourseDatesForTask(task);
+    }
+
+    return dates;
+  }
+
+  /**
+   * Check if the current task's course has multiple intervals
+   */
+  hasMultipleIntervals(): boolean {
+    if (!this.taskDetail) {
+      return false;
+    }
+
+    // Check if there are multiple unique subgroups for this course
+    const courseId = this.taskDetail.course_id;
+    if (!courseId) {
+      return false;
+    }
+
+    const subgroups = new Set(
+      this.plannerTasks
+        .filter(t => t.course_id === courseId && t.course_subgroup_id)
+        .map(t => t.course_subgroup_id)
+    );
+
+    if (subgroups.size > 1) {
+      return true;
+    }
+
+    const course = this.taskDetail.course;
+    if (!course || !Array.isArray(course.course_dates)) {
+      return false;
+    }
+
+    const courseSubgroupIds = new Set<number>();
+    course.course_dates.forEach((courseDate: any) => {
+      if (!Array.isArray(courseDate?.course_groups)) {
+        return;
+      }
+      courseDate.course_groups.forEach((group: any) => {
+        if (!Array.isArray(group?.course_subgroups)) {
+          return;
+        }
+        group.course_subgroups.forEach((subgroup: any) => {
+          if (subgroup?.id) {
+            courseSubgroupIds.add(subgroup.id);
+          }
+        });
+      });
+    });
+
+    return courseSubgroupIds.size > 1;
+  }
   private resolveAssignmentDateRange(): { start: moment.Moment, end: moment.Moment } {
     const fallbackDate = this.taskDetail?.date || moment().format('YYYY-MM-DD');
     let startDate = this.monitorAssignmentStartDate || fallbackDate;
     let endDate = this.monitorAssignmentEndDate || startDate;
 
-    if (this.monitorAssignmentScope === 'from') {
+    if (this.monitorAssignmentScope === 'interval') {
+      const intervalDates = this.getIntervalDatesForTask(this.taskDetail);
+      if (intervalDates.length > 0) {
+        startDate = intervalDates[0];
+        endDate = intervalDates[intervalDates.length - 1];
+      }
+    } else if (this.monitorAssignmentScope === 'from') {
       const last = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || endDate;
       endDate = last;
     } else if (this.monitorAssignmentScope === 'single') {
@@ -1641,7 +1996,6 @@ export class TimelineComponent implements OnInit, OnDestroy {
       end: moment(endDate, 'YYYY-MM-DD')
     };
   }
-
   private collectBookingUserIdsForAssignment(): number[] {
     const baseTask = this.taskDetail;
     if (!baseTask) {
@@ -1702,45 +2056,75 @@ export class TimelineComponent implements OnInit, OnDestroy {
     return dates.size;
   }
 
-  saveEditedMonitor() {
-    const monitorId = this.editedMonitor ? this.editedMonitor.id : null;
+  private buildFullMonitorTransferPayload(monitorId: number | null) {
     const bookingUserIds = this.collectBookingUserIdsForAssignment();
-    let subgroupId: number | null = null;
 
-    if (!bookingUserIds.length) {
-      if (this.taskDetail?.course_subgroup_id) {
-        subgroupId = this.taskDetail.course_subgroup_id;
-      } else if (!this.taskDetail?.all_clients?.length && this.taskDetail?.booking_id) {
-        subgroupId = this.taskDetail.booking_id;
+    // Fechas según el scope elegido en el preview (las mismas que usa el modal)
+    const { start, end } = this.resolveAssignmentDateRange();
+    const startDate = start.format('YYYY-MM-DD');
+    const endDate   = end.format('YYYY-MM-DD');
+
+    // Ids base de la tarea actual
+    const courseId        = this.taskDetail?.course_id ?? this.taskDetail?.course?.id ?? null;
+    const bookingId       = this.taskDetail?.booking_id ?? null;
+    const subgroupId      = this.taskDetail?.course_subgroup_id ?? null;
+    const courseDateId    = this.taskDetail?.course_date_id ?? null;
+    const degreeId        = this.taskDetail?.degree?.id ?? null;
+
+    // fallback (como tenías antes) si no hay BU’s ni subgroup explícito
+    let fallbackSubgroupId = subgroupId;
+    if (!bookingUserIds.length && !fallbackSubgroupId) {
+      if (!this.taskDetail?.all_clients?.length && this.taskDetail?.booking_id) {
+        fallbackSubgroupId = this.taskDetail.booking_id; // (ojo: tu backend lo llama subgroup_id; aquí mantenemos por compat)
       }
     }
 
-    const payload = {
+    return {
+      // lo que ya tenías
       monitor_id: monitorId,
       booking_users: bookingUserIds,
-      subgroup_id: subgroupId
+
+      // NUEVO: el backend los espera
+      scope: this.monitorAssignmentScope,              // 'single'|'interval'|'all'|'from'|'range'
+      start_date: startDate,
+      end_date: endDate,
+      course_id: courseId,
+      booking_id: bookingId,
+      subgroup_id: fallbackSubgroupId,                 // en el backend lo recoges como subgroup_id
+      course_date_id: courseDateId,
+      degree_id: degreeId
     };
+  }
 
-    this.monitorsService.transferMonitor(payload)
-      .subscribe((data) => {
+  saveEditedMonitor() {
+    const monitorId = this.editedMonitor ? this.editedMonitor.id : null;
 
+    // payload completo con scope/fechas/ids/degree
+    const payload = this.buildFullMonitorTransferPayload(monitorId);
+
+    if (!payload.booking_users.length && !payload.subgroup_id && !payload.course_id) {
+      this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+      return;
+    }
+
+    this.monitorsService.transferMonitor(payload).subscribe(
+      () => {
         this.editedMonitor = null;
         this.showEditMonitor = false;
         this.hideDetail();
         this.loadBookings(this.currentDate);
         this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
       },
-        (error) => {
-          // Error handling code
-          console.error('Error occurred:', error);
-          if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-            this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-          }
-          else {
-            this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
-          }
-        })
-
+      (error) => {
+        console.error('Error occurred:', error);
+        const msg = error?.error?.message || '';
+        if (msg.includes('Overlap')) {
+          this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
+        } else {
+          this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
+        }
+      }
+    );
   }
 
   goTo(route: string) {
@@ -2305,7 +2689,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     this.loadingMonitors = true;
 
-    const clientIds = this.taskDetail.all_clients.map((client) => client.id);
+    const clientIds = (this.taskDetail.all_clients || []).map((client) => client.id);
     const data = {
       sportId: this.taskDetail.sport_id,
       minimumDegreeId: this.taskDetail.degree_id || this.taskDetail.degree.id,
@@ -2396,6 +2780,41 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
 
+
+  /**
+   * Handle click events on the document to close modals when clicking outside
+   */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+
+    // Excluir clicks en overlays de Material Angular (dropdowns, datepickers, etc.)
+    const isMaterialOverlay = target.closest('.mat-select-panel, .cdk-overlay-pane, .mat-menu-panel, .mat-datepicker-popup, .mat-autocomplete-panel');
+
+    // Close grouped tasks modal (left sidebar) if clicking outside
+    if (this.showGrouped) {
+      const groupedModal = target.closest('.modal-grouped');
+      if (!groupedModal && !isMaterialOverlay) {
+        this.hideGrouped();
+      }
+    }
+
+    // Close detail modal (right sidebar) if clicking outside
+    if (this.showDetail) {
+      const detailModal = target.closest('.col-right, .box-detail-timeline');
+      if (!detailModal && !isMaterialOverlay) {
+        this.hideDetail();
+      }
+    }
+
+    // Close block detail modal if clicking outside
+    if (this.showBlock) {
+      const blockModal = target.closest('.box-detail-timeline');
+      if (!blockModal && !isMaterialOverlay) {
+        this.hideBlock();
+      }
+    }
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -2519,118 +2938,6 @@ export class TimelineComponent implements OnInit, OnDestroy {
       return null;
     }
 
-  }
-
-  private openMonitorAssignmentDialog(monitor: any): Observable<MonitorAssignmentDialogResult | undefined> {
-    if (!this.taskDetail) return of(undefined);
-
-    // IMPORTANT: For private courses, skip the dialog and return 'single' scope directly
-    if (this.taskDetail?.course?.course_type !== 1) {
-      const defaultDate = this.taskDetail?.date || null;
-      return of({
-        scope: 'single',
-        startDate: defaultDate,
-        endDate: defaultDate
-      });
-    }
-
-    // For collective courses, show the dialog
-    this.initializeMonitorAssignment(this.taskDetail);
-    const defaultDate = this.taskDetail?.date || null;
-
-    const dialogRef = this.dialog.open(MonitorAssignmentDialogComponent, {
-      width: '420px',
-      disableClose: true,
-      autoFocus: false,
-      data: {
-        monitor,
-        dates: this.monitorAssignmentDates,
-        defaultDate,
-        intervalDates: this.getIntervalDatesForTask(this.taskDetail),
-        hasMultipleIntervals: this.hasMultipleIntervals(),
-        allowAllOption: (this.monitorAssignmentDates?.length ?? 0) > 1,
-        initialScope: this.monitorAssignmentScope as MonitorAssignmentScope,
-        startDate: this.monitorAssignmentStartDate,
-        endDate: this.monitorAssignmentEndDate
-      }
-    });
-
-    return dialogRef.afterClosed();
-  }
-
-  private applyMonitorAssignmentSelection(selection: MonitorAssignmentDialogResult): void {
-    this.monitorAssignmentScope = selection.scope;
-    this.monitorAssignmentStartDate = selection.startDate;
-    this.monitorAssignmentEndDate = selection.endDate;
-  }
-
-  private buildMonitorTransferPayload(
-    monitorId: number | null,
-    fallbackSubgroupId: number | null
-  ): any {
-    const bookingUsers = this.collectBookingUserIdsForAssignment();
-
-    const scope = this.monitorAssignmentScope;
-    const { start, end } = this.resolveAssignmentDateRange();
-
-    const ctx = this.taskDetail || {};
-    let subgroupId = fallbackSubgroupId;
-
-    if (!bookingUsers.length) {
-      if (ctx.course_subgroup_id) {
-        subgroupId = ctx.course_subgroup_id;
-      } else if (!ctx.all_clients?.length && ctx.booking_id) {
-        subgroupId = ctx.booking_id;
-        ctx.booking_id = null;
-      }
-    }
-
-    return {
-      monitor_id: monitorId,
-      booking_users: bookingUsers,
-      subgroup_id: subgroupId,
-      scope,
-      start_date: start.format('YYYY-MM-DD'),
-      end_date: end.format('YYYY-MM-DD'),
-      course_id: ctx.course_id ?? null,
-      booking_id: ctx.booking_id ?? null,
-      course_subgroup_id: ctx.course_subgroup_id ?? null,
-      course_date_id: ctx.course_date_id ?? null
-    };
-  }
-
-  private monitorMatchesCurrentSport(monitor: any): boolean {
-    if (!this.taskDetail) {
-      return false;
-    }
-    if (!monitor || !monitor.id) {
-      return true;
-    }
-    if (!Array.isArray(monitor.sports)) {
-      return false;
-    }
-    return monitor.sports.some((sport: any) => sport && sport.id === this.taskDetail.sport_id);
-  }
-
-  private handleMonitorTransferSuccess(): void {
-    this.moveTask = false;
-    this.taskMoved = null;
-    this.hideDetail();
-    this.hideGrouped();
-    this.loadBookings(this.currentDate);
-    this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-  }
-
-  private handleMonitorTransferError(error: any): void {
-    this.moveTask = false;
-    this.taskMoved = null;
-    console.error('Error occurred:', error);
-    const message = error?.error?.message;
-    if (message && message.includes('Overlap detected')) {
-      this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-    } else {
-      this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-    }
   }
 
   protected readonly parseInt = parseInt;
