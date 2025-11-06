@@ -98,46 +98,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   isResizing = false;
 
   // Rich text editor now uses @kolkov/angular-editor
-  editorConfig: AngularEditorConfig = {
-    editable: true,
-    spellcheck: true,
-    height: 'auto',
-    minHeight: '400px',
-    maxHeight: '800px',
-    width: 'auto',
-    minWidth: '0',
-    translate: 'yes',
-    enableToolbar: true,
-    showToolbar: true,
-    placeholder: this.translateService.instant('newsletter_editor_placeholder'),
-    defaultParagraphSeparator: 'p',
-    defaultFontName: 'Arial',
-    defaultFontSize: '3',
-    uploadUrl: '',
-    uploadWithCredentials: false,
-    sanitize: true,
-    toolbarPosition: 'top',
-    toolbarHiddenButtons: [
-      ['subscript', 'superscript'],
-      ['insertUnorderedList', 'insertOrderedList'],
-      ['fontName']
-    ],
-    customClasses: [
-      {
-        name: 'Quote',
-        class: 'quote',
-      },
-      {
-        name: 'Texto Destacado',
-        class: 'redText'
-      },
-      {
-        name: 'Título Principal',
-        class: 'titleText',
-        tag: 'h1',
-      }
-    ]
-  };
+  editorConfig!: AngularEditorConfig;
 
   newsletterStats: NewsletterStats = {
     totalSubscribers: 0,
@@ -227,6 +188,48 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     private translateService: TranslateService,
     private mailService: MailService
   ) {
+    // Initialize editor config with translations
+    this.editorConfig = {
+      editable: true,
+      spellcheck: true,
+      height: 'auto',
+      minHeight: '400px',
+      maxHeight: '800px',
+      width: 'auto',
+      minWidth: '0',
+      translate: 'yes',
+      enableToolbar: true,
+      showToolbar: true,
+      placeholder: this.translateService.instant('communications.editor_placeholder'),
+      defaultParagraphSeparator: 'p',
+      defaultFontName: 'Arial',
+      defaultFontSize: '3',
+      uploadUrl: '',
+      uploadWithCredentials: false,
+      sanitize: true,
+      toolbarPosition: 'top',
+      toolbarHiddenButtons: [
+        ['subscript', 'superscript'],
+        ['insertUnorderedList', 'insertOrderedList'],
+        ['fontName']
+      ],
+      customClasses: [
+        {
+          name: this.translateService.instant('communications.editor_class_quote'),
+          class: 'quote',
+        },
+        {
+          name: this.translateService.instant('communications.editor_class_highlighted'),
+          class: 'redText'
+        },
+        {
+          name: this.translateService.instant('communications.editor_class_main_title'),
+          class: 'titleText',
+          tag: 'h1',
+        }
+      ]
+    };
+
     this.createForm();
     this.mails$ = this.mailService.mails$;
     // Initialize filteredMails$ with mails$ as default
