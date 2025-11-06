@@ -977,7 +977,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
     const selectedDates = Array.isArray(this.dates) ? this.dates.length : 0;
     const baseTotal = Math.max(0, basePrice * selectedDates);
-    return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
+    const result = this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
+    return result.discountedTotal;
   }
 
   // Filtra las fechas seleccionadas y calcula el precio individual para cada fecha
