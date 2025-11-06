@@ -77,7 +77,7 @@
 		<mat-card class="right-column">
 			<booking-description-card [utilizers]="utilizers" [allLevels]=allLevels [sport]="sport"
 				[sportLevel]="sportLevel" [course]="course" [dates]="dates" [monitors]="monitors"
-				[clientObs]="clientObs" [schoolObs]="schoolObs" [total]="total">
+				[clientObs]="clientObs" [schoolObs]="schoolObs" [total]="total" [discountInfo]="null">
 			</booking-description-card>
 			<button *ngIf="forms.length" (click)="isDetail = true" mat-button type="button">
 				{{ "return_to_payment_page" | translate }}
@@ -97,7 +97,7 @@
 					[utilizers]="activity.utilizers" [allLevels]="allLevels" [sport]="activity.sport"
 					[sportLevel]="activity.sportLevel" [course]="activity.course" [dates]="activity.dates"
 					[monitors]="activity.monitors" [clientObs]="activity.clientObs" [schoolObs]="activity.schoolObs"
-					[total]="activity.total" [isDetail]="true" [summaryMode]="true"
+					[total]="activity.total" [discountInfo]="activity.discountInfo" [isDetail]="true" [summaryMode]="true"
 					(editActivity)="editActivity($event, i)" (deleteActivity)="deleteModal=true; deleteIndex=i">
 				</booking-description-card>
 			</div>

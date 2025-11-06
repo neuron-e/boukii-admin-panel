@@ -708,7 +708,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       const dates = course_dates ? this.getSelectedDates(course_dates) : [];
 
       // Calcular el total para cada actividad
-      const { total, totalSinExtras, extrasTotal } = this.calculateIndividualTotal(course, dates, utilizers);
+      const { total, totalSinExtras, extrasTotal, discountInfo } = this.calculateIndividualTotal(course, dates, utilizers);
 
 
       return {
@@ -721,7 +721,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         schoolObs,
         total: `${total} ${course.currency}`, // Guardar el total calculado para esta actividad
         totalSinExtras: totalSinExtras, // Guardar el total sin extras
-        extrasTotal: extrasTotal // Guardar el total de extras
+        extrasTotal: extrasTotal, // Guardar el total de extras
+        discountInfo: discountInfo // Guardar información del descuento si existe
       };
     });
 
@@ -735,10 +736,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   private calculateIndividualTotal(course, dates, utilizers) {
     let total = 0;
+    let discountInfo = null;
 
     // Calcula el precio base dependiendo del tipo de curso
     if (course.course_type === 1) {
-      total = this.calculateColectivePriceForDates(course, dates);
+      const result = this.calculateColectivePriceForDates(course, dates);
+      total = result.total;
+      discountInfo = result.discountInfo;
     } else if (course.course_type === 2) {
       total = this.calculatePrivatePriceForDates(course, dates, utilizers);
     }
@@ -785,7 +789,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       total: total.toFixed(2),
       totalSinExtras: totalSinExtras.toFixed(2),
       extrasTotal: extrasTotal.toFixed(2),
-      currency: course.currency // Incluye la moneda si es necesario
+      currency: course.currency, // Incluye la moneda si es necesario
+      discountInfo: discountInfo // Incluye información del descuento si existe
     };
   }
 
@@ -816,10 +821,22 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       .filter(item => item.threshold > 0 && !isNaN(item.percentage));
   }
 
-  private applyFlexibleDiscount(baseTotal: number, selectedDatesCount: number, rawDiscounts: any): number {
+  private applyFlexibleDiscount(baseTotal: number, selectedDatesCount: number, rawDiscounts: any): {
+    discountedTotal: number;
+    discountInfo: {
+      hasDiscount: boolean;
+      percentage: number;
+      threshold: number;
+      originalPrice: number;
+      discountAmount: number
+    } | null
+  } {
     const discounts = this.parseFlexibleDiscounts(rawDiscounts);
     if (baseTotal <= 0 || selectedDatesCount <= 0 || discounts.length === 0) {
-      return Math.max(0, baseTotal);
+      return {
+        discountedTotal: Math.max(0, baseTotal),
+        discountInfo: null
+      };
     }
 
     const applicable = discounts
@@ -827,25 +844,50 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       .sort((a, b) => b.percentage - a.percentage)[0];
 
     if (!applicable || applicable.percentage <= 0) {
-      return Math.max(0, baseTotal);
+      return {
+        discountedTotal: Math.max(0, baseTotal),
+        discountInfo: null
+      };
     }
 
     const boundedPercentage = Math.max(0, Math.min(100, applicable.percentage));
     const discountedTotal = baseTotal * (1 - boundedPercentage / 100);
-    return Math.max(0, discountedTotal);
+    const discountAmount = baseTotal - discountedTotal;
+
+    return {
+      discountedTotal: Math.max(0, discountedTotal),
+      discountInfo: {
+        hasDiscount: true,
+        percentage: boundedPercentage,
+        threshold: applicable.threshold,
+        originalPrice: baseTotal,
+        discountAmount: discountAmount
+      }
+    };
   }
 
-  private calculateColectivePriceForDates(course, dates): number {
+  private calculateColectivePriceForDates(course, dates): {
+    total: number;
+    discountInfo: any
+  } {
     const price = parseFloat(course?.price ?? '0');
     const basePrice = isNaN(price) ? 0 : price;
 
     if (!course?.is_flexible) {
-      return Math.max(0, basePrice);
+      return {
+        total: Math.max(0, basePrice),
+        discountInfo: null
+      };
     }
 
     const selectedDates = Array.isArray(dates) ? dates.length : 0;
     const baseTotal = Math.max(0, basePrice * selectedDates);
-    return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
+    const result = this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
+
+    return {
+      total: result.discountedTotal,
+      discountInfo: result.discountInfo
+    };
   }
 
   private calculatePrivatePriceForDates(course: any, dates: any, utilizers: any) {

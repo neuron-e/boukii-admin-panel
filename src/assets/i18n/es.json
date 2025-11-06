@@ -1055,6 +1055,8 @@
   "multidate_discount_explanation": "Los descuentos se aplicarán automáticamente cuando los clientes reserven la cantidad especificada de fechas",
   "dates_quantity": "Cantidad de fechas",
   "discount_type": "Tipo de descuento",
+  "discount": "Descuento",
+  "interval_discount": "Descuento por intervalo",
   "percentage": "Porcentaje",
   "fixed_amount": "Cantidad fija",
   "amount": "Cantidad",

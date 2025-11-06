@@ -1054,6 +1054,8 @@
   "multidate_discount_explanation": "Discounts will be automatically applied when clients book the specified number of dates",
   "dates_quantity": "Number of dates",
   "discount_type": "Discount type",
+  "discount": "Discount",
+  "interval_discount": "Interval discount",
   "percentage": "Percentage",
   "fixed_amount": "Fixed amount",
   "amount": "Amount",

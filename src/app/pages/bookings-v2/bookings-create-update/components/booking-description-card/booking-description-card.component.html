@@ -27,17 +27,31 @@
         <span class="courseSubtitle">
           {{course.typeString | translate}} {{course.is_flexible ? 'Flex' : 'Fix' | translate}} {{course.sport.name}}
         </span>
-        <div [style.background]="sportLevel?.color" style="
-      display: inline-block;
-      padding: 0.2rem 0.5rem;
-      color: #fff;
-      border-radius: 5px;
-      text-align: center;
-      font-size: 10px;
-      width: 3rem;
-      overflow: inherit;
-    ">
-          {{ sportLevel?.league }}
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div [style.background]="sportLevel?.color" style="
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        color: #fff;
+        border-radius: 5px;
+        text-align: center;
+        font-size: 10px;
+        width: 3rem;
+        overflow: inherit;
+      ">
+            {{ sportLevel?.league }}
+          </div>
+          <div *ngIf="hasDiscount()" style="
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        background: #4CAF50;
+        color: #fff;
+        border-radius: 5px;
+        text-align: center;
+        font-size: 10px;
+        white-space: nowrap;
+      ">
+            -{{ getDiscountPercentage() }}% {{ 'discount' | translate }}
+          </div>
         </div>
       </div>
     </ng-container>
@@ -311,12 +325,27 @@
   </div>
 
   <div class="footerWrapper" style="padding: 20px;">
-    {{ "bookings_page.description.total" | translate }}
-    <ng-container *ngIf="!total">
-      <div class="skeleton medium"></div>
-    </ng-container>
-    <ng-container *ngIf="total">
-      <span class="totalPrice"> {{ total }}</span>
-    </ng-container>
+    <div style="display: flex; flex-direction: column; width: 100%;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span>{{ "bookings_page.description.total" | translate }}</span>
+        <ng-container *ngIf="!total">
+          <div class="skeleton medium"></div>
+        </ng-container>
+        <ng-container *ngIf="total">
+          <span class="totalPrice"> {{ total }}</span>
+        </ng-container>
+      </div>
+      <div *ngIf="hasDiscount()" style="
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #DEE6EA;
+        font-size: 12px;
+        color: #4CAF50;
+        display: flex;
+        justify-content: space-between;">
+        <span>{{ 'interval_discount' | translate }} (-{{ getDiscountPercentage() }}%)</span>
+        <span>-{{ getDiscountAmount() | number:'0.2-2' }} {{ course?.currency }}</span>
+      </div>
+    </div>
   </div>
 </div>

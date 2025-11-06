@@ -47,6 +47,7 @@ export class BookingDescriptionCard {
   @Input() clientObs: any;
   @Input() schoolObs: any;
   @Input() total: any;
+  @Input() discountInfo: any; // Información del descuento aplicado
   @Input() summaryMode = false;
   @Input() isDetail = false;
   @Input() index: number = 1;
@@ -70,27 +71,6 @@ export class BookingDescriptionCard {
     return date.utilizers?.some((utilizer: any) => utilizer.extras && utilizer.extras.length > 0) || false;
   }
 
-  calculateDiscountedPrice(date: any, index: number): number {
-    let price = parseFloat(date.price) || 0;
-
-    if (this.course && this.course.discounts && !Array.isArray(this.course.discounts)) {
-      const discounts = [];
-      try {
-        const discounts = JSON.parse(this.course.discounts);
-        console.log("Discounts parseado correctamente:", discounts);
-      } catch (error) {
-        console.error("Error al parsear discounts:", error);
-      }
-      discounts.forEach(discount => {
-        if (discount.date === index + 1) { // Index + 1 porque los índices en arrays comienzan en 0
-          price -= (price * (discount.percentage / 100));
-        }
-      });
-    }
-
-    return price;
-  }
-
   private extractUniqueMonitors() {
     if (this._dates.length) {
       const allMonitors = this._dates.map((date) => date.monitor).filter((monitor) => !!monitor);
@@ -102,19 +82,20 @@ export class BookingDescriptionCard {
     }
   }
 
-  isDiscounted(date: any, index: number): boolean {
-    const price = parseFloat(date.price);
-    if (this.course && this.course.discounts && !Array.isArray(this.course.discounts)) {
-      const discounts = [];
-      try {
-        const discounts = JSON.parse(this.course.discounts);
-        console.log("Discounts parseado correctamente:", discounts);
-      } catch (error) {
-        console.error("Error al parsear discounts:", error);
-      }
-      return discounts.some(discount => discount.date === index + 1); // Index + 1 porque los índices en arrays comienzan en 0
-    }
-    return false;
+  hasDiscount(): boolean {
+    return this.discountInfo && this.discountInfo.hasDiscount;
+  }
+
+  getDiscountPercentage(): number {
+    return this.discountInfo?.percentage || 0;
+  }
+
+  getOriginalPrice(): number {
+    return this.discountInfo?.originalPrice || 0;
+  }
+
+  getDiscountAmount(): number {
+    return this.discountInfo?.discountAmount || 0;
   }
 
   getExtraDescription(dateExtra) {

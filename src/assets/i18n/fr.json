@@ -1056,6 +1056,8 @@
   "multidate_discount_explanation": "Les remises seront appliquées automatiquement lorsque les clients réservent le nombre spécifié de dates",
   "dates_quantity": "Nombre de dates",
   "discount_type": "Type de remise",
+  "discount": "Remise",
+  "interval_discount": "Remise par intervalle",
   "percentage": "Pourcentage",
   "fixed_amount": "Montant fixe",
   "amount": "Montant",

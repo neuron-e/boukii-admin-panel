@@ -1,7 +1,7 @@
 <mat-dialog-content>
   <booking-description-card *ngIf="!data.isDetail" [utilizers]="data.utilizers" [sport]="data.sport"
     [sportLevel]="data.sportLevel" [course]="data.course" [dates]="data.dates" [monitors]="data.monitors"
-    [clientObs]="data.clientObs" [schoolObs]="data.schoolObs" [total]="data.total">
+    [clientObs]="data.clientObs" [schoolObs]="data.schoolObs" [total]="data.total" [discountInfo]="null">
   </booking-description-card>
   <booking-reservation-detail *ngIf="data.isDetail" [client]="data.mainClient" [activities]="data.normalizedDates"
     [hideBotton]="true">

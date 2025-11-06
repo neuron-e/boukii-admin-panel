@@ -60,6 +60,16 @@
           </span>
         </div>
       </div>
+      <div class="dateRow" *ngFor="let activity of activities; let i = index">
+        <div *ngIf="activity.discountInfo && activity.discountInfo.hasDiscount">
+          <span class="hour" style="color: #4CAF50; font-size: 12px;">
+            {{ 'interval_discount' | translate }} #{{("00"+ (i + 1)).slice(-2)}} (-{{ activity.discountInfo.percentage }}%)
+          </span>
+          <span class="price" style="color: #4CAF50; font-size: 12px;">
+            -{{ activity.discountInfo.discountAmount | number:'0.2-2' }} {{ activity.course.currency }}
+          </span>
+        </div>
+      </div>
     </div>
 
     <div class="section" style="margin: 20px;border: none;">
