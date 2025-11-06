@@ -1757,5 +1757,8 @@
   "select_interval_message_delete_subgroup": "Choisissez de quel(s) intervalle(s) vous souhaitez supprimer ce sous-groupe",
   "interval_discounts": "Remises d'intervalle",
   "use_interval_specific_discounts": "Utiliser des remises spécifiques par intervalle",
-  "interval_discounts_explanation": "Configurez différentes remises pour chaque intervalle de dates"
+  "interval_discounts_explanation": "Configurez différentes remises pour chaque intervalle de dates",
+  "course_global_discounts": "Remises Globales du Cours",
+  "applied": "appliquée",
+  "from_interval": "de l'intervalle"
 }

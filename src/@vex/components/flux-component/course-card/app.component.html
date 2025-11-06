@@ -444,6 +444,21 @@
                 </div>
               </ng-container>
             </div>
+
+            <!-- Descuentos específicos del intervalo -->
+            <div *ngIf="getIntervalDiscounts(intervalId).length > 0"
+                 style="margin-top: 16px; padding: 12px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+              <h6 style="margin: 0 0 8px 0; color: #2e7d32; font-size: 13px; font-weight: 600;">
+                <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
+                {{ 'interval_discounts' | translate }}
+              </h6>
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+                <div *ngFor="let discount of getIntervalDiscounts(intervalId)"
+                     style="color: #2e7d32; font-weight: 400; margin-left: 4px;">
+                  · {{ 'reduction' | translate }} {{ formatIntervalDiscountLabel(discount) }} {{ 'booking' | translate }} {{ discount.dates || discount.days }} {{ 'days' | translate }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -559,14 +574,35 @@
           </span>
               </div>
             </ng-container>
+
+            <!-- Descuentos específicos del intervalo para fechas previas -->
+            <div *ngIf="getIntervalDiscounts(intervalId).length > 0"
+                 style="margin-top: 16px; padding: 12px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+              <h6 style="margin: 0 0 8px 0; color: #2e7d32; font-size: 13px; font-weight: 600;">
+                <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
+                {{ 'interval_discounts' | translate }}
+              </h6>
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+                <div *ngFor="let discount of getIntervalDiscounts(intervalId)"
+                     style="color: #2e7d32; font-weight: 400; margin-left: 4px;">
+                  · {{ 'reduction' | translate }} {{ formatIntervalDiscountLabel(discount) }} {{ 'booking' | translate }} {{ discount.dates || discount.days }} {{ 'days' | translate }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <ng-container
-        *ngIf="courseFormGroup.controls['discounts'].value && courseFormGroup.controls['is_flexible'].value">
-        <div *ngFor="let item of asArray(courseFormGroup.controls['discounts'].value)"
-             style="width: 100%; color:var(--color-dark1);font-weight: 400;">
-          · {{ 'reduction' | translate }} {{ getDiscountLabel(item) }} {{ 'booking' | translate }} {{ getDiscountDay(item) }} {{ 'days' | translate }}
+      <!-- Descuentos globales del curso -->
+      <ng-container *ngIf="hasGlobalDiscounts()">
+        <div style="width: 100%; margin-top: 12px; padding: 12px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+          <p style="margin: 0 0 8px 0; color: #2e7d32; font-size: 13px; font-weight: 600;">
+            <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
+            {{ 'course_global_discounts' | translate }}
+          </p>
+          <div *ngFor="let discount of getGlobalDiscounts()"
+               style="color: #2e7d32; font-weight: 400; font-size: 12px; margin-left: 20px;">
+            · {{ 'reduction' | translate }} {{ getDiscountLabel(discount) }} {{ 'booking' | translate }} {{ getDiscountDay(discount) }} {{ 'days' | translate }}
+          </div>
         </div>
       </ng-container>
       <div *ngIf="courseFormGroup.controls['settings'].value"

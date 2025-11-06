@@ -65,18 +65,6 @@
           {{'flexidates' | translate }}
         </mat-checkbox>
 
-        <!-- Intervals Manager Component -->
-        <vex-course-intervals-manager
-          *ngIf="courses.courseFormGroup.controls['is_flexible'].value && id"
-          [courseId]="id"
-          [configMode]="courses.courseFormGroup.controls['intervals_config_mode'].value"
-          [courseStartDate]="courses.courseFormGroup.controls['date_start'].value"
-          [courseEndDate]="courses.courseFormGroup.controls['date_end'].value"
-          [isFlexible]="courses.courseFormGroup.controls['is_flexible'].value"
-          (intervalsChanged)="onIntervalsChanged($event)"
-          style="display: block; margin-top: 16px; margin-bottom: 16px;">
-        </vex-course-intervals-manager>
-
         <vex-flux-upload-img [imagePreviewUrl]="courses.courseFormGroup.controls['image'].value"
                              (upload)="courses.courseFormGroup.patchValue({image:$event})" [edit]="true" [width]="320"
                              [height]="150" style="margin-top: 10px;"></vex-flux-upload-img>

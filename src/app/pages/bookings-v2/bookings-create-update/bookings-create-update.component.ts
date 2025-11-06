@@ -708,7 +708,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       const dates = course_dates ? this.getSelectedDates(course_dates) : [];
 
       // Calcular el total para cada actividad
-      const { total, totalSinExtras, extrasTotal } = this.calculateIndividualTotal(course, dates, utilizers);
+      const { total, totalSinExtras, extrasTotal, discountInfo } = this.calculateIndividualTotal(course, dates, utilizers);
 
 
       return {
@@ -721,7 +721,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         schoolObs,
         total: `${total} ${course.currency}`, // Guardar el total calculado para esta actividad
         totalSinExtras: totalSinExtras, // Guardar el total sin extras
-        extrasTotal: extrasTotal // Guardar el total de extras
+        extrasTotal: extrasTotal, // Guardar el total de extras
+        discountInfo: discountInfo // Guardar información del descuento aplicado
       };
     });
 
@@ -780,12 +781,29 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     // Suma el total de extras al total general
     total += extrasTotal;
 
+    // Calcular información del descuento aplicado para cursos flexibles
+    let discountInfo = null;
+    if (course.is_flexible && dates.length > 0) {
+      // Detectar si las fechas pertenecen a un intervalo específico
+      const firstDateIntervalId = dates[0]?.interval_id;
+      const allSameInterval = dates.every(d => d.interval_id === firstDateIntervalId);
+
+      if (allSameInterval && firstDateIntervalId) {
+        // Todas las fechas pertenecen al mismo intervalo
+        discountInfo = this.getAppliedDiscountInfo(dates.length, String(firstDateIntervalId));
+      } else {
+        // Fechas sin intervalo o mezcladas - usar descuentos globales
+        discountInfo = this.getAppliedDiscountInfo(dates.length);
+      }
+    }
+
     // Puedes retornar un objeto con ambos totales si lo prefieres
     return {
       total: total.toFixed(2),
       totalSinExtras: totalSinExtras.toFixed(2),
       extrasTotal: extrasTotal.toFixed(2),
-      currency: course.currency // Incluye la moneda si es necesario
+      currency: course.currency, // Incluye la moneda si es necesario
+      discountInfo: discountInfo // Información del descuento aplicado
     };
   }
 
@@ -809,12 +827,44 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
     return parsed
       .map((item: any) => {
-        const threshold = Number(item?.date ?? item?.count ?? item?.n ?? 0);
+        const threshold = Number(item?.date ?? item?.dates ?? item?.count ?? item?.n ?? item?.days ?? 0);
         const value = Number(item?.discount ?? item?.percentage ?? item?.percent ?? item?.value ?? 0);
         const type = Number(item?.type ?? 1); // 1 = porcentaje, 2 = cantidad fija
         return { threshold, value, type };
       })
       .filter(item => item.threshold > 0 && !isNaN(item.value) && item.value > 0);
+  }
+
+  /**
+   * Obtiene los descuentos del intervalo específico desde settings.intervals
+   */
+  private getIntervalDiscounts(intervalId: string): any[] {
+    if (!this.course || !this.course.settings || !this.course.settings.intervals) {
+      return [];
+    }
+
+    const interval = this.course.settings.intervals.find((i: any) => String(i.id) === String(intervalId));
+    if (!interval || !interval.discounts || !Array.isArray(interval.discounts)) {
+      return [];
+    }
+
+    return interval.discounts;
+  }
+
+  /**
+   * Determina qué descuentos usar (por intervalo o globales)
+   */
+  private getApplicableDiscounts(intervalId?: string): any[] {
+    // Si hay un intervalId y tiene descuentos específicos, usarlos
+    if (intervalId) {
+      const intervalDiscounts = this.getIntervalDiscounts(intervalId);
+      if (intervalDiscounts.length > 0) {
+        return intervalDiscounts;
+      }
+    }
+
+    // Si no hay descuentos de intervalo, usar los descuentos globales
+    return this.course?.discounts || [];
   }
 
   private applyFlexibleDiscount(baseTotal: number, selectedDatesCount: number, rawDiscounts: any): number {
@@ -844,6 +894,33 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     }
 
     return Math.max(0, discountedTotal);
+  }
+
+  /**
+   * Obtiene información del descuento aplicado para mostrar en la UI
+   */
+  getAppliedDiscountInfo(selectedDatesCount: number, intervalId?: string): any {
+    const applicableDiscounts = this.getApplicableDiscounts(intervalId);
+    const discounts = this.parseFlexibleDiscounts(applicableDiscounts);
+
+    if (selectedDatesCount <= 0 || discounts.length === 0) {
+      return null;
+    }
+
+    const applicable = discounts
+      .filter(discount => selectedDatesCount >= discount.threshold)
+      .sort((a, b) => b.threshold - a.threshold)[0];
+
+    if (!applicable || applicable.value <= 0) {
+      return null;
+    }
+
+    return {
+      type: applicable.type === 1 ? 'percentage' : 'fixed',
+      value: applicable.value,
+      threshold: applicable.threshold,
+      fromInterval: intervalId !== undefined
+    };
   }
 
   private calculateColectivePriceForDates(course, dates): number {
@@ -944,9 +1021,30 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return Math.max(0, basePrice);
     }
 
-    const selectedDates = Array.isArray(this.dates) ? this.dates.length : 0;
-    const baseTotal = Math.max(0, basePrice * selectedDates);
-    return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
+    // Agrupar fechas por intervalo
+    const datesByInterval = new Map<string, any[]>();
+    this.dates.forEach((date: any) => {
+      const intervalId = date.interval_id ? String(date.interval_id) : 'default';
+      if (!datesByInterval.has(intervalId)) {
+        datesByInterval.set(intervalId, []);
+      }
+      datesByInterval.get(intervalId)!.push(date);
+    });
+
+    // Calcular precio total aplicando descuentos por intervalo
+    let grandTotal = 0;
+    datesByInterval.forEach((datesInInterval, intervalId) => {
+      const datesCount = datesInInterval.length;
+      const baseTotal = Math.max(0, basePrice * datesCount);
+
+      // Obtener descuentos aplicables (por intervalo o globales)
+      const applicableDiscounts = this.getApplicableDiscounts(intervalId !== 'default' ? intervalId : undefined);
+      const discountedTotal = this.applyFlexibleDiscount(baseTotal, datesCount, applicableDiscounts);
+
+      grandTotal += discountedTotal;
+    });
+
+    return Math.max(0, grandTotal);
   }
 
   // Filtra las fechas seleccionadas y calcula el precio individual para cada fecha

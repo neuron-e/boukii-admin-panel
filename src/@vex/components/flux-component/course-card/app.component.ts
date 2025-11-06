@@ -94,6 +94,13 @@ export class CourseDetailCardComponent implements OnChanges {
   ngOnInit(): void {
     this.processCourseDates();
 
+    // Debug: Log course intervals and discounts data
+    if (this.courseFormGroup) {
+      const settings = this.courseFormGroup.controls['settings']?.value;
+      console.log('CourseDetailCard - settings.intervals:', settings?.intervals);
+      console.log('CourseDetailCard - discounts:', this.courseFormGroup.controls['discounts']?.value);
+    }
+
     // Subscribe to value changes to update sorted dates when necessary
     if (this.courseFormGroup) {
       this.courseFormGroup.controls['course_dates'].valueChanges.subscribe(() => {
@@ -454,6 +461,67 @@ export class CourseDetailCardComponent implements OnChanges {
 
   toggleDescription() {
     this.showDescription = !this.showDescription;
+  }
+
+  /**
+   * Obtiene los descuentos de un intervalo específico
+   */
+  getIntervalDiscounts(intervalId: number): any[] {
+    // Los descuentos de intervalos están guardados en settings.intervals[].discounts
+    const settings = this.courseFormGroup?.controls?.['settings']?.value;
+    if (!settings || !settings.intervals || !Array.isArray(settings.intervals)) {
+      return [];
+    }
+
+    const interval = settings.intervals.find((i: any) => String(i.id) === String(intervalId));
+    if (!interval || !interval.discounts || !Array.isArray(interval.discounts)) {
+      return [];
+    }
+
+    return interval.discounts;
+  }
+
+  /**
+   * Formatea la etiqueta de un descuento de intervalo
+   */
+  formatIntervalDiscountLabel(discount: any): string {
+    if (!discount) {
+      return '';
+    }
+
+    const currency = this.courseFormGroup?.controls?.['currency']?.value || '';
+    // El tipo puede venir como 'fixed'/'percentage' o 'fixed_amount'/'percentage'
+    const isFixed = discount.type === 'fixed' || discount.type === 'fixed_amount' || discount.type === 2;
+    const value = discount.value;
+
+    if (value === undefined || value === null || value === '') {
+      return '';
+    }
+
+    if (isFixed) {
+      return currency ? `${value} ${currency}` : `${value}`;
+    }
+
+    return `${value}%`;
+  }
+
+  /**
+   * Verifica si el curso tiene descuentos globales
+   */
+  hasGlobalDiscounts(): boolean {
+    const discounts = this.courseFormGroup?.controls?.['discounts']?.value;
+    return discounts && Array.isArray(discounts) && discounts.length > 0;
+  }
+
+  /**
+   * Obtiene los descuentos globales del curso
+   */
+  getGlobalDiscounts(): any[] {
+    const discounts = this.courseFormGroup?.controls?.['discounts']?.value;
+    if (!discounts || !Array.isArray(discounts)) {
+      return [];
+    }
+    return discounts;
   }
 
   export(id: any) {
