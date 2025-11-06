@@ -186,7 +186,7 @@
 			</tr>
 			<tr *ngFor="let user of booking_users || []; index as i">
 				<ng-container
-					*ngIf="user.degree_id === level.id">
+					*ngIf="user.degree_id === level.id && isUserInSubgroup(user)">
 					<td
 						style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
 						<div class="flexicon" style="font-size: 12px; font-weight: 600;">
@@ -248,7 +248,7 @@
 				</ng-container>
 			</tr>
 			<tr
-				*ngIf="!find(booking_users,'degree_id',level.id)">
+				*ngIf="!hasStudents()">
 				<td
 					style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
 					<div class="flexicon" style="font-size: 12px; font-weight: 600;">
@@ -264,11 +264,11 @@
 	</table>
 </div>
 <vex-flux-modal *ngIf="cambiarModal" (Close)="cambiarModal=false" title="Cambiar nivel alumno">
-	<div body style="display: flex;flex-wrap: nowrap;">
-		<div style="width: 50%; display: flex;">
+	<div body style="display: flex;flex-wrap: nowrap; max-height: 70vh; overflow: hidden;">
+		<div style="width: 50%; display: flex; overflow-y: auto; max-height: 70vh; padding-right: 8px;">
 			<div style="display: flex;
             flex-direction: column;
-            gap: 16px;">
+            gap: 16px; width: 100%;">
 				<div class="flexicon">
 					<img src="assets/icons/icon/alumno.png" class="icon24">
 					{{"students" | translate}}
@@ -298,7 +298,7 @@
 				</div>
 			</div>
 		</div>
-		<div style="width: 50%;">
+		<div style="width: 50%; overflow-y: auto; max-height: 70vh; padding-left: 8px;">
 			<div class="flexicon" style="margin-bottom: 16px;">
 				<img src="assets/icons/icon/alumno.png" class="icon24">
 				{{'level' | translate}}

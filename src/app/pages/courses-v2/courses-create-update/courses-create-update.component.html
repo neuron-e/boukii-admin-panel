@@ -61,7 +61,7 @@
          </mat-tab>-->
       </mat-tab-group>
       <div style="padding: 20px 20px 0;">
-        <mat-checkbox [disabled]="mode!=='update'" formControlName="is_flexible" (change)="setModalProgress()">
+        <mat-checkbox [disabled]="mode==='update'" formControlName="is_flexible" (change)="setModalProgress()">
           {{'flexidates' | translate }}
         </mat-checkbox>
 
@@ -564,6 +564,16 @@
                     </div>
                   </ng-container>
                 </ng-container>
+
+                <!-- Botón para añadir subgrupo (solo para cursos flex con intervalos configurables) -->
+                <div *ngIf="canConfigureIntervalGroups" style="margin-bottom: 20px; margin-top: 10px;">
+                  <button (click)="editModal=true;setEditFunction('addIntervalLevelSubgroup',selectedIntervalIndexForGroups,level)"
+                          style="border: 1px solid #E91E63; color: #E91E63; background: transparent; border-radius: 3px; height: 38px; padding: 0 16px; cursor: pointer; display: flex; align-items: center; gap: 8px;"
+                          type="button">
+                    <mat-icon style="font-size: 18px; width: 18px; height: 18px;">add</mat-icon>
+                    <span>{{'add_subgroup' | translate}}</span>
+                  </button>
+                </div>
               </ng-container>
             </ng-container>
           </div>
