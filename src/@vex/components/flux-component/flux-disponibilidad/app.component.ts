@@ -522,6 +522,7 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
 
   Date = (v: string): Date => new Date(v)
+  @Input() intervalIndex!: number;
 
   async SelectMonitor(event: any, selectDate: number) {
     const selectedMonitor = event?.option?.value ?? null;

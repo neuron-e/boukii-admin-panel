@@ -3642,6 +3642,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
                 selectedWeekdays: matchingInterval?.selectedWeekdays || [],
                 limitAvailableDates: matchingInterval?.limitAvailableDates ?? false,
                 maxSelectableDates: matchingInterval?.maxSelectableDates || 10,
+                discounts: matchingInterval?.discounts || [], // Cargar descuentos del intervalo
                 dates: []
               };
             }
@@ -3669,7 +3670,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
           this.intervals = Array.isArray(intervalGroups) ? intervalGroups : [];
 
           // A├▒adir fechas agrupadas por intervalos
-/*          Object.values(intervalGroups).forEach((group: any, groupIndex) => {
+          Object.values(intervalGroups).forEach((group: any, groupIndex) => {
             // Ordenar fechas por orden
             const sortedDates = [...group.dates].sort((a, b) => a.order - b.order);
 
@@ -3680,14 +3681,16 @@ export class CoursesCreateUpdateComponent implements OnInit {
                 date: typeof dateInfo.date === 'string' ? dateInfo.date : new Date(dateInfo.date).toISOString().split('T')[0],
                 hour_start: dateInfo.hour_start,
                 hour_end: dateInfo.hour_end,
+                duration: dateInfo.duration,
                 interval_id: group.id,
+                interval_name: group.name,
                 order: dateInfo.order || dateIndex
               };
 
               // A├▒adir al FormArray
               datesArray.push(this.fb.control(newDate));
             });
-          });*/
+          });
 
           // Actualizar settings en el formulario
           const updatedSettings = {
