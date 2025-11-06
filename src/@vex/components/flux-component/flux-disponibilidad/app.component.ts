@@ -19,6 +19,7 @@ export class FluxDisponibilidadComponent implements OnInit {
   @Input() level!: any
   @Input() group!: any
   @Input() subgroup_index!: number
+  @Input() interval_id?: string | null = null
 
   @Output() monitorSelect = new EventEmitter<any>()
   @Output() viewTimes = new EventEmitter<any>()
@@ -146,6 +147,13 @@ export class FluxDisponibilidadComponent implements OnInit {
     return this.courseFormGroup?.controls?.['course_dates']?.value || [];
   }
 
+  private resolveIntervalId(date: any): any {
+    if (!date) {
+      return null;
+    }
+    return date.interval_id ?? date.intervalId ?? date.interval?.id ?? date.course_interval_id ?? date.courseIntervalId ?? null;
+  }
+
   selectUser: any[] = []
   async getAvail(item: any) {
     const monitor = await this.getAvailable({ date: item.date, endTime: item.hour_end, minimumDegreeId: this.level.id, sportId: this.courseFormGroup.controls['sport_id'].value, startTime: item.hour_start })
@@ -258,6 +266,19 @@ export class FluxDisponibilidadComponent implements OnInit {
       if (dateId && subgroupDateId && subgroupDateId !== dateId) {
         return;
       }
+
+      // Filter by interval_id if provided
+      if (this.interval_id != null) {
+        const currentIntervalId = this.resolveIntervalId(date);
+        if (this.interval_id === '__null__') {
+          if (currentIntervalId != null) {
+            return;
+          }
+        } else if (String(currentIntervalId ?? '') !== String(this.interval_id)) {
+          return;
+        }
+      }
+
       result.push({ date, index });
     });
 
