@@ -984,59 +984,61 @@
         </div>
 
         <!-- Vista unificada para modo UPDATE con configureLevelsByInterval activo -->
-        <!-- Organizada por tabs de intervalos -->
-        <div *ngIf="configureLevelsByInterval && useMultipleIntervals && mode==='update'" style="margin-top: 16px;">
-          <mat-accordion multi displayMode="flat">
-            <mat-expansion-panel *ngFor="let interval of intervals; let intervalIdx = index; trackBy: trackInterval"
-                                 [expanded]="intervalIdx === 0">
-              <mat-expansion-panel-header>
-                <mat-panel-title style="font-weight: 600;">
-                  {{getIntervalLabel(interval, intervalIdx)}}
-                </mat-panel-title>
-                <mat-panel-description>
-                  {{interval.startDate | date:'dd/MM/yyyy'}} - {{interval.endDate | date:'dd/MM/yyyy'}}
-                </mat-panel-description>
-              </mat-expansion-panel-header>
+        <!-- Los tabs de intervalos están DENTRO de cada subgrupo -->
+        <div *ngIf="configureLevelsByInterval && useMultipleIntervals && mode==='update'"
+             class="level"
+             style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
+          <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
+            <ng-container *ngIf="level.active">
+              <!-- Header del nivel -->
+              <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 10px;">
+                <div [style.backgroundColor]="level.color"
+                     [style.border]="'1px solid '+level.color"
+                     style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500;">
+                  {{level.annotation}} {{level.level}}
+                </div>
+              </div>
 
-              <!-- Contenido del intervalo -->
-              <div class="level" style="display: flex;flex-direction: column;padding: 10px; border-radius: 8px; gap: 10px;">
-                <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
-                  <ng-container *ngIf="level.active && isLevelActiveForInterval(intervalIdx, level)">
-                    <!-- Header del nivel -->
-                    <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 10px;">
-                      <div [style.backgroundColor]="level.color"
-                           [style.border]="'1px solid '+level.color"
-                           style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500;">
-                        {{level.annotation}} {{level.level}}
-                      </div>
-                    </div>
+              <!-- Subgrupos del nivel -->
+              <ng-container *ngIf="getAllUniqueSubgroupsForLevel(level).length > 0">
+                <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
+                  <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
+                    {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
+                  </div>
 
-                    <!-- Subgrupos del nivel para este intervalo -->
-                    <ng-container *ngIf="getIntervalLevelSubgroups(intervalIdx, level).length > 0">
-                      <ng-container *ngFor="let subgroup of getIntervalLevelSubgroups(intervalIdx, level); index as j">
-                        <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
-                          {{level.annotation}} {{level.level}} {{("00"+(j+1)).slice(-2)}}
-                        </div>
-
-                        <!-- Componente de disponibilidad por subgrupo para este intervalo específico -->
-                        <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
+                  <!-- Tabs de intervalos DENTRO del subgrupo -->
+                  <div style="width: 100%;margin-top: -10px;padding: 10px; background-color: var(--color-grey4); margin-bottom: 20px;">
+                    <mat-tab-group *ngIf="intervals && intervals.length > 1">
+                      <mat-tab *ngFor="let interval of intervals; let intervalIdx = index; trackBy: trackInterval"
+                               [label]="'Intervalo ' + (intervalIdx + 1)">
+                        <div style="padding: 10px;">
                           <vex-flux-disponibilidad
                             [courseFormGroup]="courses.courseFormGroup"
                             [level]="level"
                             [group]="getGroupForLevel(level)"
-                            [subgroup_index]="j"
+                            [subgroup_index]="uniqueSubgroup._index"
                             [intervalIndex]="intervalIdx"
-                            (monitorSelect)="monitorSelect($event,level,j)"
+                            (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
                             (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
                           </vex-flux-disponibilidad>
                         </div>
-                      </ng-container>
-                    </ng-container>
-                  </ng-container>
+                      </mat-tab>
+                    </mat-tab-group>
+
+                    <!-- Si solo hay un intervalo, mostrar directamente sin tabs -->
+                    <vex-flux-disponibilidad *ngIf="!intervals || intervals.length <= 1"
+                      [courseFormGroup]="courses.courseFormGroup"
+                      [level]="level"
+                      [group]="getGroupForLevel(level)"
+                      [subgroup_index]="uniqueSubgroup._index"
+                      (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
+                      (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                    </vex-flux-disponibilidad>
+                  </div>
                 </ng-container>
-              </div>
-            </mat-expansion-panel>
-          </mat-accordion>
+              </ng-container>
+            </ng-container>
+          </ng-container>
         </div>
 
         <!-- Vista simplificada de grupos y niveles (cuando NO está activado el flag por intervalos) -->
