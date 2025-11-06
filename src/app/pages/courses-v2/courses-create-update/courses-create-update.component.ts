@@ -10,9 +10,9 @@ import { SchoolService } from 'src/service/school.service';
 import { CoursesService } from 'src/service/courses.service';
 import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
-import { CourseTimingModalComponent } from '../../courses/course-timing-modal/course-timing-modal.component';
 import { CourseDateValidationService } from 'src/service/course-date-validation.service';
 import { CourseDateOverlapValidationService, CourseDateInfo, CourseDateValidationError } from 'src/service/course-date-overlap-validation.service';
+import {CourseTimingModalComponent} from '../course-timing-modal/course-timing-modal.component';
 
 interface CourseDate {
   date: string;
