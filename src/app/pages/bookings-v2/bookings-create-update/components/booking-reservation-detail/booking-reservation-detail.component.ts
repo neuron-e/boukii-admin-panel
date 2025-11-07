@@ -84,9 +84,14 @@ export class BookingReservationDetailComponent implements OnInit {
 
   sumActivityTotal(): number {
     return this.activities.reduce((acc, item) => {
-      const numericValue = parseFloat(item.total.replace(/[^\d.-]/g, ''));
-      return acc + numericValue;
+      const raw = typeof item.total === 'number' ? item.total : parseFloat(String(item.total).replace(/[^\d.-]/g, '')) || 0;
+      return acc + raw;
     }, 0);
+  }
+
+  getActivitiesCurrency(): string {
+    const first = Array.isArray(this.activities) && this.activities.length > 0 ? this.activities[0] : null;
+    return first?.currency || first?.course?.currency || '';
   }
 
   updateBookingData() {
@@ -255,6 +260,21 @@ export class BookingReservationDetailComponent implements OnInit {
     }
 
     return Array.isArray(info) ? info : [info];
+  }
+
+  getActivityDiscountAmount(activity: any): number {
+    return (activity?.discountInfo || []).reduce((sum: number, discount: any) => {
+      const amount = discount?.amountSaved ?? discount?.discountAmount ?? 0;
+      return sum + (parseFloat(amount) || 0);
+    }, 0);
+  }
+
+  getActivityBaseAmount(activity: any): number {
+    const discount = this.getActivityDiscountAmount(activity);
+    const total = typeof activity?.total === 'number'
+      ? activity.total
+      : parseFloat(String(activity?.total || 0).replace(/[^\d.-]/g, '')) || 0;
+    return total + discount;
   }
 
   protected readonly isNaN = isNaN;

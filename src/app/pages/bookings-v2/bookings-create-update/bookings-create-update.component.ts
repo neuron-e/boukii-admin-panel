@@ -717,7 +717,15 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       const dates = course_dates ? this.getSelectedDates(course_dates) : [];
 
       // Calcular el total para cada actividad
-      const { total, totalSinExtras, extrasTotal, discountInfo } = this.calculateIndividualTotal(course, dates, utilizers);
+      const {
+        total,
+        totalSinExtras,
+        extrasTotal,
+        discountInfo,
+        courseBaseTotal,
+        courseDiscountTotal,
+        currency
+      } = this.calculateIndividualTotal(course, dates, utilizers);
 
 
       return {
@@ -728,10 +736,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         dates,
         clientObs,
         schoolObs,
-        total: `${total} ${course.currency}`, // Guardar el total calculado para esta actividad
-        totalSinExtras: totalSinExtras, // Guardar el total sin extras
-        extrasTotal: extrasTotal, // Guardar el total de extras
-        discountInfo: discountInfo // Guardar información del descuento aplicado
+        total,
+        totalSinExtras,
+        extrasTotal,
+        discountInfo,
+        courseBaseTotal,
+        courseDiscountTotal,
+        currency
       };
     });
 
@@ -744,61 +755,56 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   private calculateIndividualTotal(course, dates, utilizers) {
-    let total = 0;
+    let courseBaseTotal = 0;
+    let courseSubtotalAfterDiscount = 0;
 
-    // Calcula el precio base dependiendo del tipo de curso
     if (course.course_type === 1) {
-      total = this.calculateColectivePriceForDates(course, dates);
+      const price = parseFloat(course?.price ?? '0');
+      const basePrice = isNaN(price) ? 0 : price;
+      courseBaseTotal = Math.max(0, basePrice * dates.length);
+      courseSubtotalAfterDiscount = this.calculateColectivePriceForDates(course, dates);
     } else if (course.course_type === 2) {
-      total = this.calculatePrivatePriceForDates(course, dates, utilizers);
+      courseBaseTotal = this.calculatePrivatePriceForDates(course, dates, utilizers);
+      courseSubtotalAfterDiscount = courseBaseTotal;
     }
 
-    // Calcula el total de los extras
     const extrasTotal = dates.reduce((acc, date) => {
-      // Para cursos colectivos
-      if (course.course_type === 1) {
-        if (date.extras && date.extras.length) {
-          const extrasPrice = date.extras.reduce((extraAcc, extra) => {
-            const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-            return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
-          }, 0);
-          return acc + extrasPrice;
-        }
+      if (date.extras && date.extras.length) {
+        const extrasPrice = date.extras.reduce((extraAcc, extra) => {
+          const price = parseFloat(extra.price) || 0;
+          return extraAcc + (price * (extra.quantity || 1));
+        }, 0);
+        return acc + extrasPrice;
       }
-      // Para cursos privados
-      else if (course.course_type === 2) {
-        // AsegÃºrate de que 'utilizers' estÃ¡ definido en la fecha
-        if (date.utilizers && date.utilizers.length) {
-          // Sumar el total de extras de cada utilizador
-          date.utilizers.forEach(utilizer => {
-            if (utilizer.extras && utilizer.extras.length) {
-              const extrasPrice = utilizer.extras.reduce((extraAcc, extra) => {
-                const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-                return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
-              }, 0);
-              acc += extrasPrice; // Suma el precio de los extras del utilizador al acumulador
-            }
-          });
-        }
+
+      if (course.course_type === 2 && date.utilizers && date.utilizers.length) {
+        date.utilizers.forEach(utilizer => {
+          if (utilizer.extras && utilizer.extras.length) {
+            const extrasPrice = utilizer.extras.reduce((extraAcc, extra) => {
+              const price = parseFloat(extra.price) || 0;
+              return extraAcc + (price * (extra.quantity || 1));
+            }, 0);
+            acc += extrasPrice;
+          }
+        });
       }
-      return acc; // Retorna el acumulador
+      return acc;
     }, 0);
 
-    // Total sin extras
-    const totalSinExtras = total;
-
-    // Suma el total de extras al total general
-    total += extrasTotal;
-
     const discountInfo = course.is_flexible ? buildDiscountInfoListUtil(course, dates) : [];
+    const discountAmount = Math.max(0, courseBaseTotal - courseSubtotalAfterDiscount);
 
-    // Puedes retornar un objeto con ambos totales si lo prefieres
+    const totalSinExtras = courseSubtotalAfterDiscount;
+    const total = courseSubtotalAfterDiscount + extrasTotal;
+
     return {
-      total: total.toFixed(2),
-      totalSinExtras: totalSinExtras.toFixed(2),
-      extrasTotal: extrasTotal.toFixed(2),
-      currency: course.currency, // Incluye la moneda si es necesario
-      discountInfo: discountInfo // Información del descuento aplicado
+      total: Number(total.toFixed(2)),
+      totalSinExtras: Number(totalSinExtras.toFixed(2)),
+      extrasTotal: Number(extrasTotal.toFixed(2)),
+      currency: course.currency,
+      discountInfo: discountInfo,
+      courseBaseTotal: Number(courseBaseTotal.toFixed(2)),
+      courseDiscountTotal: Number(discountAmount.toFixed(2))
     };
   }
 

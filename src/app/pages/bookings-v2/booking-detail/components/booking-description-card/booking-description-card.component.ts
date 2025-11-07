@@ -15,7 +15,9 @@ import {Router} from '@angular/router';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {
   AppliedDiscountInfo,
+  applyFlexibleDiscount,
   buildDiscountInfoList,
+  getApplicableDiscounts,
   resolveIntervalName
 } from 'src/app/pages/bookings-v2/shared/discount-utils';
 
@@ -173,6 +175,66 @@ export class BookingDescriptionCard implements OnChanges {
 
   getDiscountsForInterval(interval: { discountInfo: AppliedDiscountInfo[] }): AppliedDiscountInfo[] {
     return interval?.discountInfo || [];
+  }
+
+  getGlobalPriceSummary(): { base: number; discount: number; final: number; currency: string } | null {
+    if (!Array.isArray(this.intervalGroups) || this.intervalGroups.length === 0) {
+      return null;
+    }
+
+    let base = 0;
+    let discount = 0;
+    let final = 0;
+    let currency = this.course?.currency || '';
+
+    this.intervalGroups.forEach(interval => {
+      const summary = this.getIntervalPriceSummary(interval.key);
+      if (summary) {
+        base += summary.base;
+        discount += summary.discount;
+        final += summary.final;
+        currency = summary.currency || currency;
+      }
+    });
+
+    if (base === 0 && final === 0) {
+      return null;
+    }
+
+    return { base, discount, final, currency };
+  }
+
+  getIntervalPriceSummary(intervalKey: string): { base: number; discount: number; final: number; currency: string } | null {
+    if (!intervalKey) {
+      return null;
+    }
+    return this.calculateIntervalFinancialSummary(intervalKey);
+  }
+
+  private calculateIntervalFinancialSummary(intervalKey: string): { base: number; discount: number; final: number; currency: string } | null {
+    if (!this.course || !Array.isArray(this.intervalGroups) || this.intervalGroups.length === 0) {
+      return null;
+    }
+
+    const targetInterval = this.intervalGroups.find(interval => interval.key === intervalKey);
+    if (!targetInterval || !Array.isArray(targetInterval.dates) || targetInterval.dates.length === 0) {
+      return null;
+    }
+
+    const base = targetInterval.dates.reduce((sum, date) => sum + this.resolveDatePrice(date), 0);
+    const currency = targetInterval.dates[0]?.currency || this.course?.currency || '';
+
+    const discountsSource = getApplicableDiscounts(this.course, intervalKey !== 'default' ? intervalKey : undefined);
+    const final = applyFlexibleDiscount(base, targetInterval.dates.length, discountsSource);
+    const discount = Math.max(0, base - final);
+
+    return { base, discount, final, currency };
+  }
+
+  private resolveDatePrice(date: any): number {
+    const rawValue = date?.price ?? this.course?.price ?? this.course?.minPrice ?? 0;
+    const numeric = Number(rawValue);
+    return Number.isFinite(numeric) ? numeric : 0;
   }
 
   getGlobalIndexForDate(date: any): number {

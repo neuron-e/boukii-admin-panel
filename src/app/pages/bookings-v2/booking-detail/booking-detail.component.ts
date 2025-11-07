@@ -14,6 +14,7 @@ import {CancelBookingModalComponent} from '../cancel-booking/cancel-booking.comp
 import {BookingDetailDialogComponent} from './components/booking-dialog/booking-dialog.component';
 import { SchoolService } from 'src/service/school.service';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
+import { buildDiscountInfoList } from '../shared/discount-utils';
 import moment from 'moment';
 
 @Component({
@@ -440,6 +441,8 @@ export class BookingDetailV2Component implements OnInit {
           utilizers: [],
           extras: [],
           booking_users: [],
+          interval_id: courseDateFromCourse?.interval_id ?? user.course_interval_id ?? user.interval_id ?? null,
+          interval_name: courseDateFromCourse?.interval_name ?? user.interval_name ?? null
         });
       }
       const currentDate = acc[groupId].dates.find((date: any) =>
@@ -488,6 +491,17 @@ export class BookingDetailV2Component implements OnInit {
         const parsed = parseFloat(date.price);
         return sum + (Number.isNaN(parsed) ? 0 : parsed);
       }, 0);
+
+      groupedActivity.discountInfo = buildDiscountInfoList(groupedActivity.course, groupedActivity.dates);
+      const discountAmount = groupedActivity.discountInfo?.reduce((acc: number, info: any) => {
+        const amount = info?.amountSaved ?? 0;
+        return acc + (parseFloat(amount) || 0);
+      }, 0) || 0;
+
+      groupedActivity.baseBeforeDiscount = groupedActivity.total;
+      groupedActivity.discountAmount = discountAmount;
+      groupedActivity.total = Math.max(0, groupedActivity.baseBeforeDiscount - groupedActivity.discountAmount);
+      groupedActivity.currency = groupedActivity.course?.currency || booking.currency;
     });
 
 

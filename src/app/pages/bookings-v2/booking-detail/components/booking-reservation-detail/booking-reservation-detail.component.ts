@@ -313,6 +313,21 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     return Array.isArray(info) ? info : [info];
   }
 
+  getActivityDiscountAmount(activity: any): number {
+    return (activity?.discountInfo || []).reduce((sum: number, discount: any) => {
+      const amount = discount?.amountSaved ?? discount?.discountAmount ?? 0;
+      return sum + (parseFloat(amount) || 0);
+    }, 0);
+  }
+
+  getActivityBaseAmount(activity: any): number {
+    const discount = this.getActivityDiscountAmount(activity);
+    const total = typeof activity?.total === 'number'
+      ? activity.total
+      : parseFloat(String(activity?.total || 0).replace(/[^\d.-]/g, '')) || 0;
+    return total + discount;
+  }
+
   protected readonly isNaN = isNaN;
   protected readonly parseFloat = parseFloat;
   protected readonly Math = Math;

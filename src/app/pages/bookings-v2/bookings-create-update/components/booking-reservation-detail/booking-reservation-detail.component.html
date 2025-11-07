@@ -40,25 +40,59 @@
           <span class="hour"> {{ activity.course.name }} </span>
           <span class="price">
             <span class="discounted-price">
-              {{
-                activity.total }}
+              {{ activity.total | number:'0.2-2' }} {{ getActivitiesCurrency() }}
             </span>
           </span>
         </div>
         <!-- Mostrar información del descuento si existe -->
         <ng-container *ngIf="getDiscountInfoList(activity).length">
-          <div *ngFor="let discount of getDiscountInfoList(activity)"
-               style="margin-left: 30px; font-size: 12px; color: #4caf50; font-style: italic;">
-            <mat-icon style="font-size: 14px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
-          {{ 'reduction' | translate }} {{ discount.value }}{{ discount.type === 'percentage' ? '%' : ' ' + activities[0].course.currency }}
-          {{ 'applied' | translate }} ({{ discount.threshold }} {{ 'days' | translate }})
-          <span *ngIf="discount.amountSaved">
-            -{{ discount.amountSaved | number:'0.2-2' }} {{ discount.currency || activities[0].course.currency }}
-          </span>
-          <span *ngIf="discount.intervalName"> - {{ discount.intervalName }}</span>
-          <span *ngIf="!discount.intervalName && discount.fromInterval"> - {{ 'from_interval' | translate }}</span>
-        </div>
+          <div *ngFor="let discount of getDiscountInfoList(activity)" class="dateRow" style="margin-left: 30px;">
+            <div style="display: flex; align-items: center; width: 100%; gap: 12px;">
+              <span class="hour" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4caf50; flex: 1;">
+                <mat-icon style="font-size: 14px;">local_offer</mat-icon>
+                <span>
+                  {{ 'reduction' | translate }} {{ discount.value }}{{ discount.type === 'percentage' ? '%' : ' ' + getActivitiesCurrency() }}
+                  {{ 'applied' | translate }} ({{ discount.threshold }} {{ 'days' | translate }})
+                </span>
+              </span>
+              <span *ngIf="discount.intervalName || discount.fromInterval"
+                    style="font-size: 11px; background: #eef2ff; color: #3d5afe; padding: 2px 10px; border-radius: 999px;">
+                {{ discount.intervalName || (('interval' | translate) + ' ' + (discount.intervalId || '')) }}
+              </span>
+              <span class="price" *ngIf="discount.amountSaved">
+                <span class="discounted-price" style="color: #1b5e20;">
+                  -{{ discount.amountSaved | number:'0.2-2' }} {{ discount.currency || getActivitiesCurrency() }}
+                </span>
+              </span>
+            </div>
+          </div>
         </ng-container>
+        <div class="dateRow" style="margin-left: 30px; border-top: 1px dashed #dee6ea; padding-top: 8px;">
+          <div>
+            <span class="hour">{{ 'course_total' | translate }}</span>
+            <span class="price">
+              <span class="discounted-price">{{ getActivityBaseAmount(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}</span>
+            </span>
+          </div>
+        </div>
+        <div class="dateRow" style="margin-left: 30px;" *ngIf="getActivityDiscountAmount(activity) > 0">
+          <div>
+            <span class="hour" style="color: #1b5e20;">{{ 'discount' | translate }}</span>
+            <span class="price">
+              <span class="discounted-price" style="color: #1b5e20;">
+                -{{ getActivityDiscountAmount(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}
+              </span>
+            </span>
+          </div>
+        </div>
+        <div class="dateRow" style="margin-left: 30px;">
+          <div>
+            <span class="hour" style="font-weight: 600;">{{ 'subtotal' | translate }}</span>
+            <span class="price">
+              <span class="discounted-price">{{ activity.total | number:'0.2-2' }} {{ getActivitiesCurrency() }}</span>
+            </span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="section" style="margin: 20px;">

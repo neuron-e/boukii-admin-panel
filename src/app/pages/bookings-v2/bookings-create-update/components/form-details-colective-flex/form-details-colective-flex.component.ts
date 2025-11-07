@@ -7,6 +7,8 @@ import {ApiCrudService} from '../../../../../../service/crud.service';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {TranslateService} from '@ngx-translate/core';
 import {
+  applyFlexibleDiscount as applyFlexibleDiscountUtil,
+  getApplicableDiscounts as getApplicableDiscountsUtil,
   getAppliedDiscountInfo as getAppliedDiscountInfoUtil,
   parseFlexibleDiscounts as parseFlexibleDiscountRules
 } from 'src/app/pages/bookings-v2/shared/discount-utils';
@@ -106,6 +108,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     console.log('FLEX DATES DEBUG: Course dates available:', this.course?.course_dates?.length);
     console.log('FLEX DATES DEBUG: Sport level:', this.sportLevel);
     const existingCourseDatesArray = this.stepForm.get('course_dates') as FormArray;
+    const previousSelections = existingCourseDatesArray ? existingCourseDatesArray.getRawValue() : null;
     const dateGroups: FormGroup[] = [];
     this.courseDateMeta = [];
 
@@ -154,6 +157,8 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
       existingCourseDatesArray.setValidators(this.atLeastOneSelectedValidator);
       existingCourseDatesArray.updateValueAndValidity();
     }
+
+    this.restorePreviousSelections(previousSelections);
 
     this.availableGroupsByDate = {};
     this.selectedGroupByDate = {};
@@ -277,6 +282,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
   createCourseDateGroup(courseDate: any, selected: boolean = false, extras: any[] = []): FormGroup {
     const monitor = this.findMonitor(courseDate);
     return this.fb.group({
+      course_date_id: [courseDate.id],
       selected: [selected],
       date: [courseDate.date],
       startHour: [courseDate.hour_start],
@@ -396,6 +402,78 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
       this.loadGroupsForDate(dateIndex);
     }
   }
+
+  private restorePreviousSelections(previousValues: any[] | null): void {
+    if (!previousValues || !Array.isArray(previousValues) || !this.courseDatesArray) {
+      return;
+    }
+
+    this.courseDatesArray.controls.forEach((control, index) => {
+      const match = this.findMatchingPreviousValue(previousValues, (control as FormGroup).value);
+      if (!match) {
+        return;
+      }
+
+      (control as FormGroup).patchValue({
+        selected: match.selected ?? false,
+        extras: match.extras || [],
+        subgroup_id: match.subgroup_id ?? null,
+        monitor_id: match.monitor_id ?? (control as FormGroup).get('monitor_id')?.value ?? null
+      }, { emitEvent: false });
+
+      if (Array.isArray(match.extras)) {
+        this.totalExtraPrice[index] = match.extras.reduce((acc: number, extra: any) => acc + parseFloat(extra.price || 0), 0);
+      }
+
+      if (match.subgroup_id != null) {
+        this.pendingGroupSelection[index] = match.subgroup_id;
+      }
+
+      if (match.selected) {
+        this.ensureGroupsLoaded(index);
+      }
+    });
+  }
+
+  private findMatchingPreviousValue(previousValues: any[], controlValue: any): any | null {
+    if (!controlValue) {
+      return null;
+    }
+
+    const controlCourseDateId = controlValue?.course_date_id;
+    if (controlCourseDateId != null) {
+      const matchById = previousValues.find(prev =>
+        prev?.course_date_id != null && String(prev.course_date_id) === String(controlCourseDateId)
+      );
+      if (matchById) {
+        return matchById;
+      }
+    }
+
+    const controlIntervalId = controlValue?.interval_id ?? null;
+    return previousValues.find(prev => {
+      if (!prev) {
+        return false;
+      }
+
+      const sameDate = prev?.date === controlValue?.date;
+      const sameStart = prev?.startHour === controlValue?.startHour;
+      const sameEnd = prev?.endHour === controlValue?.endHour;
+
+      if (!(sameDate && sameStart && sameEnd)) {
+        return false;
+      }
+
+      const prevIntervalId = prev?.interval_id ?? null;
+      if (controlIntervalId != null || prevIntervalId != null) {
+        return prevIntervalId != null &&
+          controlIntervalId != null &&
+          String(prevIntervalId) === String(controlIntervalId);
+      }
+
+      return true;
+    }) || null;
+  }
   get courseDatesArray(): FormArray {
     return this.stepForm.get('course_dates') as FormArray;
   }
@@ -506,13 +584,17 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     });
   }
 
+  getIntervalPriceSummary(intervalId: string | null): { base: number; discount: number; final: number; currency: string; selectedCount: number } | null {
+    return this.calculateIntervalFinancialSummary(intervalId);
+  }
+
   getActiveDiscountMessage(intervalId: string | null): string | null {
-    const selectedCount = this.getSelectedCountForInterval(intervalId);
-    if (selectedCount === 0) {
+    const summary = this.calculateIntervalFinancialSummary(intervalId);
+    if (!summary) {
       return null;
     }
 
-    const info = getAppliedDiscountInfoUtil(this.course, selectedCount, intervalId ?? undefined);
+    const info = getAppliedDiscountInfoUtil(this.course, summary.selectedCount, intervalId ?? undefined);
     if (!info) {
       return null;
     }
@@ -521,28 +603,47 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
       ? `${info.value}%`
       : `${info.value} ${this.course?.currency || ''}`;
 
-    return `${this.translateService.instant('reduction')} ${amount} ${this.translateService.instant('applied')} (${info.threshold} ${this.translateService.instant('days')})`;
+    const discountText = summary.discount > 0
+      ? ` (-${summary.discount.toFixed(2)} ${summary.currency})`
+      : '';
+
+    return `${this.translateService.instant('reduction')} ${amount} ${this.translateService.instant('applied')} (${info.threshold} ${this.translateService.instant('days')})${discountText}`;
   }
 
-  private getSelectedCountForInterval(intervalId: string | null): number {
-    if (!this.courseDatesArray) {
-      return 0;
+  private calculateIntervalFinancialSummary(intervalId: string | null): { base: number; discount: number; final: number; currency: string; selectedCount: number } | null {
+    const selectedGroups = this.getSelectedFormGroupsForInterval(intervalId);
+    if (!selectedGroups.length) {
+      return null;
     }
 
+    const price = parseFloat(this.course?.price ?? '0');
+    if (!price || Number.isNaN(price)) {
+      return null;
+    }
+
+    const base = price * selectedGroups.length;
+    const currency = this.course?.currency || '';
+    const applicableDiscounts = getApplicableDiscountsUtil(this.course, intervalId ?? undefined);
+    const final = applyFlexibleDiscountUtil(base, selectedGroups.length, applicableDiscounts);
+    const discount = Math.max(0, base - final);
+
+    return { base, discount, final, currency, selectedCount: selectedGroups.length };
+  }
+
+  private getSelectedFormGroupsForInterval(intervalId: string | null): FormGroup[] {
+    if (!this.courseDatesArray) {
+      return [];
+    }
     const targetKey = intervalId != null ? String(intervalId) : 'default';
-    let count = 0;
-
-    this.courseDatesArray.controls.forEach(control => {
-      if ((control as FormGroup).get('selected')?.value) {
-        const ctrlIntervalId = (control as FormGroup).get('interval_id')?.value;
-        const ctrlKey = ctrlIntervalId != null ? String(ctrlIntervalId) : 'default';
-        if (ctrlKey === targetKey) {
-          count++;
-        }
+    return this.courseDatesArray.controls.filter(control => {
+      const isSelected = (control as FormGroup).get('selected')?.value;
+      if (!isSelected) {
+        return false;
       }
-    });
-
-    return count;
+      const ctrlIntervalId = (control as FormGroup).get('interval_id')?.value;
+      const ctrlKey = ctrlIntervalId != null ? String(ctrlIntervalId) : 'default';
+      return ctrlKey === targetKey;
+    }) as FormGroup[];
   }
 
   /**
@@ -604,6 +705,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
 
   // Estado de expansión del selector de grupos por fecha
   groupSelectorExpanded: { [dateIndex: number]: boolean } = {};
+  private pendingGroupSelection: { [dateIndex: number]: number | string } = {};
 
   /**
    * Carga los subgrupos disponibles para una fecha específica desde el objeto curso
@@ -672,13 +774,15 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     const originalIndex = this.getOriginalCourseDateIndex(dateIndex);
     const savedSubgroupId =
       (originalIndex != null ? this.initialData?.[originalIndex]?.subgroup_id : null) ||
-      this.courseDatesArray.at(dateIndex)?.get('subgroup_id')?.value;
+      this.courseDatesArray.at(dateIndex)?.get('subgroup_id')?.value ||
+      this.pendingGroupSelection[dateIndex];
 
     if (savedSubgroupId) {
       const restored = allSubgroups.find(
         subgroup => String(subgroup.id) === String(savedSubgroupId)
       );
       if (restored) {
+        delete this.pendingGroupSelection[dateIndex];
         this.selectedGroupByDate[dateIndex] = restored;
         this.updateDateGroup(dateIndex, restored);
         return;
@@ -791,21 +895,8 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
 
     return levelName + subgroupName;
   }
+
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

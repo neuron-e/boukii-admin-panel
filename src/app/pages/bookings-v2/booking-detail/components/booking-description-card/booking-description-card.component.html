@@ -158,23 +158,6 @@
                src="assets/img/icons/edit-grey.svg" style="float: right" class="icon24">
         </ng-container>
       </div>
-      <ng-container *ngIf="discountInfoList.length">
-        <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-          <div *ngFor="let discount of discountInfoList"
-               style="display: flex; align-items: center; font-size: 12px; color: #2e7d32; gap: 6px;">
-            <mat-icon style="font-size: 16px;">local_offer</mat-icon>
-            <span>
-              {{ 'reduction' | translate }} {{ discount.value }}{{ discount.type === 'percentage' ? '%' : ' ' + course?.currency }}
-              {{ 'applied' | translate }} ({{ discount.threshold }} {{ 'days' | translate }})
-              <span *ngIf="discount.intervalName">- {{ discount.intervalName }}</span>
-              <span *ngIf="!discount.intervalName && discount.fromInterval">- {{ 'from_interval' | translate }}</span>
-              <span *ngIf="discount.amountSaved" style="font-weight: 600; color: #1b5e20;">
-                (-{{ discount.amountSaved | number:'0.2-2' }} {{ discount.currency || course?.currency }})
-              </span>
-            </span>
-          </div>
-        </div>
-      </ng-container>
       <ng-container *ngIf="dates && dates.length">
         <div *ngIf="!summaryMode; else summaryDates">
           <div *ngFor="let interval of intervalGroups">
@@ -263,14 +246,30 @@
                 </ng-container>
               </div>
             </div>
+            <div *ngIf="getIntervalPriceSummary(interval.key) as intervalSummary"
+                 style="margin: 8px 0; font-size: 12px; color: #333; display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span>{{ 'course_total' | translate }}</span>
+                <span>{{ intervalSummary.base | number:'0.2-2' }} {{ intervalSummary.currency }}</span>
+              </div>
+              <div *ngIf="intervalSummary.discount > 0"
+                   style="display: flex; justify-content: space-between; color: #1b5e20;">
+                <span>{{ 'discount' | translate }}</span>
+                <span>-{{ intervalSummary.discount | number:'0.2-2' }} {{ intervalSummary.currency }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-weight: 600;">
+                <span>{{ 'subtotal' | translate }}</span>
+                <span>{{ intervalSummary.final | number:'0.2-2' }} {{ intervalSummary.currency }}</span>
+              </div>
+            </div>
           </div>
         </div>
         <ng-template #summaryDates>
           <div class="dateRow">
             <div>
-							<span class="date">
-								{{ formatDate(dates[0]?.date) }}
-							</span>
+								<span class="date">
+									{{ formatDate(dates[0]?.date) }}
+								</span>
               <span class="hour">
 								{{ dates[0]?.startHour }}h - {{ dates[0]?.endHour
                 }}h
@@ -355,11 +354,38 @@
     </div>
   </div>
 
-  <div class="footerWrapper">
-    {{ "bookings_page.description.total" | translate }}
-    <ng-container *ngIf="total">
-      <span class="totalPrice">{{ total }} {{course.currency}}</span>
-    </ng-container>
-  </div>
+  <ng-container *ngIf="getGlobalPriceSummary() as globalSummary; else defaultFooter">
+    <div class="footerWrapper" *ngIf="summaryMode; else expandedTotals">
+      {{ "bookings_page.description.total" | translate }}
+      <ng-container *ngIf="total">
+        <span class="totalPrice">{{ total | number:'0.2-2' }} {{course.currency}}</span>
+      </ng-container>
+    </div>
+    <ng-template #expandedTotals>
+      <div class="footerWrapper" style="flex-direction: column; gap: 6px; align-items: stretch;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <span style="flex: 1;">{{ 'course_total' | translate }}</span>
+          <span style="min-width: 120px; text-align: right;">{{ globalSummary.base | number:'0.2-2' }} {{ globalSummary.currency }}</span>
+        </div>
+        <div *ngIf="globalSummary.discount > 0"
+             style="display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #1b5e20;">
+          <span style="flex: 1;">{{ 'discount' | translate }}</span>
+          <span style="min-width: 120px; text-align: right;">-{{ globalSummary.discount | number:'0.2-2' }} {{ globalSummary.currency }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 600;">
+          <span style="flex: 1;">{{ 'subtotal' | translate }}</span>
+          <span style="min-width: 120px; text-align: right;">{{ globalSummary.final | number:'0.2-2' }} {{ globalSummary.currency }}</span>
+        </div>
+      </div>
+    </ng-template>
+  </ng-container>
+  <ng-template #defaultFooter>
+    <div class="footerWrapper">
+      {{ "bookings_page.description.total" | translate }}
+      <ng-container *ngIf="total">
+        <span class="totalPrice">{{ total | number:'0.2-2' }} {{course.currency}}</span>
+      </ng-container>
+    </div>
+  </ng-template>
 </div>
 
