@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges} from '@angular/core';
+import {Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnInit, Output, SimpleChanges} from '@angular/core';
 import { MOCK_POSIBLE_EXTRAS } from "../../mocks/course";
 import { UtilsService } from "src/service/utils.service";
 import {FormArray, FormBuilder, FormGroup, Validators} from '@angular/forms';
@@ -6,6 +6,10 @@ import moment from 'moment';
 import {ApiCrudService} from '../../../../../../service/crud.service';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {TranslateService} from '@ngx-translate/core';
+import {
+  getAppliedDiscountInfo as getAppliedDiscountInfoUtil,
+  parseFlexibleDiscounts as parseFlexibleDiscountRules
+} from 'src/app/pages/bookings-v2/shared/discount-utils';
 @Component({
   selector: "booking-form-details-colective-flex",
   templateUrl: "./form-details-colective-flex.component.html",
@@ -21,16 +25,36 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
   @Output() prevStep = new EventEmitter();
   @Input() stepForm: FormGroup; // Recibe el formulario desde el padre
   @Input() selectedForm: FormGroup; // Recibe el formulario desde el padre
+  /**
+   * En el flujo admin permitimos ignorar las reglas estrictas de reserva, pero dejamos el flag
+   * por si en el futuro se requiere habilitarlas.
+   */
+  @Input() enforceBookingRules = false;
   posibleExtras;
   totalExtraPrice: number[] = [];
   isCoursExtrasOld = true;
   private checkAvailabilityCache = new Map<string, Promise<boolean>>();
+  private courseDateMeta: Array<{ originalIndex: number; date: any }> = [];
 
   constructor(protected utilsService: UtilsService,
               private fb: FormBuilder,
               private crudService: ApiCrudService,
               public translateService: TranslateService,
-              private snackbar: MatSnackBar) {
+              private snackbar: MatSnackBar,
+              private elementRef: ElementRef) {
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      this.closeAllGroupSelectors();
+      return;
+    }
+
+    if (!target.closest('.group-selector-wrapper')) {
+      this.closeAllGroupSelectors();
+    }
   }
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['course'] && !changes['course'].firstChange) {
@@ -64,7 +88,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     return extras.filter(extra => {
       if (!uniqueExtras[extra.name]) {
         uniqueExtras[extra.name] = true; // Marca el nombre como procesado
-        return true; // Mantén este extra en el resultado
+        return true; // MantÃ©n este extra en el resultado
       }
       return false; // Descarta extras con nombres duplicados
     });
@@ -81,10 +105,12 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     console.log('FLEX DATES DEBUG: Initializing form for course:', this.course?.name);
     console.log('FLEX DATES DEBUG: Course dates available:', this.course?.course_dates?.length);
     console.log('FLEX DATES DEBUG: Sport level:', this.sportLevel);
-    // Obtener el FormArray existente
     const existingCourseDatesArray = this.stepForm.get('course_dates') as FormArray;
-    const dateGroups = this.course.course_dates
-      .map((date, index) => {
+    const dateGroups: FormGroup[] = [];
+    this.courseDateMeta = [];
+
+    this.course.course_dates
+      .forEach((date, index) => {
         const dateMoment = moment(date.date, 'YYYY-MM-DD');
         const currentTime = moment();
         const isToday = dateMoment.isSame(currentTime, 'day');
@@ -106,13 +132,13 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
             console.log(`FLEX DATES DEBUG: Date ${index} has no capacity but control stays enabled`);
           }
 
-          return dateGroup;
+          dateGroups.push(dateGroup);
+          this.courseDateMeta.push({ originalIndex: index, date });
+          return;
         }
 
         console.log(`FLEX DATES DEBUG: Date ${index} excluded - not valid date`);
-        return null;
-      })
-      .filter((group): group is FormGroup => group !== null);
+      });
 
     console.log('FLEX DATES DEBUG: Final dates array length:', dateGroups.length);
 
@@ -134,6 +160,15 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     this.groupSelectorExpanded = {};
     this.loadingGroupsByDate = {};
     this.totalExtraPrice = new Array(dateGroups.length).fill(0);
+
+    // Asegurar preselección de grupos para fechas ya marcadas
+    setTimeout(() => {
+      this.courseDatesArray?.controls?.forEach((control, idx) => {
+        if (control.get('selected')?.value) {
+          this.ensureGroupsLoaded(idx);
+        }
+      });
+    });
   }
   checkAval(index: number): Promise<boolean> {
     return new Promise((resolve) => {
@@ -150,7 +185,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
       };
       const hasLocalOverlap = this.checkLocalOverlap(checkAval.bookingUsers);
       if (hasLocalOverlap) {
-        // Si hay solapamiento en la verificación local, mostramos mensaje y resolvemos como false
+        // Si hay solapamiento en la verificaciÃ³n local, mostramos mensaje y resolvemos como false
         this.snackbar.open(this.translateService.instant('snackbar.booking.localOverlap'), 'OK', { duration: 3000 });
         resolve(false);
         return;
@@ -159,7 +194,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
       this.crudService.post('/admin/bookings/checkbooking', checkAval)
         .subscribe((response: any) => {
           // Supongamos que la API devuelve un campo 'available' que indica la disponibilidad
-          const isAvailable = response.success; // Ajusta según la respuesta real de tu API
+          const isAvailable = response.success; // Ajusta segÃºn la respuesta real de tu API
           resolve(isAvailable); // Resolvemos la promesa con el valor de disponibilidad
         }, (error) => {
           this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
@@ -174,9 +209,9 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     // Recorremos cada normalizedDate
     for (let normalized of this.activitiesBooked) {
       if (this.selectedForm && this.selectedForm === normalized) {
-        continue; // Saltamos la comparación si es el mismo FormGroup
+        continue; // Saltamos la comparaciÃ³n si es el mismo FormGroup
       }
-      // Verificamos si alguno de los utilizers de bookingUsers está en los utilizers de normalizedDates
+      // Verificamos si alguno de los utilizers de bookingUsers estÃ¡ en los utilizers de normalizedDates
       for (let bookingUser of bookingUsers) {
         const matchingUtilizer = normalized.utilizers.find(
           (utilizer: any) => utilizer.id === bookingUser.client_id
@@ -200,32 +235,37 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     }
     return false; // Si no encontramos solapamientos, retornamos false
   }
-  // Validación personalizada para asegurarse de que al menos una fecha esté seleccionada
+  // ValidaciÃ³n personalizada para asegurarse de que al menos una fecha estÃ© seleccionada
   // y que se cumplan las reglas de reserva del curso
   atLeastOneSelectedValidator = (formArray: FormArray): { [key: string]: boolean } | null => {
     const selectedDates = formArray.controls.filter(control => control.get('selected')?.value);
     if (selectedDates.length === 0) {
       return { noDatesSelected: true };
     }
+
+    if (!this.enforceBookingRules) {
+      return null;
+    }
+
     // Obtener las reglas de reserva del curso
     const courseSettings = this.course.settings || {};
     const mustBeConsecutive = courseSettings.mustBeConsecutive || false;
     const mustStartFromFirst = courseSettings.mustStartFromFirst || false;
-    // Aplicar validación de "debe empezar desde el primer día"
+    // Aplicar validaciÃ³n de "debe empezar desde el primer dÃ­a"
     if (mustStartFromFirst) {
       const firstAvailableDate = formArray.controls[0]; // El primer control es la primera fecha disponible
       if (!firstAvailableDate.get('selected')?.value) {
         return { mustStartFromFirstDay: true };
       }
     }
-    // Aplicar validación de "fechas consecutivas"
+    // Aplicar validaciÃ³n de "fechas consecutivas"
     if (mustBeConsecutive && selectedDates.length > 1) {
-      // Obtener los índices de las fechas seleccionadas
+      // Obtener los Ã­ndices de las fechas seleccionadas
       const selectedIndices = formArray.controls
         .map((control, index) => control.get('selected')?.value ? index : null)
         .filter(index => index !== null)
         .sort((a, b) => a - b);
-      // Verificar que los índices sean consecutivos
+      // Verificar que los Ã­ndices sean consecutivos
       for (let i = 1; i < selectedIndices.length; i++) {
         if (selectedIndices[i] - selectedIndices[i - 1] !== 1) {
           return { datesNotConsecutive: true };
@@ -241,8 +281,12 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
       date: [courseDate.date],
       startHour: [courseDate.hour_start],
       endHour: [courseDate.hour_end],
+      interval_id: [courseDate.interval_id ?? courseDate.course_interval_id ?? null],
+      interval_name: [courseDate.interval_name ?? null],
       price: this.course.price,
       currency: this.course.currency,
+      subgroup_id: [courseDate.subgroup_id ?? null],
+      monitor_id: [monitor?.id ?? courseDate.monitor_id ?? null],
       extras: [{ value: extras, disabled: !selected || !this.posibleExtras || !this.posibleExtras.length }] ,
       monitor: [monitor]
     });
@@ -260,7 +304,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     if (matchingGroup) {
       console.log('FLEX DATES DEBUG: Subgroups in matching group:', matchingGroup.course_subgroups?.length);
 
-      // Busca el subgrupo que tiene menos participantes que el m�ximo permitido
+      // Busca el subgrupo que tiene menos participantes que el máximo permitido
       const availableSubgroup = matchingGroup.course_subgroups?.find(
         (subgroup) => ((subgroup.booking_users || []).length) < subgroup.max_participants
       );
@@ -273,7 +317,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     }
 
     console.log('FLEX DATES DEBUG: No matching group found for sport level');
-    // Si no encuentra ning�n grupo o subgrupo adecuado, retorna null
+    // Si no encuentra ningún grupo o subgrupo adecuado, retorna null
     return null;
   }
   onDateSelect(event: any, index: number) {
@@ -297,6 +341,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
 
         if (isAvailable) {
           extrasControl?.enable();
+          this.ensureGroupsLoaded(index);
           console.log('FLEX DATES DEBUG: Date enabled and extras control enabled');
 
           // Feedback positivo
@@ -315,14 +360,15 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
           extrasControl?.setValue([]); // Limpia los extras seleccionados
         }
 
-        // Actualizar validaci�n del formulario
+        // Actualizar validación del formulario
         this.stepForm.updateValueAndValidity();
       }).catch((error) => {
         console.error('FLEX DATES DEBUG: Error checking availability:', error);
-        // En caso de error, permitir la selecci�n pero mostrar advertencia
+        // En caso de error, permitir la selección pero mostrar advertencia
         extrasControl?.enable();
+        this.ensureGroupsLoaded(index);
         if (this.snackbar) {
-          this.snackbar.open('No se pudo verificar la disponibilidad, pero se permite la selecci�n', 'OK', { duration: 3000 });
+          this.snackbar.open('No se pudo verificar la disponibilidad, pero se permite la selección', 'OK', { duration: 3000 });
         }
       });
     } else {
@@ -335,7 +381,20 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
   // Calcula el total de extras seleccionados para una fecha específica
   onExtraChange(index: number) {
     const selectedExtras = this.courseDatesArray.at(index).get('extras').value || [];
-    this.totalExtraPrice[index] = selectedExtras.reduce((acc, extra) => acc*1 + extra.price*1, 0);
+    this.totalExtraPrice[index] = selectedExtras.reduce((acc, extra) => acc * 1 + extra.price * 1, 0);
+  }
+
+  private ensureGroupsLoaded(dateIndex: number): void {
+    if (this.availableGroupsByDate[dateIndex]) {
+      if (!this.selectedGroupByDate[dateIndex]) {
+        this.autoSelectGroupForDate(dateIndex);
+      }
+      return;
+    }
+
+    if (!this.loadingGroupsByDate[dateIndex]) {
+      this.loadGroupsForDate(dateIndex);
+    }
   }
   get courseDatesArray(): FormArray {
     return this.stepForm.get('course_dates') as FormArray;
@@ -393,8 +452,18 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
    * Get interval_id for a specific date by index
    */
   getDateIntervalId(dateIndex: number): string | null {
-    const courseDate = this.course.course_dates?.[dateIndex];
-    return courseDate?.interval_id ? String(courseDate.interval_id) : null;
+    const control = this.courseDatesArray?.at(dateIndex) as FormGroup;
+    const intervalId = control?.get('interval_id')?.value;
+    return intervalId != null ? String(intervalId) : null;
+  }
+
+  private getCourseDateSource(dateIndex: number): any | null {
+    return this.courseDateMeta?.[dateIndex]?.date ?? null;
+  }
+
+  private getOriginalCourseDateIndex(dateIndex: number): number | null {
+    const meta = this.courseDateMeta?.[dateIndex];
+    return typeof meta?.originalIndex === 'number' ? meta.originalIndex : null;
   }
 
   /**
@@ -402,17 +471,77 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
    * Only counts dates that are in the FormArray (available dates)
    */
   getDateCountForInterval(intervalId: string): number {
-    if (!this.courseDatesArray || !this.course?.course_dates) {
+    if (!this.courseDatesArray) {
       return 0;
     }
-    // Contar solo las fechas que est�n en el FormArray (las disponibles)
+    // Contar solo las fechas que están en el FormArray (las disponibles)
     let count = 0;
-    this.courseDatesArray.controls.forEach((control, index) => {
-      const courseDate = this.course.course_dates[index];
-      if (courseDate && String(courseDate.interval_id) === String(intervalId)) {
+    this.courseDatesArray.controls.forEach((control) => {
+      const ctrlIntervalId = (control as FormGroup)?.get('interval_id')?.value;
+      if (ctrlIntervalId != null && String(ctrlIntervalId) === String(intervalId)) {
         count++;
       }
     });
+    return count;
+  }
+
+  getGlobalDiscountBadges(): string[] {
+    return this.formatDiscountBadges(parseFlexibleDiscountRules(this.course?.discounts));
+  }
+
+  getIntervalDiscountBadges(interval: any): string[] {
+    return this.formatDiscountBadges(parseFlexibleDiscountRules(interval?.discounts));
+  }
+
+  private formatDiscountBadges(discounts: Array<{ threshold: number; value: number; type: 'percentage' | 'fixed' }> | null): string[] {
+    if (!discounts || discounts.length === 0) {
+      return [];
+    }
+
+    return discounts.map(discount => {
+      const amount = discount.type === 'percentage'
+        ? `${discount.value}%`
+        : `${discount.value} ${this.course?.currency || ''}`;
+      return `${this.translateService.instant('from')} ${discount.threshold} ${this.translateService.instant('days')} → ${amount}`;
+    });
+  }
+
+  getActiveDiscountMessage(intervalId: string | null): string | null {
+    const selectedCount = this.getSelectedCountForInterval(intervalId);
+    if (selectedCount === 0) {
+      return null;
+    }
+
+    const info = getAppliedDiscountInfoUtil(this.course, selectedCount, intervalId ?? undefined);
+    if (!info) {
+      return null;
+    }
+
+    const amount = info.type === 'percentage'
+      ? `${info.value}%`
+      : `${info.value} ${this.course?.currency || ''}`;
+
+    return `${this.translateService.instant('reduction')} ${amount} ${this.translateService.instant('applied')} (${info.threshold} ${this.translateService.instant('days')})`;
+  }
+
+  private getSelectedCountForInterval(intervalId: string | null): number {
+    if (!this.courseDatesArray) {
+      return 0;
+    }
+
+    const targetKey = intervalId != null ? String(intervalId) : 'default';
+    let count = 0;
+
+    this.courseDatesArray.controls.forEach(control => {
+      if ((control as FormGroup).get('selected')?.value) {
+        const ctrlIntervalId = (control as FormGroup).get('interval_id')?.value;
+        const ctrlKey = ctrlIntervalId != null ? String(ctrlIntervalId) : 'default';
+        if (ctrlKey === targetKey) {
+          count++;
+        }
+      }
+    });
+
     return count;
   }
 
@@ -464,24 +593,29 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
 
   // ==================== SELECTOR DE GRUPOS POR FECHA ====================
 
-  // Almacena los grupos disponibles por cada fecha (�ndice de fecha -> array de subgrupos)
+  // Almacena los grupos disponibles por cada fecha (índice de fecha -> array de subgrupos)
   availableGroupsByDate: { [dateIndex: number]: any[] } = {};
 
   // Estado de carga de grupos por fecha
   loadingGroupsByDate: { [dateIndex: number]: boolean } = {};
 
-  // Grupo seleccionado por fecha (�ndice de fecha -> subgrupo)
+  // Grupo seleccionado por fecha (índice de fecha -> subgrupo)
   selectedGroupByDate: { [dateIndex: number]: any } = {};
 
-  // Estado de expansi�n del selector de grupos por fecha
+  // Estado de expansión del selector de grupos por fecha
   groupSelectorExpanded: { [dateIndex: number]: boolean } = {};
 
   /**
-   * Carga los subgrupos disponibles para una fecha espec�fica desde el objeto curso
+   * Carga los subgrupos disponibles para una fecha específica desde el objeto curso
    */
   loadGroupsForDate(dateIndex: number): void {
-    const courseDate = this.course.course_dates[dateIndex];
+    const courseDate = this.getCourseDateSource(dateIndex);
     if (!courseDate || !this.course) {
+      return;
+    }
+
+    if (this.availableGroupsByDate[dateIndex] && this.availableGroupsByDate[dateIndex].length > 0) {
+      this.autoSelectGroupForDate(dateIndex);
       return;
     }
 
@@ -534,6 +668,22 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
 
     this.availableGroupsByDate[dateIndex] = allSubgroups;
     this.loadingGroupsByDate[dateIndex] = false;
+
+    const originalIndex = this.getOriginalCourseDateIndex(dateIndex);
+    const savedSubgroupId =
+      (originalIndex != null ? this.initialData?.[originalIndex]?.subgroup_id : null) ||
+      this.courseDatesArray.at(dateIndex)?.get('subgroup_id')?.value;
+
+    if (savedSubgroupId) {
+      const restored = allSubgroups.find(
+        subgroup => String(subgroup.id) === String(savedSubgroupId)
+      );
+      if (restored) {
+        this.selectedGroupByDate[dateIndex] = restored;
+        this.updateDateGroup(dateIndex, restored);
+        return;
+      }
+    }
 
     // Auto-seleccionar el grupo que coincide con el nivel del usuario
     this.autoSelectGroupForDate(dateIndex);
@@ -589,26 +739,45 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Alterna la expansi�n del selector de grupos
+   * Alterna la expansión del selector de grupos
    */
   toggleGroupSelector(dateIndex: number): void {
-    this.groupSelectorExpanded[dateIndex] = !this.groupSelectorExpanded[dateIndex];
+    const nextState = !this.groupSelectorExpanded[dateIndex];
+    if (nextState) {
+      this.closeAllGroupSelectors(dateIndex);
+      this.ensureGroupsLoaded(dateIndex);
+    }
+    this.groupSelectorExpanded[dateIndex] = nextState;
 
-    // Cargar grupos si a�n no se han cargado
+    // Cargar grupos si aún no se han cargado
     if (this.groupSelectorExpanded[dateIndex] && !this.availableGroupsByDate[dateIndex]) {
       this.loadGroupsForDate(dateIndex);
     }
   }
 
+  private closeAllGroupSelectors(exceptIndex?: number): void {
+    Object.keys(this.groupSelectorExpanded).forEach(key => {
+      const numericKey = Number(key);
+      if (!Number.isNaN(numericKey)) {
+        if (exceptIndex !== undefined && numericKey === exceptIndex) {
+          return;
+        }
+        this.groupSelectorExpanded[numericKey] = false;
+      } else {
+        this.groupSelectorExpanded[key] = false;
+      }
+    });
+  }
+
   /**
-   * Verifica si el selector est� expandido
+   * Verifica si el selector está expandido
    */
   isGroupSelectorExpanded(dateIndex: number): boolean {
     return this.groupSelectorExpanded[dateIndex] || false;
   }
 
   /**
-   * Obtiene el nombre del grupo seleccionado para mostrar en el bot�n
+   * Obtiene el nombre del grupo seleccionado para mostrar en el botón
    */
   getSelectedGroupName(dateIndex: number): string {
     const group = this.selectedGroupByDate[dateIndex];

@@ -158,86 +158,109 @@
                src="assets/img/icons/edit-grey.svg" style="float: right" class="icon24">
         </ng-container>
       </div>
+      <ng-container *ngIf="discountInfoList.length">
+        <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+          <div *ngFor="let discount of discountInfoList"
+               style="display: flex; align-items: center; font-size: 12px; color: #2e7d32; gap: 6px;">
+            <mat-icon style="font-size: 16px;">local_offer</mat-icon>
+            <span>
+              {{ 'reduction' | translate }} {{ discount.value }}{{ discount.type === 'percentage' ? '%' : ' ' + course?.currency }}
+              {{ 'applied' | translate }} ({{ discount.threshold }} {{ 'days' | translate }})
+              <span *ngIf="discount.intervalName">- {{ discount.intervalName }}</span>
+              <span *ngIf="!discount.intervalName && discount.fromInterval">- {{ 'from_interval' | translate }}</span>
+              <span *ngIf="discount.amountSaved" style="font-weight: 600; color: #1b5e20;">
+                (-{{ discount.amountSaved | number:'0.2-2' }} {{ discount.currency || course?.currency }})
+              </span>
+            </span>
+          </div>
+        </div>
+      </ng-container>
       <ng-container *ngIf="dates && dates.length">
         <div *ngIf="!summaryMode; else summaryDates">
-          <div *ngFor="let date of dates; let i = index; let last = last;"
-               [ngStyle]="!last ? {'border-bottom': '1px solid #dee6ea', 'padding-bottom': '10px'} : {}"
-               [ngClass]="{ 'disabled': date.booking_users[0].status == 2 }" class="dateRow">
-            <div>
-							<span class="date">
-								{{ formatDate(date?.date) }}
-							</span>
-              <span class="hour">
-								{{ date.startHour}}h - {{date.endHour}}h
-							</span>
-              <span *ngIf="shouldShowPrice(course, date, i)" class="price">
-                <!-- Mostrar el precio original tachado -->
-                <span *ngIf="isDiscounted(date, i)" class="original-price">
-                  {{ bookingService.calculateDatePrice(course, date, true) | number:'0.2-2' }} {{ date.currency }}
-                </span>
-
-                              <!-- Mostrar el precio con descuento -->
-                <span class="discounted-price">
-                  {{ calculateDiscountedPrice(date, i) | number:'0.2-2' }} {{ date.currency }}
-                </span>
-              </span>
-            </div>
-            <div class="monitorRow" *ngIf="course && course.course_type!==1">
-              <div class="row1">
-
-                <div class="sectionTitle">
-                  <img src="assets/img/icons/monitores-3.svg" />
-                  {{ "bookings_page.description.monitor" | translate }}
-                </div>
-                <app-level-user class="avatarImg" *ngIf="date.monitor"
-                                mat-card-avatar
-                                [allLevels]="utilsService.getSportLevels(course.sport_id, allLevels)"
-                                [selectLevel]="utilsService.getHighestAuthorizedDegree(date.monitor,
-                                course.sport_id, course.school_id)?.degree_id || 0" [size]="40"
-                                [userImage]="date.monitor?.image !== null && date.monitor?.image
-                  !== '' ? date.monitor?.image : 'assets/img/avatar.png'">
-                </app-level-user>
-                <span style="align-content: center" *ngIf="date.monitor">
-                  {{ date.monitor.first_name }} {{ date.monitor.last_name }}
-                  <mat-icon *ngIf="date.changeMonitorOption" matPrefix class="changeMonitorIcon"
-                            [class]="date.changeMonitorOption.class" fontSet="material-icons-outlined">{{
-                      date.changeMonitorOption.icon }}
-                  </mat-icon>
-                </span>
-                <span class="monitorDetails" *ngIf="!date.monitor">
-                  {{ 'not_assigned' | translate }}
+          <div *ngFor="let interval of intervalGroups">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0 6px;">
+              <div style="font-weight: 600; color: #1976d2; display: flex; align-items: center; gap: 6px;">
+                <mat-icon style="font-size: 18px;">event</mat-icon>
+                {{ interval.label }}
+              </div>
+              <div *ngIf="getDiscountsForInterval(interval).length"
+                   style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <span *ngFor="let discount of getDiscountsForInterval(interval)"
+                      style="background: #e8f5e9; color: #2e7d32; border-radius: 999px; padding: 4px 12px; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;">
+                  <mat-icon style="font-size: 14px;">local_offer</mat-icon>
+                  <span>
+                    {{ discount.value }}{{ discount.type === 'percentage' ? '%' : ' ' + (course?.currency || interval.dates[0]?.currency || '') }}
+                    · {{ discount.threshold }} {{ 'days' | translate }}
+                  </span>
+                  <span *ngIf="discount.amountSaved"
+                        style="font-weight: 600; color: #1b5e20;">
+                    -{{ discount.amountSaved | number:'0.2-2' }} {{ discount.currency || course?.currency }}
+                  </span>
                 </span>
               </div>
+            </div>
+            <div *ngFor="let date of interval.dates; let idx = index; let last = last;"
+                 [ngStyle]="!last ? {'border-bottom': '1px solid #dee6ea', 'padding-bottom': '10px'} : {}"
+                 [ngClass]="{ 'disabled': date.booking_users[0]?.status == 2 }" class="dateRow">
+              <div>
+								<span class="date">
+									{{ formatDate(date?.date) }}
+								</span>
+                <span class="hour">
+									{{ date.startHour}}h - {{date.endHour}}h
+								</span>
+                <span *ngIf="shouldShowPrice(course, date, getGlobalIndexForDate(date))" class="price">
+                  <span *ngIf="isDiscounted(date, getGlobalIndexForDate(date))" class="original-price">
+                    {{ bookingService.calculateDatePrice(course, date, true) | number:'0.2-2' }} {{ date.currency }}
+                  </span>
 
-              <ng-container *ngIf="date.utilizers && date.utilizers.length && hasExtrasForDate(date)">
-                <div class="sectionTitle monitorDetails">
-                  {{ "extras" | translate }}
+                  <span class="discounted-price">
+                    {{ calculateDiscountedPrice(date, getGlobalIndexForDate(date)) | number:'0.2-2' }} {{ date.currency }}
+                  </span>
+                </span>
+              </div>
+              <div class="monitorRow" *ngIf="course && course.course_type!==1">
+                <div class="row1">
+
+                  <div class="sectionTitle">
+                    <img src="assets/img/icons/monitores-3.svg" />
+                    {{ "bookings_page.description.monitor" | translate }}
+                  </div>
+                  <app-level-user class="avatarImg" *ngIf="date.monitor"
+                                  mat-card-avatar
+                                  [allLevels]="utilsService.getSportLevels(course.sport_id, allLevels)"
+                                  [selectLevel]="utilsService.getHighestAuthorizedDegree(date.monitor,
+                                  course.sport_id, course.school_id)?.degree_id || 0" [size]="40"
+                                  [userImage]="date.monitor?.image !== null && date.monitor?.image
+                    !== '' ? date.monitor?.image : 'assets/img/avatar.png'">
+                  </app-level-user>
+                  <span style="align-content: center" *ngIf="date.monitor">
+                    {{ date.monitor.first_name }} {{ date.monitor.last_name }}
+                    <mat-icon *ngIf="date.changeMonitorOption" matPrefix class="changeMonitorIcon"
+                              [class]="date.changeMonitorOption.class" fontSet="material-icons-outlined">{{
+                        date.changeMonitorOption.icon }}
+                    </mat-icon>
+                  </span>
+                  <span class="monitorDetails" *ngIf="!date.monitor">
+                    {{ 'not_assigned' | translate }}
+                  </span>
                 </div>
-                <ng-container *ngFor="let utilizer of date.utilizers">
-                  <ng-container *ngIf="utilizer.extras && utilizer.extras.length">
-                    <div *ngIf="utilizer.extras && utilizer.extras.length" class="dateExtras">
-                      <h5>{{ utilizer.first_name }} {{ utilizer.last_name
-                        }}:</h5>
-                      <div *ngFor="let extra of utilizer.extras" class="extraDetails">
-                        <span>{{ getExtraName([extra]) }} - {{
-                            getExtraDescription([extra]) }}</span>
-                        <span class="price">{{ getExtraPrice([extra]) }} {{
-                            date.currency }}</span>
+
+                <ng-container *ngIf="date.utilizers && date.utilizers.length && hasExtrasForDate(date)">
+                  <div class="sectionTitle monitorDetails">
+                    {{ "extras" | translate }}
+                  </div>
+                  <ng-container *ngFor="let utilizer of date.utilizers">
+                    <ng-container *ngIf="utilizer.extras && utilizer.extras.length">
+                      <div *ngIf="utilizer.extras && utilizer.extras.length" class="dateExtras">
+                        <h5>{{ utilizer.first_name }} {{ utilizer.last_name
+                          }}:</h5>
+                        <span>{{ getExtraName(utilizer.extras) }}</span>
+                        <span>{{ getExtraPrice(utilizer.extras) }}</span>
                       </div>
-                    </div>
+                    </ng-container>
                   </ng-container>
                 </ng-container>
-              </ng-container>
-            </div>
-            <div class="monitorRow"  *ngIf="date.extras && date.extras.length">
-              <div class="dateExtras">
-                {{ (date.utilizer && date.utilizer[0]?.first_name) ?? '' }}
-                {{getExtraName(date.extras)}} -
-                {{ getExtraDescription(date.extras) }}
-                <span class="price">
-									{{ getExtraPrice(date.extras) }} {{
-                    date.currency }}
-								</span>
               </div>
             </div>
           </div>

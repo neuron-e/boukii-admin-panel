@@ -248,5 +248,14 @@ export class BookingReservationDetailComponent implements OnInit {
       : Math.min(this.bookingData.reduction.discount, this.sumActivityTotal());
   }
 
+  getDiscountInfoList(activity: any): any[] {
+    const info = activity?.discountInfo;
+    if (!info) {
+      return [];
+    }
+
+    return Array.isArray(info) ? info : [info];
+  }
+
   protected readonly isNaN = isNaN;
 }

@@ -178,6 +178,21 @@
             </span>
           </span>
         </div>
+        <ng-container *ngIf="getDiscountInfoList(activity).length">
+          <div *ngFor="let discount of getDiscountInfoList(activity)"
+               style="margin-left: 30px; font-size: 12px; color: #8bc34a; font-style: italic; display: flex; gap: 6px; align-items: center;">
+            <mat-icon style="font-size: 16px;">local_offer</mat-icon>
+            <span>
+              {{ 'reduction' | translate }} {{ discount.value }}{{ discount.type === 'percentage' ? '%' : ' ' + getActivitiesCurrency() }}
+              {{ 'applied' | translate }} ({{ discount.threshold }} {{ 'days' | translate }})
+              <span *ngIf="discount.amountSaved">
+                -{{ discount.amountSaved | number:'0.2-2' }} {{ discount.currency || getActivitiesCurrency() }}
+              </span>
+              <span *ngIf="discount.intervalName">- {{ discount.intervalName }}</span>
+              <span *ngIf="!discount.intervalName && discount.fromInterval">- {{ 'from_interval' | translate }}</span>
+            </span>
+          </div>
+        </ng-container>
       </div>
     </div>
     <div class="section">

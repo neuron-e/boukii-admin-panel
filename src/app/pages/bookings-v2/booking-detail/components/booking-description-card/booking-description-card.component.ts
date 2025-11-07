@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { ChangeMonitorOption } from "src/app/static-data/changeMonitorOptions";
 import { LangService } from "src/service/langService";
 import { UtilsService } from "src/service/utils.service";
@@ -13,6 +13,11 @@ import {BookingService} from '../../../../../../service/bookings.service';
 import {ApiCrudService} from '../../../../../../service/crud.service';
 import {Router} from '@angular/router';
 import {MatSnackBar} from '@angular/material/snack-bar';
+import {
+  AppliedDiscountInfo,
+  buildDiscountInfoList,
+  resolveIntervalName
+} from 'src/app/pages/bookings-v2/shared/discount-utils';
 
 export interface BookingDescriptionCardDate {
   date: string;
@@ -33,7 +38,7 @@ export interface BookingDescriptionCardDate {
   templateUrl: "./booking-description-card.component.html",
   styleUrls: ["./booking-description-card.component.scss"],
 })
-export class BookingDescriptionCard {
+export class BookingDescriptionCard implements OnChanges {
   @Output() editActivity = new EventEmitter();
   @Output() deleteActivity = new EventEmitter();
 
@@ -50,6 +55,7 @@ export class BookingDescriptionCard {
       console.log('🔍 CARD COMPONENT DEBUG - First date in setter:', this._dates[0]);
     }
     this.extractUniqueMonitors();
+    this.refreshDiscountInfo();
   }
 
   get dates(): any[] {
@@ -66,6 +72,13 @@ export class BookingDescriptionCard {
   @Input() index: number = 1;
   uniqueMonitors: any[] = []; // Monitores únicos
   private _dates: any[] = [];
+  discountInfoList: AppliedDiscountInfo[] = [];
+  intervalGroups: Array<{
+    key: string;
+    label: string;
+    dates: any[];
+    discountInfo: AppliedDiscountInfo[];
+  }> = [];
 
   constructor(
     public translateService: TranslateService,
@@ -75,6 +88,13 @@ export class BookingDescriptionCard {
     public dialog: MatDialog
   ) {
     this.extractUniqueMonitors();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if ((changes['course'] && !changes['course'].firstChange) ||
+      (changes['dates'] && !changes['dates'].firstChange)) {
+      this.refreshDiscountInfo();
+    }
   }
 
   formatDate(date: string) {
@@ -92,9 +112,71 @@ export class BookingDescriptionCard {
     }
   }
 
+  private refreshDiscountInfo(): void {
+    if (this.course && Array.isArray(this._dates) && this._dates.length > 0) {
+      this.discountInfoList = buildDiscountInfoList(this.course, this._dates);
+    } else {
+      this.discountInfoList = [];
+    }
+    this.rebuildIntervalGroups();
+  }
+
   hasExtrasForDate(date: any): boolean {
     // Verifica si hay utilizadores para la fecha y si al menos uno tiene extras
     return date.utilizers?.some((utilizer: any) => utilizer.extras && utilizer.extras.length > 0) || false;
+  }
+
+  private rebuildIntervalGroups(): void {
+    const discountByKey = new Map<string, AppliedDiscountInfo[]>();
+    this.discountInfoList.forEach(discount => {
+      const key = discount.intervalId ? String(discount.intervalId) : 'default';
+      if (!discountByKey.has(key)) {
+        discountByKey.set(key, []);
+      }
+      discountByKey.get(key)!.push(discount);
+    });
+
+    const groupsMap = new Map<string, {
+      key: string;
+      label: string;
+      dates: any[];
+      discountInfo: AppliedDiscountInfo[];
+    }>();
+
+    this._dates.forEach(date => {
+      const key = date?.interval_id ? String(date.interval_id) : 'default';
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, {
+          key,
+          label: this.resolveIntervalLabel(key, date),
+          dates: [],
+          discountInfo: discountByKey.get(key) || []
+        });
+      }
+      groupsMap.get(key)!.dates.push(date);
+    });
+
+    this.intervalGroups = Array.from(groupsMap.values());
+  }
+
+  private resolveIntervalLabel(key: string, sampleDate: any): string {
+    if (sampleDate?.interval_name) {
+      return sampleDate.interval_name;
+    }
+    if (key === 'default') {
+      const translated = this.translateService.instant('all_dates');
+      return translated && translated !== 'all_dates' ? translated : 'General';
+    }
+    const resolved = resolveIntervalName(this.course, key);
+    return resolved || `${this.translateService.instant('interval')} ${key}`;
+  }
+
+  getDiscountsForInterval(interval: { discountInfo: AppliedDiscountInfo[] }): AppliedDiscountInfo[] {
+    return interval?.discountInfo || [];
+  }
+
+  getGlobalIndexForDate(date: any): number {
+    return this._dates.indexOf(date);
   }
 
   calculateDiscountedPrice(date: any, index: number): number {

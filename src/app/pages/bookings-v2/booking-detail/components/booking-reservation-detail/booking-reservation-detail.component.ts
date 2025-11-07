@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
+import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges} from '@angular/core';
 import {LangService} from '../../../../../../service/langService';
 import {UtilsService} from '../../../../../../service/utils.service';
 import {MatDialog} from '@angular/material/dialog';
@@ -15,13 +15,14 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {TranslateService} from '@ngx-translate/core';
 import {ApiCrudService} from '../../../../../../service/crud.service';
 import { SchoolService } from 'src/service/school.service';
+import { buildDiscountInfoList } from 'src/app/pages/bookings-v2/shared/discount-utils';
 
 @Component({
   selector: 'booking-detail-reservation-detail',
   templateUrl: './booking-reservation-detail.component.html',
   styleUrls: ['./booking-reservation-detail.component.scss'],
 })
-export class BookingReservationDetailComponent implements OnInit {
+export class BookingReservationDetailComponent implements OnInit, OnChanges {
   @Input() client: any;
   @Input() activities: any;
   @Input() isModal = false;
@@ -63,6 +64,7 @@ export class BookingReservationDetailComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.hydrateDiscountInfo();
     this.loadExistingVouchers();
     //this.bookingData = this.bookingService.getBookingData() || this.initializeBookingData();
     this.recalculateBonusPrice();
@@ -282,6 +284,33 @@ export class BookingReservationDetailComponent implements OnInit {
     return this.bookingData.reduction.type === 1
       ? (this.sumActivityTotal() * this.bookingData.reduction.discount) / 100
       : Math.min(this.bookingData.reduction.discount, this.sumActivityTotal());
+  }
+
+  private hydrateDiscountInfo(): void {
+    if (!Array.isArray(this.activities)) {
+      return;
+    }
+
+    this.activities.forEach((activity: any) => {
+      if (activity?.course && Array.isArray(activity?.dates)) {
+        activity.discountInfo = buildDiscountInfoList(activity.course, activity.dates);
+      }
+    });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['activities'] && !changes['activities'].firstChange) {
+      this.hydrateDiscountInfo();
+    }
+  }
+
+  getDiscountInfoList(activity: any): any[] {
+    const info = activity?.discountInfo;
+    if (!info) {
+      return [];
+    }
+
+    return Array.isArray(info) ? info : [info];
   }
 
   protected readonly isNaN = isNaN;

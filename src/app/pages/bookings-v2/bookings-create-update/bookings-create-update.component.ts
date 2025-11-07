@@ -13,6 +13,15 @@ import { SchoolService } from 'src/service/school.service';
 import { BookingPersistenceService } from 'src/app/services/booking-persistence.service';
 import { Subscription } from 'rxjs';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
+import {
+  applyFlexibleDiscount as applyFlexibleDiscountUtil,
+  buildDiscountInfoList as buildDiscountInfoListUtil,
+  getApplicableDiscounts as getApplicableDiscountsUtil,
+  getAppliedDiscountInfo as getAppliedDiscountInfoUtil,
+  getIntervalDiscounts as getIntervalDiscountsUtil,
+  parseFlexibleDiscounts as parseFlexibleDiscountRules,
+  resolveIntervalName
+} from 'src/app/pages/bookings-v2/shared/discount-utils';
 
 @Component({
   selector: "bookings-create-update-v2",
@@ -781,21 +790,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     // Suma el total de extras al total general
     total += extrasTotal;
 
-    // Calcular información del descuento aplicado para cursos flexibles
-    let discountInfo = null;
-    if (course.is_flexible && dates.length > 0) {
-      // Detectar si las fechas pertenecen a un intervalo específico
-      const firstDateIntervalId = dates[0]?.interval_id;
-      const allSameInterval = dates.every(d => d.interval_id === firstDateIntervalId);
-
-      if (allSameInterval && firstDateIntervalId) {
-        // Todas las fechas pertenecen al mismo intervalo
-        discountInfo = this.getAppliedDiscountInfo(dates.length, String(firstDateIntervalId));
-      } else {
-        // Fechas sin intervalo o mezcladas - usar descuentos globales
-        discountInfo = this.getAppliedDiscountInfo(dates.length);
-      }
-    }
+    const discountInfo = course.is_flexible ? buildDiscountInfoListUtil(course, dates) : [];
 
     // Puedes retornar un objeto con ambos totales si lo prefieres
     return {
@@ -807,119 +802,34 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     };
   }
 
-  private parseFlexibleDiscounts(raw: any): Array<{ threshold: number; value: number; type: number }> {
-    if (!raw) {
-      return [];
-    }
-
-    let parsed = raw;
-    if (typeof raw === 'string') {
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        return [];
-      }
-    }
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed
-      .map((item: any) => {
-        const threshold = Number(item?.date ?? item?.dates ?? item?.count ?? item?.n ?? item?.days ?? 0);
-        const value = Number(item?.discount ?? item?.percentage ?? item?.percent ?? item?.value ?? 0);
-        const type = Number(item?.type ?? 1); // 1 = porcentaje, 2 = cantidad fija
-        return { threshold, value, type };
-      })
-      .filter(item => item.threshold > 0 && !isNaN(item.value) && item.value > 0);
-  }
-
   /**
    * Obtiene los descuentos del intervalo específico desde settings.intervals
    */
   private getIntervalDiscounts(intervalId: string): any[] {
-    if (!this.course || !this.course.settings || !this.course.settings.intervals) {
-      return [];
-    }
-
-    const interval = this.course.settings.intervals.find((i: any) => String(i.id) === String(intervalId));
-    if (!interval || !interval.discounts || !Array.isArray(interval.discounts)) {
-      return [];
-    }
-
-    return interval.discounts;
+    return getIntervalDiscountsUtil(this.course, intervalId);
   }
 
   /**
    * Determina qué descuentos usar (por intervalo o globales)
    */
   private getApplicableDiscounts(intervalId?: string): any[] {
-    // Si hay un intervalId y tiene descuentos específicos, usarlos
-    if (intervalId) {
-      const intervalDiscounts = this.getIntervalDiscounts(intervalId);
-      if (intervalDiscounts.length > 0) {
-        return intervalDiscounts;
-      }
-    }
-
-    // Si no hay descuentos de intervalo, usar los descuentos globales
-    return this.course?.discounts || [];
-  }
-
-  private applyFlexibleDiscount(baseTotal: number, selectedDatesCount: number, rawDiscounts: any): number {
-    const discounts = this.parseFlexibleDiscounts(rawDiscounts);
-    if (baseTotal <= 0 || selectedDatesCount <= 0 || discounts.length === 0) {
-      return Math.max(0, baseTotal);
-    }
-
-    // Encontrar el descuento aplicable con el umbral más alto que cumpla la condición
-    const applicable = discounts
-      .filter(discount => selectedDatesCount >= discount.threshold)
-      .sort((a, b) => b.threshold - a.threshold)[0];
-
-    if (!applicable || applicable.value <= 0) {
-      return Math.max(0, baseTotal);
-    }
-
-    let discountedTotal = baseTotal;
-
-    if (applicable.type === 1) {
-      // Tipo 1: Descuento porcentual
-      const boundedPercentage = Math.max(0, Math.min(100, applicable.value));
-      discountedTotal = baseTotal * (1 - boundedPercentage / 100);
-    } else if (applicable.type === 2) {
-      // Tipo 2: Descuento de cantidad fija
-      discountedTotal = baseTotal - applicable.value;
-    }
-
-    return Math.max(0, discountedTotal);
+    return getApplicableDiscountsUtil(this.course, intervalId);
   }
 
   /**
    * Obtiene información del descuento aplicado para mostrar en la UI
    */
   getAppliedDiscountInfo(selectedDatesCount: number, intervalId?: string): any {
-    const applicableDiscounts = this.getApplicableDiscounts(intervalId);
-    const discounts = this.parseFlexibleDiscounts(applicableDiscounts);
-
-    if (selectedDatesCount <= 0 || discounts.length === 0) {
-      return null;
-    }
-
-    const applicable = discounts
-      .filter(discount => selectedDatesCount >= discount.threshold)
-      .sort((a, b) => b.threshold - a.threshold)[0];
-
-    if (!applicable || applicable.value <= 0) {
+    const info = getAppliedDiscountInfoUtil(this.course, selectedDatesCount, intervalId);
+    if (!info) {
       return null;
     }
 
     return {
-      type: applicable.type === 1 ? 'percentage' : 'fixed',
-      value: applicable.value,
-      threshold: applicable.threshold,
-      fromInterval: intervalId !== undefined
+      ...info,
+      intervalName: info.fromInterval && info.intervalId
+        ? resolveIntervalName(this.course, info.intervalId)
+        : null
     };
   }
 
@@ -931,9 +841,30 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return Math.max(0, basePrice);
     }
 
-    const selectedDates = Array.isArray(dates) ? dates.length : 0;
-    const baseTotal = Math.max(0, basePrice * selectedDates);
-    return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
+    const selectedDates = Array.isArray(dates) ? dates : [];
+    if (selectedDates.length === 0) {
+      return 0;
+    }
+
+    const datesByInterval = new Map<string, any[]>();
+    selectedDates.forEach((date: any) => {
+      const intervalId = date?.interval_id ? String(date.interval_id) : 'default';
+      if (!datesByInterval.has(intervalId)) {
+        datesByInterval.set(intervalId, []);
+      }
+      datesByInterval.get(intervalId)!.push(date);
+    });
+
+    let grandTotal = 0;
+    datesByInterval.forEach((datesInInterval, intervalId) => {
+      const count = datesInInterval.length;
+      const baseTotal = Math.max(0, basePrice * count);
+      const applicableDiscounts = this.getApplicableDiscounts(intervalId !== 'default' ? intervalId : undefined);
+      const discountedTotal = applyFlexibleDiscountUtil(baseTotal, count, applicableDiscounts);
+      grandTotal += discountedTotal;
+    });
+
+    return Math.max(0, grandTotal);
   }
 
   private calculatePrivatePriceForDates(course: any, dates: any, utilizers: any) {
@@ -1039,7 +970,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
       // Obtener descuentos aplicables (por intervalo o globales)
       const applicableDiscounts = this.getApplicableDiscounts(intervalId !== 'default' ? intervalId : undefined);
-      const discountedTotal = this.applyFlexibleDiscount(baseTotal, datesCount, applicableDiscounts);
+      const discountedTotal = applyFlexibleDiscountUtil(baseTotal, datesCount, applicableDiscounts);
 
       grandTotal += discountedTotal;
     });

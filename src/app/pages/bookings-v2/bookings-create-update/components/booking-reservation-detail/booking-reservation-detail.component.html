@@ -46,12 +46,19 @@
           </span>
         </div>
         <!-- Mostrar información del descuento si existe -->
-        <div *ngIf="activity.discountInfo" style="margin-left: 30px; font-size: 12px; color: #4caf50; font-style: italic;">
-          <mat-icon style="font-size: 14px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
-          {{ 'reduction' | translate }} {{ activity.discountInfo.value }}{{ activity.discountInfo.type === 'percentage' ? '%' : ' ' + activities[0].course.currency }}
-          {{ 'applied' | translate }} ({{ activity.discountInfo.threshold }} {{ 'days' | translate }})
-          <span *ngIf="activity.discountInfo.fromInterval"> - {{ 'from_interval' | translate }}</span>
+        <ng-container *ngIf="getDiscountInfoList(activity).length">
+          <div *ngFor="let discount of getDiscountInfoList(activity)"
+               style="margin-left: 30px; font-size: 12px; color: #4caf50; font-style: italic;">
+            <mat-icon style="font-size: 14px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
+          {{ 'reduction' | translate }} {{ discount.value }}{{ discount.type === 'percentage' ? '%' : ' ' + activities[0].course.currency }}
+          {{ 'applied' | translate }} ({{ discount.threshold }} {{ 'days' | translate }})
+          <span *ngIf="discount.amountSaved">
+            -{{ discount.amountSaved | number:'0.2-2' }} {{ discount.currency || activities[0].course.currency }}
+          </span>
+          <span *ngIf="discount.intervalName"> - {{ discount.intervalName }}</span>
+          <span *ngIf="!discount.intervalName && discount.fromInterval"> - {{ 'from_interval' | translate }}</span>
         </div>
+        </ng-container>
       </div>
     </div>
     <div class="section" style="margin: 20px;">
