@@ -94,13 +94,6 @@ export class CourseDetailCardComponent implements OnChanges {
   ngOnInit(): void {
     this.processCourseDates();
 
-    // Debug: Log course intervals and discounts data
-    if (this.courseFormGroup) {
-      const settings = this.courseFormGroup.controls['settings']?.value;
-      console.log('CourseDetailCard - settings.intervals:', settings?.intervals);
-      console.log('CourseDetailCard - discounts:', this.courseFormGroup.controls['discounts']?.value);
-    }
-
     // Subscribe to value changes to update sorted dates when necessary
     if (this.courseFormGroup) {
       this.courseFormGroup.controls['course_dates'].valueChanges.subscribe(() => {

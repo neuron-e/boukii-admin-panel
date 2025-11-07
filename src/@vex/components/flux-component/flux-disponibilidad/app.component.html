@@ -1,39 +1,9 @@
 <div style="overflow-x: auto;overflow-y: hidden; height: 100%;">
 	<table>
 		<thead>
-			<!-- Fila de headers de intervalos (solo si hay múltiples intervalos) -->
-			<tr *ngIf="hasMultipleIntervals()" class="interval-headers-row">
-				<td [attr.rowspan]="2"
-					style="color: var(--color-dark1);
-						font-size: 12px;
-						font-style: normal;
-						font-weight: 600;
-						line-height: 16px;
-						background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);
-						vertical-align: middle;">
-					<div class="flexicon">
-						<img src="assets/icons/icon/monitor.png" class="icon24">
-						{{'monitor' | translate}}
-					</div>
-				</td>
-				<td *ngFor="let header of getIntervalHeaders()"
-					[attr.colspan]="header.colspan"
-					class="interval-header-cell"
-					style="
-						text-align: center;
-						font-size: 13px;
-						font-weight: 700;
-						color: var(--color-dark1);
-						background-color: var(--is-light-theme, #f0f4f8) var(--is-dark-theme, #2a2a2a);
-						padding: 8px 4px;
-						border-bottom: 2px solid #E91E63;">
-					{{header.name}}
-				</td>
-			</tr>
-			<!-- Fila de fechas individuales -->
+			<!-- Fila de fechas con header de Monitor -->
 			<tr style="height: 34px;">
-				<td *ngIf="!hasMultipleIntervals()"
-					style="color: var(--color-dark1);
+				<td style="color: var(--color-dark1);
 						font-size: 12px;
 						font-style: normal;
 						font-weight: 600;
