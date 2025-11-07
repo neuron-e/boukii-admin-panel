@@ -1370,7 +1370,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
               this.applyMonitorAssignmentSelection(selection);
 
-              const payload = this.buildMonitorTransferPayload(monitor?.id ?? null, fallbackSubgroupId);
+              const payload = this.buildFullMonitorTransferPayload(monitor?.id);
 
               if (!payload.booking_users.length && payload.subgroup_id === null) {
                 this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
