@@ -31,7 +31,7 @@
 					{{courseFormGroup.controls['course_dates'].value.length
             || 0}} {{'days' | translate}}
 				</span>
-            <span *ngIf="courseFormGroup.controls['course_dates'].value[0].duration">
+            <span *ngIf="courseFormGroup.controls['course_dates'].value?.[0]?.duration">
 					&nbsp;{{courseFormGroup.controls['course_dates'].value[0].duration}}
 				</span>
           </ng-container>
