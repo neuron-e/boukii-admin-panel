@@ -778,11 +778,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private refreshIntervalGroupStateFromSettings(): void {
-    console.log('🔍 refreshIntervalGroupStateFromSettings - CALLED');
-    console.log('🔍 this.intervals:', this.intervals);
     this.baseIntervalGroupTemplate = {};
     const settings = this.getCurrentSettingsObject();
-    console.log('🔍 settings:', settings);
 
     let groupsMap: Record<string, IntervalGroupsState> | null = null;
 
@@ -801,12 +798,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     if (groupsMap) {
-      console.log('🔍 Using groupsMap from settings:', groupsMap);
       this.intervalGroupsMap = groupsMap;
     } else {
-      console.log('🔍 Building from course_dates');
       this.intervalGroupsMap = this.buildIntervalGroupsFromCourseDates();
-      console.log('🔍 Built intervalGroupsMap:', this.intervalGroupsMap);
     }
 
     this.ensureIntervalGroupsAlignment();
@@ -1292,39 +1286,30 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     const levelId = level?.id ?? level?.degree_id;
     if (levelId == null) {
-      console.log('🔍 ensureIntervalGroupState: levelId is null');
       return null;
     }
 
     const intervalKey = this.getIntervalKeyForIndex(intervalIdx);
-    console.log(`🔍 ensureIntervalGroupState: intervalIdx=${intervalIdx}, levelId=${levelId}, intervalKey=${intervalKey}`);
     if (!intervalKey) {
-      console.log('🔍 ensureIntervalGroupState: intervalKey is null');
       return null;
     }
 
     // Asegurar que el mapa de intervalos existe
     if (!this.intervalGroupsMap) {
-      console.log('🔍 ensureIntervalGroupState: Creating empty intervalGroupsMap');
       this.intervalGroupsMap = {};
     }
 
     // Asegurar que existe el estado para este intervalo
     if (!this.intervalGroupsMap[intervalKey]) {
-      console.log(`🔍 ensureIntervalGroupState: Creating empty state for interval ${intervalKey}`);
       this.intervalGroupsMap[intervalKey] = {};
     }
 
     const levelKey = String(levelId);
     const intervalState = this.intervalGroupsMap[intervalKey];
-    console.log(`🔍 ensureIntervalGroupState: levelKey=${levelKey}, exists=${!!intervalState[levelKey]}, intervalState keys:`, Object.keys(intervalState));
 
     // Asegurar que existe el estado para este nivel en este intervalo
     if (!intervalState[levelKey]) {
-      console.log(`🔍 ensureIntervalGroupState: Creating NEW state for level ${levelKey} (this might be wrong!)`);
       intervalState[levelKey] = this.createGroupStateFromLevel(level);
-    } else {
-      console.log(`🔍 ensureIntervalGroupState: Found EXISTING state for level ${levelKey}:`, intervalState[levelKey]);
     }
 
     const config = intervalState[levelKey];
@@ -1353,11 +1338,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   isLevelActiveForInterval(intervalIdx: number, level: any): boolean {
     const state = this.ensureIntervalGroupState(intervalIdx, level);
-    console.log(`🔍 isLevelActiveForInterval(${intervalIdx}, level ${level?.id}):`, {
-      state,
-      active: state?.active,
-      result: state ? state.active !== false : false
-    });
     if (!state) {
       return false;
     }
@@ -1488,9 +1468,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
    * Añade un subgrupo a un nivel en TODOS los intervalos
    */
   addSubgroupToLevel(level: any): void {
-    console.log('🔍 addSubgroupToLevel - level:', level);
-    console.log('🔍 addSubgroupToLevel - intervals:', this.intervals);
-
     if (!this.intervals || this.intervals.length === 0) {
       console.error('❌ No intervals available');
       return;
@@ -1499,32 +1476,22 @@ export class CoursesCreateUpdateComponent implements OnInit {
     const levelId = level?.id ?? level?.degree_id;
     const maxParticipants = level?.max_participants ?? this.courses.courseFormGroup.controls['max_participants']?.value;
 
-    console.log('🔍 levelId:', levelId, 'maxParticipants:', maxParticipants);
-
     this.intervals.forEach((interval, idx) => {
       const state = this.ensureIntervalGroupState(idx, level);
-      console.log(`🔍 Interval ${idx} state before:`, state);
 
       if (state) {
         const newSubgroup = this.createIntervalSubgroupState(levelId, maxParticipants);
-        console.log(`🔍 Created new subgroup:`, newSubgroup);
 
         if (!state.subgroups) {
           state.subgroups = [];
         }
 
-        const lengthBefore = state.subgroups.length;
         state.subgroups.push(newSubgroup);
-        const lengthAfter = state.subgroups.length;
-
-        console.log(`🔍 Interval ${idx} subgroups: ${lengthBefore} -> ${lengthAfter}`);
-        console.log(`🔍 Interval ${idx} state after:`, state);
       } else {
         console.error(`❌ No state for interval ${idx}`);
       }
     });
 
-    console.log('🔍 Before sync - intervalGroupsMap:', this.intervalGroupsMap);
     this.syncIntervalGroupsArray();
 
     // Sincronizar INMEDIATAMENTE en lugar de programar para después
@@ -1538,8 +1505,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Forzar detección de cambios de Angular
     this.cdr.detectChanges();
-
-    console.log('🔍 After sync - subgroup added successfully');
   }
 
   /**
@@ -1667,10 +1632,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
    * Útil cuando hay configuración por intervalos y diferentes intervalos tienen diferente número de subgrupos
    */
   getAllUniqueSubgroupsForLevel(level: any): any[] {
-    console.log('🔍 getAllUniqueSubgroupsForLevel CALLED for level:', level?.annotation, level?.level, 'ID:', level?.id);
     const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
     if (!Array.isArray(courseDates) || courseDates.length === 0) {
-      console.log('⚠️ No course_dates found, returning []');
       return [];
     }
 
@@ -1685,9 +1648,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Verificar caché
     if (this._uniqueSubgroupsCache.has(cacheKey)) {
-      const cached = this._uniqueSubgroupsCache.get(cacheKey)!;
-      console.log(`💾 Returning ${cached.length} subgroups from cache for level ${level?.annotation} ${level?.level}`);
-      return cached;
+      return this._uniqueSubgroupsCache.get(cacheKey)!;
     }
 
     // HYBRID: Try both structures
@@ -1749,7 +1710,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
     // Guardar en caché
     this._uniqueSubgroupsCache.set(cacheKey, uniqueSubgroups);
 
-    console.log(`✅ getAllUniqueSubgroupsForLevel returning ${uniqueSubgroups.length} subgroups for level ${level?.annotation} ${level?.level}`);
     return uniqueSubgroups;
   }
 
@@ -1758,11 +1718,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
    * Esto se llama después de cargar el curso para poblar el mapa
    */
   private recalculateAllSubgroupIntervals(): void {
-    console.log('🔧 recalculateAllSubgroupIntervals CALLED');
     this.subgroupIntervalsMap.clear();
 
     if (!this.intervals || !Array.isArray(this.intervals) || this.intervals.length === 0) {
-      console.log('⚠️ No intervals to recalculate');
       return;
     }
 
@@ -1770,21 +1728,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     levelGrop.forEach((level: any) => {
       const uniqueSubgroups = this.getAllUniqueSubgroupsForLevel(level);
-
       uniqueSubgroups.forEach((subgroup: any) => {
         const filteredIntervals = this.getIntervalsForLevelSubgroup(level, subgroup._index);
         const key = `${level.id}_${subgroup._index}`;
         this.subgroupIntervalsMap.set(key, filteredIntervals);
-        console.log(`  📋 Set intervals for ${level.annotation} ${level.level} SG${subgroup._index + 1}: ${filteredIntervals.length} intervals`);
       });
-    });
-
-    console.log('✅ Recalculation complete. Total entries:', this.subgroupIntervalsMap.size);
-
-    // Debug: mostrar todo el contenido del mapa
-    console.log('🗺️ Map contents:');
-    this.subgroupIntervalsMap.forEach((intervals, key) => {
-      console.log(`  "${key}": ${intervals.length} intervals`, intervals.map(i => i.name));
     });
   }
 
@@ -1792,20 +1740,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
    * Obtiene intervalos pre-calculados del mapa
    */
   getSubgroupIntervals(level: any, subgroupIndex: number): any[] {
-    try {
-      console.log(`🎯🎯🎯 getSubgroupIntervals CALLED - level:`, level?.annotation, level?.level, 'subgroupIndex:', subgroupIndex);
-      const key = `${level?.id}_${subgroupIndex}`;
-      console.log(`🎯 Looking up key: "${key}"`);
-      console.log(`🎯 Map has key?`, this.subgroupIntervalsMap.has(key));
-      console.log(`🎯 Map size:`, this.subgroupIntervalsMap.size);
-      console.log(`🎯 Map keys:`, Array.from(this.subgroupIntervalsMap.keys()));
-      const result = this.subgroupIntervalsMap.get(key) || [];
-      console.log(`🎯 RESULT: ${result.length} intervals`, result);
-      return result;
-    } catch (error) {
-      console.error('❌ ERROR in getSubgroupIntervals:', error);
-      return [];
-    }
+    const key = `${level?.id}_${subgroupIndex}`;
+    return this.subgroupIntervalsMap.get(key) || [];
   }
 
   /**
@@ -1813,17 +1749,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
    * Filtra this.intervals para devolver solo aquellos que tienen fechas con ese subgrupo
    */
   private getIntervalsForLevelSubgroup(level: any, subgroupIndex: number): any[] {
-    console.log('🔍🔍🔍 getIntervalsForLevelSubgroup CALLED', {
-      levelId: level?.id,
-      levelName: level?.name,
-      subgroupIndex,
-      'this.intervals': this.intervals,
-      'this.intervals.length': this.intervals?.length
-    });
-
     // Si no hay intervalos configurados, retornar array vacío
     if (!this.intervals || !Array.isArray(this.intervals) || this.intervals.length === 0) {
-      console.log('❌ NO INTERVALS - Returning empty array');
       return [];
     }
 
@@ -1878,20 +1805,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
     });
 
-    console.log('📊 Interval IDs with subgroup:', Array.from(intervalIdsWithSubgroup));
-
     // Filtrar this.intervals para devolver solo los que están en el set
     const filteredIntervals = this.intervals.filter((interval: any) => {
       const intervalId = this.normalizeIntervalIdentifier(
         interval?.id ?? interval?.interval_id ?? interval?.tempId ?? interval?.key
       );
-      const hasMatch = intervalIdsWithSubgroup.has(intervalId);
-      console.log(`  🔎 Interval "${intervalId}" (type: ${typeof interval?.id}): ${hasMatch ? '✅ MATCH' : '❌ NO MATCH'}`);
-      return hasMatch;
+      return intervalIdsWithSubgroup.has(intervalId);
     });
-
-    console.log('✨ RESULT - Filtered intervals:', filteredIntervals);
-    console.log('✨ RESULT - Count:', filteredIntervals.length);
 
     // Guardar en caché
     this._intervalsForSubgroupCache.set(cacheKey, filteredIntervals);
@@ -2142,14 +2062,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
                 scheduleDuration: interval.scheduleDuration || this.courses.duration?.[0] || ''
               }));
 
-              console.log('⚡ ASSIGNED intervals from settings (line 2066):', this.intervals);
-              console.log('⚡ Number of intervals:', this.intervals?.length);
-              this.intervals?.forEach((int: any, idx: number) => {
-                console.log(`  Interval ${idx}: id="${int.id}" (type: ${typeof int.id}), name="${int.name}"`);
-              });
-
               // FORZAR detección de cambios
-              console.log('🔄 Forcing change detection from settings...');
               this.cdr.detectChanges();
             }
           } catch (error) {
@@ -2445,11 +2358,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     // Pre-calcular intervalos para todos los subgrupos
-    console.log('🔧 Pre-calculating subgroup intervals...');
     this.recalculateAllSubgroupIntervals();
 
     // FORZAR detección de cambios después de cargar niveles
-    console.log('🔄 Forcing change detection after getDegrees...');
     this.cdr.detectChanges();
   });
 
@@ -2823,13 +2734,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
   endCourse() {
     // Sync inline changes (dates/hours/durations) before building payload
     try {
-      this.syncIntervalsToCourseFormGroup();
+      console.log('🔄 Syncing intervals to course form group...');
+      console.log('📊 this.intervals:', this.intervals);
+      const syncResult = this.syncIntervalsToCourseFormGroup();
+      console.log('✅ Sync result:', syncResult);
+      console.log('📅 course_dates after sync:', this.courses.courseFormGroup.get('course_dates')?.value);
       // No necesitamos normalizar los datos, el backend espera el formato original
     } catch (e) {
       console.warn('Unable to sync/recalculate dates before save:', e);
     }
 
     const courseFormGroup = this.courses.courseFormGroup.getRawValue()
+    console.log('📦 courseFormGroup.course_dates:', courseFormGroup.course_dates);
+    console.log('📦 courseFormGroup.settings:', courseFormGroup.settings);
     const conflicts = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(courseFormGroup.course_dates)
     );
@@ -3354,18 +3271,24 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private generateCourseDatesFromIntervals(intervals: any[]): any[] {
+    console.log('🔨 generateCourseDatesFromIntervals CALLED with intervals:', intervals);
     if (!Array.isArray(intervals)) {
+      console.log('❌ intervals is not an array, returning []');
       return [];
     }
 
     const courseDates: any[] = [];
 
     intervals.forEach((interval, index) => {
+      console.log(`🔨 Processing interval ${index}:`, interval.name, 'dates:', interval.dates?.length);
       if (!interval?.dates || !Array.isArray(interval.dates)) {
+        console.log('❌ Interval has no dates or dates is not array');
         return;
       }
 
+      console.log('🏗️ Building course groups for interval...');
       const baseGroups = this.buildCourseGroupsForInterval(interval, index);
+      console.log('✅ Built groups:', baseGroups);
 
       interval.dates.forEach((dateObj: any, dateIdx: any) => {
         if (!dateObj?.date || !dateObj?.hour_start) {
@@ -3394,9 +3317,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
         };
 
         courseDates.push(newDate);
+        console.log(`✅ Added course date ${dateIdx + 1}:`, newDate.date);
       });
     });
 
+    console.log(`🎉 Generated ${courseDates.length} course dates total`);
     return courseDates;
   }
 
@@ -3420,7 +3345,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     const previousCourseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value);
 
+    console.log('🔄 Calling generateCourseDatesFromIntervals with this.intervals:', this.intervals);
     const generatedCourseDates = this.generateCourseDatesFromIntervals(this.intervals);
+    console.log('🔄 generateCourseDatesFromIntervals returned:', generatedCourseDates.length, 'dates');
 
     const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(generatedCourseDates)
@@ -3433,15 +3360,33 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     if (generatedCourseDates.length > 0) {
+      console.log('💾 About to set', generatedCourseDates.length, 'dates to FormArray');
 
-      this.courses.courseFormGroup.patchValue({
-        course_dates: generatedCourseDates
+      // NO usar patchValue en FormArray - hay que manipularlo directamente
+      const courseDatesArray = this.courses.courseFormGroup.get('course_dates') as FormArray;
+
+      // Limpiar el FormArray
+      while (courseDatesArray.length > 0) {
+        courseDatesArray.removeAt(0);
+      }
+
+      // Agregar cada fecha al FormArray como FormControl simple
+      // NO usar fb.group() porque convierte arrays anidados en FormControls
+      generatedCourseDates.forEach((dateData: any) => {
+        courseDatesArray.push(this.fb.control(dateData));
       });
 
+      console.log('💾 After setting FormArray, course_dates has:', courseDatesArray.length, 'dates');
+
       setTimeout(() => {
+        console.log('⏱️ setTimeout callback - course_dates before updateValueAndValidity:', this.courses.courseFormGroup.get('course_dates')?.value?.length);
         this.courses.courseFormGroup.controls['course_dates'].updateValueAndValidity();
+        console.log('⏱️ setTimeout callback - course_dates before getDegrees:', this.courses.courseFormGroup.get('course_dates')?.value?.length);
         this.getDegrees();
+        console.log('⏱️ setTimeout callback - course_dates after getDegrees:', this.courses.courseFormGroup.get('course_dates')?.value?.length);
       }, 100);
+    } else {
+      console.log('⚠️ generatedCourseDates.length is 0, NOT patching');
     }
 
     this.saveIntervalSettings();
@@ -3487,11 +3432,32 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Obtener los grupos de curso para cada fecha nueva
   getCourseDateGroups() {
+    // Primero intentar obtener de fechas existentes
     const existingDates = this.courses.courseFormGroup.get('course_dates').value;
     if (existingDates && existingDates.length > 0 && existingDates[0].course_groups) {
       return JSON.parse(JSON.stringify(existingDates[0].course_groups));
     }
-    return [];
+
+    // Si no hay fechas, construir desde levelGrop (caso de curso nuevo)
+    const levelGrop = this.courses.courseFormGroup.get('levelGrop')?.value || [];
+    const activeLevels = levelGrop.filter((level: any) => level.active);
+
+    if (activeLevels.length === 0) {
+      return [];
+    }
+
+    // Construir course_groups desde los niveles activos
+    return activeLevels.map((level: any) => ({
+      degree_id: level.id,
+      age_min: level.age_min,
+      age_max: level.age_max,
+      max_participants: level.max_participants || this.courses.courseFormGroup.get('max_participants')?.value,
+      course_subgroups: [{
+        degree_id: level.id,
+        active: true,
+        max_participants: level.max_participants || this.courses.courseFormGroup.get('max_participants')?.value
+      }]
+    }));
   }
 
   // Validar cambios en fechas de intervalos
@@ -4136,14 +4102,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
           this.intervals = Array.isArray(intervalGroups) ? intervalGroups : [];
 
-          console.log('🔥🔥🔥 LOADED INTERVALS in loadIntervalsFromCourse:', this.intervals);
-          console.log('🔥 Number of intervals:', this.intervals?.length);
-          this.intervals?.forEach((int: any, idx: number) => {
-            console.log(`  Interval ${idx}: id="${int.id}" (type: ${typeof int.id}), name="${int.name}"`);
-          });
-
           // FORZAR detección de cambios para que Angular actualice la vista
-          console.log('🔄 Forcing change detection...');
           this.cdr.detectChanges();
 
           // A├▒adir fechas agrupadas por intervalos
