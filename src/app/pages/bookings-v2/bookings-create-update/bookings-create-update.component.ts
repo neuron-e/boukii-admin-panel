@@ -1056,14 +1056,24 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     console.log('🔍 sumActivityTotal DEBUG - normalizedDates:', this.normalizedDates);
 
     const total = this.normalizedDates.reduce((acc, item, index) => {
+      // Handle both number and string types for item.total
+      let numericValue: number;
+
+      if (typeof item.total === 'number') {
+        numericValue = item.total;
+      } else if (typeof item.total === 'string') {
+        numericValue = parseFloat(item.total.replace(/[^\d.-]/g, ''));
+      } else {
+        numericValue = 0;
+      }
+
       console.log(`🔍 Processing activity ${index}:`, {
         itemName: item.course?.name,
         originalTotal: item.total,
-        totalAfterRegex: item.total.replace(/[^\d.-]/g, ''),
-        parsedValue: parseFloat(item.total.replace(/[^\d.-]/g, ''))
+        totalType: typeof item.total,
+        parsedValue: numericValue
       });
 
-      const numericValue = parseFloat(item.total.replace(/[^\d.-]/g, '')); // Eliminar cualquier cosa que no sea un nÃºmero o signo
       return acc + numericValue;
     }, 0);
 
