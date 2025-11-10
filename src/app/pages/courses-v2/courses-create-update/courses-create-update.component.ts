@@ -2732,6 +2732,37 @@ export class CoursesCreateUpdateComponent implements OnInit {
     return formArray?.controls || [];
   }
 
+  private extractSettingsPayload(value: any): any {
+    if (!value) {
+      return {};
+    }
+
+    if (value instanceof AbstractControl) {
+      if (typeof (value as any).getRawValue === 'function') {
+        try {
+          return (value as any).getRawValue() || {};
+        } catch {
+          return (value as any).value || {};
+        }
+      }
+      return (value as any).value || {};
+    }
+
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    if (typeof value === 'object') {
+      return value || {};
+    }
+
+    return {};
+  }
+
   endCourse() {
     // Sync inline changes (dates/hours/durations) before building payload
     try {
@@ -2753,6 +2784,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     // Si no hay conflictos continuamos con el flujo normal manteniendo la carga ├║til original
+    const currentSettings = this.extractSettingsPayload(courseFormGroup.settings);
+    courseFormGroup.settings = currentSettings;
+
     if (courseFormGroup.course_type === 1 && this.useMultipleIntervals) {
       // Configurar los intervalos en settings
       const intervals = [];
@@ -2767,7 +2801,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
       // Actualizar settings con la configuraci├│n de intervalos
       courseFormGroup.settings = {
-        ...courseFormGroup.settings,
+        ...currentSettings,
         multipleIntervals: true,
         intervals: Array.isArray(this.intervals) ? this.intervals : [],
         mustStartFromFirst: this.mustStartFromFirst,
@@ -2810,8 +2844,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
         }
       });
     }
-    courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value)
-    courseFormGroup.course_type === 1 ? courseFormGroup.settings : courseFormGroup.settings = this.courses.courseFormGroup.controls['settings'].value
+    courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value);
+    if (courseFormGroup.course_type !== 1) {
+      courseFormGroup.settings = this.extractSettingsPayload(this.courses.courseFormGroup.controls['settings']);
+    } else if (!courseFormGroup.settings) {
+      courseFormGroup.settings = currentSettings;
+    }
 
     // DEBUG: Verificar que price_range est├® incluido
 
@@ -5118,6 +5156,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.enforceIntervalGroupAvailability();
   }
 }
+
 
 
 
