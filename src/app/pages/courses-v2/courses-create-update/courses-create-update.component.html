@@ -249,8 +249,8 @@
             </button>
           </div>
         </div>
-        <!-- Contenedor de intervalos (solo en modo create o cuando NO hay múltiples intervalos) -->
-        <div *ngIf="mode==='create' || !useMultipleIntervals">
+        <!-- Contenedor de intervalos -->
+        <div>
           <!-- Lista de intervalos -->
           <div *ngFor="let interval of displayIntervals; let i = index; trackBy: trackInterval">
             <div *ngIf="useMultipleIntervals"
@@ -522,8 +522,89 @@
           </div>
         </div>
 
-        <!-- Secci├│n unificada de niveles y subgrupos (para cursos con intervalos en modo update) -->
-        <div *ngIf="useMultipleIntervals && mode==='update'" style="background: white; border: 1px solid #DEE6EA; border-radius: 8px; margin-bottom: 20px;">
+        <!-- Secci├│n de descuentos para modo Single Interval -->
+        <div *ngIf="isSingleIntervalMode && courses.courseFormGroup.controls['is_flexible'].value"
+             style="background: white; border: 1px solid #DEE6EA; border-radius: 8px; margin-bottom: 20px;">
+          <div style="background-color: var(--color-grey4);height: 20px;width: 100%;"></div>
+          <div>
+            <!-- Configuraci├│n de descuentos por m├║ltiples fechas -->
+            <div class="discount-configuration" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
+              <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
+                <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">local_offer</mat-icon>
+                {{ 'multidate_discount' | translate }}
+              </h4>
+
+              <mat-checkbox [(ngModel)]="enableMultiDateDiscounts" (change)="onMultiDateDiscountChange()" style="margin-bottom: 16px;">
+                <span style="font-weight: 500; color: #495057;">
+                  {{ 'enable_multidate_discounts' | translate }}
+                </span>
+              </mat-checkbox>
+
+              <div *ngIf="enableMultiDateDiscounts" style="margin-top: 16px;">
+                <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;">
+                  <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">info</mat-icon>
+                  {{ 'multidate_discount_explanation' | translate }}
+                </div>
+
+                <!-- Lista de descuentos por n├║mero de fechas -->
+                <div *ngFor="let discount of discountsByDates; let i = index" class="discount-item" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 12px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+                  <div style="min-width: 120px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ 'dates_quantity' | translate }}
+                    </label>
+                    <input type="number"
+                           [(ngModel)]="discount.dates"
+                           min="2"
+                           max="20"
+                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                           (change)="validateDiscountDates()">
+                  </div>
+
+                  <div style="min-width: 100px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ 'discount_type' | translate }}
+                    </label>
+                    <select [(ngModel)]="discount.type"
+                            style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                      <option value="percentage">{{ 'percentage' | translate }}</option>
+                      <option value="fixed">{{ 'fixed_amount' | translate }}</option>
+                    </select>
+                  </div>
+
+                  <div style="min-width: 120px;">
+                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                      {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
+                    </label>
+                    <input type="number"
+                           [(ngModel)]="discount.value"
+                           [min]="discount.type === 'percentage' ? 1 : 0.01"
+                           [max]="discount.type === 'percentage' ? 100 : 9999"
+                           step="0.01"
+                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                  </div>
+
+                  <button type="button"
+                          *ngIf="discountsByDates.length > 1"
+                          (click)="removeDiscount(i)"
+                          style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; min-width: 36px; height: 36px;">
+                    <mat-icon style="font-size: 18px;">delete</mat-icon>
+                  </button>
+                </div>
+
+                <!-- Bot├│n para agregar m├ís descuentos -->
+                <button type="button"
+                        (click)="addNewDiscount()"
+                        style="border: 1px solid #007bff; color: #007bff; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px; margin-top: 8px;">
+                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
+                  {{ 'add_discount_by_date' | translate }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secci├│n unificada de niveles y subgrupos (OCULTA - No debe aparecer en la pestaña Fechas) -->
+        <div *ngIf="false" style="background: white; border: 1px solid #DEE6EA; border-radius: 8px; margin-bottom: 20px;">
           <div style="padding: 20px; background: #f8f9fa; border-bottom: 1px solid #DEE6EA;">
             <h6 style="margin: 0; color: #495057; font-size: 14px; font-weight: 600;">
               <mat-icon style="vertical-align: middle; margin-right: 4px; color: #9C27B0;">groups</mat-icon>
