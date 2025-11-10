@@ -113,13 +113,6 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     this.isCollective = this.course.course_type === 1;
     this.isFlex = this.course.is_flexible === true || this.course.is_flexible === 1;
     this.isFix = !this.isFlex;
-
-    console.log('📌 Course Type Detected:', {
-      isPrivate: this.isPrivate,
-      isCollective: this.isCollective,
-      isFlex: this.isFlex,
-      isFix: this.isFix
-    });
   }
 
   /**
@@ -150,15 +143,6 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
 
     // Obtener extras
     this.posibleExtras = this.course.course_extras || [];
-
-    console.log('📌 Intervals and Flags:', {
-      hasIntervals: this.hasIntervals,
-      selectedIntervalId: this.selectedIntervalId,
-      mustBeConsecutive: this.mustBeConsecutive,
-      mustStartFromFirst: this.mustStartFromFirst,
-      isPackageMode: this.isPackageMode,
-      maxSelectableDates: this.maxSelectableDates
-    });
   }
 
   private normalizeIntervalId(interval: any): string {
@@ -206,7 +190,6 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     }, 0);
 
     this.currentPrice = this.originalPrice;
-    console.log('💰 Original Price:', this.originalPrice);
   }
 
   /**

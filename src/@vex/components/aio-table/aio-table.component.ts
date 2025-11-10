@@ -480,53 +480,12 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     // Vamos a mostrar siempre los nombres reales para ver qué está pasando
     return false;
 
-    /*
-    if (!booking) return false;
-
-    // Solo aplicar a reservas (no a otros tipos de entidades)
-    if (!this.entity?.includes('bookings')) return false;
-
-    // DEBUGGING: Imprimir información detallada de la reserva
-    console.log('🔍 Checking booking:', {
-      booking_id: booking.id,
-      course_id: booking.course_id,
-      has_course: !!booking.course,
-      course_name: booking.course?.name,
-      entity: this.entity
-    });
-
-    // NUEVA LÓGICA MÁS CONSERVADORA:
-    // Solo marcar como huérfana si hay problemas REALES, no por falta de datos cargados
-
-    // 1. Si no tiene course_id, definitivamente es huérfana
-    const hasNoCourseId = !booking.course_id || booking.course_id === null;
-
-    // 2. Si tiene course_id pero el curso está explícitamente marcado como eliminado
-    const hasCourseDeleted = booking.course && booking.course.deleted_at;
-
-    // 3. Si tiene datos de curso pero están claramente corruptos (ID exists but no name AND it was loaded)
-    const hasCorruptCourseData = booking.course && booking.course.id && !booking.course.name;
-
-    const isOrphaned = hasNoCourseId || hasCourseDeleted || hasCorruptCourseData;
-
-    // Log the decision
-    console.log('🔍 Orphaned decision:', {
-      booking_id: booking.id,
-      isOrphaned,
-      reason: hasNoCourseId ? 'no_course_id' :
-              hasCourseDeleted ? 'course_deleted' :
-              hasCorruptCourseData ? 'corrupt_course_data' : 'none'
-    });
-
-    return isOrphaned;
-    */
   }
 
   /**
    * MEJORA: Mostrar acciones para reparar reserva huérfana
    */
   showOrphanedBookingActions(booking: any): void {
-    console.log('🔧 Abriendo modal para reserva huérfana:', booking);
 
     const dialogRef = this.dialog.open(ConfirmModalComponent, {
       width: '600px',
@@ -542,19 +501,15 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     });
 
     dialogRef.afterClosed().subscribe((shouldOpenRepairTool) => {
-      console.log('🔧 Modal cerrado. Respuesta del usuario:', shouldOpenRepairTool);
 
       if (shouldOpenRepairTool === true) {
-        console.log('🔧 Usuario confirmó - navegando al detalle de reserva:', booking.id);
 
         // Navegar a la ruta correcta: /bookings/update/:id
         this.router.navigate(['/bookings/update', booking.id])
           .then((success) => {
-            console.log('🔧 Navegación exitosa:', success);
             if (success) {
               // Mostrar mensaje informativo sobre qué hacer
               setTimeout(() => {
-                console.log('🔧 Reserva huérfana abierta. Contacte con administrador técnico para reparación.');
               }, 1000);
             }
           })
@@ -564,7 +519,6 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
             this.showContactAdminMessage(booking);
           });
       } else {
-        console.log('🔧 Usuario canceló o cerró el modal');
       }
     });
   }
@@ -627,8 +581,6 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         const activeBookingsCount = response.data.active_bookings_count || 0;
         const partialBookingsCount = response.data.partial_bookings_count || 0;
         const totalActiveBookings = activeBookingsCount + partialBookingsCount;
-
-        console.log(`Curso ${courseId} - Reservas activas: ${totalActiveBookings}`);
         return totalActiveBookings > 0;
       }
 
@@ -644,7 +596,6 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         }).toPromise();
 
         const activeBookings = bookingsResponse?.data?.data || [];
-        console.log(`Curso ${courseId} - Reservas activas (fallback): ${activeBookings.length}`);
         return activeBookings.length > 0;
       } catch (fallbackError) {
         console.error('Error en verificación fallback:', fallbackError);

@@ -151,7 +151,7 @@ export class StepFourComponent implements OnDestroy {
           date_from: today.toISOString().split('T')[0],
           date_to: nextWeek.toISOString().split('T')[0]
         }).subscribe({
-          next: () => console.log('🚀 Preloaded availability data'),
+          next: () => {},
           error: (err) => console.warn('⚠️ Failed to preload availability:', err)
         });
       }, 500);
@@ -159,7 +159,6 @@ export class StepFourComponent implements OnDestroy {
   }
 
   handleCourseSelection(course: any): void {
-    console.log('COURSE SELECTION DEBUG: Selecting course:', course.name);
 
     // Resetear selección de subgrupo cuando cambia el curso
     this.selectedSubGroup = null;
@@ -177,8 +176,6 @@ export class StepFourComponent implements OnDestroy {
     // Guardar el curso seleccionado
     this.selectedCourse = course;
     this.stepForm.get('course').setValue(course);
-
-    console.log('COURSE SELECTION DEBUG: Course set, form valid:', this.stepForm.valid);
   }
 
   /**
@@ -236,9 +233,6 @@ export class StepFourComponent implements OnDestroy {
     this.selectedSubGroups = allSubgroups;
     this.isCapacityLoading = false;
 
-    console.log('SUBGROUPS DEBUG: Total subgroups found:', allSubgroups.length);
-    console.log('SUBGROUPS DEBUG: Subgroups:', allSubgroups);
-
     // Autoseleccionar el grupo que coincide con el nivel seleccionado
     this.autoSelectMatchingSubgroup(allSubgroups);
 
@@ -261,20 +255,14 @@ export class StepFourComponent implements OnDestroy {
     );
 
     if (matchingSubgroup) {
-      console.log('AUTO-SELECT DEBUG: Found matching subgroup for level:', this.sportLevel.name);
-      console.log('AUTO-SELECT DEBUG: Subgroup:', matchingSubgroup);
 
       // Autoseleccionar el subgrupo
       this.stepForm.get('selectedSubGroup')?.setValue(matchingSubgroup);
       this.selectedSubGroup = matchingSubgroup;
-
-      console.log('AUTO-SELECT DEBUG: Subgroup auto-selected');
     } else {
-      console.log('AUTO-SELECT DEBUG: No matching subgroup found for level:', this.sportLevel.name);
       // Si no hay coincidencia, intentar seleccionar el primero con capacidad
       const firstAvailable = subgroups.find(sg => sg.capacity_info?.has_capacity);
       if (firstAvailable) {
-        console.log('AUTO-SELECT DEBUG: Selecting first available subgroup');
         this.stepForm.get('selectedSubGroup')?.setValue(firstAvailable);
         this.selectedSubGroup = firstAvailable;
       }
@@ -366,15 +354,9 @@ export class StepFourComponent implements OnDestroy {
   }
 
   onSubgroupChange(event: any): void {
-    console.log('SUBGROUP CHANGE DEBUG: Event fired:', event);
-    console.log('SUBGROUP CHANGE DEBUG: Event value:', event.value);
-    console.log('SUBGROUP CHANGE DEBUG: Form control value after change:', this.stepForm.get('selectedSubGroup')?.value);
 
     // Forzar actualización del formulario
     this.stepForm.updateValueAndValidity();
-
-    console.log('SUBGROUP CHANGE DEBUG: Form valid after update:', this.stepForm.valid);
-    console.log('SUBGROUP CHANGE DEBUG: isFormValid() after update:', this.isFormValid());
   }
 
   updateTabs(): void {
@@ -397,14 +379,9 @@ export class StepFourComponent implements OnDestroy {
   }
 
   isFormValid() {
-    console.log('FORM VALIDATION DEBUG: Checking form validity...');
-    console.log('FORM VALIDATION DEBUG: stepForm.valid =', this.stepForm.valid);
-    console.log('FORM VALIDATION DEBUG: selectedCourse =', this.selectedCourse?.name);
-    console.log('FORM VALIDATION DEBUG: course_type =', this.selectedCourse?.course_type);
 
     // Validación básica del formulario
     if (!this.stepForm.valid) {
-      console.log('FORM VALIDATION DEBUG: ❌ Form is invalid');
       return false;
     }
 
@@ -412,20 +389,12 @@ export class StepFourComponent implements OnDestroy {
     if (this.selectedCourse?.course_type === 1) {
       const subgroupValue = this.stepForm.get('selectedSubGroup')?.value;
       const hasSubgroup = !!subgroupValue;
-      console.log('FORM VALIDATION DEBUG: Collective course - subgroup value:', subgroupValue);
-      console.log('FORM VALIDATION DEBUG: Collective course - hasSubgroup:', hasSubgroup);
 
       if (!hasSubgroup) {
-        console.log('FORM VALIDATION DEBUG: ❌ No subgroup selected for collective course');
         return false;
       }
-
-      console.log('FORM VALIDATION DEBUG: ✅ Subgroup is selected');
       return true;
     }
-
-    // Para otros tipos de curso, solo verificar validez del formulario
-    console.log('FORM VALIDATION DEBUG: ✅ Non-collective course, form is valid');
     return true;
   }
 
@@ -661,9 +630,6 @@ export class StepFourComponent implements OnDestroy {
     });
 
     this.coursesDate = Array.from(new Set(ret));
-
-    // Log para debug
-    console.log('INTERVAL DEBUG: Dates by interval:', this.coursesDateByInterval);
   }
 
   dateClass() {
@@ -822,7 +788,6 @@ export class StepFourComponent implements OnDestroy {
    * DEBUG: Método simple para verificar
    */
   debugPrice(course: any): number {
-    console.log('🔍 DEBUG SIMPLE - Course Name:', course?.name, 'Original minPrice:', course?.minPrice);
     return course?.minPrice || 0;
   }
 
@@ -863,19 +828,9 @@ export class StepFourComponent implements OnDestroy {
    * MEJORA CRÍTICA: Calcular precio correcto para cursos privados flexibles
    */
   getCorrectPriceForPrivateFlex(course: any): number {
-    console.log('🔍 getCorrectPriceForPrivateFlex DEBUG:', {
-      courseName: course?.name,
-      isFlexible: course?.is_flexible,
-      courseType: course?.course_type,
-      currentUtilizers: this.utilizers?.length || 1,
-      priceRange: course?.price_range,
-      fallbackPrice: course?.price,
-      fallbackMinPrice: course?.minPrice
-    });
 
     if (!course?.is_flexible || course?.course_type !== 2) {
       const fallback = course?.price || course?.minPrice || 0;
-      console.log('🔍 Not flexible private course, returning fallback:', fallback);
       return fallback;
     }
 
@@ -884,11 +839,8 @@ export class StepFourComponent implements OnDestroy {
       ? JSON.parse(course.price_range)
       : course?.price_range;
 
-    console.log('🔍 Parsed priceRangeCourse:', priceRangeCourse);
-
     if (!Array.isArray(priceRangeCourse) || priceRangeCourse.length === 0) {
       const fallback = course?.price || course?.minPrice || 0;
-      console.log('🔍 Invalid price range, returning fallback:', fallback);
       return fallback;
     }
 
@@ -896,13 +848,10 @@ export class StepFourComponent implements OnDestroy {
     let minPrice = Infinity;
 
     priceRangeCourse.forEach((priceRange: any, index: number) => {
-      console.log(`🔍 Processing price range ${index}:`, priceRange);
       const priceForCurrentPax = priceRange[currentUtilizers.toString()];
-      console.log(`🔍 Price for ${currentUtilizers} participants:`, priceForCurrentPax);
 
       if (priceForCurrentPax && !isNaN(parseFloat(priceForCurrentPax))) {
         const price = parseFloat(priceForCurrentPax);
-        console.log(`🔍 Parsed price: ${price}, current minPrice: ${minPrice}`);
         if (price < minPrice) {
           minPrice = price;
         }
@@ -910,7 +859,6 @@ export class StepFourComponent implements OnDestroy {
     });
 
     const finalPrice = minPrice === Infinity ? (course?.price || course?.minPrice || 0) : minPrice;
-    console.log('🔍 Final calculated price:', finalPrice);
     return finalPrice;
   }
 

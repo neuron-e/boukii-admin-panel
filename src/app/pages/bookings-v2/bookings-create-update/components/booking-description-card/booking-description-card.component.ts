@@ -224,7 +224,6 @@ export class BookingDescriptionCard implements OnChanges {
       const discounts = [];
       try {
         const discounts = JSON.parse(this.course.discounts);
-        console.log("Discounts parseado correctamente:", discounts);
       } catch (error) {
         console.error("Error al parsear discounts:", error);
       }
@@ -255,7 +254,6 @@ export class BookingDescriptionCard implements OnChanges {
       const discounts = [];
       try {
         const discounts = JSON.parse(this.course.discounts);
-        console.log("Discounts parseado correctamente:", discounts);
       } catch (error) {
         console.error("Error al parsear discounts:", error);
       }

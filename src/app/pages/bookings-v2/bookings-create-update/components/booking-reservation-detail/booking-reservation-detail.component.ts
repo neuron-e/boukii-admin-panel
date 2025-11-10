@@ -130,13 +130,6 @@ export class BookingReservationDetailComponent implements OnInit {
       return;
     }
 
-    console.log('🔄 Recalculando precios de bonos', {
-      priceTotal: this.bookingData.price_total,
-      currentVoucherTotal: this.calculateTotalVoucherPrice(),
-      remainingPrice: remainingPrice,
-      vouchersCount: this.bookingData.vouchers.length
-    });
-
     this.bookingData.vouchers.forEach((voucher, index) => {
       if (!voucher.bonus || !voucher.bonus.remaining_balance) {
         console.warn(`⚠️ Bono ${index} sin datos válidos, saltando`);

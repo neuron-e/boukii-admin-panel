@@ -651,7 +651,6 @@ export class BookingsV2Component implements OnInit, OnChanges {
         const isFIXCourse = course.data?.name?.toUpperCase().includes('FIX');
         const isFlexibleCourse = course.data?.is_flexible || isFIXCourse;
         this.isFlexCourse = course.data?.type === 1 && isFlexibleCourse;
-        console.log('Course info loaded:', this.courseInfo, 'Is FIX course:', isFIXCourse, 'Is flex:', this.isFlexCourse);
       });
     } else {
       this.isFlexCourse = false;
@@ -661,7 +660,6 @@ export class BookingsV2Component implements OnInit, OnChanges {
 
   onDataLoaded(data: any[]): void {
     if (this.isFlexCourse && data.length > 0) {
-      console.log('Raw booking data for flex course:', data);
 
       // For flex courses, group bookings by booking_id to get unique reservations
       const uniqueBookings = new Map();
@@ -682,8 +680,6 @@ export class BookingsV2Component implements OnInit, OnChanges {
       });
 
       const uniqueBookingsList = Array.from(uniqueBookings.values());
-      console.log('Grouped flex bookings (unique):', uniqueBookingsList);
-      console.log(`Flex course summary: ${uniqueBookingsList.length} unique bookings (was ${data.length} individual entries)`);
     }
   }
 }

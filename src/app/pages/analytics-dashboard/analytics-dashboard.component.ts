@@ -129,7 +129,6 @@ export class AnalyticsDashboardComponent implements OnInit, OnDestroy {
         .subscribe({
           next: () => {
             this.lastUpdated = new Date();
-            console.log('📊 Dashboard actualizado automáticamente');
           },
           error: (error) => {
             console.error('Error en actualización automática:', error);
@@ -339,9 +338,6 @@ export class AnalyticsDashboardComponent implements OnInit, OnDestroy {
       label: event.action,
       metadata: { event_id: event.id }
     });
-
-    // Aquí se podría abrir un modal o navegar a una vista detallada
-    console.log('Ver detalles del evento:', event);
   }
 
   /**

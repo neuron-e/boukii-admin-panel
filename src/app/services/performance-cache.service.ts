@@ -65,7 +65,6 @@ export class PerformanceCacheService {
       if (cached) {
         this.cacheStats.hits++;
         this.updateStats();
-        console.log(`📋 Cache HIT: ${endpoint}`, { hitRate: this.getHitRate() });
         return of(cached);
       }
     }
@@ -73,7 +72,6 @@ export class PerformanceCacheService {
     // Cache MISS - obtener datos del servidor
     this.cacheStats.misses++;
     this.updateStats();
-    console.log(`🌐 Cache MISS: ${endpoint}`, { hitRate: this.getHitRate() });
 
     const config = this.endpointConfigs.get(endpoint) || { ttl: this.DEFAULT_TTL };
 
@@ -99,7 +97,6 @@ export class PerformanceCacheService {
       tap(() => {
         // Invalidar caches relacionados
         this.invalidateByPatterns([endpoint, ...invalidatePatterns]);
-        console.log(`🔄 Cache invalidated for patterns:`, [endpoint, ...invalidatePatterns]);
       })
     );
   }
@@ -108,13 +105,12 @@ export class PerformanceCacheService {
    * MEJORA CRÍTICA: Preload de datos relacionados
    */
   preloadRelatedData(baseEndpoint: string, relations: string[]): void {
-    console.log(`🚀 Preloading related data for ${baseEndpoint}:`, relations);
 
     // Preload en paralelo sin bloquear el hilo principal
     setTimeout(() => {
       relations.forEach(relation => {
         this.get(relation).subscribe({
-          next: () => console.log(`✅ Preloaded: ${relation}`),
+          next: () => {},
           error: (err) => console.warn(`⚠️ Failed to preload ${relation}:`, err)
         });
       });
@@ -154,7 +150,6 @@ export class PerformanceCacheService {
     }
 
     if (invalidatedCount > 0) {
-      console.log(`🗑️ Invalidated ${invalidatedCount} cache entries`);
     }
   }
 
@@ -179,7 +174,6 @@ export class PerformanceCacheService {
   clearAll(): void {
     this.memoryCache.clear();
     localStorage.removeItem(this.PERSISTENT_CACHE_KEY);
-    console.log('🧹 All cache cleared');
   }
 
   // Métodos privados
@@ -271,7 +265,6 @@ export class PerformanceCacheService {
 
         if (cleanedCount > 0) {
           localStorage.setItem(this.PERSISTENT_CACHE_KEY, JSON.stringify(cleanedCache));
-          console.log(`🧹 Cleaned ${cleanedCount} expired persistent cache entries`);
         }
       }
     } catch (error) {
@@ -328,7 +321,6 @@ export class PerformanceCacheService {
     }
 
     if (cleanedCount > 0) {
-      console.log(`🧹 Cleaned ${cleanedCount} expired cache items`);
     }
   }
 

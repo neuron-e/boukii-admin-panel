@@ -310,7 +310,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
           recipients_config: n.recipients_config,
           created_at: n.created_at
         }));
-        console.log('Loaded recent newsletters (sent):', this.recentNewsletters.length);
       },
       error: (error) => {
         console.error('Error loading recent newsletters:', error);
@@ -352,7 +351,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
           recipients_config: n.recipients_config,
           created_at: n.created_at
         }));
-        console.log('Loaded draft newsletters:', this.draftNewsletters.length);
       },
       error: (error) => {
         console.error('Error loading draft newsletters:', error);
@@ -362,7 +360,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private reloadAllNewsletterData(): void {
-    console.log('Reloading all newsletter data...');
     this.loadRecentNewsletters();
     this.loadDraftNewsletters();
     this.loadNewsletterStats();
@@ -631,7 +628,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
 
   // Recent Newsletters Actions
   viewNewsletter(newsletter: Newsletter): void {
-    console.log('View newsletter:', newsletter);
     // For now, redirect to view message functionality until specific newsletter view dialog is created
     this.viewNewsletterDetails(newsletter);
   }
@@ -697,7 +693,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       next: (response) => {
         // Remove from local array without showing notification
         this.draftNewsletters = this.draftNewsletters.filter(d => d.id !== draftId);
-        console.log('Draft auto-deleted after newsletter sent:', draftId);
       },
       error: (error) => {
         console.error('Error auto-deleting draft:', error);
@@ -710,7 +705,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   // Subscriber Management
 
   importSubscribers(): void {
-    console.log('Import subscribers');
 
     // Create a file input element for CSV import
     const input = document.createElement('input');
@@ -753,7 +747,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   exportSubscribers(): void {
-    console.log('Export subscribers');
 
     this.crudService.getFile('/admin/subscribers/export').subscribe({
       next: (response: Blob) => {
@@ -785,7 +778,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
 
   // Quick Actions
   createFromTemplate(): void {
-    console.log('Create from template');
     // Show custom templates section and allow selection
     // Show custom templates section
     // this.showCustomTemplates = true; // Property doesn't exist, commenting out
@@ -799,7 +791,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   scheduleNewsletter(): void {
-    console.log('Schedule newsletter');
 
     if (!this.newsletterForm.valid) {
       this.markFormGroupTouched();
@@ -844,7 +835,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   viewAnalytics(): void {
-    console.log('View analytics');
     this.selectedTabIndex = 2; // Switch to analytics tab
   }
 
@@ -1015,7 +1005,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
         }
       },
       error: (error) => {
-        console.log('Error fetching recipients for message', messageId, ':', error);
         // Cache empty array to avoid repeated API calls
         this.messageRecipientsCache.set(messageId, []);
       }

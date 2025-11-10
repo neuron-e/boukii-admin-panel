@@ -544,15 +544,12 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log(`📤 Exporting detail for monitor: ${this.selectedMonitor.monitor}`);
-
     // Generate CSV content
     const csvContent = this.generateMonitorDetailCsv();
     const fileName = `monitor_${this.selectedMonitor.monitor.replace(/\s+/g, '_')}_${this.getCurrentDateString()}.csv`;
 
     // Download
     this.downloadCsv(csvContent, fileName);
-    console.log(`✅ Monitor detail exported: ${fileName}`);
   }
 
   /**

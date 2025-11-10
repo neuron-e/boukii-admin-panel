@@ -473,26 +473,15 @@ export class CourseDetailCardComponent implements OnChanges {
       }
     }
 
-    console.log('🔍 Getting interval discounts for intervalId:', intervalId);
-    console.log('🔍 Settings:', settings);
-
     if (!settings || !settings.intervals || !Array.isArray(settings.intervals)) {
-      console.log('⚠️ No settings or intervals array');
       return [];
     }
-
-    console.log('🔍 Available intervals:', settings.intervals.map((i: any) => ({ id: i.id, discounts: i.discounts })));
 
     const interval = settings.intervals.find((i: any) => String(i.id) === String(intervalId));
 
-    console.log('🔍 Found interval:', interval);
-
     if (!interval || !interval.discounts || !Array.isArray(interval.discounts)) {
-      console.log('⚠️ No interval found or no discounts array');
       return [];
     }
-
-    console.log('✅ Returning', interval.discounts.length, 'discounts');
     return interval.discounts;
   }
 

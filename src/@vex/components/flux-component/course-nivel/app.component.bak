@@ -207,7 +207,6 @@ export class CourseDetailCardNivelComponent {
   }
   // Total de paxes únicos asignados a un degree (deduplicado por client_id)
   findBookingUsers(bookingUsers: any, courseDates: any[], degreeId: number): number {
-      console.log('findBookingUsers called with:', { bookingUsers, courseDatesLength: courseDates?.length, degreeId });
     try {
       const users = this.asArray(bookingUsers);
       if (!Array.isArray(courseDates) || !courseDates.length) return users.length || 0;
@@ -227,12 +226,8 @@ export class CourseDetailCardNivelComponent {
           }
         }
       }
-
-      // 2) Embebidos por subgrupo en cada fecha
-      console.log(`Checking course dates for degree ${degreeId}:`, courseDates.length);
       for (const cd of (courseDates || [])) {
         const group = this.groupsOf(cd).find((x: any) => this.degreeIdOf(x) === degreeId);
-        console.log(`Date ${cd?.date || cd?.id}: Found group:`, group);
         for (const sg of (this.subgroupsOf(group || {}))) {
           for (const u of (this.bookingsOf(sg))) {
             const key = u?.client_id ?? u?.client?.id ?? u?.id;
@@ -286,7 +281,6 @@ export class CourseDetailCardNivelComponent {
   }
 
   onTimingClick(subGroup: any, groupLevel: any, selectedDate?: any): void {
-    console.log('onTimingClick called with:', { subGroup, groupLevel, selectedDate });
     this.viewTimes.emit({ subGroup, groupLevel, selectedDate });
   }
 
@@ -344,7 +338,6 @@ export class CourseDetailCardNivelComponent {
 
   // Enhanced method to get users for a specific subgroup index
   getUsersForSubgroupIndexEnhanced(bookingUsers: any, courseDates: any[], degreeId: number, index: number): any[] {
-    console.log(`=== getUsersForSubgroupIndexEnhanced ===`, { degreeId, index, courseDatesLength: courseDates?.length });
 
     const collected: any[] = [];
     const uniqueClientIds = new Set<string | number>();
@@ -362,7 +355,6 @@ export class CourseDetailCardNivelComponent {
 
             if (targetSubgroup) {
               const bookings = targetSubgroup?.booking_users || targetSubgroup?.bookingUsers || [];
-              console.log(`    Date ${cd?.date}: Subgroup ${index} has ${bookings.length} bookings`);
 
               for (const booking of bookings) {
                 const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
@@ -375,7 +367,6 @@ export class CourseDetailCardNivelComponent {
                     course_date_id: cd?.id || booking?.course_date_id
                   };
                   collected.push(userWithDate);
-                  console.log(`      Added user:`, userWithDate?.client?.first_name || userWithDate?.first_name || clientId);
                 }
               }
             }
@@ -383,14 +374,11 @@ export class CourseDetailCardNivelComponent {
         }
       }
     }
-
-    console.log(`Found ${collected.length} unique users for subgroup index ${index}`);
     return collected;
   }
 
   // Enhanced method to count booking users for a degree
   countBookingUsersForDegree(bookingUsers: any, courseDates: any[], degreeId: number): number {
-    console.log('=== countBookingUsersForDegree ===', { degreeId, courseDatesLength: courseDates?.length });
 
     const uniques = new Set<string | number>();
 
@@ -398,23 +386,19 @@ export class CourseDetailCardNivelComponent {
     if (Array.isArray(courseDates)) {
       for (const cd of courseDates) {
         const groups = cd?.course_groups || cd?.courseGroups || [];
-        console.log(`Date ${cd?.date}: Found ${groups.length} groups`);
 
         for (const group of groups) {
           const groupDegreeId = group?.degree_id ?? group?.degreeId;
           if (groupDegreeId === degreeId) {
             const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
-            console.log(`  Found ${subgroups.length} subgroups for degree ${degreeId}`);
 
             for (const subgroup of subgroups) {
               const bookings = subgroup?.booking_users || subgroup?.bookingUsers || [];
-              console.log(`    Subgroup ${subgroup?.id} has ${bookings.length} bookings`);
 
               for (const booking of bookings) {
                 const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
                 if (clientId != null) {
                   uniques.add(clientId);
-                  console.log(`      Added client ${clientId}`);
                 }
               }
             }
@@ -422,8 +406,6 @@ export class CourseDetailCardNivelComponent {
         }
       }
     }
-
-    console.log(`Found ${uniques.size} unique users via embedded structure`);
     return uniques.size;
   }
 

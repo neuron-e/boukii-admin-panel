@@ -449,12 +449,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loading = true;
     const filters = this.buildFiltersObject();
 
-    console.log('🔍 Loading analytics data with filters:', filters);
-
     // Usar principalmente el endpoint season-dashboard
     this.apiService.get('/admin/finance/season-dashboard', [], filters).subscribe({
       next: (response) => {
-        console.log('✅ Season dashboard data received:', response);
         this.processSeasonDashboardData(response.data);
         this.loading = false;
         this.cdr.detectChanges();
@@ -508,14 +505,11 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private processSeasonDashboardData(data: SeasonDashboardData): void {
-    console.log('📊 Processing season dashboard data:', data);
 
     this.dashboardData = data;
 
     // Actualizar datos de las tablas
     this.updateTableData();
-
-    console.log('✅ Dashboard data processed successfully');
   }
 
   private updateTableData(): void {
@@ -530,11 +524,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Tabla de cursos (sin cambios)
     this.coursesTableData.data = this.dashboardData.courses || [];
-
-    console.log('📋 Tables updated:', {
-      revenueRows: this.revenueTableData.data.length,
-      coursesRows: this.coursesTableData.data.length
-    });
   }
 
   // ==================== CHART CREATION ====================
@@ -595,7 +584,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private createCourseTypeRevenueChart(): void {
-    console.log('🔍 Iniciando createCourseTypeRevenueChart...');
 
     // Verificación del elemento DOM
     if (!this.courseTypeRevenueChartRef?.nativeElement) {
@@ -610,7 +598,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const courses = this.dashboardData.courses || [];
-    console.log('📊 Datos de cursos:', courses);
 
     if (courses.length === 0) {
       console.warn('⚠️ No hay cursos disponibles');
@@ -622,12 +609,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Procesar datos con logging detallado
     for (const course of courses) {
-      console.log('🎯 Procesando curso:', course);
 
       const typeName = this.getCourseTypeName(course.type);
       const revenue = course.revenue || 0;
-
-      console.log(`   - Tipo: ${typeName}, Revenue: ${revenue}`);
 
       if (!typeStats[typeName]) {
         typeStats[typeName] = {
@@ -649,8 +633,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       typeStats[typeName].course_count += course.courses_sold || 0;
     }
 
-    console.log('📈 Estadísticas por tipo:', typeStats);
-
     // Verificar que tenemos datos válidos
     const hasValidData = Object.values(typeStats).some(stat => stat.revenue > 0);
 
@@ -664,33 +646,21 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       const labels = Object.keys(typeStats).map(type => {
         const translated = this.translateService.instant(type);
-        console.log(`🌐 Traducción: ${type} -> ${translated}`);
         return translated;
       });
 
       const values = Object.values(typeStats).map(stat => stat.revenue);
       const colors = Object.keys(typeStats).map(type => {
         const color = this.getCourseTypeColorByName(type);
-        console.log(`🎨 Color para ${type}: ${color}`);
         return color;
       });
-
-      console.log('📊 Datos finales del gráfico:');
-      console.log('   - Labels:', labels);
-      console.log('   - Values:', values);
-      console.log('   - Colors:', colors);
 
       // Preparar datos adicionales para mostrar bookings
       const bookingsData = Object.values(typeStats).map(stat => stat.bookings);
       const totalBookings = bookingsData.reduce((sum, bookings) => sum + bookings, 0);
       const coursesSoldData = Object.values(typeStats).map(stat => stat.course_count); // ← NUEVA LÍNEA
       const totalRevenue = values.reduce((sum, revenue) => sum + revenue, 0);
-      const totalCoursesSold = coursesSoldData.reduce((sum, courses) => sum + courses, 0); // ← NUEVA LÍNEA
-
-      console.log('📊 Totales:');
-      console.log(`   - Total Bookings: ${totalBookings}`);
-      console.log(`   - Total Cursos Vendidos: ${totalCoursesSold}`); // ← NUEVA LÍNEA
-      console.log(`   - Total Revenue: ${totalRevenue.toFixed(2)} €`);
+      const totalCoursesSold = coursesSoldData.reduce((sum, courses) => sum + courses, 0);
 
       // Configurar el gráfico
       const trace = {
@@ -717,12 +687,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 // Modifica esta parte en tu loop de procesamiento:
 
       for (const course of courses) {
-        console.log('🎯 Procesando curso:', course);
 
         const typeName = this.getCourseTypeName(course.type);
         const revenue = course.revenue || 0;
-
-        console.log(`   - Tipo: ${typeName}, Revenue: ${revenue}`);
 
         if (!typeStats[typeName]) {
           typeStats[typeName] = {
@@ -760,15 +727,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         displaylogo: false
       };
 
-      console.log('🚀 Creando gráfico con Plotly...');
-
       Plotly.newPlot(
         this.courseTypeRevenueChartRef.nativeElement,
         [trace],
         layout,
         config
       ).then(() => {
-        console.log('✅ Gráfico creado exitosamente');
         this.displayBookingsSummary(typeStats, totalBookings, totalRevenue, totalCoursesSold);
       }).catch(error => {
         console.error('❌ Error al crear el gráfico:', error);
@@ -785,8 +749,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Método para mostrar resumen detallado de bookings y revenue
   private displayBookingsSummary(typeStats: any, totalBookings: number, totalRevenue: number, totalCoursesSold: number): void {
-    console.log('\n📊 ===== RESUMEN DETALLADO POR TIPO DE CURSO =====');
-    console.log(`📈 TOTAL GENERAL: ${totalBookings} reservas | ${totalCoursesSold} cursos vendidos | ${totalRevenue.toFixed(2)} € revenue\n`);
 
     Object.entries(typeStats).forEach(([typeName, stats]: [string, any]) => {
       const bookingPercentage = totalBookings > 0 ? ((stats.bookings / totalBookings) * 100).toFixed(1) : '0';
@@ -794,16 +756,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       const revenuePercentage = totalRevenue > 0 ? ((stats.revenue / totalRevenue) * 100).toFixed(1) : '0';
       const avgRevenuePerBooking = stats.bookings > 0 ? (stats.revenue / stats.bookings).toFixed(2) : '0';
       const avgRevenuePerCourse = stats.course_count > 0 ? (stats.revenue / stats.course_count).toFixed(2) : '0';
-
-      console.log(`🎯 ${typeName.toUpperCase()}:`);
-      console.log(`   📋 Reservas: ${stats.bookings} (${bookingPercentage}% del total)`);
-      console.log(`   📚 Cursos vendidos: ${stats.course_count} (${coursePercentage}% del total)`); // ← NUEVA LÍNEA
-      console.log(`   💰 Revenue: ${stats.revenue.toFixed(2)} € (${revenuePercentage}% del total)`);
-      console.log(`   👥 Participantes: ${stats.participants}`);
-      console.log(`   💵 Revenue recibido: ${stats.revenue_received.toFixed(2)} €`);
-      console.log(`   📊 Revenue promedio por reserva: ${avgRevenuePerBooking} €`);
-      console.log(`   🎯 Revenue promedio por curso: ${avgRevenuePerCourse} €`); // ← NUEVA LÍNEA
-      console.log('   ─────────────────────────────────────────────────');
     });
 
     // También crear el array para uso en el template si lo necesitas
@@ -821,8 +773,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       coursePercentage: totalCoursesSold > 0 ? (stats.course_count / totalCoursesSold) * 100 : 0, // ← NUEVA LÍNEA
       revenuePercentage: totalRevenue > 0 ? (stats.revenue / totalRevenue) * 100 : 0
     }));
-
-    console.log('\n💾 Datos guardados en this.courseTypeBookingsSummary para uso en template');
   }
 
 // Método auxiliar para mostrar un gráfico vacío con mensaje
@@ -1171,7 +1121,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         break;
 
       default:
-        console.log('Acción no reconocida:', result.action);
     }
   }
 
@@ -1457,22 +1406,18 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   // ==================== MODAL EVENT HANDLERS ====================
 
   public onViewBookingDetails(booking: any): void {
-    console.log('Viewing booking details:', booking);
     // TODO: Navegar al detalle de la reserva
   }
 
   public onEditBooking(booking: any): void {
-    console.log('Editing booking:', booking);
     // TODO: Abrir formulario de edición
   }
 
   public onExportBooking(booking: any): void {
-    console.log('Exporting booking:', booking);
     // TODO: Exportar reserva individual
   }
 
   public onExportAllBookings(bookings: any[]): void {
-    console.log('Exporting all bookings:', bookings.length);
     // TODO: Exportar todas las reservas del modal
   }
 
@@ -1485,35 +1430,21 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     // Cargar datos específicos de la pestaña
     switch (this.activeTab) {
       case 'revenue':
-        // Ya se carga con loadAnalyticsData()
-        console.log('Revenue tab selected');
         break;
       case 'payments':
-        // Ya se carga con loadAnalyticsData()
-        console.log('Payments tab selected');
         break;
       case 'courses':
-        // Ya se carga con loadAnalyticsData()
-        console.log('Courses tab selected');
         break;
       case 'sources':
-        // Ya se carga con loadAnalyticsData()
-        console.log('Sources tab selected');
         break;
       case 'comparative':
-        // Ya se carga con loadAnalyticsData()
-        console.log('Comparative tab selected');
         break;
       case 'alerts':
-        // Ya se carga con loadAnalyticsData()
-        console.log('Alerts tab selected');
         break;
-      case 'monitors': // ← NUEVO CASE PARA MONITORES
-        console.log('Monitors tab selected');
+      case 'monitors':
         // El componente MonitorsLegacy maneja su propia carga
         break;
       default:
-        console.log('Default tab selected:', this.activeTab);
         break;
     }
 
@@ -1613,7 +1544,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.apiService.get('/admin/finance/season-dashboard/export', [], exportFilters).subscribe({
       next: (response) => {
-        console.log('✅ Export successful:', response);
         if (response.data?.download_url) {
           window.open(response.data.download_url, '_blank');
           this.showMessage('Exportación completada exitosamente', 'success');
@@ -1639,7 +1569,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private exportMonitorsData(): void {
-    console.log('📤 Exporting monitors data from local component...');
 
     // Check if monitors component is available
     if (!this.monitorsLegacyComponent) {
@@ -1656,8 +1585,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       console.warn('⚠️ No monitors data available for export');
       return;
     }
-
-    console.log(`✅ Found ${monitorsData.length} monitors to export`);
     this.showMessage('Exportando datos de monitores...', 'info');
 
     // Generate CSV from local data
@@ -1820,7 +1747,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         break;
 
       default:
-        console.log('Acción no reconocida desde modal de curso:', result.action);
     }
   }
 

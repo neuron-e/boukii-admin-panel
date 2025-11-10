@@ -80,8 +80,6 @@ export class CourseStatisticsModalComponent {
   }
 
   public onRefresh(): void {
-    // Este evento será manejado por el componente hijo (course-statistics)
-    console.log('Refresh requested for course:', this.data.courseId);
   }
 
   // ==================== GETTERS FOR TEMPLATE ====================

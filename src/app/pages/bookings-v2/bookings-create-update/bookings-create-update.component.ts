@@ -293,8 +293,6 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           verticalPosition: 'top'
         }
       );
-
-      console.log('ðŸ“‹ Borrador cargado exitosamente');
     } catch (error) {
       console.error('Error al cargar borrador:', error);
       this.persistenceService.removeDraft(this.currentBookingId);
@@ -333,7 +331,6 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       currentBookingData.paid_total = 0;
       currentBookingData.paid = false;
       this.bookingService.setBookingData(currentBookingData);
-      console.log('🧹 BookingData limpiado al restaurar borrador para evitar bonos automáticos');
     }
   }
 
@@ -388,7 +385,6 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   private handleSyncUpdate(syncData: any): void {
     if (syncData.action === 'draft_saved') {
-      console.log('ðŸ“¡ SincronizaciÃ³n detectada desde otra tab');
     }
   }
 
@@ -1053,7 +1049,6 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   sumActivityTotal(): number {
-    console.log('🔍 sumActivityTotal DEBUG - normalizedDates:', this.normalizedDates);
 
     const total = this.normalizedDates.reduce((acc, item, index) => {
       // Handle both number and string types for item.total
@@ -1067,17 +1062,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         numericValue = 0;
       }
 
-      console.log(`🔍 Processing activity ${index}:`, {
-        itemName: item.course?.name,
-        originalTotal: item.total,
-        totalType: typeof item.total,
-        parsedValue: numericValue
-      });
-
       return acc + numericValue;
     }, 0);
-
-    console.log('🔍 sumActivityTotal final result:', total);
     return total;
   }
 
@@ -1141,11 +1127,6 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (!bookingData) {
       return;
     }
-
-    console.log('🔍 finalizeBooking DEBUG - bookingData antes de setCart:', {
-      price_total: bookingData.price_total,
-      normalizedDates: this.normalizedDates
-    });
 
     bookingData.cart = this.bookingService.setCart(this.normalizedDates, bookingData);
 

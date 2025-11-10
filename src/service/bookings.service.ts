@@ -215,13 +215,6 @@ export class BookingService {
       ? (data as any).price_total
       : parseFloat((data as any).price_total ?? '0');
 
-    console.log('🔍 calculatePendingPrice DEBUG:', {
-      priceTotal,
-      totalVouchers,
-      pending: priceTotal - totalVouchers,
-      bookingData: data
-    });
-
     const pending = priceTotal - totalVouchers;
     return pending > 0 ? pending : 0;
   }
@@ -398,7 +391,6 @@ export class BookingService {
     return cart;
   }
   resetBookingData() {
-    console.log('🔄 Reseteando BookingData para nueva reserva');
     this.bookingDataSubject.next({
       school_id: 0,
       client_main_id: 0,

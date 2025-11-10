@@ -578,8 +578,6 @@ export class BookingDetailV2Component implements OnInit {
   private handleBookingChangeWithPriceChange(data: any, index: number): void {
     const priceChange = data.priceChange;
 
-    console.log('📊 Price Change detected:', priceChange);
-
     if (priceChange.type === 'add') {
       // AÑADIR FECHAS - Incremento de precio
       this.showPriceIncreaseDialog(priceChange, () => {
@@ -699,14 +697,6 @@ export class BookingDetailV2Component implements OnInit {
     // Primero actualizar la actividad
     this.processActivityUpdate(data, index);
 
-    // Luego crear el reembolso/crédito
-    // TODO: Implementar lógica de reembolso según el método de pago original
-    console.log('💰 Refund to process:', {
-      amount: priceChange.difference,
-      currency: this.bookingData.price_currency,
-      bookingId: this.bookingData.id
-    });
-
     // Ejemplo: Crear voucher de crédito
     this.createCreditVoucherForRefund(priceChange.difference);
   }
@@ -715,8 +705,6 @@ export class BookingDetailV2Component implements OnInit {
    * Crea un voucher de crédito para el reembolso
    */
   private createCreditVoucherForRefund(amount: number): void {
-    // TODO: Implementar creación de voucher
-    console.log('🎟️ Creating credit voucher for:', amount);
 
     this.snackBar.open(
       this.translateService.instant('refund_credit_voucher_created', { amount: amount.toFixed(2) }),

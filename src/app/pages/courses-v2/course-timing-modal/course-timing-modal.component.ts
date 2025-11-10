@@ -91,7 +91,6 @@ export class CourseTimingModalComponent implements OnInit {
           // Si hay subgrupos para esta fecha/grupo, usar el primero (o encontrar el correcto)
           const subgroupForThisDate = targetGroup.course_subgroups[0]; // Puede necesitar más lógica aquí
           if (subgroupForThisDate?.id) {
-            console.log(`Overriding subgroupId from ${subgroupId} to ${subgroupForThisDate.id} for this specific date`);
             subgroupId = subgroupForThisDate.id;
           }
         }

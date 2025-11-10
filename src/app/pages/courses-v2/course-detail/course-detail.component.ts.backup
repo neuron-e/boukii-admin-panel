@@ -48,7 +48,6 @@ export class CourseDetailComponent implements OnInit {
   detailData: any
 
   ngOnInit(): void {
-    console.log('CourseDetailComponent ngOnInit - ID:', this.id);
     if (!this.incData) this.id = this.activatedRoute.snapshot.params.id;
     else this.id = this.incData.id;
     this.crudService.get('/admin/courses/' + this.id,
@@ -57,16 +56,10 @@ export class CourseDetailComponent implements OnInit {
        'bookingUsers.client', 'bookingUsers.booking', 'sport' ,'courseExtras'])
       .subscribe((data: any) => {
         this.detailData = data.data
-        console.log('CourseDetailComponent - Full course data:', this.detailData);
-        console.log('CourseDetailComponent - Course type:', this.detailData.type, 'Course_type:', this.detailData.course_type, 'Is flexible:', this.detailData.is_flexible);
-        console.log('CourseDetailComponent - Course name:', this.detailData.name);
-        console.log('CourseDetailComponent - Course groups:', this.detailData.courseGroups);
-        console.log('CourseDetailComponent - Course dates:', this.detailData.course_dates);
 
         // Check if this is a FIX course (should be treated as flexible)
         const isFIXCourse = this.detailData.name?.toUpperCase().includes('FIX');
         const isCollectiveFIX = this.detailData.course_type === 1 && isFIXCourse;
-        console.log('CourseDetailComponent - Is FIX course:', isFIXCourse, 'Is Collective FIX:', isCollectiveFIX);
         this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id=' + this.detailData.sport_id)
           .subscribe((data) => {
             this.detailData.degrees = [];
@@ -95,7 +88,6 @@ export class CourseDetailComponent implements OnInit {
                 const isFIXCourse = this.detailData.name?.toUpperCase().includes('FIX');
 
                 if (this.detailData.course_type === 1) {
-                  console.log('Processing FLEX course - extracting booking users from nested structure');
                   this.detailData.users = [];
                   const bookingUsersMap = new Map(); // To avoid duplicates
 
@@ -103,21 +95,14 @@ export class CourseDetailComponent implements OnInit {
                   const courseGroupsData = this.detailData.courseGroups || this.detailData.course_groups || [];
                   const courseDatesData = this.detailData.course_dates || [];
 
-                  console.log('Available courseGroups:', courseGroupsData);
-                  console.log('Available course_dates:', courseDatesData);
-
                   // Try courseGroups structure first (from API relation)
                   courseGroupsData.forEach((group: any) => {
-                    console.log('Processing courseGroup:', group);
                     const courseDates = group.courseDates || group.course_dates || [];
                     courseDates.forEach((courseDate: any) => {
-                      console.log('Processing courseDate:', courseDate);
                       const subgroups = courseDate.courseSubgroups || courseDate.course_subgroups || [];
                       subgroups.forEach((subgroup: any) => {
-                        console.log('Processing subgroup:', subgroup);
                         const bookingUsers = subgroup.bookingUsers || subgroup.booking_users || [];
                         bookingUsers.forEach((bookingUser: any) => {
-                          console.log('Found bookingUser:', bookingUser);
                           const key = `${bookingUser.client_id}-${bookingUser.booking_id || bookingUser.id}`;
                           if (!bookingUsersMap.has(key)) {
                             bookingUsersMap.set(key, {
@@ -133,25 +118,13 @@ export class CourseDetailComponent implements OnInit {
                   });
 
                   this.detailData.users = Array.from(bookingUsersMap.values());
-                  console.log('Flex course users extracted - total found:', this.detailData.users.length);
-                  console.log('Flex course users details:', this.detailData.users);
-
-                  // ALWAYS use API call for collective courses to ensure we get all booking users
-                  console.log('Using API call to get booking users for collective course...');
                   this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
                     .subscribe((bookingUser) => {
-                      console.log('API booking users response for collective course:', bookingUser);
                       this.detailData.users = bookingUser.data || [];
-                      console.log('Final collective course users from API:', this.detailData.users.length);
-                      console.log('>>> DETAILED BOOKING USER STRUCTURE <<<');
                       if (this.detailData.users.length > 0) {
-                        console.log('First booking user structure:', this.detailData.users[0]);
-                        console.log('Fields available:', Object.keys(this.detailData.users[0]));
                         this.detailData.users.forEach((user: any, index: number) => {
-                          console.log(`User ${index}: degree_id=${user.degree_id}, course_date_id=${user.course_date_id}, course_group_id=${user.course_group_id}, client_id=${user.client_id}`);
                         });
                       }
-                      console.log('>>> END DETAILED STRUCTURE <<<');
 
                       // For FIX courses, correct the reservation count to show unique bookings instead of individual dates
                       if (isFIXCourse && this.detailData.users.length > 0) {
@@ -159,12 +132,6 @@ export class CourseDetailComponent implements OnInit {
                         this.detailData.users.forEach((user: any) => {
                           const bookingId = user.booking_id || user.id;
                           if (bookingId) uniqueBookings.add(bookingId);
-                        });
-
-                        console.log('FIX Course correction:', {
-                          originalTotal: this.detailData.total_reservations,
-                          uniqueBookings: uniqueBookings.size,
-                          totalUsers: this.detailData.users.length
                         });
 
                         // Override the total_reservations for FIX courses
@@ -179,7 +146,6 @@ export class CourseDetailComponent implements OnInit {
 
                       // CRITICAL: After setting the form group, ensure booking_users control is updated
                       if (this.courses.courseFormGroup && this.detailData.users.length > 0) {
-                        console.log('Updating form booking_users control with:', this.detailData.users.length, 'users');
                         const patchData: any = {
                           booking_users: this.detailData.users
                         };
@@ -187,7 +153,6 @@ export class CourseDetailComponent implements OnInit {
                         // For FIX courses, also update the total_reservations in the form
                         if (isFIXCourse) {
                           patchData.total_reservations = this.detailData.total_reservations;
-                          console.log('Also updating form total_reservations for FIX course:', this.detailData.total_reservations);
                         }
 
                         this.courses.courseFormGroup.patchValue(patchData);
@@ -311,9 +276,6 @@ export class CourseDetailComponent implements OnInit {
    * Open timing modal for subgroup students (cronometraje)
    */
   openTimingModal(subGroup: any, groupLevel: any, selectedDate?: any): void {
-    // Debug visual para confirmar clic
-    console.log('openTimingModal called with:', { subGroup, groupLevel });
-    console.log('detailData:', this.detailData);
 
     if (!subGroup || !groupLevel) {
       console.error('No hay datos de subgrupo o nivel para mostrar tiempos.');
@@ -335,14 +297,6 @@ export class CourseDetailComponent implements OnInit {
       image: u.client?.image
     }));
 
-    console.log('About to open dialog with data:', {
-      subGroup,
-      groupLevel,
-      courseId: this.id,
-      courseDates,
-      students
-    });
-
     try {
       const ref = this.dialog.open(CourseTimingModalComponent, {
         width: '80%',
@@ -362,11 +316,9 @@ export class CourseDetailComponent implements OnInit {
 
 
       ref.afterOpened().subscribe(() => {
-        console.log('Timing modal abierto exitosamente');
       });
 
       ref.afterClosed().subscribe(result => {
-        console.log('Modal cerrado con resultado:', result);
       });
     } catch (error) {
       console.error('Error al abrir modal:', error);
@@ -381,20 +333,15 @@ export class CourseDetailComponent implements OnInit {
   private collectBookingUsersFromDetailData(courseDates: any[]): any[] {
     const result: any[] = [];
     try {
-      console.log('collectBookingUsersFromDetailData - Processing dates:', courseDates.length);
 
       for (const cd of courseDates) {
         const cdId = cd?.id ?? null;
-        console.log(`Processing course_date ${cdId}:`, cd);
 
         const groups = Array.isArray(cd?.course_groups) ? cd.course_groups : [];
         for (const g of groups) {
-          console.log(`  Processing group ${g?.id}:`, g);
           const subgroups = Array.isArray(g?.course_subgroups) ? g.course_subgroups : [];
           for (const sg of subgroups) {
-            console.log(`    Processing subgroup ${sg?.id}:`, sg);
             const bookings = Array.isArray(sg?.booking_users) ? sg.booking_users : [];
-            console.log(`      Found ${bookings.length} booking users in subgroup`);
 
             for (const bu of bookings) {
               const client = bu?.client || {};
@@ -410,18 +357,14 @@ export class CourseDetailComponent implements OnInit {
                 attended: bu?.attended ?? bu?.attendance ?? null,
                 date: cd?.date ?? null
               };
-              console.log(`        Mapped user:`, mappedUser);
               result.push(mappedUser);
             }
           }
         }
       }
 
-      console.log('collectBookingUsersFromDetailData - Total result:', result.length);
-
       // Si no hemos encontrado nada en la estructura embebida, usar los usuarios globales
       if (result.length === 0 && this.detailData?.users) {
-        console.log('No booking users found in course_dates structure, using global users');
         const globalUsers = this.detailData.users;
 
         // Enriquecer con course_date_id y course_subgroup_id basándonos en las fechas
@@ -450,8 +393,6 @@ export class CourseDetailComponent implements OnInit {
             course_subgroup_id: foundSubgroup?.id ?? user?.course_subgroup_id ?? user?.course_sub_group_id ?? null
           };
         });
-
-        console.log('Enriched global users:', enrichedUsers);
         return enrichedUsers;
       }
 

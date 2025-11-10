@@ -47,7 +47,6 @@ export class OrphanedBookingsRepairService {
       }),
       map((response: any) => {
         const orphanedBookings = response?.data || [];
-        console.log(`🔍 Detectadas ${orphanedBookings.length} reservas huérfanas`);
         return orphanedBookings.map(booking => this.analyzeOrphanedBooking(booking));
       })
     );
@@ -279,8 +278,6 @@ export class OrphanedBookingsRepairService {
             o.repair_options.some(option => option.auto_executable)
           ).length
         };
-
-        console.log('📊 Estadísticas de reservas huérfanas:', stats);
         return stats;
       })
     );

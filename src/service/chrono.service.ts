@@ -189,7 +189,6 @@ export class ChronoService {
    * Fallback a polling cuando SSE no está disponible
    */
   private fallbackToPolling(courseId: number, courseDateId: number): void {
-    console.log('🔄 Cambiando a modo polling');
     
     this.updateState({ 
       isConnected: false, 
@@ -289,13 +288,6 @@ export class ChronoService {
       summary: updatedSummary,
       lastEvent: newTime,
       lastUpdate: new Date()
-    });
-    
-    console.log('✓ Evento procesado:', {
-      student: student.name,
-      lap: newTime.lap_no,
-      time: this.formatTime(newTime.time_ms),
-      status: newTime.status
     });
   }
   

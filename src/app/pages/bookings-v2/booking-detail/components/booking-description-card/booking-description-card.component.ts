@@ -51,10 +51,8 @@ export class BookingDescriptionCard implements OnChanges {
   @Input() course: any;
   @Input()
   set dates(value: any[]) {
-    console.log('🔍 CARD COMPONENT DEBUG - Dates setter called with value:', value);
     this._dates = value || [];
     if (this._dates.length > 0) {
-      console.log('🔍 CARD COMPONENT DEBUG - First date in setter:', this._dates[0]);
     }
     this.extractUniqueMonitors();
     this.refreshDiscountInfo();
@@ -287,7 +285,6 @@ export class BookingDescriptionCard implements OnChanges {
       const discounts = [];
       try {
         const discounts = JSON.parse(this.course.discounts);
-        console.log("Discounts parseado correctamente:", discounts);
       } catch (error) {
         console.error("Error al parsear discounts:", error);
       }
@@ -329,7 +326,6 @@ export class BookingDescriptionCard implements OnChanges {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
-        console.log('📌 Edit Result:', result);
 
         // Actualizar las fechas
         this.dates = result.course_dates || dates;

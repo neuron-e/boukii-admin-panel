@@ -390,7 +390,5 @@ export class CourseStatisticsComponent implements OnInit, OnDestroy {
   }
 
   public exportStatistics(): void {
-    // TODO: Implementar exportación de estadísticas
-    console.log('Exporting course statistics...');
   }
 }

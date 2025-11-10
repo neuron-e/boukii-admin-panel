@@ -229,7 +229,6 @@ export class CourseDetailComponent implements OnInit {
 
             // Initialize bookingUsersUnique with courseUsers data
             if (this.courseUsers && this.courseUsers.length > 0) {
-              console.log('CourseUsers loaded:', this.courseUsers);
               // Order booking users and initialize unique users for display
               const orderedUsers = this.orderBookingUsers(this.courseUsers);
               this.getUniqueBookingUsers(orderedUsers);
@@ -1059,19 +1058,13 @@ export class CourseDetailComponent implements OnInit {
       });
     });
 
-    console.log('calculateStudentsGroup - level:', level, 'found group:', group);
-
     if (group !== null) {
       this.courseUsers.forEach(courseUser => {
-        console.log('Checking courseUser for group count:', courseUser, 'group.id:', group.id);
         if (courseUser.course_group_id === group.id) {
           ret = ret + 1;
-          console.log('Found matching student, count now:', ret);
         }
       });
     }
-
-    console.log('calculateStudentsGroup returning:', ret);
     return ret;
   }
 
@@ -1243,11 +1236,7 @@ export class CourseDetailComponent implements OnInit {
   getCourseUsers(subGroup: any) {
     let ret = [];
 
-    console.log('getCourseUsers called for subGroup:', subGroup);
-    console.log('Available courseUsers:', this.courseUsers);
-
     this.courseUsers.forEach(courseUser => {
-      console.log('Checking courseUser:', courseUser, 'against subGroup:', subGroup);
 
       // More flexible matching - try different possible field names
       const matchesSubgroup = courseUser.course_subgroup_id === subGroup.id ||
@@ -1259,22 +1248,10 @@ export class CourseDetailComponent implements OnInit {
 
       const isActive = courseUser.status === 1 || courseUser.status === '1' || courseUser.active === 1;
 
-      console.log('Match checks:', {
-        matchesSubgroup,
-        matchesGroup,
-        isActive,
-        courseUserSubgroupId: courseUser.course_subgroup_id,
-        subGroupId: subGroup.id,
-        courseUserGroupId: courseUser.course_group_id,
-        subGroupGroupId: subGroup.course_group_id
-      });
-
       if (matchesSubgroup && matchesGroup && isActive) {
         ret.push(courseUser);
       }
     });
-
-    console.log('getCourseUsers returning:', ret);
     return ret;
   }
 
@@ -1765,7 +1742,6 @@ export class CourseDetailComponent implements OnInit {
 
       dialogRef.afterClosed().subscribe(result => {
         if (result) {
-          console.log('Timing modal closed with result:', result);
         }
       });
     });

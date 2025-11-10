@@ -68,22 +68,13 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     }
   }
   ngOnInit(): void {
-    console.log('FLEX DATES DEBUG: Component initializing');
-    console.log('FLEX DATES DEBUG: Course:', this.course);
-    console.log('FLEX DATES DEBUG: Sport level:', this.sportLevel);
-    console.log('FLEX DATES DEBUG: Utilizer:', this.utilizer);
 
     this.posibleExtras = this.course.course_extras;
     if (this.isCoursExtrasOld) {
       this.posibleExtras = this.filterExtrasByName(this.posibleExtras);
     }
 
-    console.log('FLEX DATES DEBUG: Possible extras:', this.posibleExtras?.length);
-
     this.initializeForm();
-
-    console.log('FLEX DATES DEBUG: Component initialization complete');
-    console.log('FLEX DATES DEBUG: Form controls count:', this.courseDatesArray?.controls?.length);
   }
   private filterExtrasByName(extras: any[]): any[] {
     const uniqueExtras: { [key: string]: any } = {};
@@ -104,9 +95,6 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
       this.stepForm.removeControl('course_dates');
       return;
     }
-    console.log('FLEX DATES DEBUG: Initializing form for course:', this.course?.name);
-    console.log('FLEX DATES DEBUG: Course dates available:', this.course?.course_dates?.length);
-    console.log('FLEX DATES DEBUG: Sport level:', this.sportLevel);
     const existingCourseDatesArray = this.stepForm.get('course_dates') as FormArray;
     const previousSelections = existingCourseDatesArray ? existingCourseDatesArray.getRawValue() : null;
     const dateGroups: FormGroup[] = [];
@@ -123,8 +111,6 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
         const monitor = this.findMonitor(date);
         const hasCapacity = !!monitor;
 
-        console.log(`FLEX DATES DEBUG: Date ${index} - isToday: ${isToday}, isInFuture: ${isInFuture}, isValidToday: ${isValidToday}, hasCapacity: ${hasCapacity}`);
-
         if (isInFuture || isValidToday) {
           const initialSelected = this.initialData?.[index]?.selected || false;
           const initialExtras = this.initialData?.[index]?.extras || [];
@@ -132,18 +118,13 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
 
           if (!hasCapacity) {
             dateGroup.get('monitor')?.setValue(null);
-            console.log(`FLEX DATES DEBUG: Date ${index} has no capacity but control stays enabled`);
           }
 
           dateGroups.push(dateGroup);
           this.courseDateMeta.push({ originalIndex: index, date });
           return;
         }
-
-        console.log(`FLEX DATES DEBUG: Date ${index} excluded - not valid date`);
       });
-
-    console.log('FLEX DATES DEBUG: Final dates array length:', dateGroups.length);
 
     if (!existingCourseDatesArray) {
       const courseDatesArray = this.fb.array(dateGroups, this.atLeastOneSelectedValidator);
@@ -298,31 +279,20 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     });
   }
   findMonitor(courseDate: any): any {
-    console.log('FLEX DATES DEBUG: Finding monitor for date:', courseDate.date);
-    console.log('FLEX DATES DEBUG: Available groups:', courseDate.course_groups?.length);
-    console.log('FLEX DATES DEBUG: Looking for sport level ID:', this.sportLevel?.id);
 
     // Filtra los grupos que coinciden con el `degree_id` de this.sportLevel
     const matchingGroup = courseDate.course_groups?.find(group => group.degree_id === this.sportLevel?.id);
 
-    console.log('FLEX DATES DEBUG: Matching group found:', !!matchingGroup);
-
     if (matchingGroup) {
-      console.log('FLEX DATES DEBUG: Subgroups in matching group:', matchingGroup.course_subgroups?.length);
 
       // Busca el subgrupo que tiene menos participantes que el máximo permitido
       const availableSubgroup = matchingGroup.course_subgroups?.find(
         (subgroup) => ((subgroup.booking_users || []).length) < subgroup.max_participants
       );
 
-      console.log('FLEX DATES DEBUG: Available subgroup found:', !!availableSubgroup);
-      console.log('FLEX DATES DEBUG: Monitor found:', !!availableSubgroup?.monitor);
-
       // Retorna el monitor si lo encuentra
       return availableSubgroup?.monitor || null;
     }
-
-    console.log('FLEX DATES DEBUG: No matching group found for sport level');
     // Si no encuentra ningún grupo o subgrupo adecuado, retorna null
     return null;
   }
@@ -331,32 +301,20 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     const courseDateGroup = this.courseDatesArray.at(index) as FormGroup;
     const extrasControl = courseDateGroup.get('extras');
 
-    console.log('FLEX DATES DEBUG: Date selection changed:', {
-      index,
-      isChecked,
-      dateValue: courseDateGroup.get('date')?.value,
-      currentFormValid: this.stepForm.valid
-    });
-
     if (isChecked) {
-      console.log('FLEX DATES DEBUG: Checking availability for date index:', index);
 
       // Llamamos a checkAval para verificar la disponibilidad de la fecha seleccionada
       this.checkAval(index).then((isAvailable) => {
-        console.log('FLEX DATES DEBUG: Availability check result:', isAvailable);
 
         if (isAvailable) {
           extrasControl?.enable();
           this.ensureGroupsLoaded(index);
-          console.log('FLEX DATES DEBUG: Date enabled and extras control enabled');
 
           // Feedback positivo
           if (this.snackbar) {
             this.snackbar.open('Fecha seleccionada correctamente', 'OK', { duration: 2000 });
           }
         } else {
-          // Si no hay disponibilidad, deshabilitamos la fecha de nuevo
-          console.log('FLEX DATES DEBUG: Date not available, reverting selection');
 
           // Usamos setTimeout para evitar conflictos con el evento del checkbox
           setTimeout(() => {
@@ -378,7 +336,6 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
         }
       });
     } else {
-      console.log('FLEX DATES DEBUG: Date unselected, disabling extras');
       extrasControl?.disable();
       extrasControl?.setValue([]);
       this.stepForm.updateValueAndValidity();

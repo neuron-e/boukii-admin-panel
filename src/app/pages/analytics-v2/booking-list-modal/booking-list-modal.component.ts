@@ -547,7 +547,6 @@ export class BookingListModalComponent {
 
   // 📤 EXPORTAR TODAS LAS RESERVAS
   exportAll(): void {
-    console.log('Exportando todas las reservas del modal:', this.filteredBookings.length);
     this.dialogRef.close({
       action: 'export',
       data: this.filteredBookings,
@@ -558,7 +557,6 @@ export class BookingListModalComponent {
 
   // 👁️ VER DETALLES DE RESERVA
   viewDetails(booking: any): void {
-    console.log('Ver detalles de reserva:', booking.id);
     this.dialogRef.close({
       action: 'view_details',
       booking: booking
@@ -567,7 +565,6 @@ export class BookingListModalComponent {
 
   // 📤 EXPORTAR RESERVA INDIVIDUAL
   exportBooking(booking: any): void {
-    console.log('Exportar reserva individual:', booking.id);
     this.dialogRef.close({
       action: 'export_single',
       booking: booking,
@@ -579,7 +576,6 @@ export class BookingListModalComponent {
   copyBookingId(booking: any): void {
     if (booking.id && navigator.clipboard) {
       navigator.clipboard.writeText(booking.id.toString()).then(() => {
-        console.log('ID de reserva copiado:', booking.id);
         // Aquí podrías mostrar un snackbar o toast
       }).catch(err => {
         console.error('Error copiando ID:', err);

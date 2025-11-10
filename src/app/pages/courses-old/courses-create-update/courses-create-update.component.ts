@@ -2928,7 +2928,6 @@ n  // Variables para los selectores de horario masivo
    * Open timing modal for subgroup students (cronometraje)
    */
   openTimingModal(subGroup: any, groupLevel: any): void {
-    console.log('openTimingModal called in courses-create-update with:', { subGroup, groupLevel });
 
     if (!subGroup || !groupLevel) {
       console.error('No hay datos de subgrupo o nivel para mostrar tiempos.');
@@ -2990,11 +2989,9 @@ n  // Variables para los selectores de horario masivo
       });
 
       ref.afterOpened().subscribe(() => {
-        console.log('Timing modal abierto exitosamente desde courses-create-update');
       });
 
       ref.afterClosed().subscribe(result => {
-        console.log('Modal cerrado con resultado:', result);
       });
     } catch (error) {
       console.error('Error al abrir modal desde courses-create-update:', error);
