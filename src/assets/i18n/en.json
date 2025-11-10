@@ -1676,5 +1676,10 @@
   "communications.inactive": "Inactive",
   "communications.no_subscribers": "No subscribers",
   "communications.no_subscribers_desc": "No subscribers found for this group",
-  "communications.error_loading_subscribers": "Error loading subscriber list"
+  "communications.error_loading_subscribers": "Error loading subscriber list",
+  "enable_interval_discounts": "Enable interval discounts",
+  "interval_discount": "Interval Discounts",
+  "interval_discount_explanation": "Discounts will apply only to bookings for this specific interval",
+  "interval_discounts_config": "Interval Discounts Configuration",
+  "add_interval_discount": "Add Interval Discount"
 }

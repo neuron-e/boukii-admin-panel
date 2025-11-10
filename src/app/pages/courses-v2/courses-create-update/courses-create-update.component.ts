@@ -165,6 +165,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
   // Discount system properties
   enableMultiDateDiscounts = false;
   discountsByDates: any[] = [];
+  enableIntervalDiscounts = false; // Para habilitar descuentos específicos por intervalo
 
   // Flag to prevent sync during bulk schedule application
   private _applyingBulkSchedule = false;
@@ -4185,6 +4186,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
           this.intervals = Array.isArray(intervalGroups) ? intervalGroups : [];
 
+          // Detectar si algún intervalo tiene descuentos y habilitar el toggle
+          component.enableIntervalDiscounts = this.intervals.some(interval =>
+            interval.discounts && Array.isArray(interval.discounts) && interval.discounts.length > 0
+          );
+
+          console.log('📊 Interval discounts detected:', component.enableIntervalDiscounts);
+
           // FORZAR detección de cambios para que Angular actualice la vista
           this.cdr.detectChanges();
 
@@ -4346,6 +4354,31 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.updateDiscountsInForm();
   }
 
+  onIntervalDiscountChange(): void {
+    console.log('🎯 Interval discount toggle changed:', this.enableIntervalDiscounts);
+
+    if (this.enableIntervalDiscounts) {
+      // Inicializar descuentos para cada intervalo si no tienen
+      this.intervals.forEach((interval, index) => {
+        if (!interval.discounts || interval.discounts.length === 0) {
+          interval.discounts = [
+            { dates: 2, type: 'percentage', value: 10 }
+          ];
+          console.log(`✅ Initialized default discount for interval ${index + 1}`);
+        }
+      });
+    } else {
+      // Limpiar descuentos de todos los intervalos
+      this.intervals.forEach((interval, index) => {
+        interval.discounts = [];
+        console.log(`🗑️ Cleared discounts for interval ${index + 1}`);
+      });
+    }
+
+    // Sincronizar cambios
+    this.syncIntervalsToCourseFormGroup();
+  }
+
   addNewDiscount(): void {
     const lastDiscount = this.discountsByDates[this.discountsByDates.length - 1];
     const newDates = lastDiscount ? lastDiscount.dates + 1 : 2;
@@ -4430,6 +4463,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Interval discounts management methods
   addIntervalDiscount(intervalIndex: number): void {
+    console.log('➕ Adding discount to interval', intervalIndex);
+
     if (!this.intervals[intervalIndex].discounts) {
       this.intervals[intervalIndex].discounts = [];
     }
@@ -4444,11 +4479,23 @@ export class CoursesCreateUpdateComponent implements OnInit {
     });
 
     this.validateIntervalDiscounts(intervalIndex);
+
+    // Sincronizar con el FormArray para guardar cambios
+    this.syncIntervalsToCourseFormGroup();
+
+    console.log('✅ Discount added, total discounts for interval:', this.intervals[intervalIndex].discounts.length);
   }
 
   removeIntervalDiscount(intervalIndex: number, discountIndex: number): void {
+    console.log('🗑️ Removing discount', discountIndex, 'from interval', intervalIndex);
+
     if (this.intervals[intervalIndex].discounts && this.intervals[intervalIndex].discounts.length > 1) {
       this.intervals[intervalIndex].discounts.splice(discountIndex, 1);
+
+      // Sincronizar con el FormArray para guardar cambios
+      this.syncIntervalsToCourseFormGroup();
+
+      console.log('✅ Discount removed, remaining discounts:', this.intervals[intervalIndex].discounts.length);
     }
   }
 
@@ -4469,6 +4516,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
       datesSet.add(discount.dates);
       return true;
     });
+
+    // Sincronizar con el FormArray para guardar cambios
+    this.syncIntervalsToCourseFormGroup();
   }
 
   hasIntervalDiscounts(): boolean {

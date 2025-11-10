@@ -1783,5 +1783,10 @@
   "export_monitor": "Exportar Monitor",
   "loading_monitor_detail": "Cargando detalle del monitor...",
   "remove_level": "Eliminar nivel",
-  "remove_subgroup": "Eliminar subgrupo"
+  "remove_subgroup": "Eliminar subgrupo",
+  "enable_interval_discounts": "Habilitar descuentos por intervalo",
+  "interval_discount": "Descuentos del Intervalo",
+  "interval_discount_explanation": "Los descuentos se aplicarán solo a las reservas de este intervalo específico",
+  "interval_discounts_config": "Configuración de Descuentos del Intervalo",
+  "add_interval_discount": "Añadir Descuento al Intervalo"
 }

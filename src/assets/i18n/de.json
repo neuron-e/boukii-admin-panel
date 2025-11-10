@@ -1777,5 +1777,10 @@
   "communications.inactive": "Inaktiv",
   "communications.no_subscribers": "Keine Abonnenten",
   "communications.no_subscribers_desc": "Keine Abonnenten für diese Gruppe gefunden",
-  "communications.error_loading_subscribers": "Fehler beim Laden der Abonnentenliste"
+  "communications.error_loading_subscribers": "Fehler beim Laden der Abonnentenliste",
+  "enable_interval_discounts": "Intervallrabatte aktivieren",
+  "interval_discount": "Intervallrabatte",
+  "interval_discount_explanation": "Rabatte gelten nur für Buchungen für dieses spezifische Intervall",
+  "interval_discounts_config": "Konfiguration der Intervallrabatte",
+  "add_interval_discount": "Intervallrabatt hinzufügen"
 }

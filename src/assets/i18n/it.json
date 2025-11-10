@@ -1678,5 +1678,10 @@
   "communications.inactive": "Inattivo",
   "communications.no_subscribers": "Nessun iscritto",
   "communications.no_subscribers_desc": "Nessun iscritto trovato per questo gruppo",
-  "communications.error_loading_subscribers": "Errore nel caricamento della lista iscritti"
+  "communications.error_loading_subscribers": "Errore nel caricamento della lista iscritti",
+  "enable_interval_discounts": "Abilita sconti per intervallo",
+  "interval_discount": "Sconti dell'Intervallo",
+  "interval_discount_explanation": "Gli sconti si applicheranno solo alle prenotazioni per questo intervallo specifico",
+  "interval_discounts_config": "Configurazione Sconti dell'Intervallo",
+  "add_interval_discount": "Aggiungi Sconto all'Intervallo"
 }

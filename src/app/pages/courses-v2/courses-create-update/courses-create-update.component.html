@@ -240,6 +240,80 @@
             {{'interval_global_settings_info' | translate}}
           </div>
 
+          <!-- Configuraci├│n de descuentos globales por m├║ltiples fechas (solo para cursos flexibles) -->
+          <div *ngIf="courses.courseFormGroup.controls['is_flexible'].value" style="margin-top: 16px; padding: 16px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+            <h5 style="color: #495057; font-size: 15px; font-weight: 600; margin-bottom: 12px;">
+              <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d; font-size: 18px;">local_offer</mat-icon>
+              {{ 'multidate_discount' | translate }}
+            </h5>
+
+            <mat-checkbox [(ngModel)]="enableMultiDateDiscounts" (change)="onMultiDateDiscountChange()" style="margin-bottom: 12px;">
+              <span style="font-weight: 500; color: #495057;">
+                {{ 'enable_multidate_discounts' | translate }}
+              </span>
+            </mat-checkbox>
+
+            <div *ngIf="enableMultiDateDiscounts" style="margin-top: 16px;">
+              <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 12px;">
+                <mat-icon style="font-size: 14px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
+                {{ 'multidate_discount_explanation' | translate }}
+              </div>
+
+              <!-- Lista de descuentos por n├║mero de fechas -->
+              <div *ngFor="let discount of discountsByDates; let i = index" class="discount-item" style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+                <div style="min-width: 100px;">
+                  <label style="font-size: 12px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ 'dates_quantity' | translate }}
+                  </label>
+                  <input type="number"
+                         [(ngModel)]="discount.dates"
+                         min="2"
+                         max="20"
+                         style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;"
+                         (change)="validateDiscountDates()">
+                </div>
+
+                <div style="min-width: 90px;">
+                  <label style="font-size: 12px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ 'discount_type' | translate }}
+                  </label>
+                  <select [(ngModel)]="discount.type"
+                          style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;">
+                    <option value="percentage">{{ 'percentage' | translate }}</option>
+                    <option value="fixed">{{ 'fixed_amount' | translate }}</option>
+                  </select>
+                </div>
+
+                <div style="min-width: 100px;">
+                  <label style="font-size: 12px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
+                  </label>
+                  <input type="number"
+                         [(ngModel)]="discount.value"
+                         [min]="discount.type === 'percentage' ? 1 : 0.01"
+                         [max]="discount.type === 'percentage' ? 100 : 9999"
+                         step="0.01"
+                         style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px;">
+                </div>
+
+                <button type="button"
+                        *ngIf="discountsByDates.length > 1"
+                        (click)="removeDiscount(i)"
+                        style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 6px; cursor: pointer; min-width: 32px; height: 32px; margin-top: 18px;">
+                  <mat-icon style="font-size: 16px;">delete</mat-icon>
+                </button>
+              </div>
+
+              <!-- Bot├│n para agregar m├ís descuentos -->
+              <button type="button"
+                      (click)="addNewDiscount()"
+                      style="border: 1px solid #007bff; color: #007bff; background: white; border-radius: 4px; height: 34px; padding: 0 14px; margin-top: 8px; font-size: 13px;">
+                <mat-icon style="vertical-align: middle; margin-right: 4px; font-size: 16px;">add</mat-icon>
+                {{ 'add_discount_by_date' | translate }}
+              </button>
+            </div>
+          </div>
+
           <!-- Bot├│n para aplicar configuraci├│n global a todos los intervalos -->
           <div *ngIf="useMultipleIntervals && intervals && intervals.length > 1" style="margin-top: 12px;">
             <button mat-raised-button color="primary" (click)="applyGlobalConfigToAllIntervals()"
@@ -508,6 +582,93 @@
                 {{'schedule_will_apply_to_dates' | translate}}: {{interval?.dates?.length}} {{'dates' | translate}}
               </div>
             </div>
+
+            <!-- Configuración de descuentos por intervalo (solo si hay múltiples intervalos) -->
+            <div *ngIf="useMultipleIntervals && courses.courseFormGroup.controls['is_flexible'].value"
+                 style="margin: 20px; padding: 20px; background-color: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;">
+
+              <!-- Toggle para habilitar descuentos -->
+              <div style="margin-bottom: 16px;">
+                <mat-checkbox [(ngModel)]="enableIntervalDiscounts"
+                              (change)="onIntervalDiscountChange()"
+                              style="margin-bottom: 8px;">
+                  <span style="font-weight: 600; color: #f57c00; font-size: 15px;">
+                    {{ 'enable_interval_discounts' | translate }}
+                  </span>
+                </mat-checkbox>
+                <div style="margin-left: 28px; font-size: 12px; color: #6c757d;">
+                  <mat-icon style="font-size: 14px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
+                  {{ 'interval_discount_explanation' | translate }}
+                </div>
+              </div>
+
+              <!-- Sección de descuentos (solo si está habilitado) -->
+              <div *ngIf="enableIntervalDiscounts">
+                <h4 class="mb-3" style="color: #f57c00; font-size: 14px; font-weight: 600; margin-bottom: 12px; margin-top: 16px;">
+                  <mat-icon style="vertical-align: middle; margin-right: 8px; color: #f57c00; font-size: 18px;">sell</mat-icon>
+                  {{ 'interval_discounts_config' | translate }}
+                </h4>
+
+              <!-- Lista de descuentos para este intervalo -->
+              <div *ngFor="let discount of interval.discounts || []; let discIdx = index"
+                   class="discount-item"
+                   style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 12px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+                <div style="min-width: 120px;">
+                  <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ 'dates_quantity' | translate }}
+                  </label>
+                  <input type="number"
+                         [(ngModel)]="discount.dates"
+                         min="2"
+                         max="20"
+                         style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                         (change)="validateIntervalDiscounts(i)">
+                </div>
+
+                <div style="min-width: 100px;">
+                  <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ 'discount_type' | translate }}
+                  </label>
+                  <select [(ngModel)]="discount.type"
+                          (ngModelChange)="validateIntervalDiscounts(i)"
+                          style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                    <option value="percentage">{{ 'percentage' | translate }}</option>
+                    <option value="fixed">{{ 'fixed_amount' | translate }}</option>
+                  </select>
+                </div>
+
+                <div style="min-width: 120px;">
+                  <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
+                    {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
+                  </label>
+                  <input type="number"
+                         [(ngModel)]="discount.value"
+                         (ngModelChange)="validateIntervalDiscounts(i)"
+                         [min]="discount.type === 'percentage' ? 1 : 0.01"
+                         [max]="discount.type === 'percentage' ? 100 : 9999"
+                         step="0.01"
+                         style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                </div>
+
+                <button type="button"
+                        *ngIf="(interval.discounts || []).length > 1"
+                        (click)="removeIntervalDiscount(i, discIdx)"
+                        style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; min-width: 36px; height: 36px;">
+                  <mat-icon style="font-size: 18px;">delete</mat-icon>
+                </button>
+              </div>
+
+                <!-- Bot├│n para agregar descuento al intervalo -->
+                <button type="button"
+                        (click)="addIntervalDiscount(i)"
+                        style="border: 1px solid #f57c00; color: #f57c00; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px; margin-top: 8px;">
+                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
+                  {{ 'add_interval_discount' | translate }}
+                </button>
+              </div>
+              <!-- Fin sección descuentos habilitados -->
+            </div>
+            <!-- Fin configuración descuentos intervalo -->
           </div>
 
           <!-- Bot├│n para a├▒adir nuevo intervalo (solo en modo m├║ltiple) -->
@@ -519,87 +680,6 @@
               {{'add_new_interval' | translate}}
             </button>
 
-          </div>
-        </div>
-
-        <!-- Secci├│n de descuentos para modo Single Interval -->
-        <div *ngIf="isSingleIntervalMode && courses.courseFormGroup.controls['is_flexible'].value"
-             style="background: white; border: 1px solid #DEE6EA; border-radius: 8px; margin-bottom: 20px;">
-          <div style="background-color: var(--color-grey4);height: 20px;width: 100%;"></div>
-          <div>
-            <!-- Configuraci├│n de descuentos por m├║ltiples fechas -->
-            <div class="discount-configuration" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
-              <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
-                <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">local_offer</mat-icon>
-                {{ 'multidate_discount' | translate }}
-              </h4>
-
-              <mat-checkbox [(ngModel)]="enableMultiDateDiscounts" (change)="onMultiDateDiscountChange()" style="margin-bottom: 16px;">
-                <span style="font-weight: 500; color: #495057;">
-                  {{ 'enable_multidate_discounts' | translate }}
-                </span>
-              </mat-checkbox>
-
-              <div *ngIf="enableMultiDateDiscounts" style="margin-top: 16px;">
-                <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;">
-                  <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">info</mat-icon>
-                  {{ 'multidate_discount_explanation' | translate }}
-                </div>
-
-                <!-- Lista de descuentos por n├║mero de fechas -->
-                <div *ngFor="let discount of discountsByDates; let i = index" class="discount-item" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 12px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
-                  <div style="min-width: 120px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ 'dates_quantity' | translate }}
-                    </label>
-                    <input type="number"
-                           [(ngModel)]="discount.dates"
-                           min="2"
-                           max="20"
-                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
-                           (change)="validateDiscountDates()">
-                  </div>
-
-                  <div style="min-width: 100px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ 'discount_type' | translate }}
-                    </label>
-                    <select [(ngModel)]="discount.type"
-                            style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
-                      <option value="percentage">{{ 'percentage' | translate }}</option>
-                      <option value="fixed">{{ 'fixed_amount' | translate }}</option>
-                    </select>
-                  </div>
-
-                  <div style="min-width: 120px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
-                    </label>
-                    <input type="number"
-                           [(ngModel)]="discount.value"
-                           [min]="discount.type === 'percentage' ? 1 : 0.01"
-                           [max]="discount.type === 'percentage' ? 100 : 9999"
-                           step="0.01"
-                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
-                  </div>
-
-                  <button type="button"
-                          *ngIf="discountsByDates.length > 1"
-                          (click)="removeDiscount(i)"
-                          style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; min-width: 36px; height: 36px;">
-                    <mat-icon style="font-size: 18px;">delete</mat-icon>
-                  </button>
-                </div>
-
-                <!-- Bot├│n para agregar m├ís descuentos -->
-                <button type="button"
-                        (click)="addNewDiscount()"
-                        style="border: 1px solid #007bff; color: #007bff; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px; margin-top: 8px;">
-                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
-                  {{ 'add_discount_by_date' | translate }}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -768,85 +848,6 @@
             <div style="margin-top: 12px; font-size: 13px; color: #6c757d; display: flex; align-items: center;">
               <mat-icon style="font-size: 14px; margin-right: 4px; color: #6c757d;">info</mat-icon>
               {{'schedule_will_apply_to_dates' | translate}}: {{courses.courseFormGroup.controls['course_dates'].value.length}} {{'dates' | translate}}
-            </div>
-          </div>
-
-          <!-- C├│digo existente para descuentos y configuraci├│n flexible -->
-          <div *ngIf="courses.courseFormGroup.controls['is_flexible'].value"
-               style="background-color: var(--color-grey4);height: 20px;width: 100%;"></div>
-          <div *ngIf="courses.courseFormGroup.controls['is_flexible'].value">
-            <!-- Configuraci├│n de descuentos por m├║ltiples fechas -->
-            <div class="discount-configuration" style="margin: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;">
-              <h4 class="mb-3" style="color: #495057; font-size: 16px; font-weight: 600; margin-bottom: 16px;">
-                <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d;">local_offer</mat-icon>
-                {{ 'multidate_discount' | translate }}
-              </h4>
-
-              <mat-checkbox [(ngModel)]="enableMultiDateDiscounts" (change)="onMultiDateDiscountChange()" style="margin-bottom: 16px;">
-                <span style="font-weight: 500; color: #495057;">
-                  {{ 'enable_multidate_discounts' | translate }}
-                </span>
-              </mat-checkbox>
-
-              <div *ngIf="enableMultiDateDiscounts" style="margin-top: 16px;">
-                <div class="alert alert-info" style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;">
-                  <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 6px;">info</mat-icon>
-                  {{ 'multidate_discount_explanation' | translate }}
-                </div>
-
-                <!-- Lista de descuentos por n├║mero de fechas -->
-                <div *ngFor="let discount of discountsByDates; let i = index" class="discount-item" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 12px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
-                  <div style="min-width: 120px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ 'dates_quantity' | translate }}
-                    </label>
-                    <input type="number"
-                           [(ngModel)]="discount.dates"
-                           min="2"
-                           max="20"
-                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
-                           (change)="validateDiscountDates()">
-                  </div>
-
-                  <div style="min-width: 100px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ 'discount_type' | translate }}
-                    </label>
-                    <select [(ngModel)]="discount.type"
-                            style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
-                      <option value="percentage">{{ 'percentage' | translate }}</option>
-                      <option value="fixed">{{ 'fixed_amount' | translate }}</option>
-                    </select>
-                  </div>
-
-                  <div style="min-width: 120px;">
-                    <label style="font-size: 14px; color: #495057; margin-bottom: 4px; display: block;">
-                      {{ discount.type === 'percentage' ? ('percentage' | translate) : ('amount' | translate) }}
-                    </label>
-                    <input type="number"
-                           [(ngModel)]="discount.value"
-                           [min]="discount.type === 'percentage' ? 1 : 0.01"
-                           [max]="discount.type === 'percentage' ? 100 : 9999"
-                           step="0.01"
-                           style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
-                  </div>
-
-                  <button type="button"
-                          *ngIf="discountsByDates.length > 1"
-                          (click)="removeDiscount(i)"
-                          style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 8px; cursor: pointer; min-width: 36px; height: 36px;">
-                    <mat-icon style="font-size: 18px;">delete</mat-icon>
-                  </button>
-                </div>
-
-                <!-- Bot├│n para agregar m├ís descuentos -->
-                <button type="button"
-                        (click)="addNewDiscount()"
-                        style="border: 1px solid #007bff; color: #007bff; background: transparent; border-radius: 4px; height: 38px; padding: 0 16px; margin-top: 8px;">
-                  <mat-icon style="vertical-align: middle; margin-right: 5px; font-size: 18px;">add</mat-icon>
-                  {{ 'add_discount_by_date' | translate }}
-                </button>
-              </div>
             </div>
           </div>
         </ng-container>

@@ -1777,5 +1777,10 @@
   "communications.inactive": "Inactif",
   "communications.no_subscribers": "Aucun abonné",
   "communications.no_subscribers_desc": "Aucun abonné trouvé pour ce groupe",
-  "communications.error_loading_subscribers": "Erreur lors du chargement de la liste des abonnés"
+  "communications.error_loading_subscribers": "Erreur lors du chargement de la liste des abonnés",
+  "enable_interval_discounts": "Activer les réductions par intervalle",
+  "interval_discount": "Réductions de l'Intervalle",
+  "interval_discount_explanation": "Les réductions s'appliqueront uniquement aux réservations pour cet intervalle spécifique",
+  "interval_discounts_config": "Configuration des Réductions de l'Intervalle",
+  "add_interval_discount": "Ajouter une Réduction à l'Intervalle"
 }
