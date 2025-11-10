@@ -3378,13 +3378,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
       console.log('💾 After setting FormArray, course_dates has:', courseDatesArray.length, 'dates');
 
+      // Forzar actualización inmediata del FormArray para que se refleje en la UI
+      courseDatesArray.updateValueAndValidity({ emitEvent: true });
+      courseDatesArray.markAsDirty();
+
+      // Forzar detección de cambios para actualizar vex-course-detail-card inmediatamente
+      this.cdr.detectChanges();
+
+      console.log('✅ FormArray updated and change detection triggered');
+
+      // Ejecutar getDegrees() en el siguiente ciclo para no bloquear la UI
       setTimeout(() => {
-        console.log('⏱️ setTimeout callback - course_dates before updateValueAndValidity:', this.courses.courseFormGroup.get('course_dates')?.value?.length);
-        this.courses.courseFormGroup.controls['course_dates'].updateValueAndValidity();
-        console.log('⏱️ setTimeout callback - course_dates before getDegrees:', this.courses.courseFormGroup.get('course_dates')?.value?.length);
         this.getDegrees();
-        console.log('⏱️ setTimeout callback - course_dates after getDegrees:', this.courses.courseFormGroup.get('course_dates')?.value?.length);
-      }, 100);
+      }, 0);
     } else {
       console.log('⚠️ generatedCourseDates.length is 0, NOT patching');
     }
@@ -3462,11 +3468,20 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // Validar cambios en fechas de intervalos
   validateAndUpdateIntervalDate(intervalIndex: number, dateIndex: number, newDate: string) {
-    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
+    console.log('📅 validateAndUpdateIntervalDate called:', { intervalIndex, dateIndex, newDate });
+
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) {
+      console.warn('⚠️ Invalid intervalIndex:', intervalIndex);
+      return;
+    }
     const interval = this.intervals[intervalIndex];
-    if (dateIndex < 0 || dateIndex >= interval.dates.length) return;
+    if (dateIndex < 0 || dateIndex >= interval.dates.length) {
+      console.warn('⚠️ Invalid dateIndex:', dateIndex);
+      return;
+    }
 
     const oldDate = interval.dates[dateIndex].date;
+    console.log('📅 Changing date from', oldDate, 'to', newDate);
     interval.dates[dateIndex].date = newDate;
 
     // Obtener todas las fechas existentes para validaci├│n
@@ -3477,25 +3492,44 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     if (validationErrors.length > 0) {
       // Revertir el cambio si hay errores
+      console.warn('⚠️ Validation errors, reverting date change');
       interval.dates[dateIndex].date = oldDate;
       const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
     } else {
       // Sincronizar con el formulario si la validaci├│n pasa
+      console.log('✅ Validation passed, syncing to FormGroup');
       this.syncIntervalsToCourseFormGroup();
     }
   }
 
   // Validar cambios en horas de intervalos
   validateAndUpdateIntervalHour(intervalIndex: number, dateIndex: number, newHour: string) {
-    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return;
+    console.log('🕐 validateAndUpdateIntervalHour called:', { intervalIndex, dateIndex, newHour });
+
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) {
+      console.warn('⚠️ Invalid intervalIndex:', intervalIndex);
+      return;
+    }
     const interval = this.intervals[intervalIndex];
-    if (dateIndex < 0 || dateIndex >= interval.dates.length) return;
+    if (dateIndex < 0 || dateIndex >= interval.dates.length) {
+      console.warn('⚠️ Invalid dateIndex:', dateIndex);
+      return;
+    }
 
     const oldHour = interval.dates[dateIndex].hour_start;
+    console.log('🕐 Changing hour from', oldHour, 'to', newHour);
     interval.dates[dateIndex].hour_start = newHour;
 
-    // Obtener todas las fechas existentes para validaci├│n
+    // Recalcular hour_end basado en la nueva hora y duración actual
+    const duration = interval.dates[dateIndex].duration;
+    if (duration) {
+      const newHourEnd = this.courses.addMinutesToTime(newHour, duration);
+      interval.dates[dateIndex].hour_end = newHourEnd;
+      console.log('🕐 Recalculated hour_end:', newHourEnd);
+    }
+
+    // Obtener todas las fechas existentes para validación
     const allDates = this.generateCourseDatesFromIntervals(this.intervals);
     const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(allDates)
@@ -3503,11 +3537,60 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     if (validationErrors.length > 0) {
       // Revertir el cambio si hay errores
+      console.warn('⚠️ Validation errors, reverting hour change');
       interval.dates[dateIndex].hour_start = oldHour;
       const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
     } else {
-      // Sincronizar con el formulario si la validaci├│n pasa
+      // Sincronizar con el formulario si la validación pasa
+      console.log('✅ Validation passed, syncing to FormGroup');
+      this.syncIntervalsToCourseFormGroup();
+    }
+  }
+
+  // Validar cambios en duración de intervalos
+  validateAndUpdateIntervalDuration(intervalIndex: number, dateIndex: number, newDuration: string) {
+    console.log('⏱️ validateAndUpdateIntervalDuration called:', { intervalIndex, dateIndex, newDuration });
+
+    if (intervalIndex < 0 || intervalIndex >= this.intervals.length) {
+      console.warn('⚠️ Invalid intervalIndex:', intervalIndex);
+      return;
+    }
+    const interval = this.intervals[intervalIndex];
+    if (dateIndex < 0 || dateIndex >= interval.dates.length) {
+      console.warn('⚠️ Invalid dateIndex:', dateIndex);
+      return;
+    }
+
+    const oldDuration = interval.dates[dateIndex].duration;
+    console.log('⏱️ Changing duration from', oldDuration, 'to', newDuration);
+    interval.dates[dateIndex].duration = newDuration;
+
+    // Recalcular hour_end basado en hour_start y nueva duración
+    const hourStart = interval.dates[dateIndex].hour_start;
+    if (hourStart) {
+      const newHourEnd = this.courses.addMinutesToTime(hourStart, newDuration);
+      interval.dates[dateIndex].hour_end = newHourEnd;
+      console.log('⏱️ Recalculated hour_end from', hourStart, '+', newDuration, '=', newHourEnd);
+    }
+
+    console.log('⏱️ Updated interval.dates[' + dateIndex + ']:', interval.dates[dateIndex]);
+
+    // Obtener todas las fechas existentes para validación
+    const allDates = this.generateCourseDatesFromIntervals(this.intervals);
+    const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
+      this.convertToCourseDateInfos(allDates)
+    );
+
+    if (validationErrors.length > 0) {
+      // Revertir el cambio si hay errores
+      console.warn('⚠️ Validation errors, reverting duration change');
+      interval.dates[dateIndex].duration = oldDuration;
+      const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
+      this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+    } else {
+      // Sincronizar con el formulario si la validación pasa
+      console.log('✅ Validation passed, syncing to FormGroup');
       this.syncIntervalsToCourseFormGroup();
     }
   }
@@ -4819,6 +4902,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   applyBulkScheduleToIntervalInline(intervalIndex: number): void {
+    console.log('🔄 applyBulkScheduleToIntervalInline called for interval', intervalIndex);
 
     // Activar flag para prevenir interferencias durante la aplicaci├│n
     this._applyingBulkSchedule = true;
@@ -4832,10 +4916,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
       return;
     }
 
+    console.log('🔄 Applying bulk schedule:', { startTime, duration });
     const success = this.applyBulkScheduleToInterval(intervalIndex, startTime, duration);
 
     // Resetear flag al final de la operaci├│n
     this._applyingBulkSchedule = false;
+
+    // CRÍTICO: Sincronizar con el FormArray ahora que el flag está resetado
+    if (success) {
+      console.log('✅ Bulk schedule applied successfully, now syncing to FormGroup');
+      this.syncIntervalsToCourseFormGroup();
+    } else {
+      console.warn('⚠️ Bulk schedule application failed');
+    }
   }
 
   // Variables para los selectores de horario masivo para fechas individuales
@@ -4844,31 +4937,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   // M├®todos para aplicar horario masivo a fechas individuales
   applyBulkScheduleToIndividualDates(): void {
-
-    // Activar flag para prevenir sync durante la aplicaci├│n
-    this._applyingBulkSchedule = true;
+    console.log('🔄 applyBulkScheduleToIndividualDates called');
 
     const startTime = this.getIndividualScheduleStartTime();
     const duration = this.getIndividualScheduleDuration();
 
     if (!startTime || !duration) {
       this.showErrorMessage('Por favor, selecciona la hora de inicio y duraci├│n');
-      this._applyingBulkSchedule = false;
       return;
     }
 
-    // NUEVO ENFOQUE: Actualizar directamente las fechas en los intervalos
-    // en lugar de usar patchValue que puede estar causando duplicaciones
-    this.updateIntervalDatesDirectly(startTime, duration);
+    console.log('🔄 Applying bulk schedule to all dates:', { startTime, duration });
 
-    this.snackBar.open(`Horario aplicado exitosamente a todas las fechas`, 'OK', { duration: 3000 });
-
-    // Resetear flag al final de la operaci├│n exitosa
-    this._applyingBulkSchedule = false;
-  }
-
-  // NUEVA FUNCI├ôN: Actualizar fechas directamente en los intervalos
-  private updateIntervalDatesDirectly(startTime: string, duration: string): void {
+    // Actualizar directamente las fechas en los intervalos
     if (!this.intervals || this.intervals.length === 0) {
       return;
     }
@@ -4879,16 +4960,18 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
 
       interval.dates.forEach((date: any) => {
-        // Actualizar directamente los valores
         date.hour_start = startTime;
         date.duration = duration;
         date.hour_end = this.courses.addMinutesToTime(startTime, duration);
       });
     });
 
-    // Restaurar sync
+    // Sincronizar con el FormArray
     this.syncIntervalsToCourseFormGroup();
 
+    this.snackBar.open(`Horario aplicado exitosamente a todas las fechas`, 'OK', { duration: 3000 });
+
+    console.log('✅ Bulk schedule applied to all individual dates');
   }
 
   // M├®todos para manejar los selectores inline de horario para fechas individuales

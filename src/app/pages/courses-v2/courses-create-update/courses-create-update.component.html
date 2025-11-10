@@ -441,8 +441,7 @@
                 </app-form-select>
                 <app-form-select [value]="date.duration"
                                  [required]="true" [table]="courses.duration"
-                                 (do)="date.duration=$event.option.value;
-                                     date.hour_end=courses.addMinutesToTime(date.hour_start, $event.option.value)"
+                                 (do)="validateAndUpdateIntervalDuration(i, j, $event.option.value)"
                                  style="min-width: 0;width: 100%;" label="duration">
                 </app-form-select>
               </div>
