@@ -14,6 +14,7 @@ import {MatRadioModule} from '@angular/material/radio';
 import {MatSelectModule} from '@angular/material/select';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import {FormsModule} from '@angular/forms';
 import { CancelBookginModalModule } from '../cancel-booking/cancel-booking.module';
 import { CancelPartialBookginModalModule } from '../cancel-partial-booking/cancel-partial-booking.module';
@@ -37,6 +38,7 @@ import { CancelPartialBookginModalModule } from '../cancel-partial-booking/cance
     MatSelectModule,
     MatCardModule,
     MatIconModule,
+    MatCheckboxModule,
     FormsModule,
     CancelBookginModalModule,
     CancelPartialBookginModalModule

@@ -49,6 +49,16 @@ export class BookingDetailV2Component implements OnInit {
 
   activitiesChanged$ = this.activitiesChangedSubject.asObservable();
 
+  get showConfirmationWithoutPaymentOption(): boolean {
+    if (!this.bookingData) {
+      return true;
+    }
+    if (this.bookingData?.paid) {
+      return false;
+    }
+    return Number(this.bookingData?.payment_method_id) !== 5;
+  }
+
   private buildDirectPaymentOptions(): Array<{ id: PaymentMethodId; label: string }> {
     const offlineIds: PaymentMethodId[] = [1, 2, 4];
     return this.paymentMethods
@@ -206,13 +216,45 @@ export class BookingDetailV2Component implements OnInit {
     });
 
     dialogRef.componentInstance.payActivity.subscribe(() => {
-      dialogRef.close()
-      this.payModal = true;
+      dialogRef.close();
+      this.handlePayClick();
     });
 
     dialogRef.componentInstance.closeClick.subscribe(() => {
       dialogRef.close();
     });
+  }
+
+  handlePayClick(): void {
+    if (this.bookingService.calculatePendingPrice() === 0) {
+      this.finalizeBooking();
+      return;
+    }
+
+    this.preparePaymentModalState();
+    this.payModal = true;
+  }
+
+  private preparePaymentModalState(): void {
+    this.step = 1;
+    this.isPaid = false;
+
+    if (!this.paymentOptions.length) {
+      this.paymentOptions = this.buildDirectPaymentOptions();
+    }
+
+    const fallbackOption = this.paymentOptions[0] ?? null;
+
+    if (!this.showConfirmationWithoutPaymentOption && this.paymentMethod === 4) {
+      this.paymentMethod = 1;
+      this.selectedPaymentOptionId = fallbackOption?.id ?? null;
+      this.selectedPaymentOptionLabel = fallbackOption?.label ?? '';
+    }
+
+    if (this.paymentMethod === 1 && !this.selectedPaymentOptionId && fallbackOption) {
+      this.selectedPaymentOptionId = fallbackOption.id;
+      this.selectedPaymentOptionLabel = fallbackOption.label;
+    }
   }
 
 

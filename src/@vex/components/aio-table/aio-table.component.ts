@@ -1380,6 +1380,271 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     }
   }
 
+  resolveDurationDisplay(row: any, fallbackDates: any, property: string): string {
+    const summary = this.buildDurationSummary(row, fallbackDates);
+    if (summary) {
+      return summary;
+    }
+
+    const directValue = this.normalizeDurationLabel(row?.[property] ?? row?.duration);
+    if (directValue) {
+      return directValue;
+    }
+
+    return this.translateService.instant('duration_not_available');
+  }
+
+  private buildDurationSummary(row: any, fallbackDates: any): string {
+    const collected = this.extractDurationsFromDates(row?.course_dates);
+
+    if (!collected.length && fallbackDates && fallbackDates !== row?.course_dates) {
+      collected.push(...this.extractDurationsFromDates(fallbackDates));
+    }
+
+    const uniqueDurations = Array.from(new Set(collected)).filter(Boolean);
+    if (!uniqueDurations.length) {
+      return '';
+    }
+
+    if (uniqueDurations.length === 1) {
+      return uniqueDurations[0];
+    }
+
+    if (uniqueDurations.length === 2) {
+      return `${uniqueDurations[0]} / ${uniqueDurations[1]}`;
+    }
+
+    const label = this.translateService.instant('variable_duration');
+    return `${label} (${uniqueDurations.length})`;
+  }
+
+  private extractDurationsFromDates(source: any): string[] {
+    const dates = this.ensureArray(source);
+    const durations: string[] = [];
+
+    dates.forEach(date => {
+      const dateDuration = this.resolveDurationLabel(date);
+      if (dateDuration) {
+        durations.push(dateDuration);
+      }
+
+      const subgroupDurations = this.collectSubgroupDurations(date);
+      if (subgroupDurations.length) {
+        durations.push(...subgroupDurations);
+      }
+    });
+
+    return durations;
+  }
+
+  private collectSubgroupDurations(date: any): string[] {
+    const results: string[] = [];
+    if (!date) {
+      return results;
+    }
+
+    const inlineSubgroups = this.ensureArray(date?.course_subgroups ?? date?.courseSubgroups);
+    inlineSubgroups.forEach(sub => {
+      const label = this.resolveDurationLabel(sub);
+      if (label) {
+        results.push(label);
+      }
+    });
+
+    const grouped = this.ensureArray(date?.course_groups);
+    grouped.forEach(group => {
+      const subgroups = this.ensureArray(group?.course_subgroups ?? group?.subgroups);
+      subgroups.forEach(sub => {
+        const label = this.resolveDurationLabel(sub);
+        if (label) {
+          results.push(label);
+        }
+      });
+    });
+
+    return results;
+  }
+
+  private resolveDurationLabel(item: any): string | null {
+    if (!item) {
+      return null;
+    }
+
+    const explicit = this.normalizeDurationLabel(
+      item?.duration ??
+      item?.course_duration ??
+      item?.duration_label ??
+      item?.durationLabel
+    );
+
+    if (explicit) {
+      return explicit;
+    }
+
+    const numericDuration =
+      this.normalizeDurationValue(item?.duration_minutes) ??
+      this.normalizeDurationValue(item?.duration_value) ??
+      this.normalizeDurationValue(item?.duration);
+
+    if (numericDuration) {
+      return this.formatDurationFromMinutes(numericDuration);
+    }
+
+    const rangeMinutes = this.calculateMinutesFromRange(
+      item?.hour_start ?? item?.hourStart,
+      item?.hour_end ?? item?.hourEnd
+    );
+
+    if (rangeMinutes) {
+      return this.formatDurationFromMinutes(rangeMinutes);
+    }
+
+    return null;
+  }
+
+  private normalizeDurationLabel(value: any): string | null {
+    if (value == null) {
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      return this.formatDurationFromMinutes(value);
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+        const minutes = this.normalizeDurationValue(trimmed);
+        return minutes ? this.formatDurationFromMinutes(minutes) : null;
+      }
+
+      return trimmed.replace(/\s+/g, ' ');
+    }
+
+    return null;
+  }
+
+  private normalizeDurationValue(value: any): number | null {
+    if (typeof value === 'number') {
+      return value > 0 ? value : null;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      if (/^\d+$/.test(trimmed)) {
+        const numeric = Number(trimmed);
+        return numeric > 0 ? numeric : null;
+      }
+
+      const colonMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (colonMatch) {
+        const hours = Number(colonMatch[1]) || 0;
+        const minutes = Number(colonMatch[2]) || 0;
+        const seconds = Number(colonMatch[3]) || 0;
+        const total = hours * 60 + minutes + Math.round(seconds / 60);
+        return total > 0 ? total : null;
+      }
+
+      const hourMinuteMatch = trimmed.match(/^(\d+)\s*h(?:\s*(\d+)\s*(?:m|min)?)?$/i);
+      if (hourMinuteMatch) {
+        const hours = Number(hourMinuteMatch[1]) || 0;
+        const minutes = Number(hourMinuteMatch[2]) || 0;
+        const total = hours * 60 + minutes;
+        return total > 0 ? total : null;
+      }
+
+      const minuteMatch = trimmed.match(/^(\d+)\s*(?:m|min)$/i);
+      if (minuteMatch) {
+        const total = Number(minuteMatch[1]) || 0;
+        return total > 0 ? total : null;
+      }
+    }
+
+    return null;
+  }
+
+  private calculateMinutesFromRange(start: string, end: string): number | null {
+    const startMinutes = this.parseHourToMinutes(start);
+    const endMinutes = this.parseHourToMinutes(end);
+
+    if (startMinutes == null || endMinutes == null) {
+      return null;
+    }
+
+    const diff = endMinutes - startMinutes;
+    return diff > 0 ? diff : null;
+  }
+
+  private parseHourToMinutes(value: string): number | null {
+    if (!value || typeof value !== 'string') {
+      return null;
+    }
+
+    const normalized = value.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const parsed = moment(normalized, ['HH:mm:ss', 'HH:mm'], true);
+    if (!parsed.isValid()) {
+      return null;
+    }
+
+    return parsed.hour() * 60 + parsed.minute();
+  }
+
+  private formatDurationFromMinutes(minutes: number): string {
+    if (!minutes || minutes <= 0) {
+      return '';
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+
+    if (hours && remaining) {
+      return `${hours}h ${remaining}min`;
+    }
+
+    if (hours) {
+      return `${hours}h`;
+    }
+
+    return `${remaining}min`;
+  }
+
+  private ensureArray<T = any>(value: any): T[] {
+    if (!value) {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      return value as T[];
+    }
+
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      return [value as T];
+    }
+
+    return [];
+  }
+
   getSportName(id) {
     return this.sports.find((s) => s.id === id)
   }

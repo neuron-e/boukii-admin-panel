@@ -1036,10 +1036,8 @@
             <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
-            <td *matCellDef="let row;let i = index" [ngClass]="column.cssClasses" mat-cell>
-              {{ row[column.property] ?
-              row[column.property] : (getShortestDuration(data[i]?.course_dates) | translate)
-              }}
+            <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
+              {{ resolveDurationDisplay(row, data[i]?.course_dates, column.property) }}
             </td>
           </ng-container>
         </ng-container>

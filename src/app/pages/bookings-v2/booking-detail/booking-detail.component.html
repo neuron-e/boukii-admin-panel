@@ -59,7 +59,7 @@
                                        (deleteActivity)="processFullDelete()"
                                        (endClick)="endModal=true"
                                        (closeClick)="closeModal()"
-                                       (payClick)="bookingService.calculatePendingPrice() === 0 ? finalizeBooking() : payModal=true">
+                                        (payClick)="handlePayClick()">
     </booking-detail-reservation-detail>
   </div>
 </div>
@@ -91,7 +91,7 @@
       type="button"
       class="client-button"
       [disabled]="bookingData?.paid"
-      (click)="payModal = true">
+      (click)="handlePayClick()">
       {{  (bookingData?.paid ? "ispaid" : "to_pay") | translate }}
     </button>
   </div>
@@ -173,7 +173,7 @@
         <strong>{{ selectedPaymentOptionLabel || resolvePaymentLabel(determinePaymentMethodId()) }}</strong>
       </p>
 
-      <mat-checkbox [(ngModel)]="isPaid" color="primary">
+      <mat-checkbox name="paymentConfirmation" [(ngModel)]="isPaid" color="primary">
         {{ "confirm_payment_received" | translate }}
       </mat-checkbox>
 
@@ -184,7 +184,7 @@
 
     <!-- Paso 1: Selección de método de pago -->
     <div *ngIf="step === 1" style="margin: 10px 0;">
-      <mat-radio-group [(ngModel)]="paymentMethod" (change)="onPaymentMethodChange($event)">
+      <mat-radio-group name="paymentMethod" [(ngModel)]="paymentMethod" (change)="onPaymentMethodChange($event)">
         <mat-radio-button [value]="1" style="display: block;">
           {{"direct_payment" | translate}}  <!-- Efectivo / Tarjeta -->
         </mat-radio-button>
@@ -192,7 +192,7 @@
         <div *ngIf="paymentMethod === 1" style="margin: 10px 0;">
           <mat-form-field appearance="fill">
             <mat-label>{{"select_payment_method" | translate}}</mat-label>
-            <mat-select [(ngModel)]="selectedPaymentOptionId"
+            <mat-select name="paymentOption" [(ngModel)]="selectedPaymentOptionId"
                         (selectionChange)="onPaymentOptionSelectionChange($event.value)">
               <mat-option *ngFor="let option of paymentOptions" [value]="option.id" >
                 {{option.label}}
@@ -204,7 +204,9 @@
         <mat-radio-button [value]="3" style="display: block;">
           {{"online_payment" | translate}}  <!-- Online Payment -->
         </mat-radio-button>
-        <mat-radio-button [value]="4" style="display: block;">
+        <mat-radio-button *ngIf="showConfirmationWithoutPaymentOption"
+                          [value]="4"
+                          style="display: block;">
           {{"payment_no_payment" | translate}}
         </mat-radio-button>
       </mat-radio-group>
@@ -225,7 +227,7 @@
               color="primary"
               mat-raised-button
               type="button">
-        {{ paymentMethod === 3 ? 'end_reserve_pay' : (paymentMethod === 4 ? 'mails.type4' : 'continue') | translate }}
+        {{ (paymentMethod === 3 ? 'end_reserve_pay' : paymentMethod === 4 ? 'mails.type4' : 'continue') | translate }}
       </button>
     </ng-container>
 
