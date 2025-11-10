@@ -909,6 +909,8 @@
   "add_forfait_message": "¿Está seguro de que quiere añadir este forfait a la reserva?",
   "delete_forfait": "Eliminar forfait",
   "delete_forfait_message": "¿Está seguro de que quiere eliminar este forfait a la reserva?",
+  "forfaits": "Forfaits",
+  "boukii_care": "Boukii Care",
   "_DESACTIVADO_add_boukii_care": "Aplicar boukii care",
   "_DESACTIVADO_add_boukii_care_message": "¿Quieres añadir boukii care a la reserva?",
   "add_insurance": "Aplicar seguro de cancelación",

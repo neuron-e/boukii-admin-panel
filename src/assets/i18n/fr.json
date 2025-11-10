@@ -927,6 +927,8 @@
   "add_forfait_message": "Etes-vous sûr de vouloir ajouter ce forfait de ski à votre réservation ?",
   "delete_forfait": "Supprimer le forfait de ski",
   "delete_forfait_message": "Etes-vous sûr de vouloir supprimer ce forfait de ski de la réservation ?",
+  "forfaits": "Forfaits",
+  "boukii_care": "Boukii Care",
   "_DESACTIVADO_add_boukii_care": "Appliquer Boukii Care",
   "_DESACTIVADO_add_boukii_care_message": "Vous souhaitez ajouter boukii care à la réservation ?",
   "add_insurance": "Souscrire une assurance annulation",

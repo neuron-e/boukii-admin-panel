@@ -25,7 +25,7 @@
           <mat-form-field appearance="outline" class="client-search-container">
             <mat-label>{{'client' | translate}}</mat-label>
             <input type="text" placeholder="{{'choose_client' | translate}}" aria-label="Number" matInput
-              [formControl]="clientsForm" [matAutocomplete]="auto" [(ngModel)]="defaults.client_main_id" />
+              [formControl]="clientsForm" [matAutocomplete]="auto" [(ngModel)]="defaults.client_main_id" name="client_main_id" />
             <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn">
               <mat-option *ngFor="let filteredClient of filteredOptions | async" [value]="filteredClient"
                 (onSelectionChange)="getUtilzers(filteredClient, false, $event)">
@@ -166,7 +166,7 @@
           <mat-form-field appearance="outline" class="flex-auto" style="width: 50%; float:left"
             *ngIf="courseType !== null && courseType === 'privee' && !loadingCalendar">
             <input matInput id="dateFromPrivate" [matDatepicker]="pickerDateFrom" formControlName="fromDate"
-              [min]="minDate" (click)="pickerDateFrom.open()" [(ngModel)]="selectedDatePrivate"
+              [min]="minDate" (click)="pickerDateFrom.open()" [(ngModel)]="selectedDatePrivate" name="selectedDatePrivate"
               (dateChange)="emitDateChange($event)" (dateInput)="emitDateChange($event, true)" readonly />
             <mat-datepicker-toggle matSuffix [for]="pickerDateFrom"></mat-datepicker-toggle>
             <mat-datepicker #pickerDateFrom [startAt]="selectedDatePrivate" [calendarHeaderComponent]="customHeader"
@@ -268,18 +268,17 @@
             <ng-container>
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                 <div class="flex-auto">
-                  <mat-checkbox color="accent" [(ngModel)]="periodUnique" formControlName="periodUnique"
+                  <mat-checkbox color="accent" formControlName="periodUnique"
                     (change)="periodMultiple = false; periodUnique =true; resetCourseDates()">{{'bookings_page.same_date'
                     | translate}}</mat-checkbox>
                 </div>
                 <div class="flex-auto">
-                  <mat-checkbox color="accent" [(ngModel)]="periodMultiple" formControlName="periodMultiple"
+                  <mat-checkbox color="accent" formControlName="periodMultiple"
                     (change)="periodMultiple = true; periodUnique =false">{{'bookings_page.multiple_date'
                     | translate}}</mat-checkbox>
                 </div>
                 <div class="flex-auto">
-                  <mat-checkbox color="accent" [(ngModel)]="sameMonitor"
-                    formControlName="sameMonitor">{{'bookings_page.same_monitor'
+                  <mat-checkbox color="accent" formControlName="sameMonitor">{{'bookings_page.same_monitor'
                     | translate}}</mat-checkbox>
                 </div>
               </div>
@@ -2536,6 +2535,7 @@
                          <mat-slide-toggle
                            color="primary"
                            [(ngModel)]="defaults.has_cancellation_insurance"
+                           name="has_cancellation_insurance"
                            (change)="calculateRem($event)"
                            [disabled]="isNanValue(this.cancellationInsurance)"
                            style="float: right;"
@@ -2545,10 +2545,11 @@
                          style="float: left;width: 100%;"
                          *ngIf="!isNanValue(this.boukiiCarePrice) && this.boukiiCarePrice > 0"
                        >
-                         <p style="float: left;">Boukii Care</p>
+                         <p style="float: left;">{{'boukii_care' | translate}}</p>
                          <mat-slide-toggle
                            color="primary"
                            [(ngModel)]="defaults.has_boukii_care"
+                           name="has_boukii_care"
                            (change)="calculateBoukiiCare($event)"
                            [disabled]="isNanValue(this.boukiiCarePrice)"
                            style="float: right;"
@@ -2572,7 +2573,7 @@
               <ng-container *ngFor="let item of bookingsToCreate; let i = index">
                 <span *ngIf="item.courseDates[0].course.course_type == 1">
                   <span style="width: 100%; float:left" *ngIf="item.forfait">
-                    <p style="float:left">Forfaits
+                    <p style="float:left">{{'forfaits' | translate}}
                       {{item.courseDates[0].course.name}}</p>
                     <p style="float:right">
                       {{(item.forfait.price * item.courseDates.length *
@@ -2586,7 +2587,7 @@
                 </span>
                 <span *ngIf="item.courseDates[0].course.course_type == 2">
                   <span style="width: 100%; float:left" *ngIf="calculateForfaitPriceBookingPrivate(item)">
-                    <p style="float:left">Forfaits {{
+                    <p style="float:left">{{'forfaits' | translate}} {{
                       item.courseDates[0].date
                       | date: "fullDate":"":translateService.currentLang
                       }}
@@ -2604,7 +2605,7 @@
               <span class="mat-divider"
                 style="border-top-color: white;                float: left;                width: 100%;"></span>
               <span style="width: 100%; float:left; margin-bottom: 10px;">
-                <p style="float:left">Subtotal</p>
+                <p style="float:left">{{'subtotal' | translate}}</p>
                 <p style="float:right">
                   {{ getBasePrice() +
                   calculateAllForfaitPriceBookingPrivate() }}
@@ -2653,7 +2654,7 @@
               </span>
 
               <span style="width: 100%; float:left" *ngIf="defaults.has_boukii_care">
-                <p style="float:left">Boukii Care</p>
+                <p style="float:left">{{'boukii_care' | translate}}</p>
                 <p style="float:right">
                   {{(this.boukiiCarePrice * getBookingPaxes() *
                   getBookingDates())| number:'0.2-2'}}
@@ -2731,42 +2732,43 @@
 
             <mat-divider class="text-border" style="margin: 10px 0 10px 0"></mat-divider>
             <div class="square-buttons-container">
-              <!--<button
-                mat-raised-button
-                color="accent"
-                class="square-button"
-                (click)="selectedButton='1';selectedSubButton='0';"
-                [class.selected]="selectedButton==='1'"
-                *ngIf="(bookingService.editData.price - finalPrice) > 0"
-              >
-                {{'payment_direct' | translate}}
-              </button>
-              <button
-                mat-raised-button
-                color="accent"
-                class="square-button"
-                (click)="selectedButton='2';selectedSubButton='0';defaults.payment_method_id = 3"
-                [class.selected]="selectedButton==='2'"
-                *ngIf="(bookingService.editData.price - finalPrice) > 0"
-              >
-                {{'payment_online' | translate}}
-              </button>-->
+              <!-- Show "Confirm without payment" only if booking is NOT already confirmed -->
               <button mat-raised-button color="accent" class="square-button"
                 (click)="selectedButton='3';selectedSubButton='0';defaults.payment_method_id = 5"
-                [class.selected]="selectedButton==='3'">
+                [class.selected]="selectedButton==='3'"
+                *ngIf="bookingService.editData.booking.status !== 1">
                 {{'confirm' | translate}}
               </button>
+
+              <!-- Show payment methods if booking is already confirmed -->
+              <ng-container *ngIf="bookingService.editData.booking.status === 1">
+                <button
+                  mat-raised-button
+                  color="accent"
+                  class="square-button"
+                  (click)="selectedButton='1';selectedSubButton='0';"
+                  [class.selected]="selectedButton==='1'">
+                  {{'payment_direct' | translate}}
+                </button>
+                <button
+                  mat-raised-button
+                  color="accent"
+                  class="square-button"
+                  (click)="selectedButton='2';selectedSubButton='0';defaults.payment_method_id = 3"
+                  [class.selected]="selectedButton==='2'">
+                  {{'payment_online' | translate}}
+                </button>
+              </ng-container>
             </div>
             <mat-divider class="text-border" style="margin: 10px 0 10px 0"></mat-divider>
-            <!--   <div class="square-buttons-container" *ngIf="selectedButton==='1'">
+            <!-- Payment method selection when confirmed booking -->
+            <div class="square-buttons-container" *ngIf="selectedButton==='1'">
               <button
                 mat-raised-button
                 color="accent"
                 class="square-button"
                 (click)="selectedSubButton='1';defaults.payment_method_id = 1"
-                [class.selected]="selectedSubButton==='1'"
-                *ngIf="(bookingService.editData.price - finalPrice) > 0"
-              >
+                [class.selected]="selectedSubButton==='1'">
                 {{'payment_cash' | translate}}
               </button>
               <button
@@ -2774,8 +2776,7 @@
                 color="accent"
                 class="square-button"
                 (click)="selectedSubButton='2'; defaults.payment_method_id = 4"
-                [class.selected]="selectedSubButton==='2'"
-              >
+                [class.selected]="selectedSubButton==='2'">
                 {{'payment_other' | translate}}
               </button>
               <button
@@ -2783,13 +2784,11 @@
                 color="accent"
                 class="square-button"
                 (click)="selectedSubButton='3'; defaults.payment_method_id = 2"
-                [class.selected]="selectedSubButton==='3'"
-                *ngIf="(bookingService.editData.price - finalPrice) > 0"
-              >
+                [class.selected]="selectedSubButton==='3'">
                 {{ schoolService.getPaymentProvider() === 'payyo' ? ('payment_payyo' | translate) : 'Boukii Pay' }}
               </button>
-            </div>-->
-            <!--            <mat-divider
+            </div>
+            <mat-divider
               *ngIf="selectedSubButton==='1' || selectedSubButton==='2'"
               class="text-border"
               style="margin: 10px 0 10px 0"
@@ -2803,6 +2802,7 @@
               <mat-slide-toggle
                 color="primary"
                 [(ngModel)]="defaults.paid"
+                name="paid"
                 style="float: right;"
               ></mat-slide-toggle>
             </div>
@@ -2836,7 +2836,7 @@
               >
                 {{'confirm_email' |translate}}
               </button>
-            </div>-->
+            </div>
             <div class="square-buttons-container" *ngIf="selectedButton==='3'">
               <button style="width:100%" mat-raised-button color="primary" class="square-button" (click)="create()">
                 {{'confirm_booking' | translate }}
