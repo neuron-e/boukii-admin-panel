@@ -385,11 +385,109 @@ export class ClientDetailComponent {
             this.myControlStations.setValue(this.stations.find((s) => s.id === this.defaults.active_station)?.name);
             this.myControlCountries.setValue(this.countries.find((c) => c.id === +this.defaults.country));
             this.myControlProvinces.setValue(this.provinces.find((c) => c.id === +this.defaults.province));
+            this.patchForms();
 
             this.loading = false;
           });
 
         }))
+  }
+
+  private patchForms(): void {
+    this.patchAccountForm();
+    this.patchPersonalInfoForm();
+    this.patchOtherInfoForm();
+  }
+
+  private patchAccountForm(): void {
+    if (!this.formInfoAccount) {
+      return;
+    }
+
+    this.formInfoAccount.patchValue({
+      image: this.defaults?.image || '',
+      first_name: this.defaults?.first_name || '',
+      last_name: this.defaults?.last_name || '',
+      email: this.defaults?.email || '',
+      username: this.defaultsUser?.username || '',
+      password: ''
+    }, { emitEvent: false });
+  }
+
+  private patchPersonalInfoForm(): void {
+    if (!this.formPersonalInfo) {
+      return;
+    }
+
+    this.formPersonalInfo.patchValue({
+      fromDate: this.formatDateForInput(this.defaults?.birth_date),
+      phone: this.defaults?.telephone || '',
+      mobile: this.defaults?.phone || '',
+      address: this.defaults?.address || '',
+      postalCode: this.defaults?.cp || ''
+    }, { emitEvent: false });
+  }
+
+  private patchOtherInfoForm(): void {
+    if (!this.formOtherInfo) {
+      return;
+    }
+
+    this.formOtherInfo.patchValue({
+      summary: this.defaultsObservations?.general || '',
+      notes: this.defaultsObservations?.notes || '',
+      hitorical: this.defaultsObservations?.historical || ''
+    }, { emitEvent: false });
+  }
+
+  private formatDateForInput(value: any): string | null {
+    if (!value) {
+      return null;
+    }
+
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.substring(0, 10);
+    }
+
+    const parsed = new Date(value);
+    if (isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
+    const day = `${parsed.getDate()}`.padStart(2, '0');
+    return `${parsed.getFullYear()}-${month}-${day}`;
+  }
+
+  private syncFormsToModel(): void {
+    if (this.formInfoAccount) {
+      const account = this.formInfoAccount.getRawValue();
+      this.defaults.first_name = account.first_name?.trim() || this.defaults.first_name;
+      this.defaults.last_name = account.last_name?.trim() || this.defaults.last_name;
+      this.defaults.email = account.email?.trim() || this.defaults.email;
+      this.defaultsUser.username = account.username?.trim() || this.defaultsUser.username;
+      if (account.password && account.password.trim().length > 0) {
+        this.defaultsUser.password = account.password.trim();
+      } else {
+        this.defaultsUser.password = '';
+      }
+    }
+
+    if (this.formPersonalInfo) {
+      const personal = this.formPersonalInfo.getRawValue();
+      this.defaults.birth_date = personal.fromDate || this.defaults.birth_date;
+      this.defaults.telephone = personal.phone || '';
+      this.defaults.phone = personal.mobile || '';
+      this.defaults.address = personal.address || '';
+      this.defaults.cp = personal.postalCode || '';
+    }
+
+    if (this.formOtherInfo) {
+      const other = this.formOtherInfo.getRawValue();
+      this.defaultsObservations.general = other.summary || '';
+      this.defaultsObservations.notes = other.notes || '';
+      this.defaultsObservations.historical = other.hitorical || '';
+    }
   }
 
   getSchoolSportDegrees() {
@@ -777,6 +875,7 @@ export class ClientDetailComponent {
   };
 
   save() {
+    this.syncFormsToModel();
     this.setLanguages();
 
     if (this.currentImage === this.defaults.image) {
