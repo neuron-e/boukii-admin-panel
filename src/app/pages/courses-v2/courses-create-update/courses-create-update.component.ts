@@ -43,6 +43,16 @@ interface IntervalGroupState {
 
 type IntervalGroupsState = Record<string, IntervalGroupState>;
 
+type WeekDaysState = {
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+};
+
 @Component({
   selector: 'vex-courses-create-update',
   templateUrl: './courses-create-update.component.html',
@@ -161,6 +171,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   private baseIntervalGroupTemplate: IntervalGroupsState = {};
   private intervalGroupSyncHandle: any = null;
+  private readonly weekDayKeys: Array<keyof WeekDaysState> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
   // Discount system properties
   enableMultiDateDiscounts = false;
@@ -171,16 +182,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
   private _applyingBulkSchedule = false;
 
   // Date selection method properties (global fallback)
-  selectedDateMethod: 'consecutive' | 'weekly' | 'manual' = 'consecutive';
-  weeklyPattern: { [key: string]: boolean } = {
-    monday: false,
-    tuesday: false,
-    wednesday: false,
-    thursday: false,
-    friday: false,
-    saturday: false,
-    sunday: false
-  };
+  weeklyPattern: WeekDaysState = this.defaultWeekDays();
   consecutiveDaysCount: number = 5;
   maxSelectableDates: number = 15;
 
@@ -1991,14 +1993,18 @@ export class CoursesCreateUpdateComponent implements OnInit {
     });
 
     // Initialize course_dates with a default entry for new courses
-    this.courses.courseFormGroup.patchValue({
-      course_dates: [{
-        date: new Date(),
-        date_end: new Date(),
-        hour_start: this.courses.hours[0],
-        duration: this.courses.duration[0] // Will be replaced by hour_end for private courses
-      }]
-    });
+    const defaultHourStart = this.courses.courseFormGroup.controls['hour_min']?.value || this.courses.hours[0];
+    const defaultDuration = this.courses.courseFormGroup.controls['duration']?.value || this.courses.duration[0];
+    const defaultCourseDate = {
+      date: new Date(),
+      date_end: new Date(),
+      hour_start: defaultHourStart,
+      hour_end: this.courses.addMinutesToTime(defaultHourStart, defaultDuration) || this.courses.hours?.[1] || defaultHourStart,
+      duration: defaultDuration, // Will be replaced by hour_end for private courses
+      weekDays: this.defaultWeekDays()
+    };
+    this.replaceCourseDatesArray([defaultCourseDate]);
+    this.syncPrivatePeriodsFromForm();
 
     // Initialize intervals array for new courses
     if (!this.intervals || this.intervals.length === 0) {
@@ -2006,6 +2012,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     this.refreshIntervalGroupStateFromSettings();
+    this.syncWeeklyPatternFromSettings();
     this.enforceIntervalGroupAvailability();
 
     this.Confirm(0);
@@ -2078,6 +2085,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
           this.PeriodoFecha = 0; // Default to uniperiod for single period, but user can switch
         }
         this.courses.settcourseFormGroup(this.detailData);
+        this.syncWeeklyPatternFromSettings();
         this.courses.courseFormGroup.patchValue({ extras: this.detailData.course_extras || [] });
 
         // Detectar intervalos automáticamente desde course_dates
@@ -2691,15 +2699,171 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
   }
 
-  selectWeek = (day: string, event: any) => {
-    const settings = this.courses.courseFormGroup.controls['settings'].value
-    if (day === "0") settings.weekDays = { monday: event.checked, tuesday: event.checked, wednesday: event.checked, thursday: event.checked, friday: event.checked, saturday: event.checked, sunday: event.checked }
-    else settings.weekDays[day] = event.checked
-    this.courses.courseFormGroup.patchValue({ settings: settings })
+  private defaultWeekDays(): WeekDaysState {
+    return {
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+      sunday: false
+    };
+  }
+
+  private ensureWeekDaysObject(value: any): WeekDaysState {
+    const base = this.defaultWeekDays();
+    if (!value) {
+      return { ...base };
+    }
+    this.weekDayKeys.forEach(key => {
+      base[key] = !!value[key];
+    });
+    return base;
+  }
+
+  getCourseDateWeekDays(index: number): WeekDaysState {
+    const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
+    const courseDate = courseDates[index];
+    if (courseDate?.weekDays) {
+      return this.ensureWeekDaysObject(courseDate.weekDays);
+    }
+    return this.ensureWeekDaysObject(this.courses.courseFormGroup.controls['settings']?.value?.weekDays);
+  }
+
+  areAllWeekdaysSelected(index: number): boolean {
+    const weekDays = this.getCourseDateWeekDays(index);
+    return this.weekDayKeys.every(day => weekDays[day]);
+  }
+
+  setCourseDateAllWeekdays(index: number, checked: boolean): void {
+    const next = this.defaultWeekDays();
+    this.weekDayKeys.forEach(day => next[day] = checked);
+    this.updateCourseDateWeekDays(index, next);
+  }
+
+  toggleCourseDateWeekday(index: number, day: keyof WeekDaysState | string, checked: boolean): void {
+    const dayKey = day as keyof WeekDaysState;
+    const current = this.getCourseDateWeekDays(index);
+    const next = { ...current, [dayKey]: checked };
+    this.updateCourseDateWeekDays(index, next);
+  }
+
+  private updateCourseDateWeekDays(index: number, nextWeekDays: WeekDaysState): void {
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.controls['course_dates']?.value);
+    if (!courseDates[index]) {
+      return;
+    }
+    courseDates[index].weekDays = nextWeekDays;
+    this.replaceCourseDatesArray(courseDates);
+    this.updateSettingsPeriodsFromCourseDates(courseDates);
+    this.weeklyPattern = nextWeekDays;
+  }
+
+  private isPrivateCourse(): boolean {
+    const courseTypeControl = this.courses?.courseFormGroup?.controls?.['course_type'];
+    const courseType = Number(courseTypeControl?.value);
+    return !isNaN(courseType) && courseType > 1;
+  }
+
+  private getWeekDaysSnapshot(): { [key: string]: boolean } {
+    const settingsValue = this.extractSettingsPayload(this.courses.courseFormGroup.controls['settings']);
+    const weekDays = settingsValue?.weekDays || {};
+    return {
+      monday: !!weekDays.monday,
+      tuesday: !!weekDays.tuesday,
+      wednesday: !!weekDays.wednesday,
+      thursday: !!weekDays.thursday,
+      friday: !!weekDays.friday,
+      saturday: !!weekDays.saturday,
+      sunday: !!weekDays.sunday
+    };
+  }
+
+  private replaceCourseDatesArray(nextCourseDates: any[]): void {
+    const courseDatesArray = this.courses.courseFormGroup.get('course_dates') as FormArray;
+    if (!courseDatesArray) {
+      this.courses.courseFormGroup.patchValue({ course_dates: nextCourseDates });
+      return;
+    }
+
+    while (courseDatesArray.length > 0) {
+      courseDatesArray.removeAt(0);
+    }
+
+    nextCourseDates.forEach(dateData => {
+      courseDatesArray.push(this.fb.control(dateData));
+    });
+
+    courseDatesArray.updateValueAndValidity({ emitEvent: true });
+    courseDatesArray.markAsDirty();
+  }
+
+  private buildPeriodsFromCourseDates(courseDates: any[]): any[] {
+    if (!Array.isArray(courseDates)) {
+      return [];
+    }
+
+    const weekDaysSnapshot = this.getWeekDaysSnapshot();
+
+    return courseDates
+      .map((courseDate: any) => {
+        const start = this.normalizeDateValue(courseDate?.date);
+        const end = this.normalizeDateValue(courseDate?.date_end) || start;
+
+        if (!start) {
+          return null;
+        }
+
+        return {
+          date: start,
+          date_end: end,
+          hour_start: courseDate?.hour_start || this.courses.hours?.[0] || '09:00',
+          hour_end: courseDate?.hour_end
+            || (courseDate?.hour_start
+              ? this.courses.addMinutesToTime(courseDate.hour_start, courseDate.duration || this.courses.courseFormGroup.controls['duration']?.value || '1h 0min')
+              : this.courses.hours?.[1] || '10:00'),
+          active: courseDate?.active !== false,
+          weekDays: courseDate?.weekDays || weekDaysSnapshot
+        };
+      })
+      .filter((period): period is any => !!period);
+  }
+
+  private updateSettingsPeriodsFromCourseDates(courseDates: any[]): void {
+    if (!this.isPrivateCourse()) {
+      return;
+    }
+
+    const currentSettings = this.extractSettingsPayload(this.courses.courseFormGroup.controls['settings']);
+    const periods = this.buildPeriodsFromCourseDates(courseDates);
+    const derivedWeekDays = periods[0]?.weekDays || this.ensureWeekDaysObject(currentSettings?.weekDays);
+    const nextSettings = {
+      ...currentSettings,
+      weekDays: derivedWeekDays,
+      periods
+    };
+
+    this.courses.courseFormGroup.patchValue({
+      settings: nextSettings
+    }, { emitEvent: false });
+  }
+
+  private syncPrivatePeriodsFromForm(): void {
+    if (!this.isPrivateCourse()) {
+      return;
+    }
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.controls['course_dates']?.value);
+    this.updateSettingsPeriodsFromCourseDates(courseDates);
   }
 
   setModalProgress() {
     const courseFormGroup = this.courses.courseFormGroup.getRawValue()
+
+    if (courseFormGroup.course_type !== 1) {
+      courseFormGroup.course_dates = this.normalizeManualCourseDatesForPayload();
+    }
+
     if (courseFormGroup.course_type === 1) {
       this.ModalProgress = [
          { Name: "sport", Modal: 0 },
@@ -2773,6 +2937,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     const courseFormGroup = this.courses.courseFormGroup.getRawValue()
+
+    if (courseFormGroup.course_type !== 1) {
+      courseFormGroup.course_dates = this.normalizeManualCourseDatesForPayload();
+    }
     const conflicts = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(courseFormGroup.course_dates)
     );
@@ -2785,7 +2953,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Si no hay conflictos continuamos con el flujo normal manteniendo la carga ├║til original
     const currentSettings = this.extractSettingsPayload(courseFormGroup.settings);
-    courseFormGroup.settings = currentSettings;
+
+    if (courseFormGroup.course_type !== 1) {
+      courseFormGroup.course_dates = this.normalizeManualCourseDatesForPayload();
+      const privateSettings = this.extractSettingsPayload(this.courses.courseFormGroup.controls['settings']);
+      const mappedPeriods = this.buildPeriodsFromCourseDates(courseFormGroup.course_dates);
+      courseFormGroup.settings = {
+        ...currentSettings,
+        ...privateSettings,
+        periods: mappedPeriods
+      };
+    } else {
+      courseFormGroup.settings = currentSettings;
+    }
 
     if (courseFormGroup.course_type === 1 && this.useMultipleIntervals) {
       // Configurar los intervalos en settings
@@ -2917,6 +3097,38 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   addCourseDate = () => {
     const course_date = this.courses.courseFormGroup.controls['course_dates'].value
+    if (this.isPrivateCourse()) {
+      const nextCourses = this.cloneCourseDates(course_date);
+      const lastPeriod = nextCourses[nextCourses.length - 1];
+      const fallbackDate = this.normalizeDateValue(lastPeriod?.date_end || lastPeriod?.date) || new Date().toISOString().split('T')[0];
+      const defaultDuration = lastPeriod?.duration || this.courses.courseFormGroup.controls['duration']?.value || this.courses.duration?.[0];
+      const defaultStart = this.courses.courseFormGroup.controls['hour_min']?.value || this.courses.hours?.[0] || '09:00';
+      const startHour = lastPeriod?.hour_start || defaultStart;
+      const computedEnd = lastPeriod?.hour_end
+        || (startHour ? this.courses.addMinutesToTime(startHour, defaultDuration) : null)
+        || this.courses.courseFormGroup.controls['hour_max']?.value
+        || this.courses.hours?.[1]
+        || startHour;
+
+      const newPeriod = {
+        ...lastPeriod,
+        id: null,
+        date: fallbackDate,
+        date_end: fallbackDate,
+        hour_start: startHour,
+        hour_end: computedEnd,
+        duration: defaultDuration,
+        active: true,
+        weekDays: this.ensureWeekDaysObject(lastPeriod?.weekDays)
+      };
+
+      nextCourses.push(newPeriod);
+      this.replaceCourseDatesArray(nextCourses);
+      this.updateSettingsPeriodsFromCourseDates(nextCourses);
+      this.snackBar.open(this.translateService.instant('add_date') || 'Periodo añadido', '', { duration: 3000 });
+      return;
+    }
+
     const data = JSON.parse(JSON.stringify(course_date[course_date.length - 1]))
     delete data.id
     const newDate = new Date(course_date[course_date.length - 1].date);
@@ -3229,6 +3441,82 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     return courseDates.map(date => ({ ...date }));
+  }
+
+  private normalizeManualCourseDatesForPayload(): any[] {
+    const courseDatesControl = this.courses.courseFormGroup?.get('course_dates');
+    if (!courseDatesControl) {
+      return [];
+    }
+
+    const rawCourseDates = this.cloneCourseDates(courseDatesControl.value);
+    if (!rawCourseDates.length) {
+      return [];
+    }
+
+    return rawCourseDates
+      .map((courseDate: any, index: number) => {
+        if (!courseDate) {
+          return null;
+        }
+
+        const normalizedDate: any = { ...courseDate };
+        normalizedDate.date = this.normalizeDateValue(courseDate.date);
+        if (courseDate.date_end) {
+          normalizedDate.date_end = this.normalizeDateValue(courseDate.date_end);
+        }
+        normalizedDate.hour_start = courseDate.hour_start || null;
+        normalizedDate.hour_end = courseDate.hour_end
+          || (courseDate.hour_start && courseDate.duration
+            ? this.courses.addMinutesToTime(courseDate.hour_start, courseDate.duration)
+            : null);
+        normalizedDate.duration = courseDate.duration;
+        normalizedDate.order = courseDate.order ?? index + 1;
+
+        if (!Array.isArray(normalizedDate.course_groups)) {
+          normalizedDate.course_groups = [];
+        }
+        if (!Array.isArray(normalizedDate.groups)) {
+          normalizedDate.groups = [];
+        }
+        if (this.isPrivateCourse()) {
+          normalizedDate.weekDays = courseDate.weekDays || this.getWeekDaysSnapshot();
+        }
+
+        delete normalizedDate.$$index;
+        delete normalizedDate.$$hashKey;
+
+        return (normalizedDate.date && normalizedDate.hour_start) ? normalizedDate : null;
+      })
+      .filter((courseDate: any): courseDate is any => !!courseDate);
+  }
+
+  private normalizeDateValue(value: any): string | null {
+    if (!value) {
+      return null;
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString().split('T')[0];
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      if (trimmed.length >= 10 && trimmed[4] === '-' && trimmed[7] === '-') {
+        return trimmed.substring(0, 10);
+      }
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0];
+      }
+      return trimmed;
+    }
+
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed.toISOString().split('T')[0];
   }
 
   private cloneIntervals(intervals: any[] | null | undefined): any[] {
@@ -3613,6 +3901,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
     } else {
       this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+      this.syncPrivatePeriodsFromForm();
     }
   }
 
@@ -3636,6 +3925,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
     } else {
       this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+      this.syncPrivatePeriodsFromForm();
     }
   }
 
@@ -3663,6 +3953,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
     } else {
       this.courses.courseFormGroup.patchValue({ course_dates: courseDates });
+      this.syncPrivatePeriodsFromForm();
     }
   }
 
@@ -4279,6 +4570,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
       // For new courses or dates without ID, delete directly
       courseDates.splice(i, 1);
     }
+    if (this.isPrivateCourse()) {
+      this.replaceCourseDatesArray(courseDates);
+      this.updateSettingsPeriodsFromCourseDates(courseDates);
+    }
   }
   /**
    * Open timing modal for subgroup students (cronometraje)
@@ -4520,6 +4815,32 @@ export class CoursesCreateUpdateComponent implements OnInit {
   // Date generation methods
   toggleWeekday(day: string): void {
     this.weeklyPattern[day] = !this.weeklyPattern[day];
+  }
+
+  private syncWeeklyPatternFromSettings(): void {
+    try {
+      const settings = this.courses.courseFormGroup?.controls?.['settings']?.value;
+      const weekDays = settings?.weekDays || {};
+      this.weeklyPattern = {
+        monday: !!weekDays.monday,
+        tuesday: !!weekDays.tuesday,
+        wednesday: !!weekDays.wednesday,
+        thursday: !!weekDays.thursday,
+        friday: !!weekDays.friday,
+        saturday: !!weekDays.saturday,
+        sunday: !!weekDays.sunday
+      };
+    } catch {
+      this.weeklyPattern = {
+        monday: false,
+        tuesday: false,
+        wednesday: false,
+        thursday: false,
+        friday: false,
+        saturday: false,
+        sunday: false
+      };
+    }
   }
 
   hasSelectedWeekdays(): boolean {
@@ -4825,6 +5146,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     this.snackBar.open('Horario aplicado a todas las fechas exitosamente', 'OK', { duration: 3000 });
+    this.syncPrivatePeriodsFromForm();
   }
 
   applyBulkScheduleToInterval(intervalIndex: number, startTime: string, duration: string): boolean {
@@ -4999,6 +5321,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.syncIntervalsToCourseFormGroup();
 
     this.snackBar.open(`Horario aplicado exitosamente a todas las fechas`, 'OK', { duration: 3000 });
+    this.syncPrivatePeriodsFromForm();
   }
 
   // M├®todos para manejar los selectores inline de horario para fechas individuales

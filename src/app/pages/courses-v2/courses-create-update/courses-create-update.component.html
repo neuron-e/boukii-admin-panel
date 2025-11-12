@@ -868,6 +868,7 @@
             </ng-template>
           </mat-tab>
         </mat-tab-group>
+
         <div style=" display: flex; flex-direction: column;padding: 10px;">
           <ng-container
             *ngFor="let item of courses.courseFormGroup.controls['course_dates'].value;index as i">
@@ -918,6 +919,22 @@
                                label="end_hour">
               </app-form-select>
             </div>
+            <div *ngIf="courses.courseFormGroup.controls['course_type'].value>1"
+                 style="display: flex; flex-wrap: wrap;gap: 16px;margin: 20px 0;">
+              <mat-checkbox
+                (change)="setCourseDateAllWeekdays(i, $event.checked)"
+                [checked]="areAllWeekdaysSelected(i)"
+                style="width: calc(25% - 16px);">
+                {{"full_day" | translate}}
+              </mat-checkbox>
+              <mat-checkbox
+                *ngFor="let item of courses.weekSelect"
+                [checked]="getCourseDateWeekDays(i)[item]"
+                (change)="toggleCourseDateWeekday(i, item, $event.checked)"
+                style="width: calc(25% - 16px); text-transform: capitalize;">
+                {{item | translate}}
+              </mat-checkbox>
+            </div>
           </ng-container>
           <div *ngIf="PeriodoFecha>0">
             <button
@@ -926,16 +943,6 @@
               <mat-icon>add</mat-icon>
               {{'add_date' | translate }}
             </button>
-          </div>
-          <div style="display: flex; flex-wrap: wrap;gap: 16px;margin-bottom: 20px;">
-            <mat-checkbox (change)="selectWeek('0',$event)" style="width: calc(25% - 16px);">
-              {{"full_day" | translate}}
-            </mat-checkbox>
-            <mat-checkbox *ngFor="let item of courses.weekSelect"
-                          [(ngModel)]="courses.courseFormGroup.controls['settings'].value.weekDays[item]"
-                          (change)="selectWeek(item,$event)" style="width: calc(25% - 16px);">
-              {{item | translate}}
-            </mat-checkbox>
           </div>
         </div>
       </ng-container>
