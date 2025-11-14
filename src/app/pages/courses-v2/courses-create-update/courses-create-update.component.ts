@@ -2097,6 +2097,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
         if ((hasMultipleIntervals || hasMultipleIntervalsFromDates) && this.detailData.course_type === 1) {
           // Si no está configurado en settings pero tiene múltiples intervalos en fechas, activar automáticamente
           if (!hasMultipleIntervals && hasMultipleIntervalsFromDates) {
+            // A partir de aquí debemos tratarlo como multi-intervalo para que el resto del flujo funcione
+            hasMultipleIntervals = true;
             this.useMultipleIntervals = true;
             // Añadir al settings para que se detecte correctamente
             if (!this.detailData.settings) {

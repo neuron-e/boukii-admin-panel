@@ -419,7 +419,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
   }
 
   getDiscountCode(): void {
-    this.crudService.get('/discount-codes/' + this.id, ['courses', 'clients']).subscribe({
+    this.crudService.get('/discount-codes/' + this.id).subscribe({
       next: (response: any) => {
         const discount = response?.data;
         if (!discount) {

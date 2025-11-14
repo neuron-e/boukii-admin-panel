@@ -17,6 +17,7 @@ export interface MonitorTransferPayload {
   booking_id?: number | null;
   course_subgroup_id?: number | null;
   course_date_id?: number | null;
+  subgroup_ids?: number[];
 }
 
 @Injectable({

@@ -5,7 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { ApiCrudService } from 'src/service/crud.service';
-import { MonitorsService } from 'src/service/monitors.service';
+import { MonitorTransferPayload, MonitorsService } from 'src/service/monitors.service';
 
 @Component({
   selector: 'vex-flux-disponibilidad',
@@ -84,7 +84,8 @@ export class FluxDisponibilidadComponent implements OnInit {
   async getAvailable(data: any) {
     return await firstValueFrom(this.crudService.post('/admin/monitors/available', data))
   }
-  monitors: any = null
+  monitors: any[] = [];
+  monitorSearchTerm: string = '';
 
   private getUserSubgroupId(user: any): number | null {
     return (user?.course_subgroup_id ??
@@ -186,7 +187,7 @@ export class FluxDisponibilidadComponent implements OnInit {
   selectUser: any[] = []
   async getAvail(item: any) {
     const monitor = await this.getAvailable({ date: item.date, endTime: item.hour_end, minimumDegreeId: this.level.id, sportId: this.courseFormGroup.controls['sport_id'].value, startTime: item.hour_start })
-    this.monitors = monitor.data
+    this.monitors = this.sortMonitorsList(monitor.data || []);
   }
   booking_users: any
 
@@ -434,7 +435,6 @@ export class FluxDisponibilidadComponent implements OnInit {
     const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
     const dates = this.getCourseDates();
     const result = new Set<number>();
-    const levelId = this.level?.id;
 
     indexes.forEach(idx => {
       const date = dates[idx];
@@ -456,6 +456,110 @@ export class FluxDisponibilidadComponent implements OnInit {
     });
 
     return Array.from(result);
+  }
+
+  onMonitorSearchInput(event: Event): void {
+    this.monitorSearchTerm = (event.target as HTMLInputElement)?.value ?? '';
+  }
+
+  get filteredMonitorsForSelect(): any[] {
+    const term = (this.monitorSearchTerm || '').trim().toLowerCase();
+    return (this.monitors || []).filter(monitor => {
+      const label = this.getMonitorDisplayName(monitor).toLowerCase();
+      return !term || label.includes(term);
+    });
+  }
+
+  private sortMonitorsList(list: any[]): any[] {
+    return [...(list || [])].sort((a, b) => {
+      const nameA = this.getMonitorDisplayName(a);
+      const nameB = this.getMonitorDisplayName(b);
+      return nameA.localeCompare(nameB);
+    });
+  }
+
+  private getMonitorDisplayName(monitor: any): string {
+    if (!monitor) return '';
+    const first = monitor.first_name ?? monitor.firstName ?? '';
+    const last = monitor.last_name ?? monitor.lastName ?? '';
+    const combined = `${first} ${last}`.trim();
+    if (combined) return combined;
+    if (monitor.name) return monitor.name;
+    return '';
+  }
+
+  private collectSubgroupIds(indexes: number[]): number[] {
+    const dates = this.getCourseDates();
+    const ids = new Set<number>();
+
+    indexes.forEach(idx => {
+      const date = dates[idx];
+      if (!date) {
+        return;
+      }
+      const subgroup = this.getSubgroupForDate(date);
+      if (subgroup?.id) {
+        ids.add(subgroup.id);
+      }
+    });
+
+    return Array.from(ids);
+  }
+
+  private buildMonitorTransferPayload(monitorId: number | null, indexes: number[]): MonitorTransferPayload {
+    const bookingUserIds = this.collectBookingUserIds(indexes);
+    const { startDate, endDate } = this.resolveAssignmentDateRangeFromIndexes(indexes);
+    const courseDates = this.getCourseDates();
+    const primaryDate = courseDates[indexes[0]] || null;
+    const subgroup = this.getSubgroupForDate(primaryDate);
+    const courseId = this.courseFormGroup?.controls['id']?.value ?? null;
+    const subgroupIds = this.collectSubgroupIds(indexes);
+
+    return {
+      monitor_id: monitorId,
+      booking_users: bookingUserIds,
+      scope: this.assignmentScope,
+      start_date: startDate,
+      end_date: endDate,
+      course_id: courseId,
+      booking_id: null,
+      subgroup_id: subgroup?.id ?? null,
+      course_subgroup_id: subgroup?.id ?? null,
+      course_date_id: primaryDate?.id ?? null,
+      subgroup_ids: subgroupIds
+    };
+  }
+
+  private resolveAssignmentDateRangeFromIndexes(indexes: number[]): { startDate: string | null; endDate: string | null } {
+    if (!indexes.length) {
+      return { startDate: null, endDate: null };
+    }
+
+    const courseDates = this.getCourseDates();
+    const sorted = indexes.slice().sort((a, b) => a - b);
+    const startDate = this.normalizeCourseDateValue(courseDates[sorted[0]]);
+    const endDate = this.normalizeCourseDateValue(courseDates[sorted[sorted.length - 1]]);
+
+    return {
+      startDate,
+      endDate
+    };
+  }
+
+  private normalizeCourseDateValue(date: any): string | null {
+    if (!date) {
+      return null;
+    }
+    const raw = date?.date ?? date?.date_start ?? date?.date_start_res ?? date?.date_end ?? date?.dateEnd ?? date?.dateFormatted ?? date;
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = new Date(raw);
+    if (isNaN(parsed.getTime())) {
+      return typeof raw === 'string' ? raw : null;
+    }
+    return parsed.toISOString().slice(0, 10);
   }
 
   private resolveFallbackSubgroupId(index: number): number | null {
@@ -502,20 +606,23 @@ export class FluxDisponibilidadComponent implements OnInit {
         return [];
       }
 
-      const selectedIntervalId = selectedDate.interval_id;
+      const selectedIntervalId = this.resolveIntervalId(selectedDate);
 
       // Si no hay interval_id, considerar todas las fechas del mismo horario
       if (selectedIntervalId == null) {
         return courseDates
           .map((date, index) => ({ date, index }))
-          .filter(item => item.date.interval_id == null)
+          .filter(item => this.resolveIntervalId(item.date) == null)
           .map(item => item.index);
       }
 
       // Obtener todas las fechas con el mismo interval_id
       return courseDates
         .map((date, index) => ({ date, index }))
-        .filter(item => item.date.interval_id === selectedIntervalId || String(item.date.interval_id) === String(selectedIntervalId))
+        .filter(item => {
+          const intervalId = this.resolveIntervalId(item.date);
+          return intervalId === selectedIntervalId || String(intervalId ?? '') === String(selectedIntervalId ?? '');
+        })
         .map(item => item.index);
     } catch (error) {
       return [];
@@ -683,18 +790,12 @@ export class FluxDisponibilidadComponent implements OnInit {
 
     const { startIndex, endIndex } = this.resolveAssignmentIndexes(selectDate);
     const targetIndexes = this.buildTargetIndexes(startIndex, endIndex);
-    const bookingUserIds = this.collectBookingUserIds(targetIndexes);
+    const payload = this.buildMonitorTransferPayload(selectedMonitor ? selectedMonitor.id : null, targetIndexes);
 
-    let subgroupId: number | null = null;
-    if (!bookingUserIds.length && targetIndexes.length === 1) {
-      subgroupId = this.resolveFallbackSubgroupId(targetIndexes[0]);
+    if (!payload.booking_users.length && !payload.subgroup_id) {
+      this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+      return;
     }
-
-    const payload = {
-      monitor_id: monitorId,
-      booking_users: bookingUserIds,
-      subgroup_id: subgroupId
-    };
 
     try {
       await firstValueFrom(this.monitorsService.transferMonitor(payload));

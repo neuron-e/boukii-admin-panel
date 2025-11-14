@@ -84,7 +84,7 @@
             </div>
           </div>
           <app-form-select
-            [table]="monitors"
+            [table]="filteredMonitorsForSelect"
             [value]="getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor
     ? (getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor?.first_name + ' ' +
        getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor?.last_name)

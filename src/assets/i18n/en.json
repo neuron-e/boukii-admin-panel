@@ -254,6 +254,7 @@
     "scope": {
       "single": "Only this session",
       "interval": "For this interval",
+      "all": "All sessions",
       "from": "From selected date onward",
       "range": "Between two dates"
     },

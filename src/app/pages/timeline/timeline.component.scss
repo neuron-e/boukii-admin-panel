@@ -405,6 +405,121 @@
   border-radius: 4px;
 }
 
+.monitor-bulk-controls {
+  margin-top: 16px;
+}
+
+.monitor-assignment-compact {
+  margin-bottom: 10px;
+
+  .assignment-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .assignment-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-dark2);
+      white-space: nowrap;
+    }
+
+    .mini-select {
+      min-width: 120px;
+      max-width: 160px;
+
+      ::ng-deep {
+        .mat-mdc-form-field-wrapper {
+          padding-bottom: 0;
+          margin-bottom: 0;
+        }
+
+        .mat-mdc-text-field-wrapper {
+          height: 36px;
+        }
+
+        .mat-mdc-form-field-infix {
+          min-height: 36px;
+          padding-top: 6px;
+          padding-bottom: 6px;
+        }
+
+        .mat-mdc-select {
+          font-size: 13px;
+        }
+
+        .mat-mdc-form-field-subscript-wrapper {
+          display: none;
+        }
+
+        .mdc-notched-outline__leading,
+        .mdc-notched-outline__notch,
+        .mdc-notched-outline__trailing {
+          border-color: rgba(0, 0, 0, 0.12);
+        }
+
+        .mat-mdc-option {
+          font-size: 13px;
+          min-height: 40px;
+        }
+      }
+    }
+
+    .days-info {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-dark2);
+      white-space: nowrap;
+    }
+  }
+}
+
+.monitor-search-option {
+  pointer-events: none;
+  margin-top: 4px;
+  margin-bottom: 10px;
+  background: #f7f7fb;
+  border-radius: 14px;
+  padding: 6px 10px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+
+  .monitor-select-search {
+    width: 100%;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  mat-icon {
+    color: #c7c9cf;
+    margin-right: 6px;
+  }
+
+  input.mat-mdc-input-element {
+    padding: 10px 0;
+    font-size: 14px;
+    color: #2b2f3a;
+  }
+}
+
+.monitor-select-search .mat-mdc-form-field-flex {
+  padding: 0;
+  align-items: center;
+}
+
+.monitor-bulk-controls .mat-mdc-select-value {
+  padding-left: 20px;
+}
+
+.monitor-bulk-controls mat-select .mat-mdc-select-value {
+  margin-left: 6px;
+}
+
+.monitor-bulk-controls .mat-mdc-form-field-infix {
+  padding-left: 20px;
+}
+
 .outside-month {
   background-color: #999;
   display: block;
@@ -1117,4 +1232,8 @@
   font-size: 12px;
   font-weight: 600;
   color: white;
+}
+
+.monitor-bulk-controls mat-select .mat-mdc-select-value-text {
+  margin-left: 8px;
 }

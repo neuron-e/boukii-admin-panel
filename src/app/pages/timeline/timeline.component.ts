@@ -147,6 +147,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   monitorAssignmentStartDate: string | null = null;
   monitorAssignmentEndDate: string | null = null;
   monitorAssignmentDates: { value: string, label: string }[] = [];
+  monitorSearchTerm: string = '';
 
   constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private dialog: MatDialog, public translateService: TranslateService,
     private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router) {
@@ -1629,11 +1630,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   private initializeMonitorAssignment(task: any): void {
     // 1) Construye TODAS las fechas del curso para el selector del modal
-    const courseDates = task?.course?.course_dates ?? [];
-    this.monitorAssignmentDates = courseDates.map((cd: any) => ({
-      value: cd.date,
-      label: cd.date
-    }));
+    this.monitorAssignmentDates = this.buildMonitorAssignmentDates(task);
 
     // 2) Scope por defecto
     this.monitorAssignmentScope = 'single';
@@ -1667,14 +1664,20 @@ export class TimelineComponent implements OnInit, OnDestroy {
       return [];
     }
 
-    debugger;
-
     const dateSet = new Set<string>();
+    const normalizedCourseDates = (task?.course?.course_dates ?? [])
+      .map((cd: any) => this.getDateStrFromAny(cd))
+      .filter((d: string | null) => !!d);
+    normalizedCourseDates.forEach(d => dateSet.add(d!));
+
+    const fallbackDates = this.collectCourseDatesForTask(task);
+    fallbackDates.forEach(date => dateSet.add(date));
+
     const relatedTasks = this.getRelatedTasks(task);
 
     relatedTasks
-      .map((related: any) => related?.date)
-      .filter((date: string) => !!date)
+      .map((related: any) => this.getDateStrFromAny(related?.date))
+      .filter((date: string | null) => !!date)
       .forEach((date: string) => dateSet.add(date));
 
     if (task?.date) {
@@ -1693,7 +1696,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
 
     const uniqueDates = Array.from(dateSet).filter(Boolean);
-    uniqueDates.sort((a, b) => a.localeCompare(b));
+    uniqueDates.sort((a, b) => moment(a).diff(moment(b)));
 
     return uniqueDates.map(date => ({
       value: date,
@@ -1830,8 +1833,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     // 1) si la tarea trae booking.course_dates
     const datesFromBooking = (task.booking?.course_dates ?? [])
-      .map((d: any) => d?.date)
-      .filter((d: string) => !!d);
+      .map((d: any) => this.getDateStrFromAny(d))
+      .filter((d: string | null) => !!d);
 
     if (datesFromBooking.length) {
       return Array.from(new Set(datesFromBooking)).sort();
@@ -1843,7 +1846,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     const datesFromPlanner = (Array.isArray(this.plannerTasks) ? this.plannerTasks : [])
       .filter(t => t?.course_id === courseId && t?.date)
-      .map(t => t.date);
+      .map(t => this.getDateStrFromAny(t?.date))
+      .filter((d: string | null) => !!d);
 
     return Array.from(new Set(datesFromPlanner)).sort();
   }
@@ -2033,68 +2037,123 @@ export class TimelineComponent implements OnInit, OnDestroy {
     return Array.from(bookingUserIds);
   }
 
-  getSelectedAssignmentSessionCount(): number {
+  private collectSubgroupIdsForAssignment(): number[] {
     const baseTask = this.taskDetail;
     if (!baseTask) {
-      return 0;
+      return [];
     }
-    const relatedTasks = this.getRelatedTasks(baseTask);
-    const { start, end } = this.resolveAssignmentDateRange();
-    const dates = new Set<string>();
 
+    const { start, end } = this.resolveAssignmentDateRange();
+    const subgroupIds = new Set<number>();
+
+    const addCandidateSubgroup = (candidate: any) => {
+      const subgroupId = candidate?.course_subgroup_id ?? candidate?.subgroup_id ?? null;
+      if (subgroupId != null) {
+        subgroupIds.add(subgroupId);
+      }
+    };
+
+    const relatedTasks = this.getRelatedTasks(baseTask);
     relatedTasks.forEach(candidate => {
       const candidateDate = moment(candidate.date, 'YYYY-MM-DD');
-      if (candidateDate.isValid() && !candidateDate.isBefore(start) && !candidateDate.isAfter(end)) {
-        dates.add(candidate.date);
+      if (!candidateDate.isValid()) {
+        return;
       }
+      if (candidateDate.isBefore(start) || candidateDate.isAfter(end)) {
+        return;
+      }
+      addCandidateSubgroup(candidate);
     });
 
-    if (dates.size === 0 && baseTask.date) {
-      dates.add(baseTask.date);
-    }
+    addCandidateSubgroup(baseTask);
 
-    return dates.size;
+    return Array.from(subgroupIds);
+  }
+
+  getSelectedAssignmentSessionCount(): number {
+    const startValue = this.monitorAssignmentStartDate;
+    const endValue = this.monitorAssignmentEndDate || startValue;
+    if (!startValue) {
+      return 0;
+    }
+    const start = moment(this.getDateStrFromAny(startValue) ?? startValue, 'YYYY-MM-DD');
+    const end = moment(this.getDateStrFromAny(endValue ?? startValue) ?? endValue ?? startValue, 'YYYY-MM-DD');
+    if (!start.isValid() || !end.isValid()) {
+      return 0;
+    }
+    const diff = end.diff(start, 'days');
+    return Math.max(diff + 1, 1);
   }
 
   private buildFullMonitorTransferPayload(monitorId: number | null) {
     const bookingUserIds = this.collectBookingUserIdsForAssignment();
 
-    // Fechas según el scope elegido en el preview (las mismas que usa el modal)
+    // Fechas seg?n el scope elegido en el preview (las mismas que usa el modal)
     const { start, end } = this.resolveAssignmentDateRange();
+
     const startDate = start.format('YYYY-MM-DD');
+
     const endDate   = end.format('YYYY-MM-DD');
 
     // Ids base de la tarea actual
-    const courseId        = this.taskDetail?.course_id ?? this.taskDetail?.course?.id ?? null;
-    const bookingId       = this.taskDetail?.booking_id ?? null;
-    const subgroupId      = this.taskDetail?.course_subgroup_id ?? null;
-    const courseDateId    = this.taskDetail?.course_date_id ?? null;
-    const degreeId        = this.taskDetail?.degree?.id ?? null;
+    const ctx = this.taskDetail || {};
+    const courseId        = ctx.course_id ?? ctx.course?.id ?? null;
+    const bookingId       = ctx.booking_id ?? null;
+    const subgroupId      = ctx.course_subgroup_id ?? null;
+    const courseDateId    = ctx.course_date_id ?? null;
+    const degreeId        = ctx.degree?.id ?? null;
 
-    // fallback (como tenías antes) si no hay BU’s ni subgroup explícito
+    // fallback (como ten?as antes) si no hay BUs ni subgroup expl?cito
     let fallbackSubgroupId = subgroupId;
+
     if (!bookingUserIds.length && !fallbackSubgroupId) {
-      if (!this.taskDetail?.all_clients?.length && this.taskDetail?.booking_id) {
-        fallbackSubgroupId = this.taskDetail.booking_id; // (ojo: tu backend lo llama subgroup_id; aquí mantenemos por compat)
+      if (!ctx.all_clients?.length && ctx.booking_id) {
+        fallbackSubgroupId = ctx.booking_id; // (ojo: tu backend lo llama subgroup_id; aqu? mantenemos por compat)
       }
+
     }
 
+    const scope = this.monitorAssignmentScope;
+    const subgroupIdsSet = new Set<number>(this.collectSubgroupIdsForAssignment());
+
+    if (ctx.course_subgroup_id != null) {
+      subgroupIdsSet.add(ctx.course_subgroup_id);
+    }
+
+    if (fallbackSubgroupId != null) {
+      subgroupIdsSet.add(fallbackSubgroupId);
+    }
+
+    if (scope === 'all' && ctx.course_id) {
+      this.collectCourseSubgroupIdsForTask(ctx).forEach(id => subgroupIdsSet.add(id));
+    }
+
+    if (!bookingUserIds.length && subgroupIdsSet.size === 0 && !ctx.all_clients?.length && ctx.booking_id) {
+      subgroupIdsSet.add(ctx.booking_id);
+      ctx.booking_id = null;
+    }
+
+    const subgroupIds = Array.from(subgroupIdsSet);
+
+    const subgroupIdToUse = subgroupIds[0] ?? fallbackSubgroupId ?? null;
+
     return {
-      // lo que ya tenías
       monitor_id: monitorId,
       booking_users: bookingUserIds,
 
-      // NUEVO: el backend los espera
-      scope: this.monitorAssignmentScope,              // 'single'|'interval'|'all'|'from'|'range'
+      scope,              // 'single'|'interval'|'all'|'from'|'range'
       start_date: startDate,
       end_date: endDate,
       course_id: courseId,
       booking_id: bookingId,
-      subgroup_id: fallbackSubgroupId,                 // en el backend lo recoges como subgroup_id
+      subgroup_id: subgroupIdToUse,                 // en el backend lo recoges como subgroup_id
+      course_subgroup_id: subgroupIdToUse ?? null,
       course_date_id: courseDateId,
-      degree_id: degreeId
+      degree_id: degreeId,
+      subgroup_ids: subgroupIds
     };
   }
+
 
   saveEditedMonitor() {
     const monitorId = this.editedMonitor ? this.editedMonitor.id : null;
@@ -2706,6 +2765,76 @@ export class TimelineComponent implements OnInit, OnDestroy {
       })
   }
 
+  onMonitorSearchInput(event: Event): void {
+    this.monitorSearchTerm = (event.target as HTMLInputElement)?.value ?? '';
+  }
+
+  get filteredMonitorOptions(): any[] {
+    const term = (this.monitorSearchTerm || '').trim().toLowerCase();
+    const monitors = Array.isArray(this.monitorsForm) ? this.monitorsForm : [];
+    const filtered = monitors.filter(monitor => {
+      const name = this.getMonitorDisplayName(monitor).toLowerCase();
+      return !term || name.includes(term);
+    });
+    return filtered.sort((a, b) => {
+      const nameA = this.getMonitorDisplayName(a);
+      const nameB = this.getMonitorDisplayName(b);
+      return nameA.localeCompare(nameB);
+    });
+  }
+
+  private collectCourseSubgroupIdsForTask(task: any): number[] {
+    if (!task) return [];
+    const subgroupIds = new Set<number>();
+    const addId = (value: any) => {
+      const numeric = Number(value);
+      if (!Number.isNaN(numeric) && numeric !== 0) {
+        subgroupIds.add(numeric);
+      }
+    };
+
+    addId(task.course_subgroup_id ?? task.subgroup_id);
+
+    const courseGroups = task.course?.course_groups ?? [];
+    courseGroups.forEach((group: any) => {
+      const subgroups = group?.course_subgroups ?? group?.subgroups ?? [];
+      subgroups.forEach((subgroup: any) => addId(subgroup?.id));
+    });
+
+    const courseDates = task.course?.course_dates ?? [];
+    courseDates.forEach((date: any) => {
+      const dateGroups = date?.course_groups ?? [];
+      dateGroups.forEach((group: any) => {
+        const subgroups = group?.course_subgroups ?? group?.subgroups ?? [];
+        subgroups.forEach((subgroup: any) => addId(subgroup?.id));
+      });
+      const dateSubgroups = date?.course_subgroups ?? date?.courseSubgroups ?? [];
+      dateSubgroups.forEach((subgroup: any) => addId(subgroup?.id));
+    });
+
+    (this.plannerTasks ?? [])
+      .filter(t => t?.course_id === task.course_id)
+      .forEach(t => addId(t.course_subgroup_id));
+
+    return Array.from(subgroupIds);
+  }
+
+  private getMonitorDisplayName(monitor: any): string {
+    if (!monitor) {
+      return '';
+    }
+    const first = monitor.first_name ?? monitor.firstName ?? '';
+    const last = monitor.last_name ?? monitor.lastName ?? '';
+    const combined = `${first} ${last}`.trim();
+    if (combined) {
+      return combined;
+    }
+    if (monitor.name) {
+      return monitor.name;
+    }
+    return '';
+  }
+
   detailBooking(bookingId = null) {
     let id = bookingId !== null ? bookingId : this.taskDetail.booking_id;
     //this.router.navigate(["bookings/update/" + id]);
@@ -2788,8 +2917,11 @@ export class TimelineComponent implements OnInit, OnDestroy {
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
 
-    // Excluir clicks en overlays de Material Angular (dropdowns, datepickers, etc.)
-    const isMaterialOverlay = target.closest('.mat-select-panel, .cdk-overlay-pane, .mat-menu-panel, .mat-datepicker-popup, .mat-autocomplete-panel');
+    // Exclude clicks happening inside Material overlay containers (select panels, datepickers)
+    const isMaterialOverlay = !!target.closest('.mat-select-panel, .mat-mdc-select-panel, .cdk-overlay-pane, .cdk-overlay-container, .cdk-overlay-backdrop, .mat-menu-panel, .mat-datepicker-popup, .mat-mdc-datepicker-popup, .mat-autocomplete-panel, .mat-mdc-autocomplete-panel, mat-option, mat-select, .mat-select-trigger, .mat-mdc-select-value');
+    if (isMaterialOverlay) {
+      return;
+    }
 
     // Close grouped tasks modal (left sidebar) if clicking outside
     if (this.showGrouped) {

@@ -254,6 +254,7 @@
     "scope": {
       "single": "Solo questa sessione",
       "interval": "Per questo intervallo",
+      "all": "Tutto il corso",
       "from": "Dalla data selezionata in poi",
       "range": "Tra due date"
     },
