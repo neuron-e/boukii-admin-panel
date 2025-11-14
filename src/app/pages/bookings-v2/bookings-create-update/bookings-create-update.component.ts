@@ -327,7 +327,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (currentBookingData) {
       // Resetear vouchers para evitar aplicación automática desde borradores
       currentBookingData.vouchers = [];
-      currentBookingData.price_total = 0;
+      currentBookingData.price_total = 0; // OK: Reset al crear nueva reserva, backend recalculara
       currentBookingData.paid_total = 0;
       currentBookingData.paid = false;
       this.bookingService.setBookingData(currentBookingData);
