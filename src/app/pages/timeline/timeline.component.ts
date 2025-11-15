@@ -751,7 +751,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           hour_start: booking.hour_start.substring(0, 5),
           hour_end: booking.hour_end ? booking.hour_end.substring(0, 5) : this.hoursRange[this.hoursRange.length - 1],
           type: type,
-          name: booking.course.name,
+          name: this.getCourseDisplayName(booking.course),
           sport_id: booking.course.sport_id,
           sport: sport,
           degree_id: booking.degree_id,
@@ -768,6 +768,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
           subgroup_number: booking.subgroup_number,
           total_subgroups: booking.total_subgroups,
           course: booking.course,
+          meeting_point: booking.meeting_point,
+          meeting_point_address: booking.meeting_point_address,
+          meeting_point_instructions: booking.meeting_point_instructions,
           accepted: booking.accepted,
           paid: booking?.booking?.paid,
           user: booking?.booking?.user,
@@ -821,6 +824,64 @@ export class TimelineComponent implements OnInit, OnDestroy {
     ];
 
     this.calculateTaskPositions(tasksCalendar);
+  }
+
+  private getCourseDisplayName(course: any): string {
+    const translated = this.extractDisplayName(course?.translations);
+    if (translated) {
+      return translated;
+    }
+
+    const fallback = this.extractDisplayName(course?.name);
+    if (fallback) {
+      return fallback;
+    }
+
+    return '';
+  }
+
+  private extractDisplayName(value: any): string {
+    if (!value) return '';
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+
+      try {
+        const parsed = JSON.parse(value);
+        return this.extractDisplayName(parsed);
+      } catch {
+        return '';
+      }
+    }
+
+    if (typeof value === 'object') {
+      const lang = this.translateService.currentLang || this.translateService.getDefaultLang();
+      const candidate = (value as any)[lang];
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+      if (candidate && typeof candidate === 'object' && candidate.name) {
+        return candidate.name;
+      }
+
+      const objectValues = Object.values(value as Record<string, any>);
+      for (const entry of objectValues) {
+        const item = entry as any;
+        if (typeof item === 'string' && item.trim()) {
+          return item.trim();
+        }
+        if (item && typeof item === 'object') {
+          if (item.name) {
+            return item.name;
+          }
+        }
+      }
+    }
+
+    return '';
   }
 
   getPositionDate(courseDates: any[], courseDateId: string): number {
@@ -1326,13 +1387,15 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   moveMonitor(monitor: any, event: MouseEvent): void {
-    // Stop event propagation immediately if in move mode
-    if (this.moveTask) {
-      event.stopPropagation();
+    if (!this.moveTask || !this.taskDetail) {
+      return;
     }
 
+    // Stop event propagation immediately when we are moving a task
+    event.stopPropagation();
+
     // If clicking the same monitor, cancel the move
-    if (this.moveTask && this.taskMoved && this.taskMoved.monitor_id === monitor.id) {
+    if (this.taskMoved && this.taskMoved.monitor_id === monitor.id) {
       this.moveTask = false;
       this.taskMoved = null;
       return;

@@ -9,13 +9,15 @@ import {
 import {
   AddDiscountBonusModalComponent
 } from '../../../bookings-create-update/components/add-discount-bonus/add-discount-bonus.component';
-import {Observable, Subscription} from 'rxjs';
+import {Observable, Subscription, finalize} from 'rxjs';
 import {Router} from '@angular/router';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {TranslateService} from '@ngx-translate/core';
 import {ApiCrudService} from '../../../../../../service/crud.service';
 import { SchoolService } from 'src/service/school.service';
+import { MeetingPointService } from 'src/service/meeting-point.service';
 import { buildDiscountInfoList } from 'src/app/pages/bookings-v2/shared/discount-utils';
+import { EditMeetingPointModalComponent } from '../edit-meeting-point-modal/edit-meeting-point-modal.component';
 
 @Component({
   selector: 'booking-detail-reservation-detail',
@@ -44,6 +46,12 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   price_boukii_care: number;
   school: any;
   settings: any;
+  meetingPoints: any[] = [];
+  selectedMeetingPointId: number | null = null;
+  meetingPointName: string = '';
+  meetingPointAddress: string = '';
+  meetingPointInstructions: string = '';
+  meetingPointSaving = false;
 
   constructor(
     protected langService: LangService,
@@ -54,6 +62,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     private router: Router,
     private dialog: MatDialog,
     private bookingService: BookingService,
+    private meetingPointService: MeetingPointService,
     public schoolService: SchoolService
   ) {
     this.school = this.utilsService.getSchoolData();
@@ -72,11 +81,13 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     this.activitiesChangedSub = this.activitiesChanged.subscribe((res: any) => {
       if (res) {
         this.bookingData = res;
+        this.syncMeetingPointFields(res);
       }
       this.loadExistingVouchers();
       this.recalculateBonusPrice();
       this.updateBookingData();
     });
+    this.loadMeetingPoints();
   }
 
   goTo(route: string) {
@@ -125,6 +136,68 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
         });
       });
     }
+  }
+
+  private loadMeetingPoints(): void {
+    this.meetingPointService.list().subscribe((points) => {
+      this.meetingPoints = points || [];
+      this.syncMeetingPointFields(this.bookingData);
+    });
+  }
+
+  private syncMeetingPointFields(booking: any): void {
+    if (!booking) {
+      return;
+    }
+    this.meetingPointName = booking.meeting_point || '';
+    this.meetingPointAddress = booking.meeting_point_address || '';
+    this.meetingPointInstructions = booking.meeting_point_instructions || '';
+    if (this.meetingPoints.length) {
+      const match = this.meetingPoints.find(point => point.name === booking.meeting_point);
+      this.selectedMeetingPointId = match ? match.id : null;
+    } else {
+      this.selectedMeetingPointId = null;
+    }
+  }
+
+  onBookingMeetingPointSelect(meetingPointId: number | null): void {
+    this.selectedMeetingPointId = meetingPointId;
+    if (meetingPointId === null || meetingPointId === undefined) {
+      return;
+    }
+
+    const selected = this.meetingPoints.find(point => point.id === meetingPointId);
+    if (selected) {
+      this.meetingPointName = selected.name;
+      this.meetingPointAddress = selected.address || '';
+      this.meetingPointInstructions = selected.instructions || '';
+    }
+  }
+
+  saveBookingMeetingPoint(): void {
+    if (!this.bookingData?.id) {
+      return;
+    }
+    const payload = {
+      meeting_point: this.meetingPointName,
+      meeting_point_address: this.meetingPointAddress,
+      meeting_point_instructions: this.meetingPointInstructions
+    };
+    this.meetingPointSaving = true;
+    this.crudService.post(`/admin/bookings/${this.bookingData.id}/meeting-point`, payload)
+      .pipe(finalize(() => this.meetingPointSaving = false))
+      .subscribe({
+        next: (response: any) => {
+            if (response?.success && response?.data) {
+              this.bookingData = response.data;
+              this.syncMeetingPointFields(this.bookingData);
+              this.snackbar.open(this.translateService.instant('settings.meeting_points.snackbarUpdated'), 'OK', { duration: 3000 });
+            }
+        },
+        error: () => {
+          this.snackbar.open(this.translateService.instant('snackbar.error'), 'OK', { duration: 3000 });
+        }
+      });
   }
 
   sumActivityTotal(): number {
@@ -304,6 +377,9 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['bookingData'] && changes['bookingData'].currentValue) {
+      this.syncMeetingPointFields(changes['bookingData'].currentValue);
+    }
     if (changes['activities'] && !changes['activities'].firstChange) {
       this.hydrateDiscountInfo();
     }
@@ -332,6 +408,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       : parseFloat(String(activity?.total || 0).replace(/[^\d.-]/g, '')) || 0;
     return total + discount;
   }
+openEditMeetingPointModal(): void {    const dialogRef = this.dialog.open(EditMeetingPointModalComponent, {      width: '600px',      data: {        meetingPointName: this.meetingPointName,        meetingPointAddress: this.meetingPointAddress,        meetingPointInstructions: this.meetingPointInstructions      }    });    dialogRef.afterClosed().subscribe((result: any) => {      if (result) {        this.meetingPointName = result.meeting_point;        this.meetingPointAddress = result.meeting_point_address;        this.meetingPointInstructions = result.meeting_point_instructions;        this.saveBookingMeetingPoint();      }    });  }
 
   protected readonly isNaN = isNaN;
   protected readonly parseFloat = parseFloat;

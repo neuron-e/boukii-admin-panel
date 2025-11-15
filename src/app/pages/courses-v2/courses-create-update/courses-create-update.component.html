@@ -86,6 +86,25 @@
         <app-form-select [required]="true" [table]="stations" [form]="courses.courseFormGroup" label="station"
                          control="station_id" id="id" name="name">
         </app-form-select>
+        <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+          <mat-form-field appearance="outline" style="width: 100%;" *ngIf="meetingPoints.length">
+            <mat-label>{{ 'meeting_point_select' | translate }}</mat-label>
+            <mat-select [(value)]="selectedMeetingPointId" (selectionChange)="onMeetingPointSelected($event.value)">
+              <mat-option *ngFor="let point of meetingPoints" [value]="point.id">
+                {{ point.name }}<span *ngIf="point.address"> – {{ point.address }}</span>
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+          <div *ngIf="!meetingPoints.length" style="color:#6c757d; font-size:13px;">
+            {{ 'settings.meeting_points.empty' | translate }}
+          </div>
+          <app-form-input [form]="courses.courseFormGroup" control="meeting_point" name="meeting_point"></app-form-input>
+          <app-form-input [form]="courses.courseFormGroup" control="meeting_point_address" name="meeting_point_address"></app-form-input>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>{{ 'meeting_point_instructions' | translate }}</mat-label>
+            <textarea matInput formControlName="meeting_point_instructions" rows="2"></textarea>
+          </mat-form-field>
+        </div>
         <app-form-editor [required]="true" [form]="courses.courseFormGroup" control="short_description"
                          name="courses.summary">
         </app-form-editor>

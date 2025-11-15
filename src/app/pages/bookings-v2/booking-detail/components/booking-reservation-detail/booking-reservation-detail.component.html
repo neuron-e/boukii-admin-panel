@@ -289,6 +289,35 @@
       </div>
     </div>
 
+    <div class="section">
+      <div class="sectionTitle">
+        <mat-icon class="icon24">place</mat-icon>
+        {{ 'meeting_point' | translate }}
+      </div>
+      <div class="meeting-point-summary">
+        <div class="meeting-point-info">
+          <div class="meeting-point-row" *ngIf="meetingPointName">
+            <strong>{{ 'meeting_point' | translate }}:</strong>
+            <span>{{ meetingPointName }}</span>
+          </div>
+          <div class="meeting-point-row" *ngIf="meetingPointAddress">
+            <strong>{{ 'meeting_point_address' | translate }}:</strong>
+            <span>{{ meetingPointAddress }}</span>
+          </div>
+          <div class="meeting-point-row" *ngIf="meetingPointInstructions">
+            <strong>{{ 'meeting_point_instructions' | translate }}:</strong>
+            <span>{{ meetingPointInstructions }}</span>
+          </div>
+          <div class="meeting-point-row" *ngIf="!meetingPointName && !meetingPointAddress && !meetingPointInstructions">
+            <span class="no-meeting-point">{{ 'no_meeting_point_set' | translate }}</span>
+          </div>
+        </div>
+        <button mat-icon-button color="primary" (click)="openEditMeetingPointModal()" class="edit-button">
+          <mat-icon>edit</mat-icon>
+        </button>
+      </div>
+    </div>
+
   </div>
   <div class="footerWrapper">
     {{ "bookings_page.description.total" | translate }}

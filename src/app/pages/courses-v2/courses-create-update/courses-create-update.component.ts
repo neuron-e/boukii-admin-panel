@@ -8,6 +8,7 @@ import { ApiCrudService } from 'src/service/crud.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SchoolService } from 'src/service/school.service';
 import { CoursesService } from 'src/service/courses.service';
+import { MeetingPointService } from 'src/service/meeting-point.service';
 import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import { CourseDateValidationService } from 'src/service/course-date-validation.service';
@@ -87,6 +88,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
   sportDataList: any = [];
   sportTypeData: any = [];
   stations: any = [];
+  meetingPoints: any[] = [];
+  selectedMeetingPointId: number | null = null;
   monitors: any = [];
   schoolData: any = [];
   extras: any = []
@@ -1928,6 +1931,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
   constructor(private fb: UntypedFormBuilder, public dialog: MatDialog,
               private crudService: ApiCrudService, private activatedRoute: ActivatedRoute,
               public router: Router, private schoolService: SchoolService,
+              private meetingPointService: MeetingPointService,
               private snackBar: MatSnackBar,
     private courseDateValidation: CourseDateValidationService,
     private dateOverlapValidation: CourseDateOverlapValidationService,
@@ -1950,12 +1954,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
     const requests = {
       sports: this.getSports(),
       stations: this.getStations(),
+      meetingPoints: this.meetingPointService.list(),
       ...(this.mode === "update" && { monitors: this.getMonitors() }),
     };
 
-    forkJoin(requests).subscribe(({ sports, stations, monitors }) => {
+    forkJoin(requests).subscribe(({ sports, stations, meetingPoints, monitors }) => {
       this.sportData = sports;
       this.stations = stations;
+      this.meetingPoints = meetingPoints || [];
       if (this.mode === "update") {
         this.monitors = monitors;
         this.loadCourseData();
@@ -2014,6 +2020,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.refreshIntervalGroupStateFromSettings();
     this.syncWeeklyPatternFromSettings();
     this.enforceIntervalGroupAvailability();
+    this.syncMeetingPointSelection(true);
 
     this.Confirm(0);
     this.loading = false
@@ -2085,6 +2092,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
           this.PeriodoFecha = 0; // Default to uniperiod for single period, but user can switch
         }
         this.courses.settcourseFormGroup(this.detailData);
+        this.syncMeetingPointSelection();
         this.syncWeeklyPatternFromSettings();
         this.courses.courseFormGroup.patchValue({ extras: this.detailData.course_extras || [] });
 
@@ -2300,6 +2308,49 @@ export class CoursesCreateUpdateComponent implements OnInit {
     map(station => station.data),
     mergeMap(stations => forkJoin(stations.map((element: any) => this.crudService.get('/stations/' + element.station_id).pipe(map(data => data.data)))))
   );
+
+  private applyMeetingPointData(meetingPoint: any | null) {
+    const payload = {
+      meeting_point: meetingPoint?.name || '',
+      meeting_point_address: meetingPoint?.address || '',
+      meeting_point_instructions: meetingPoint?.instructions || ''
+    };
+    this.courses.courseFormGroup.patchValue(payload, { emitEvent: false });
+    this.selectedMeetingPointId = meetingPoint?.id ?? null;
+  }
+
+  private syncMeetingPointSelection(isNewCourse: boolean = false) {
+    if (!this.meetingPoints.length) {
+      if (isNewCourse) {
+        this.applyMeetingPointData(null);
+      }
+      return;
+    }
+
+    const currentName = this.courses.courseFormGroup.controls['meeting_point']?.value;
+    const matchingPoint = this.meetingPoints.find(point => point.name === currentName);
+
+    if (matchingPoint) {
+      this.applyMeetingPointData(matchingPoint);
+      return;
+    }
+
+    if (isNewCourse) {
+      this.applyMeetingPointData(this.meetingPoints[0]);
+    } else {
+      this.applyMeetingPointData(null);
+    }
+  }
+
+  onMeetingPointSelected(meetingPointId: number | null) {
+    if (meetingPointId === null || meetingPointId === undefined) {
+      this.applyMeetingPointData(null);
+      return;
+    }
+
+    const selectedPoint = this.meetingPoints.find(point => point.id === meetingPointId);
+    this.applyMeetingPointData(selectedPoint || null);
+  }
 
   getDegrees = () => this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.courses.courseFormGroup.controls['school_id'].value + '&sport_id=' + this.courses.courseFormGroup.controls['sport_id'].value).subscribe((data) => {
     // Initialize detailData if it doesn't exist

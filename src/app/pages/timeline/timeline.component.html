@@ -246,7 +246,7 @@
                    *ngFor="let monitor of filteredMonitors;let monitorIndex = index"
                    [ngClass]="{'outside-month-day': !isDayVisibleDay() && timelineView == 'day', 'select-row': moveTask && monitor.id !== taskMoved.monitor_id,
                         'bg-linear-no-match': moveTask && isMatch(monitor.id)}"
-                   (click)="moveMonitor(monitor,$event)">
+                   (click)="moveTask && moveMonitor(monitor,$event)">
                 <ng-container *ngIf="timelineView == 'day'">
                   <div *ngFor="let hour of hoursRange;let last = last"
                        [ngClass]="{'grid-cell-last': last, 'grid-cell': !last}"
@@ -676,6 +676,7 @@
 
         <mat-card-content>
           <div class="title-status"
+               *ngIf="taskDetail.type !== 'collective'"
                style="background-color: var(--color-grey5); ">
             <span class="col-left">
               <b>{{ 'status' | translate}}:</b>
@@ -694,28 +695,28 @@
           <!-- Attendance Status for Private Course -->
           <div *ngIf="taskDetail.type == 'private'" class="title-status">
             <span class="col-left">
-              <b>{{ 'attendance' | translate}}:</b>
+              <b>{{ 'attendance_label' | translate}}:</b>
             </span>
             <span class="col-right">
               <div style="display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
                 <mat-icon *ngIf="taskDetail.attended" style="color: #4CAF50; font-size: 18px;" svgIcon="mat:check_circle"></mat-icon>
                 <mat-icon *ngIf="taskDetail.attended === false" style="color: #F44336; font-size: 18px;" svgIcon="mat:cancel"></mat-icon>
                 <mat-icon *ngIf="taskDetail.attended === null" style="color: #FF9800; font-size: 18px;" svgIcon="mat:help_outline"></mat-icon>
-                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attended' | translate) : taskDetail.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attendance.attended' | translate) : taskDetail.attended === false ? ('attendance.not_attended' | translate) : ('attendance.unmarked' | translate) }}</span>
               </div>
             </span>
           </div>
           <!-- Attendance Status for Activity Course -->
           <div *ngIf="taskDetail.type == 'activity'" class="title-status">
             <span class="col-left">
-              <b>{{ 'attendance' | translate}}:</b>
+              <b>{{ 'attendance_label' | translate}}:</b>
             </span>
             <span class="col-right">
               <div style="display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
                 <mat-icon *ngIf="taskDetail.attended" style="color: #4CAF50; font-size: 18px;" svgIcon="mat:check_circle"></mat-icon>
                 <mat-icon *ngIf="taskDetail.attended === false" style="color: #F44336; font-size: 18px;" svgIcon="mat:cancel"></mat-icon>
                 <mat-icon *ngIf="taskDetail.attended === null" style="color: #FF9800; font-size: 18px;" svgIcon="mat:help_outline"></mat-icon>
-                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attended' | translate) : taskDetail.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attendance.attended' | translate) : taskDetail.attended === false ? ('attendance.not_attended' | translate) : ('attendance.unmarked' | translate) }}</span>
               </div>
             </span>
           </div>
@@ -780,6 +781,22 @@
               </ng-container>
             </div>
           </ng-container>
+
+          <div *ngIf="taskDetail.meeting_point || taskDetail.meeting_point_address || taskDetail.meeting_point_instructions"
+               class="box-detail-box box-background-grey" style="margin: 0 24px 12px 24px; padding: 12px;">
+            <div style="font-weight: 600;">
+              {{ 'meeting_point' | translate }}
+            </div>
+            <div *ngIf="taskDetail.meeting_point" style="margin-top: 6px;">
+              {{ taskDetail.meeting_point }}
+            </div>
+            <div *ngIf="taskDetail.meeting_point_address">
+              {{ taskDetail.meeting_point_address }}
+            </div>
+            <div *ngIf="taskDetail.meeting_point_instructions" style="font-size: 13px; color: #575555; margin-top: 6px;">
+              {{ taskDetail.meeting_point_instructions }}
+            </div>
+          </div>
 
           <div style="padding:10px 35px;"><mat-divider
             style="border-color:transparent;"></mat-divider></div>
@@ -1081,7 +1098,7 @@
                     </span>
                   </div>
             </div>
-          <mat-form-field appearance="outline" class="flex-auto"
+          <mat-form-field appearance="outline" class="flex-auto monitor-select-field"
                           style="width: 100%;" *ngIf="!loadingMonitors">
             <mat-select placeholder="{{'new_monitor' | translate}}"
                         [(ngModel)]="editedMonitor">
@@ -1194,7 +1211,7 @@
                           <mat-icon *ngIf="client.attended" style="color: #4CAF50; font-size: 16px;" svgIcon="mat:check_circle"></mat-icon>
                           <mat-icon *ngIf="client.attended === false" style="color: #F44336; font-size: 16px;" svgIcon="mat:cancel"></mat-icon>
                           <mat-icon *ngIf="client.attended === null" style="color: #FF9800; font-size: 16px;" svgIcon="mat:help_outline"></mat-icon>
-                          <span style="font-size: 12px; font-weight: 500;">{{ client.attended === true ? ('attended' | translate) : client.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+                          <span style="font-size: 12px; font-weight: 500;">{{ client.attended === true ? ('attendance.attended' | translate) : client.attended === false ? ('attendance.not_attended' | translate) : ('attendance.unmarked' | translate) }}</span>
                         </div>
                       </div>
                     </div>

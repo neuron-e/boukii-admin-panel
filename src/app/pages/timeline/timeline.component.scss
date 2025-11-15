@@ -483,23 +483,53 @@
   border-radius: 14px;
   padding: 6px 10px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   .monitor-select-search {
     width: 100%;
     background: transparent;
     box-shadow: none;
     padding: 0;
+
+    ::ng-deep {
+      .mat-mdc-text-field-wrapper {
+        padding: 0;
+      }
+
+      .mat-mdc-form-field-flex {
+        padding: 0;
+        align-items: center;
+      }
+
+      .mat-mdc-form-field-infix {
+        padding: 8px 0;
+        min-height: unset;
+        border: 0;
+      }
+
+      .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+      }
+
+      .mdc-notched-outline {
+        display: none;
+      }
+    }
   }
 
   mat-icon {
     color: #c7c9cf;
     margin-right: 6px;
+    pointer-events: all;
   }
 
   input.mat-mdc-input-element {
     padding: 10px 0;
     font-size: 14px;
     color: #2b2f3a;
+    pointer-events: all;
   }
 }
 
@@ -1236,4 +1266,20 @@
 
 .monitor-bulk-controls mat-select .mat-mdc-select-value-text {
   margin-left: 8px;
+}
+
+.monitor-select-field {
+  ::ng-deep {
+    .mat-mdc-form-field-infix {
+      padding-left: 12px;
+    }
+
+    .mat-mdc-select {
+      padding-left: 8px;
+    }
+
+    .mat-mdc-select-value {
+      padding-left: 8px;
+    }
+  }
 }

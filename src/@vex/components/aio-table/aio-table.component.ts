@@ -839,8 +839,12 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       return 'Curso no cargado';
     }
 
-    if (data.length === 1 || this.checkIfCourseIdIsSame(data)) {
-      const course = data[0].course;
+    // Group booking users by group_id (like in detail view)
+    const grouped = this.groupBookingUsersByGroupId(data);
+    
+    // Check if all groups have the same course_id
+    if (grouped.length === 1 || this.checkIfCourseIdIsSameInGroups(grouped)) {
+      const course = grouped[0].course;
       if (course.translations || course.name) {
         return this.getTrad(course.translations, course.name);
       } else {
@@ -851,14 +855,39 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     }
   }
 
-  checkIfCourseIdIsSame(data: any[]): boolean {
-    if (!data || !Array.isArray(data) || data.length === 0) return false;
+  groupBookingUsersByGroupId(bookingUsers: any[]): any[] {
+    if (!bookingUsers || !Array.isArray(bookingUsers)) {
+      return [];
+    }
 
-    // Safety check: ensure first item has course structure
-    if (!data[0] || !data[0].course) return false;
+    const grouped = Object.values(bookingUsers.reduce((acc: any, user: any) => {
+      if (!user || !user.group_id) {
+        return acc;
+      }
 
-    const firstCourseId = data[0].course.id;
-    return data.every(item => item && item.course && item.course.id === firstCourseId);
+      const groupId = user.group_id;
+      
+      if (!acc[groupId]) {
+        acc[groupId] = {
+          group_id: groupId,
+          course: user.course,
+          course_id: user.course_id,
+          participants: []
+        };
+      }
+      
+      acc[groupId].participants.push(user);
+      return acc;
+    }, {}));
+
+    return grouped;
+  }
+
+  checkIfCourseIdIsSameInGroups(groups: any[]): boolean {
+    if (!groups || !Array.isArray(groups) || groups.length === 0) return false;
+    
+    const firstCourseId = groups[0].course_id;
+    return groups.every(group => group && group.course_id === firstCourseId);
   }
 
   getBookingCourseMonitorClient(data: any) {

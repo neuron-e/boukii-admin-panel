@@ -14,7 +14,7 @@ import { SalaryCreateUpdateModalComponent } from './salary-create-update-modal/s
 import { stagger20ms } from 'src/@vex/animations/stagger.animation';
 import { LEVELS } from 'src/app/static-data/level-data';
 import { AbstractControl, FormArray, FormControl, FormGroup, UntypedFormBuilder, UntypedFormGroup, ValidationErrors, Validators } from '@angular/forms';
-import { Observable, forkJoin, map, startWith } from 'rxjs';
+import { Observable, forkJoin, map, startWith, finalize } from 'rxjs';
 import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { MOCK_PROVINCES } from 'src/app/static-data/province-data';
 import { MatTable, MatTableDataSource } from '@angular/material/table';
@@ -26,7 +26,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { ExtraCreateUpdateModalComponent } from './extra-create-update-modal/extra-create-update-modal.component';
 import { LevelGoalsModalComponent } from './level-goals-modal/level-goals-modal.component';
+import { MeetingPointCreateUpdateModalComponent } from './meeting-point-create-update-modal/meeting-point-create-update-modal.component';
 import { SchoolService } from 'src/service/school.service';
+import { MeetingPointService } from 'src/service/meeting-point.service';
 import { TranslateService } from '@ngx-translate/core';
 import { DateAdapter } from '@angular/material/core';
 import { dropdownAnimation } from '../../../@vex/animations/dropdown.animation';
@@ -146,6 +148,10 @@ export class SettingsComponent implements OnInit {
   dataSourceFood = new MatTableDataSource([]);
   displayedSportColumns: string[] = ['id', 'sport', 'name', 'price', 'tva', 'status', 'edit', 'delete'];
   displayedExtrasColumns: string[] = ['id', 'product', 'name', 'price', 'tva', 'status', 'edit', 'delete'];
+  meetingPoints: any[] = [];
+  meetingPointsLoading = false;
+  meetingPointsDisplayedColumns: string[] = ['name', 'address', 'instructions', 'active', 'actions'];
+  dataSourceMeetingPoints = new MatTableDataSource([]);
   currencies: string[] = ['CHF', 'EUR', 'GBP']
   tva = 0;
   currency = '';
@@ -240,6 +246,7 @@ export class SettingsComponent implements OnInit {
   constructor(private ngZone: NgZone, private fb: UntypedFormBuilder, private crudService: ApiCrudService,
               private snackbar: MatSnackBar, private cdr: ChangeDetectorRef,
               private dialog: MatDialog, private schoolService: SchoolService,
+              private meetingPointService: MeetingPointService,
               public layoutService: LayoutService, private sanitizer: DomSanitizer,
               private translateService: TranslateService, private dateAdapter: DateAdapter<Date>) {
     this.filteredHours = this.hours;
@@ -350,6 +357,8 @@ export class SettingsComponent implements OnInit {
               this.myControlProvinces.setValue('');  // Limpia la selección anterior de la provincia
               this.filteredProvinces = this._filterProvinces(country.id);
             });
+
+            this.loadMeetingPoints();
 
             const settings = typeof this.school.settings === 'string' ? JSON.parse(this.school.settings) : this.school.settings;
             this.people = settings && settings.prices_range.people ? settings.prices_range.people : this.people;
@@ -1102,6 +1111,63 @@ export class SettingsComponent implements OnInit {
         this.getData();
 
       })
+  }
+
+  loadMeetingPoints() {
+    this.meetingPointsLoading = true;
+    this.meetingPointService.list()
+      .pipe(finalize(() => {
+        this.meetingPointsLoading = false;
+      }))
+      .subscribe({
+        next: (data) => {
+          this.meetingPoints = data;
+          this.dataSourceMeetingPoints.data = data;
+        },
+        error: () => {
+          this.meetingPoints = [];
+          this.dataSourceMeetingPoints.data = [];
+        }
+      });
+  }
+
+  openMeetingPointModal(meetingPoint?: any) {
+    const dialogRef = this.dialog.open(MeetingPointCreateUpdateModalComponent, {
+      width: '480px',
+      maxWidth: '100vw',
+      data: meetingPoint ? { ...meetingPoint } : { name: '', address: '', instructions: '', active: true }
+    });
+
+    dialogRef.afterClosed().subscribe((result: any) => {
+      if (!result) {
+        return;
+      }
+
+      if (result.id) {
+        this.meetingPointService.update(result.id, result)
+          .subscribe(() => {
+            this.snackbar.open(this.translateService.instant('settings.meeting_points.snackbarUpdated'), 'OK', { duration: 3000 });
+            this.loadMeetingPoints();
+          });
+      } else {
+        this.meetingPointService.create(result)
+          .subscribe(() => {
+            this.snackbar.open(this.translateService.instant('settings.meeting_points.snackbarCreated'), 'OK', { duration: 3000 });
+            this.loadMeetingPoints();
+          });
+      }
+    });
+  }
+
+  deleteMeetingPoint(meetingPoint: any) {
+    if (!meetingPoint || !meetingPoint.id) {
+      return;
+    }
+    this.meetingPointService.delete(meetingPoint.id)
+      .subscribe(() => {
+        this.snackbar.open(this.translateService.instant('settings.meeting_points.snackbarDeleted'), 'OK', { duration: 3000 });
+        this.loadMeetingPoints();
+      });
   }
 
   saveTaxes() {
