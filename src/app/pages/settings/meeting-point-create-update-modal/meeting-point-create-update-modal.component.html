@@ -1,14 +1,16 @@
-<div class="modal-header">
+<div class="meeting-point-modal">
+  <div class="modal-header">
   <h2>
     {{ isCreateMode()
       ? ('settings.meeting_points.modal.create' | translate)
       : ('settings.meeting_points.modal.update' | translate) }}
   </h2>
 </div>
-<div class="modal-content" [formGroup]="form">
-  <mat-form-field appearance="outline">
-    <mat-label>{{ 'settings.meeting_points.fields.name' | translate }}</mat-label>
-    <input formControlName="name" matInput />
+  <div class="modal-body">
+    <div class="modal-content" [formGroup]="form">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'settings.meeting_points.fields.name' | translate }}</mat-label>
+      <input formControlName="name" matInput />
     <mat-error *ngIf="form.get('name')?.hasError('required')">
       {{ 'form.required' | translate }}
     </mat-error>
@@ -24,15 +26,17 @@
     <textarea formControlName="instructions" matInput rows="3"></textarea>
   </mat-form-field>
 
-  <mat-slide-toggle formControlName="active">
-    {{ 'settings.meeting_points.fields.active' | translate }}
-  </mat-slide-toggle>
-</div>
-<div class="modal-actions">
+    <mat-slide-toggle formControlName="active">
+      {{ 'settings.meeting_points.fields.active' | translate }}
+    </mat-slide-toggle>
+  </div>
+  </div>
+  <div class="modal-actions">
   <button mat-button type="button" (click)="close()">
     {{ 'cancel' | translate }}
   </button>
   <button mat-raised-button color="primary" type="button" (click)="save()">
     {{ 'save' | translate }}
   </button>
+</div>
 </div>

@@ -659,6 +659,8 @@
   "settings.sports.subtitle": "Selecciona los deportes de tu escuela",
   "settings.sports.all_sessions": "Todas las temporadas",
   "settings.sports.subtitle_info": "No es necesario que los selecciones todos ahora, podrás hacerlo mas adelante según las necesidades",
+  "settings.school_info": "Información de la escuela",
+  "settings.school.description": "Mantén los datos de contacto y el logo de tu escuela para que tus clientes dispongan de la información adecuada.",
   "settings.sports.levels.text1": "Configura los niveles como mejor se adapten a tu escuela.",
   "settings.sports.levels.text2": "Los colores son fijos, no se pueden modificar.",
   "settings.sports.levels.text3": "Recuerda que los hemos clasificado de menor a mayor, siendo el verde el nivel más bajo.",

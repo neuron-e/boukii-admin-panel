@@ -675,6 +675,8 @@
   "settings.sports.subtitle": "Wählen Sie Ihren Schulsport aus",
   "settings.sports.all_sessions": "alle Jahreszeit",
   "settings.sports.subtitle_info": "Es ist nicht notwendig, jetzt alle auszuwählen, Sie können dies später entsprechend Ihren Anforderungen tun.",
+  "settings.school_info": "Schuldaten",
+  "settings.school.description": "Verwalte die Kontaktdaten und das Logo deiner Schule, damit deine Kunden die richtigen Informationen erhalten.",
   "settings.sports.levels.text1": "Konfigurieren Sie die Stufen so, wie sie am besten zu Ihrer Schule passen.",
   "settings.sports.levels.text2": "Die Farben sind fest vorgegeben, sie können nicht verändert werden.",
   "settings.sports.levels.text3": "Denken Sie daran, dass wir sie vom niedrigsten zum höchsten klassifiziert haben, wobei Grün die niedrigste Stufe darstellt.",

@@ -5,6 +5,92 @@
   <mat-spinner *ngIf="loading" style="margin: 0 auto"></mat-spinner>
   <div class="card" *ngIf="!loading">
     <mat-tab-group (selectedTabChange)="onFullTabChange($event)">
+      <mat-tab label="{{'settings.school_info' | translate}}">
+        <vex-page-layout>
+          <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+              <div>
+                <h1 style="margin: 0;">{{ 'settings.school.title' | translate }}</h1>
+                <p style="margin: 4px 0 0;">{{ 'settings.school.description' | translate }}</p>
+              </div>
+              <button mat-raised-button color="primary" (click)="saveContactData()">
+                {{ 'settings.school.save' | translate }}
+              </button>
+            </div>
+            <div [formGroup]="seasonForm" style="border:#e6e6e6 1px solid; padding: 16px; border-radius: 16px;">
+              <div style="display:flex; flex-wrap: wrap; gap:16px; align-items:flex-start;">
+                <vex-flux-upload-img [width]="200" [height]="200" [edit]="true"
+                                     [imagePreviewUrl]="schoolLogoPreview || ''"
+                                     (upload)="handleSchoolLogoUpload($event)"
+                                     (uploadFile)="handleSchoolLogoFile($event)">
+                </vex-flux-upload-img>
+                <div style="flex:1; min-width: 220px;">
+                  <p style="font-weight:600; margin:0;">{{ 'settings.school.logo' | translate }}</p>
+                  <p style="margin:4px 0 8px 0;">{{ 'settings.school.logo_help' | translate }}</p>
+                  <div *ngIf="shouldShowLogoLink()" style="word-break: break-all; font-size: 14px;">
+                    <small>{{ 'settings.school.logo_link' | translate }}</small>
+                    <div>
+                      <a [href]="schoolLogoPreview" target="_blank" rel="noopener">
+                        {{ schoolLogoPreview }}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top: 24px;">
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                  <mat-form-field appearance="outline" class="flex-auto">
+                    <mat-label>{{ 'address' | translate }}</mat-label>
+                    <input formControlName="contact_address" matInput required [(ngModel)]="defaultsSchoolData.contact_address">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="flex-auto">
+                    <mat-label>{{ 'email' | translate }}</mat-label>
+                    <input formControlName="contact_email" matInput required [(ngModel)]="defaultsSchoolData.contact_email">
+                  </mat-form-field>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top:12px;">
+                  <mat-form-field appearance="outline" class="flex-auto">
+                    <mat-label>{{ 'cp' | translate }}</mat-label>
+                    <input formControlName="contact_cp" matInput required [(ngModel)]="defaultsSchoolData.contact_cp">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="flex-auto">
+                    <mat-label>{{ 'phone' | translate }}</mat-label>
+                    <input formControlName="contact_phone" matInput required [(ngModel)]="defaultsSchoolData.contact_phone">
+                  </mat-form-field>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top:12px;">
+                  <mat-form-field appearance="outline" class="flex-auto">
+                    <mat-label>{{ 'country' | translate }}</mat-label>
+                    <input [formControl]="myControlCountries" [matAutocomplete]="autoCountry" formControlName="contact_country" matInput placeholder="{{ 'Selecciona una opción' | translate }}">
+                    <mat-autocomplete #autoCountry="matAutocomplete" [displayWith]="displayFnCountry">
+                      <mat-option *ngFor="let country of filteredCountries | async" [value]="country"
+                                  (onSelectionChange)="defaultsSchoolData.contact_country = country.id">
+                        {{ country.name }}
+                      </mat-option>
+                    </mat-autocomplete>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="flex-auto">
+                    <mat-label>{{ 'province' | translate }}</mat-label>
+                    <input [formControl]="myControlProvinces" [matAutocomplete]="autoProvince" formControlName="contact_province" matInput placeholder="{{ 'Selecciona una opción' | translate }}">
+                    <mat-autocomplete #autoProvince="matAutocomplete" [displayWith]="displayFnProvince">
+                      <mat-option *ngFor="let province of filteredProvinces | async" [value]="province"
+                                  (onSelectionChange)="defaultsSchoolData.contact_province = province.id">
+                        {{ province.name }}
+                      </mat-option>
+                    </mat-autocomplete>
+                  </mat-form-field>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top:12px;">
+                  <mat-form-field appearance="outline" class="flex-auto">
+                    <mat-label>{{ 'city' | translate }}</mat-label>
+                    <input formControlName="contact_city" matInput required [(ngModel)]="defaultsSchoolData.contact_city">
+                  </mat-form-field>
+                </div>
+              </div>
+            </div>
+          </vex-page-layout-content>
+        </vex-page-layout>
+      </mat-tab>
       <mat-tab [formGroup]="seasonForm" label="{{'season' | translate}}">
         <vex-page-layout>
           <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
@@ -34,29 +120,6 @@
 
               </div>
               <div style="width: 100%; float: left; border:#e6e6e6 1px solid;padding: 1%;">
-                <div style="display:flex; flex-wrap: wrap; gap:16px; margin-bottom: 24px; align-items:flex-start;">
-                  <vex-flux-upload-img [width]="200" [height]="200" [edit]="true"
-                                       [imagePreviewUrl]="schoolLogoPreview || ''"
-                                       (upload)="handleSchoolLogoUpload($event)"
-                                       (uploadFile)="handleSchoolLogoFile($event)">
-                  </vex-flux-upload-img>
-                  <div style="flex:1; min-width: 220px;">
-                    <p style="margin-top:0; font-weight:600;">
-                      {{ 'settings.school.logo' | translate }}
-                    </p>
-                    <p style="margin:0 0 8px 0;">
-                      {{ 'settings.school.logo_help' | translate }}
-                    </p>
-                    <div *ngIf="shouldShowLogoLink()" style="word-break: break-all; font-size: 14px;">
-                      <small>{{ 'settings.school.logo_link' | translate }}</small>
-                      <div>
-                        <a [href]="schoolLogoPreview" target="_blank" rel="noopener">
-                          {{ schoolLogoPreview }}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
                 <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
 
                   <div class="flex-auto">
@@ -178,7 +241,7 @@
                   </p>
                 </div>
                 <div>
-                  <button type="button" (click)="saveContactData();" class="btn-primary-accent"
+                  <button (click)="saveContactData();" class="btn-primary-accent"
                           style="float: right;">
                     {{'settings.school.save' |
                     translate}}
@@ -193,13 +256,13 @@
                     </mat-label>
 
                     <input [(ngModel)]="defaultsSchoolData.contact_address"
-                           formControlName="contact_address" matInput required type="text">
+                           formControlName="contact_phone" matInput required type="text">
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="flex-auto">
                     <mat-label>Email</mat-label>
                     <input [(ngModel)]="defaultsSchoolData.contact_email"
-                           formControlName="contact_email" matInput required type="text">
+                           formControlName="contact_address" matInput required type="text">
 
                   </mat-form-field>
                 </div>
@@ -210,7 +273,7 @@
                     </mat-label>
 
                     <input [(ngModel)]="defaultsSchoolData.contact_cp"
-                           formControlName="contact_cp" matInput required type="text">
+                           formControlName="contact_address_number" matInput required type="text">
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="flex-auto">
@@ -218,7 +281,7 @@
                       {{'phone' | translate}}
                     </mat-label>
                     <input [(ngModel)]="defaultsSchoolData.contact_phone"
-                           formControlName="contact_phone" matInput required type="tel">
+                           formControlName="contact_cp" matInput required type="tel">
 
                   </mat-form-field>
                 </div>
@@ -253,32 +316,9 @@
                                   [value]="province"
                                   (onSelectionChange)="defaultsSchoolData.contact_province = province.id">
                         {{province.name}}
-                  </mat-option>
+                      </mat-option>
                     </mat-autocomplete>
                   </mat-form-field>
-                </div>
-                <div style="display:flex; flex-wrap: wrap; gap:12px; margin-top: 16px; align-items: flex-start; margin-bottom: 24px;">
-                  <vex-flux-upload-img [width]="200" [height]="200" [edit]="true"
-                                       [imagePreviewUrl]="schoolLogoPreview || ''"
-                                       (upload)="handleSchoolLogoUpload($event)"
-                                       (uploadFile)="handleSchoolLogoFile($event)">
-                  </vex-flux-upload-img>
-                  <div style="flex:1; min-width: 200px;">
-                    <p style="margin-top: 0; font-weight: 600;">
-                      {{ 'settings.school.logo' | translate }}
-                    </p>
-                    <p style="margin: 0 0 8px 0;">
-                      {{ 'settings.school.logo_help' | translate }}
-                    </p>
-                    <div *ngIf="shouldShowLogoLink()" style="word-break: break-all; font-size: 14px;">
-                      <small>{{ 'settings.school.logo_link' | translate }}</small>
-                      <div>
-                        <a [href]="schoolLogoPreview" target="_blank" rel="noopener">
-                          {{ schoolLogoPreview }}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                   <mat-form-field appearance="outline" class="flex-auto">
@@ -1165,26 +1205,26 @@
                 <mat-slide-toggle [(ngModel)]="hasBoukiiCare"></mat-slide-toggle>
                 Boukii Care
                 <span style="color: #e6e6e6">
-<!-- BOUKII CARE DESACTIVADO - 									({{'settings.bookings.boukii_care_title' -->
+									({{'settings.bookings.boukii_care_title'
                   | translate}})
 								</span>
               </h1>
               <p style="padding: 1%; ;float: left; width: 75%;">
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text1' |translate}} -->
+                {{'settings.bookings.boukii_care_text1' |translate}}
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text2' |translate}} -->
+                {{'settings.bookings.boukii_care_text2' |translate}}
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text3' |translate}} -->
+                {{'settings.bookings.boukii_care_text3' |translate}}
                 <br>
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text4' |translate}} -->
+                {{'settings.bookings.boukii_care_text4' |translate}}
                 <a href style="text-decoration:none; color: #f53d7c;">
                   Enlace
                 </a>
               </p>
               <div style="width:100%; float:left;">
                 <p style="width:100%; float:left;;">
-<!-- BOUKII CARE DESACTIVADO -                   {{'settings.bookings.boukii_care_price' -->
+                  {{'settings.bookings.boukii_care_price'
                   | translate}}
                 </p>
                 <mat-form-field appearance="outline" class="flex-auto">
