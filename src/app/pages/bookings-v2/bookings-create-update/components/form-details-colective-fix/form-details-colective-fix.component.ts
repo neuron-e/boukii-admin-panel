@@ -68,8 +68,8 @@ export class FormDetailsColectiveFixComponent implements OnInit {
       date: [courseDate.date],
       startHour: [courseDate.hour_start],
       endHour: [courseDate.hour_end],
-      price: null,
-      currency: null,
+      price: this.course.price,
+      currency: this.course.currency,
       extras: [{ value: extras, disabled: !this.possibleExtras || !this.possibleExtras.length }] ,
       monitor: [monitor]
     });

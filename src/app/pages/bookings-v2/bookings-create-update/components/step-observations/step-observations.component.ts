@@ -21,7 +21,6 @@ export class StepObservationsComponent implements OnInit, AfterViewInit {
       clientObs: [this.initialData ? this.initialData.clientObs : ''],
       schoolObs: [this.initialData ? this.initialData.schoolObs : ''],
     });
-    this.setFocusOnClientObs();
   }
 
   ngAfterViewInit(): void {

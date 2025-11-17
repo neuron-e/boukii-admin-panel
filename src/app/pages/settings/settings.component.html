@@ -6,92 +6,19 @@
   <div class="card" *ngIf="!loading">
     <mat-tab-group (selectedTabChange)="onFullTabChange($event)">
 ﻿      <mat-tab label="{{ 'settings.school_info' | translate }}">
-        <vex-page-layout>
-          <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
-            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-              <div>
-                <h1 style="margin: 0;">{{ 'settings.school.title' | translate }}</h1>
-                <p style="margin: 4px 0 0;">{{ 'settings.school.description' | translate }}</p>
-              </div>
-              <button mat-raised-button color="primary" (click)="saveContactData()">
-                {{ 'settings.school.save' | translate }}
-              </button>
-            </div>
-            <div style="border:#e6e6e6 1px solid; padding: 16px; border-radius: 16px;">
-              <div style="display:flex; flex-wrap: wrap; gap:16px; align-items:flex-start;">
-                <vex-flux-upload-img [width]="200" [height]="200" [edit]="true"
-                                     [imagePreviewUrl]="schoolLogoPreview || ''"
-                                     (upload)="handleSchoolLogoUpload($event)"
-                                     (uploadFile)="handleSchoolLogoFile($event)">
-                </vex-flux-upload-img>
-                <div style="flex:1; min-width: 220px;">
-                  <p style="font-weight:600; margin:0;">{{ 'settings.school.logo' | translate }}</p>
-                  <p style="margin:4px 0 8px 0;">{{ 'settings.school.logo_help' | translate }}</p>
-                  <div *ngIf="shouldShowLogoLink()" style="word-break: break-all; font-size: 14px;">
-                    <small>{{ 'settings.school.logo_link' | translate }}</small>
-                    <div>
-                      <a [href]="schoolLogoPreview" target="_blank" rel="noopener">
-                        {{ schoolLogoPreview }}
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <form *ngIf="schoolInfoForm" [formGroup]="schoolInfoForm" style="margin-top: 24px; display:flex; flex-direction:column; gap:16px;">
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>{{ 'address' | translate }}</mat-label>
-                    <input matInput formControlName="contact_address" placeholder="{{ 'address' | translate }}">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>Address number</mat-label>
-                    <input matInput formControlName="contact_address_number" placeholder="Number">
-                  </mat-form-field>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>{{ 'email' | translate }}</mat-label>
-                    <input matInput type="email" formControlName="contact_email" placeholder="{{ 'email' | translate }}">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>{{ 'phone' | translate }}</mat-label>
-                    <input matInput type="tel" formControlName="contact_phone" placeholder="{{ 'phone' | translate }}">
-                  </mat-form-field>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>{{ 'cp' | translate }}</mat-label>
-                    <input matInput formControlName="contact_cp" placeholder="{{ 'cp' | translate }}">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>{{ 'city' | translate }}</mat-label>
-                    <input matInput formControlName="contact_city" placeholder="{{ 'city' | translate }}">
-                  </mat-form-field>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>{{ 'country' | translate }}</mat-label>
-                    <input [formControl]="myControlCountries" [matAutocomplete]="autoCountry" matInput placeholder="{{ 'Selecciona una opción' | translate }}">
-                    <mat-autocomplete #autoCountry="matAutocomplete" [displayWith]="displayFnCountry" (optionSelected)="onCountrySelected($event)">
-                      <mat-option *ngFor="let country of filteredCountries | async" [value]="country">
-                        {{ country.name }}
-                      </mat-option>
-                    </mat-autocomplete>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>{{ 'province' | translate }}</mat-label>
-                    <input [formControl]="myControlProvinces" [matAutocomplete]="autoProvince" matInput placeholder="{{ 'Selecciona una opción' | translate }}">
-                    <mat-autocomplete #autoProvince="matAutocomplete" [displayWith]="displayFnProvince" (optionSelected)="onProvinceSelected($event)">
-                      <mat-option *ngFor="let province of filteredProvinces | async" [value]="province">
-                        {{ province.name }}
-                      </mat-option>
-                    </mat-autocomplete>
-                  </mat-form-field>
-                </div>
-              </form>
-            </div>
-          </vex-page-layout-content>
-        </vex-page-layout>
+        <vex-school-info-tab
+          [form]="schoolInfoForm"
+          [logoPreview]="schoolLogoPreview"
+          [myControlCountries]="myControlCountries"
+          [myControlProvinces]="myControlProvinces"
+          [filteredCountries]="filteredCountries"
+          [filteredProvinces]="filteredProvinces"
+          (save)="saveContactData()"
+          (logoUpload)="handleSchoolLogoUpload($event)"
+          (logoFile)="handleSchoolLogoFile($event)"
+          (countrySelected)="onCountrySelected($event)"
+          (provinceSelected)="onProvinceSelected($event)">
+        </vex-school-info-tab>
       </mat-tab>
       <mat-tab label="{{ 'settings.season' | translate }}">
         <vex-page-layout>

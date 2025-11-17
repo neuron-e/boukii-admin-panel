@@ -192,7 +192,7 @@
                 <span class="hour">{{ date.startHour}}h - {{ date.endHour }}h
                 </span>
                 <span class="price">
-                  {{date.price}} {{date.currency}}
+                  {{ resolveDatePrice(date) | number:"1.2-2" }} {{date.currency}}
                 </span>
               </div>
               <div class="monitorRow" *ngIf="course && course.course_type!==1">

@@ -226,7 +226,7 @@ export class BookingDescriptionCard implements OnChanges {
     return { base, discount, final, currency };
   }
 
-  private resolveDatePrice(date: any): number {
+  public resolveDatePrice(date: any): number {
     const rawValue = date?.price ?? this.course?.price ?? this.course?.minPrice ?? 0;
     const numeric = Number(rawValue);
     return Number.isFinite(numeric) ? numeric : 0;

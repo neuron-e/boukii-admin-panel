@@ -918,10 +918,6 @@ export class SettingsComponent implements OnInit {
       });
   }
 
-  public shouldShowLogoLink(): boolean {
-    return !!this.schoolLogoPreview && !this.schoolLogoPreview.startsWith('data:');
-  }
-
   private populateSchoolContactFields(school: any) {
     if (!school) {
       return;

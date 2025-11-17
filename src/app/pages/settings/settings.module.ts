@@ -18,6 +18,7 @@ import { ComponentsModule } from 'src/@vex/components/components.module';
 import { MatDialogModule } from '@angular/material/dialog';
 import { SettingsRoutingModule } from './settings-routing.module';
 import { SettingsComponent } from './settings.component';
+import { SchoolInfoTabComponent } from './tabs/school-info/school-info-tab.component';
 import { MatTabsModule } from '@angular/material/tabs';
 import { SalaryCreateUpdateModalModule } from './salary-create-update-modal/salary-create-update-modal.module';
 import { WidgetClientsSportsNoSwiperModule } from 'src/@vex/components/widgets/widget-clients-sports-no-swiper/widget-clients-sports-no-swiper.module';
@@ -49,7 +50,7 @@ import { FluxModalModule } from "../../../@vex/components/flux-component/flux-mo
 import { ComponenteEditorModule } from "../../../@vex/components/form/editor/app.module";
 import { ComponenteInputModule } from 'src/@vex/components/form/input/app.module';
 @NgModule({
-    declarations: [SettingsComponent],
+    declarations: [SettingsComponent, SchoolInfoTabComponent],
     imports: [
         CommonModule,
         LayoutModule,
