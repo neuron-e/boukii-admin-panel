@@ -5,7 +5,7 @@
   <mat-spinner *ngIf="loading" style="margin: 0 auto"></mat-spinner>
   <div class="card" *ngIf="!loading">
     <mat-tab-group (selectedTabChange)="onFullTabChange($event)">
-      <mat-tab label="{{'settings.school_info' | translate}}">
+      <mat-tab label="{{ 'settings.school_info' | translate }}">
         <vex-page-layout>
           <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
             <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
@@ -17,7 +17,7 @@
                 {{ 'settings.school.save' | translate }}
               </button>
             </div>
-            <div [formGroup]="seasonForm" style="border:#e6e6e6 1px solid; padding: 16px; border-radius: 16px;">
+            <div [formGroup]="schoolInfoForm" style="border:#e6e6e6 1px solid; padding: 16px; border-radius: 16px;">
               <div style="display:flex; flex-wrap: wrap; gap:16px; align-items:flex-start;">
                 <vex-flux-upload-img [width]="200" [height]="200" [edit]="true"
                                      [imagePreviewUrl]="schoolLogoPreview || ''"
@@ -61,7 +61,7 @@
                 <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top:12px;">
                   <mat-form-field appearance="outline" class="flex-auto">
                     <mat-label>{{ 'country' | translate }}</mat-label>
-                    <input [formControl]="myControlCountries" [matAutocomplete]="autoCountry" formControlName="contact_country" matInput placeholder="{{ 'Selecciona una opción' | translate }}">
+                    <input [formControl]="myControlCountries" [matAutocomplete]="autoCountry" matInput placeholder="{{ 'Selecciona una opción' | translate }}" type="text">
                     <mat-autocomplete #autoCountry="matAutocomplete" [displayWith]="displayFnCountry">
                       <mat-option *ngFor="let country of filteredCountries | async" [value]="country"
                                   (onSelectionChange)="defaultsSchoolData.contact_country = country.id">
@@ -71,7 +71,7 @@
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="flex-auto">
                     <mat-label>{{ 'province' | translate }}</mat-label>
-                    <input [formControl]="myControlProvinces" [matAutocomplete]="autoProvince" formControlName="contact_province" matInput placeholder="{{ 'Selecciona una opción' | translate }}">
+                    <input [formControl]="myControlProvinces" [matAutocomplete]="autoProvince" matInput placeholder="{{ 'Selecciona una opción' | translate }}" type="text">
                     <mat-autocomplete #autoProvince="matAutocomplete" [displayWith]="displayFnProvince">
                       <mat-option *ngFor="let province of filteredProvinces | async" [value]="province"
                                   (onSelectionChange)="defaultsSchoolData.contact_province = province.id">
@@ -230,172 +230,6 @@
               </div>
             </div>
 
-            <div style="width: 100%; float: left;padding: 1%">
-              <div
-                style="padding: 1%;width: 100%;float: left;border: #e6e6e6 1px solid;display: flex;align-items: center;justify-content: space-between;flex-wrap: wrap;">
-                <div>
-
-                  <p style="font-weight: bold; ">
-                    {{'settings.school.title'
-                    | translate}}
-                  </p>
-                </div>
-                <div>
-                  <button (click)="saveContactData();" class="btn-primary-accent"
-                          style="float: right;">
-                    {{'settings.school.save' |
-                    translate}}
-                  </button>
-                </div>
-              </div>
-              <div style="width: 100%; float: left; border:#e6e6e6 1px solid;padding: 1%;">
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>
-                      {{'address' | translate}}
-                    </mat-label>
-
-                    <input [(ngModel)]="defaultsSchoolData.contact_address"
-                           formControlName="contact_phone" matInput required type="text">
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>Email</mat-label>
-                    <input [(ngModel)]="defaultsSchoolData.contact_email"
-                           formControlName="contact_address" matInput required type="text">
-
-                  </mat-form-field>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>
-                      {{'cp' | translate}}
-                    </mat-label>
-
-                    <input [(ngModel)]="defaultsSchoolData.contact_cp"
-                           formControlName="contact_address_number" matInput required type="text">
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>
-                      {{'phone' | translate}}
-                    </mat-label>
-                    <input [(ngModel)]="defaultsSchoolData.contact_phone"
-                           formControlName="contact_cp" matInput required type="tel">
-
-                  </mat-form-field>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
-                    <mat-label>
-                      {{'country' | translate }}
-                    </mat-label>
-                    <input [formControl]="myControlCountries" [matAutocomplete]="autoCountry"
-                           type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput
-                           formControlName="contact_country">
-                    <mat-autocomplete #autoCountry="matAutocomplete"
-                                      [displayWith]="displayFnCountry">
-                      <mat-option *ngFor="let country of filteredCountries | async"
-                                  [value]="country"
-                                  (onSelectionChange)="defaultsSchoolData.contact_country = country.id">
-                        {{country.name}}
-                      </mat-option>
-                    </mat-autocomplete>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
-                    <mat-label>
-                      {{'province' | translate }}
-                    </mat-label>
-                    <input [formControl]="myControlProvinces" [matAutocomplete]="autoProvince"
-                           type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput
-                           formControlName="contact_province">
-                    <mat-autocomplete #autoProvince="matAutocomplete"
-                                      [displayWith]="displayFnProvince">
-                      <mat-option *ngFor="let province of filteredProvinces | async"
-                                  [value]="province"
-                                  (onSelectionChange)="defaultsSchoolData.contact_province = province.id">
-                        {{province.name}}
-                      </mat-option>
-                    </mat-autocomplete>
-                  </mat-form-field>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>
-                      {{'city' | translate}}
-                    </mat-label>
-
-                    <input [(ngModel)]="defaultsSchoolData.contact_city"
-                           formControlName="contact_city" matInput required type="text">
-                  </mat-form-field>
-                </div>
-              </div>
-            </div>
-          </vex-page-layout-content>
-        </vex-page-layout>
-      </mat-tab>
-      <mat-tab label="{{ 'settings.meeting_points.title' | translate }}">
-        <vex-page-layout>
-          <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
-            <div class="flex flex-wrap" style="padding: 1%; justify-content: space-between; align-items: center;">
-              <div style="max-width: 75%;">
-                <h1 style="font-size: 24px;">
-                  {{ 'settings.meeting_points.title' | translate }}
-                </h1>
-                <p style="margin: 4px 0;">
-                  {{ 'settings.meeting_points.description' | translate }}
-                </p>
-              </div>
-              <button mat-raised-button color="primary" (click)="openMeetingPointModal()">
-                {{ 'settings.meeting_points.add' | translate }}
-              </button>
-            </div>
-
-            <div *ngIf="meetingPointsLoading" style="padding: 1%; text-align: center;">
-              <mat-spinner></mat-spinner>
-            </div>
-
-            <div *ngIf="!meetingPointsLoading">
-              <div *ngIf="meetingPoints.length === 0" class="empty-state" style="padding: 1%; color: #6c757d;">
-                {{ 'settings.meeting_points.empty' | translate }}
-              </div>
-
-              <table *ngIf="meetingPoints.length > 0" mat-table [dataSource]="dataSourceMeetingPoints" class="w-full">
-                <ng-container matColumnDef="name">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'settings.meeting_points.fields.name' | translate }}</th>
-                  <td mat-cell *matCellDef="let element">{{ element.name }}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="address">
-                  <th mat-header-cell *matHeaderCellDef>{{ 'settings.meeting_points.fields.address' | translate }}</th>
-                  <td mat-cell *matCellDef="let element">{{ element.address }}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="instructions">
-                  <th mat-header-cell *matHeaderCellDef>{{ 'settings.meeting_points.fields.instructions' | translate }}</th>
-                  <td mat-cell *matCellDef="let element">{{ element.instructions || '-' }}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="active">
-                  <th mat-header-cell *matHeaderCellDef>{{ 'settings.meeting_points.fields.active' | translate }}</th>
-                  <td mat-cell *matCellDef="let element">
-                    <mat-slide-toggle [checked]="element.active" disabled></mat-slide-toggle>
-                  </td>
-                </ng-container>
-
-                <ng-container matColumnDef="actions">
-                  <th mat-header-cell *matHeaderCellDef></th>
-                  <td mat-cell *matCellDef="let element">
-                    <mat-icon (click)="openMeetingPointModal(element)" svgIcon="mat:edit" class="cursor-pointer"></mat-icon>
-                    <mat-icon (click)="deleteMeetingPoint(element)" svgIcon="mat:delete" class="cursor-pointer ml-2"></mat-icon>
-                  </td>
-                </ng-container>
-
-                <tr mat-header-row *matHeaderRowDef="meetingPointsDisplayedColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: meetingPointsDisplayedColumns;"></tr>
-              </table>
-            </div>
           </vex-page-layout-content>
         </vex-page-layout>
       </mat-tab>

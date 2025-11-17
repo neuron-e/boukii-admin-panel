@@ -19,6 +19,7 @@ import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { MOCK_PROVINCES } from 'src/app/static-data/province-data';
 import { MatTable, MatTableDataSource } from '@angular/material/table';
 import { MatDatepicker, MatDatepickerInputEvent } from '@angular/material/datepicker';
+import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import * as moment from 'moment';
 import { ApiCrudService } from 'src/service/crud.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -120,6 +121,7 @@ export class SettingsComponent implements OnInit {
   filteredHours: string[];
 
   seasonForm: UntypedFormGroup;
+  schoolInfoForm: UntypedFormGroup;
   myControlCountries = new FormControl();
   myControlProvinces = new FormControl();
 
@@ -129,6 +131,16 @@ export class SettingsComponent implements OnInit {
   school: any = [];
   schoolLogoPreview: string | null = null;
   schoolLogoBase64: string | null = null;
+  defaultsSchoolData = {
+    contact_phone: null,
+    contact_address: null,
+    contact_address_number: null,
+    contact_cp: null,
+    contact_city: null,
+    contact_country: null,
+    contact_province: null,
+    contact_email: null
+  };
   blockages = [];
   mockLevelData = LEVELS;
   mockCountriesData = MOCK_COUNTRIES;
@@ -173,17 +185,6 @@ export class SettingsComponent implements OnInit {
   sportsList: any = [];
   schoolSports: any = [];
   season: any = null;
-
-  defaultsSchoolData = {
-    contact_phone: null,
-    contact_address: null,
-    contact_address_number: null,
-    contact_cp: null,
-    contact_city: null,
-    contact_country: null,
-    contact_province: null,
-    contact_email: null
-  }
 
   defaultsCommonExtras = {
     forfait: [],
@@ -275,9 +276,48 @@ export class SettingsComponent implements OnInit {
           .subscribe(() =>{})
         });
       })*/
+    this.initializeForms();
     this.generateHours();
     this.getData();
 
+  }
+
+  private initializeForms() {
+    this.schoolInfoForm = this.fb.group({
+      contact_phone: [null],
+      contact_address: [null],
+      contact_address_number: [null],
+      contact_cp: [null],
+      contact_city: [null],
+      contact_country: [null],
+      contact_province: [null],
+      contact_email: [null]
+    });
+
+    this.seasonForm = this.fb.group({
+      fromDate: [null],
+      toDate: [null],
+      startHour: [null],
+      endHour: [null]
+    });
+
+    this.seasonForm.get('startHour')?.valueChanges.subscribe(selectedHour => {
+      this.filterHours(selectedHour);
+    });
+
+    this.filteredCountries = this.myControlCountries.valueChanges.pipe(
+      startWith(''),
+      map(value => typeof value === 'string' ? value : value?.name),
+      map(name => name ? this._filterCountries(name) : this.mockCountriesData.slice())
+    );
+
+    this.filteredProvinces = this._filterProvinces();
+
+    this.myControlCountries.valueChanges.subscribe(country => {
+      this.myControlProvinces.setValue('');
+      const countryId = country && country.id ? country.id : null;
+      this.filteredProvinces = this._filterProvinces(countryId);
+    });
   }
 
 
@@ -310,47 +350,26 @@ export class SettingsComponent implements OnInit {
             });
 
             if (this.season) {
-
               this.holidays = JSON.parse(this.season.vacation_days);
+            } else {
+              this.holidays = [];
             }
+
             this.getSchoolSportDegrees();
 
-            this.selectedFrom = moment(this.season?.start_date).toDate();
-            this.selectedFromHour = this.season?.hour_start?.split(':').slice(0, 2).join(':'); // "18:00"
-            this.selectedToHour = this.season?.hour_end?.split(':').slice(0, 2).join(':'); // "18:00"
-            this.selectedTo = moment(this.season?.end_date).toDate();
+            this.selectedFrom = this.season?.start_date ? moment(this.season.start_date).toDate() : null;
+            this.selectedFromHour = this.season?.hour_start ? this.season.hour_start.split(':').slice(0, 2).join(':') : null;
+            this.selectedToHour = this.season?.hour_end ? this.season.hour_end.split(':').slice(0, 2).join(':') : null;
+            this.selectedTo = this.season?.end_date ? moment(this.season.end_date).toDate() : null;
 
+            this.seasonForm.patchValue({
+              fromDate: this.selectedFrom,
+              toDate: this.selectedTo,
+              startHour: this.season?.hour_start ?? null,
+              endHour: this.season?.hour_end ?? null
+            }, { emitEvent: false });
 
-            this.seasonForm = this.fb.group({
-              fromDate: [moment(this.season?.start_date).toDate()],
-              toDate: [moment(this.season?.end_date).toDate()],
-              startHour: [this.season?.hour_start],
-              endHour: [this.season?.hour_end],
-            contact_phone: [this.school.contact_phone],
-            contact_address: [this.school.contact_address],
-            contact_address_number: [this.school.contact_address_number],
-            contact_cp: [this.school.contact_cp],
-            contact_country: [this.school.contact_country],
-            contact_province: [this.school.contact_province],
-            contact_city: [this.school.contact_city],
-            contact_email: [this.school.contact_email]
-
-            });
-
-            this.seasonForm.get('startHour').valueChanges.subscribe(selectedHour => {
-              this.filterHours(selectedHour);
-            });
-
-            this.filteredCountries = this.myControlCountries.valueChanges.pipe(
-              startWith(''),
-              map(value => typeof value === 'string' ? value : value.name),
-              map(name => name ? this._filterCountries(name) : this.mockCountriesData.slice())
-            );
-
-            this.myControlCountries.valueChanges.subscribe(country => {
-              this.myControlProvinces.setValue('');  // Limpia la selección anterior de la provincia
-              this.filteredProvinces = this._filterProvinces(country.id);
-            });
+            this.filterHours(this.selectedFromHour);
 
             this.loadMeetingPoints();
 
@@ -680,9 +699,9 @@ export class SettingsComponent implements OnInit {
     return province && province.name ? province.name : '';
   }
 
-  private _filter(name: string, countryId: number): any[] {
+  private _filter(name: string, countryId?: number): any[] {
     const filterValue = name.toLowerCase();
-    return this.mockProvincesData.filter(province => province.country_id === countryId && province.name.toLowerCase().includes(filterValue));
+    return this.mockProvincesData.filter(province => (!countryId || province.country_id === countryId) && province.name.toLowerCase().includes(filterValue));
   }
 
   private _filterCountries(name: string): any[] {
@@ -690,12 +709,29 @@ export class SettingsComponent implements OnInit {
     return this.mockCountriesData.filter(country => country.name.toLowerCase().includes(filterValue));
   }
 
-  private _filterProvinces(countryId: number): Observable<any[]> {
+  private _filterProvinces(countryId?: number): Observable<any[]> {
     return this.myControlProvinces.valueChanges.pipe(
       startWith(''),
       map(value => typeof value === 'string' ? value : value.name),
-      map(name => name ? this._filter(name, countryId) : this.mockProvincesData.filter(p => p.country_id === countryId).slice())
+      map(name => {
+        const provinces = countryId ? this.mockProvincesData.filter(p => p.country_id === countryId) : this.mockProvincesData;
+        return name ? this._filter(name, countryId) : provinces.slice();
+      })
     );
+  }
+
+  onCountrySelected(event: MatAutocompleteSelectedEvent) {
+    const country = event.option.value;
+    const countryId = country?.id ?? null;
+    this.schoolInfoForm.patchValue({ contact_country: countryId, contact_province: null });
+    this.myControlProvinces.setValue('', { emitEvent: false });
+    this.filteredProvinces = this._filterProvinces(countryId);
+  }
+
+  onProvinceSelected(event: MatAutocompleteSelectedEvent) {
+    const province = event.option.value;
+    const provinceId = province?.id ?? null;
+    this.schoolInfoForm.patchValue({ contact_province: provinceId });
   }
 
   editGoal(data: any, id: number) {
@@ -816,16 +852,16 @@ export class SettingsComponent implements OnInit {
 
   saveContactData() {
 
-    const contactForm = this.seasonForm ? this.seasonForm.getRawValue() : {};
+    const contactForm = this.schoolInfoForm ? this.schoolInfoForm.getRawValue() : {};
     const data: any = {
-      contact_phone: contactForm.contact_phone ?? this.defaultsSchoolData.contact_phone,
-      contact_address: contactForm.contact_address ?? this.defaultsSchoolData.contact_address,
-      contact_address_number: contactForm.contact_address_number ?? this.defaultsSchoolData.contact_address_number,
-      contact_cp: contactForm.contact_cp ?? this.defaultsSchoolData.contact_cp,
-      contact_city: contactForm.contact_city ?? this.defaultsSchoolData.contact_city,
-      contact_country: contactForm.contact_country ?? this.defaultsSchoolData.contact_country,
-      contact_province: contactForm.contact_province ?? this.defaultsSchoolData.contact_province,
-      contact_email: contactForm.contact_email ?? this.defaultsSchoolData.contact_email,
+      contact_phone: contactForm.contact_phone ?? null,
+      contact_address: contactForm.contact_address ?? null,
+      contact_address_number: contactForm.contact_address_number ?? null,
+      contact_cp: contactForm.contact_cp ?? null,
+      contact_city: contactForm.contact_city ?? null,
+      contact_country: contactForm.contact_country ?? null,
+      contact_province: contactForm.contact_province ?? null,
+      contact_email: contactForm.contact_email ?? null,
     };
 
     this.crudService.update('/schools', data, this.school.id)
@@ -879,18 +915,30 @@ export class SettingsComponent implements OnInit {
     this.defaultsSchoolData.contact_address_number = school.contact_address_number;
     this.defaultsSchoolData.contact_cp = school.contact_cp;
     this.defaultsSchoolData.contact_city = school.contact_city;
-    this.defaultsSchoolData.contact_province = school.contact_province;
     this.defaultsSchoolData.contact_country = school.contact_country;
+    this.defaultsSchoolData.contact_province = school.contact_province;
     this.defaultsSchoolData.contact_email = school.contact_email;
+
+    this.schoolInfoForm.patchValue({
+      contact_phone: school.contact_phone,
+      contact_address: school.contact_address,
+      contact_address_number: school.contact_address_number,
+      contact_cp: school.contact_cp,
+      contact_city: school.contact_city,
+      contact_country: school.contact_country,
+      contact_province: school.contact_province,
+      contact_email: school.contact_email
+    });
 
     const countryId = school.contact_country ? +school.contact_country : null;
     const provinceId = school.contact_province ? +school.contact_province : null;
 
     const selectedCountry = this.mockCountriesData.find((c) => c.id === countryId) || null;
-    this.myControlCountries.setValue(selectedCountry);
+    this.filteredProvinces = this._filterProvinces(countryId);
+    this.myControlCountries.setValue(selectedCountry, { emitEvent: false });
 
     const selectedProvince = this.mockProvincesData.find((p) => p.id === provinceId) || null;
-    this.myControlProvinces.setValue(selectedProvince);
+    this.myControlProvinces.setValue(selectedProvince, { emitEvent: false });
   }
 
   saveSchoolSports() {
