@@ -83,6 +83,11 @@ const childrenRoutes: VexRoutes = [
         canActivate: [AuthGuard],
       },
       {
+        path: 'payment-terminal',
+        loadChildren: () => import('./pages/payment-terminal/payment-terminal.module').then(m => m.PaymentTerminalModule),
+        canActivate: [AuthGuard],
+      },
+      {
         path: 'mail',
         loadChildren: () => import('./pages/mail/mail.module').then(m => m.MailModule),
         canActivate: [AuthGuard],

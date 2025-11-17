@@ -509,7 +509,7 @@
             {{'sport_evolution' | translate }}
           </span>
             <div #sliderContainer (scroll)="onScroll()" class="flowcard">
-              <div class="arrowflowcard">
+              <div *ngIf="!loading && selectedSport && sportCard.length>0" class="arrowflowcard">
                 <img (click)="scrollLeft(-1)" src="assets/icons/arrow-left-1.png" style="cursor: pointer;"
                      class="icon60 flecha">
                 <img (click)="scrollLeft(1)" src="assets/icons/arrow-right-1.png" style="cursor: pointer;"
@@ -519,6 +519,20 @@
                 <app-user-detail-sport-card *ngFor="let item of sportCard; index as i" [selectedSport]="selectedSport"
                                             [level]="item.degree" [goals]="item.goals" [center]="i === centeredCardIndex">
                 </app-user-detail-sport-card>
+              </div>
+              <!-- Empty state cuando no hay deportes -->
+              <div *ngIf="!loading && (!selectedSport || sportCard.length === 0)"
+                   style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; color: #8B9099;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.3; margin-bottom: 16px;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 6v6l4 2"></path>
+                </svg>
+                <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #374151;">
+                  {{ 'no_sports_yet' | translate }}
+                </p>
+                <p style="margin: 0; font-size: 14px; color: #8B9099; max-width: 300px;">
+                  {{ 'add_sports_message' | translate }}
+                </p>
               </div>
             </div>
           </div>
@@ -2100,12 +2114,14 @@
                         <mat-label>
                           {{'level' | translate }}
                         </mat-label>
-                        <input [formControl]="levelForm" [matAutocomplete]="autoLevel"
+                        <input [matAutocomplete]="autoLevel" [value]="element?.level?.name"
+                               [(ngModel)]="element.level" [ngModelOptions]="{standalone: true}"
                                type="text" placeholder="Pick one"
                                aria-label="Number" matInput>
                         <mat-autocomplete #autoLevel="matAutocomplete"
                                           [displayWith]="displayFnLevel">
-                          <mat-option *ngFor="let level of element.degrees" [value]="level">
+                          <mat-option *ngFor="let level of element.degrees" [value]="level"
+                                      (onSelectionChange)="assignLevelToNewSport(element, level)">
                             {{level.annotation}} - {{level.name}}
                           </mat-option>
                         </mat-autocomplete>
@@ -2385,7 +2401,7 @@
             {{'sport_evolution' | translate }}
           </span>
             <div #sliderContainer (scroll)="onScroll()" class="flowcard">
-              <div class="arrowflowcard">
+              <div *ngIf="!loading && selectedSport && sportCard.length>0" class="arrowflowcard">
                 <img (click)="scrollLeft(-1)" src="assets/icons/arrow-left-1.png" style="cursor: pointer;"
                      class="icon60 flecha">
                 <img (click)="scrollLeft(1)" src="assets/icons/arrow-right-1.png" style="cursor: pointer;"
@@ -2395,6 +2411,20 @@
                 <app-user-detail-sport-card *ngFor="let item of sportCard; index as i" [selectedSport]="selectedSport"
                                             [level]="item.degree" [goals]="item.goals" [center]="i === centeredCardIndex">
                 </app-user-detail-sport-card>
+              </div>
+              <!-- Empty state cuando no hay deportes -->
+              <div *ngIf="!loading && (!selectedSport || sportCard.length === 0)"
+                   style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; color: #8B9099;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.3; margin-bottom: 16px;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 6v6l4 2"></path>
+                </svg>
+                <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #374151;">
+                  {{ 'no_sports_yet' | translate }}
+                </p>
+                <p style="margin: 0; font-size: 14px; color: #8B9099; max-width: 300px;">
+                  {{ 'add_sports_message' | translate }}
+                </p>
               </div>
             </div>
           </div>

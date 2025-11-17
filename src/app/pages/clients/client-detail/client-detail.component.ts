@@ -695,6 +695,17 @@ export class ClientDetailComponent {
       if (index >= 0) {
         this.selectedNewSports.splice(index, 1);
       } else {
+        // Check if sport already exists in current sports (without level check at this stage)
+        const existsInCurrent = this.sportsCurrentData.data.find(s => s.sport_id === sport.sport_id);
+        if (existsInCurrent) {
+          this.snackbar.open(
+            this.translateService.instant('Este deporte ya está en tu lista. Puedes editar su nivel en la tabla superior.'),
+            'OK',
+            { duration: 4000 }
+          );
+          return;
+        }
+
         this.selectedNewSports.push(sport);
       }
 
@@ -707,6 +718,46 @@ export class ClientDetailComponent {
       // Detectar cambios manualmente para asegurarse de que Angular reconozca los cambios
       this.cdr.detectChanges();
     }
+  }
+
+  /**
+   * Asignar nivel a un deporte nuevo y validar duplicados
+   */
+  assignLevelToNewSport(element: any, level: any): void {
+    if (!element || !level) {
+      return;
+    }
+
+    // Validar si ya existe este deporte con este nivel
+    const duplicateInCurrent = this.sportsCurrentData.data.find(
+      s => s.sport_id === element.sport_id && s.level?.id === level.id
+    );
+
+    if (duplicateInCurrent) {
+      this.snackbar.open(
+        this.translateService.instant('Ya tienes este deporte con este nivel en tu lista actual'),
+        'OK',
+        { duration: 4000 }
+      );
+      return;
+    }
+
+    const duplicateInNew = this.sportsData.data.find(
+      s => s.sport_id === element.sport_id && s !== element && s.level?.id === level.id
+    );
+
+    if (duplicateInNew) {
+      this.snackbar.open(
+        this.translateService.instant('Ya seleccionaste este deporte con este nivel'),
+        'OK',
+        { duration: 4000 }
+      );
+      return;
+    }
+
+    // Asignar nivel al elemento
+    element.level = level;
+    this.cdr.detectChanges();
   }
 
   getSelectedSportsNames(): string {

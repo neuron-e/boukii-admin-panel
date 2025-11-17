@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { ApiCrudService } from 'src/service/crud.service';
 import { MonitorTransferPayload, MonitorsService } from 'src/service/monitors.service';
+import { MatSelectChange } from '@angular/material/select';
 
 @Component({
   selector: 'vex-flux-disponibilidad',
@@ -478,7 +479,7 @@ export class FluxDisponibilidadComponent implements OnInit {
     });
   }
 
-  private getMonitorDisplayName(monitor: any): string {
+  getMonitorDisplayName(monitor: any): string {
     if (!monitor) return '';
     const first = monitor.first_name ?? monitor.firstName ?? '';
     const last = monitor.last_name ?? monitor.lastName ?? '';
@@ -486,6 +487,44 @@ export class FluxDisponibilidadComponent implements OnInit {
     if (combined) return combined;
     if (monitor.name) return monitor.name;
     return '';
+  }
+
+  getSelectedMonitorForDate(): any | null {
+    const courseDates = this.getCourseDates();
+    const date = courseDates?.[this.selectDate];
+    const subgroup = this.getSubgroupForDate(date);
+    return subgroup?.monitor ?? null;
+  }
+
+  getSelectedMonitorIdForDate(): number | null {
+    return this.getSelectedMonitorForDate()?.id ?? null;
+  }
+
+  shouldShowSelectedMonitorOption(): boolean {
+    const selectedMonitor = this.getSelectedMonitorForDate();
+    if (!selectedMonitor) {
+      return false;
+    }
+    return !this.filteredMonitorsForSelect.some(m => m.id === selectedMonitor.id);
+  }
+
+  getSelectedMonitorDisplayName(): string {
+    return this.getMonitorDisplayName(this.getSelectedMonitorForDate());
+  }
+
+  private findMonitorById(id: number | null | undefined): any | null {
+    if (id === null || id === undefined) {
+      return null;
+    }
+    const byFiltered = this.filteredMonitorsForSelect.find(m => m.id === id);
+    if (byFiltered) {
+      return byFiltered;
+    }
+    const selectedMonitor = this.getSelectedMonitorForDate();
+    if (selectedMonitor?.id === id) {
+      return selectedMonitor;
+    }
+    return (this.monitors || []).find(m => m.id === id) ?? null;
   }
 
   private collectSubgroupIds(indexes: number[]): number[] {
@@ -778,8 +817,9 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   Date = (v: string): Date => new Date(v)
 
-  async SelectMonitor(event: any, selectDate: number) {
-    const selectedMonitor = event?.option?.value ?? null;
+  async SelectMonitor(event: MatSelectChange, selectDate: number) {
+    const selectedMonitorId = event.value ?? null;
+    const selectedMonitor = this.findMonitorById(selectedMonitorId);
     const monitorId = selectedMonitor ? selectedMonitor.id : null;
     const courseDates = this.getCourseDates();
     const baseSubgroup = this.getSubgroupForDate(courseDates?.[selectDate]);

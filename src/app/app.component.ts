@@ -302,11 +302,22 @@ export class AppComponent {
         label: "menu.config",
         children: [
           {
-            type: "link",
+            type: "dropdown",
             label: gatewayLabel,
-            route: gatewayRoute,
-            icon: "../assets/img/icons/boukii_pay.svg",
-            routerLinkActiveOptions: { exact: true },
+            icon: "mat:payment",
+            children: [
+              {
+                type: "link",
+                label: "menu.payment_gateway",
+                route: gatewayRoute,
+              },
+              {
+                type: "link",
+                label: "menu.payment_terminal",
+                route: "/payment-terminal",
+                routerLinkActiveOptions: { exact: true },
+              },
+            ],
           },
           {
             type: "link",

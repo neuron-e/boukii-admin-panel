@@ -6,10 +6,12 @@ import { BookingsCreateUpdateComponent } from "./bookings-create-update/bookings
 import { BookingDetailComponent } from "./booking-detail/booking-detail.component";
 import { BookingsCreateUpdateEditComponent } from "./bookings-create-update-edit/bookings-create-update-edit.component";
 
+import { DeprecatedRedirectGuard } from './deprecated-redirect.guard';
 const routes: VexRoutes = [
   {
     path: "",
     component: BookingsComponent,
+    canActivate: [DeprecatedRedirectGuard],
     data: {
       toolbarShadowEnabled: true,
     },
@@ -17,6 +19,7 @@ const routes: VexRoutes = [
   {
     path: "create",
     component: BookingsCreateUpdateComponent,
+    canActivate: [DeprecatedRedirectGuard],
     data: {
       toolbarShadowEnabled: true,
     },
@@ -24,6 +27,7 @@ const routes: VexRoutes = [
   {
     path: "update/:id",
     component: BookingDetailComponent,
+    canActivate: [DeprecatedRedirectGuard],
     data: {
       toolbarShadowEnabled: true,
     },
@@ -31,6 +35,7 @@ const routes: VexRoutes = [
   {
     path: "edit/:id",
     component: BookingsCreateUpdateEditComponent,
+    canActivate: [DeprecatedRedirectGuard],
     data: {
       toolbarShadowEnabled: true,
     },

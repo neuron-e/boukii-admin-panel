@@ -30,6 +30,11 @@ export class ApiCrudService extends ApiService {
     });
   }
 
+  uploadFile(url: string, formData: FormData) {
+    const headers = this.getHeaders().delete('content-type');
+    return this.http.post<ApiResponse>(this.baseUrl + url, formData, { headers });
+  }
+
   get(url: string, relations: any[] = [], filters: any = {}) {
     const params = new URLSearchParams();
 

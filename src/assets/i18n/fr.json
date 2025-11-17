@@ -668,6 +668,9 @@
   "settings.new_season.text": "Grâce aux multiples options configurables et autres services, votre école pourra offrir à ses clients une grande valeur ajoutée.",
   "settings.school.title": "Données (pour les e-mails)",
   "settings.school.save": "Enregistrer les coordonnées",
+  "settings.school.logo": "Logo de l'école",
+  "settings.school.logo_help": "Téléversez un logo pour qu'il soit utilisé dans les e-mails et sur la plateforme.",
+  "settings.school.logo_link": "Lien du logo",
   "settings.sports.title": "Sports actifs",
   "settings.sports.subtitle": "Sélectionnez vos sports",
   "settings.sports.all_sessions": "Toutes les saisons",
@@ -1852,4 +1855,7 @@
   "menu.payment_terminal": "Terminal de Paiement"
 ,
   "no_meeting_point_set": "Aucun point de rencontre défini"
+,
+  "no_sports_yet": "Aucun sport pour l'instant",
+  "add_sports_message": "Ajoutez des sports dans l'onglet \"Sports\" pour voir l'évolution du client"
 }

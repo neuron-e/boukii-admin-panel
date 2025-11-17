@@ -127,6 +127,8 @@ export class SettingsComponent implements OnInit {
   filteredProvinces: Observable<any[]>;
 
   school: any = [];
+  schoolLogoPreview: string | null = null;
+  schoolLogoBase64: string | null = null;
   blockages = [];
   mockLevelData = LEVELS;
   mockCountriesData = MOCK_COUNTRIES;
@@ -285,6 +287,9 @@ export class SettingsComponent implements OnInit {
       .subscribe((data) => {
 
         this.school = data.data;
+        this.schoolLogoPreview = this.school?.logo || null;
+        this.schoolLogoBase64 = null;
+        this.populateSchoolContactFields(this.school);
         this.getDegrees();
 
         forkJoin([this.getSchoolSeason(), this.getSports(), this.getBlockages(), this.getSchoolSports(), this.getEmails()])
@@ -321,28 +326,17 @@ export class SettingsComponent implements OnInit {
               toDate: [moment(this.season?.end_date).toDate()],
               startHour: [this.season?.hour_start],
               endHour: [this.season?.hour_end],
-              contact_phone: [this.school.contact_phone],
-              contact_address: [this.school.contact_address],
-              contact_address_number: [this.school.contact_address_number],
-              contact_cp: [this.school.contact_cp],
-              contact_country: [this.school.contact_country],
-              contact_province: [this.school.contact_province],
-              contact_city: [this.school.contact_city]
+            contact_phone: [this.school.contact_phone],
+            contact_address: [this.school.contact_address],
+            contact_address_number: [this.school.contact_address_number],
+            contact_cp: [this.school.contact_cp],
+            contact_country: [this.school.contact_country],
+            contact_province: [this.school.contact_province],
+            contact_city: [this.school.contact_city],
+            contact_email: [this.school.contact_email]
 
             });
 
-            this.defaultsSchoolData.contact_phone = this.school.contact_phone;
-            this.defaultsSchoolData.contact_address = this.school.contact_address;
-            this.defaultsSchoolData.contact_address_number = this.school.contact_address_number;
-            this.defaultsSchoolData.contact_cp = this.school.contact_cp;
-            this.defaultsSchoolData.contact_city = this.school.contact_city;
-            this.defaultsSchoolData.contact_province = this.school.contact_province;
-            this.defaultsSchoolData.contact_country = this.school.contact_country;
-            this.defaultsSchoolData.contact_email = this.school.contact_email;
-
-
-            this.myControlCountries.setValue(this.mockCountriesData.find((c) => c.id === +this.defaultsSchoolData.contact_country));
-            this.myControlProvinces.setValue(this.mockProvincesData.find((c) => c.id === +this.defaultsSchoolData.contact_province));
             this.seasonForm.get('startHour').valueChanges.subscribe(selectedHour => {
               this.filterHours(selectedHour);
             });
@@ -822,23 +816,81 @@ export class SettingsComponent implements OnInit {
 
   saveContactData() {
 
-    const data = {
-      contact_phone: this.defaultsSchoolData.contact_phone,
-      contact_address: this.defaultsSchoolData.contact_address,
-      contact_address_number: this.defaultsSchoolData.contact_address_number,
-      contact_cp: this.defaultsSchoolData.contact_cp,
-      contact_city: this.defaultsSchoolData.contact_city,
-      contact_country: this.defaultsSchoolData.contact_country,
-      contact_province: this.defaultsSchoolData.contact_province,
-      contact_email: this.defaultsSchoolData.contact_email,
-    }
+    const contactForm = this.seasonForm ? this.seasonForm.getRawValue() : {};
+    const data: any = {
+      contact_phone: contactForm.contact_phone ?? this.defaultsSchoolData.contact_phone,
+      contact_address: contactForm.contact_address ?? this.defaultsSchoolData.contact_address,
+      contact_address_number: contactForm.contact_address_number ?? this.defaultsSchoolData.contact_address_number,
+      contact_cp: contactForm.contact_cp ?? this.defaultsSchoolData.contact_cp,
+      contact_city: contactForm.contact_city ?? this.defaultsSchoolData.contact_city,
+      contact_country: contactForm.contact_country ?? this.defaultsSchoolData.contact_country,
+      contact_province: contactForm.contact_province ?? this.defaultsSchoolData.contact_province,
+      contact_email: contactForm.contact_email ?? this.defaultsSchoolData.contact_email,
+    };
 
     this.crudService.update('/schools', data, this.school.id)
-      .subscribe((res) => {
+      .subscribe((res: any) => {
+        this.school = res.data;
+        this.schoolLogoPreview = this.school?.logo || this.schoolLogoPreview;
+        this.schoolLogoBase64 = null;
+        this.populateSchoolContactFields(this.school);
         this.snackbar.open(this.translateService.instant('snackbar.settings.save'), this.translateService.instant('cancel'), { duration: 3000 });
         this.schoolService.refreshSchoolData();
         //this.getData();
       });
+  }
+
+  public handleSchoolLogoUpload(base64: string) {
+    this.schoolLogoBase64 = base64;
+    this.schoolLogoPreview = base64;
+  }
+
+  public handleSchoolLogoFile(file: File) {
+    if (!file || !this.school?.id) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    this.crudService.uploadFile(`/schools/${this.school.id}/logo`, formData)
+      .subscribe((response: any) => {
+        if (response?.success && response?.data) {
+          this.school = response.data;
+          this.schoolLogoPreview = this.school?.logo || this.schoolLogoPreview;
+          this.schoolLogoBase64 = null;
+          this.populateSchoolContactFields(this.school);
+          this.schoolService.refreshSchoolData();
+        }
+      });
+  }
+
+  public shouldShowLogoLink(): boolean {
+    return !!this.schoolLogoPreview && !this.schoolLogoPreview.startsWith('data:');
+  }
+
+  private populateSchoolContactFields(school: any) {
+    if (!school) {
+      return;
+    }
+
+    this.defaultsSchoolData.contact_phone = school.contact_phone;
+    this.defaultsSchoolData.contact_address = school.contact_address;
+    this.defaultsSchoolData.contact_address_number = school.contact_address_number;
+    this.defaultsSchoolData.contact_cp = school.contact_cp;
+    this.defaultsSchoolData.contact_city = school.contact_city;
+    this.defaultsSchoolData.contact_province = school.contact_province;
+    this.defaultsSchoolData.contact_country = school.contact_country;
+    this.defaultsSchoolData.contact_email = school.contact_email;
+
+    const countryId = school.contact_country ? +school.contact_country : null;
+    const provinceId = school.contact_province ? +school.contact_province : null;
+
+    const selectedCountry = this.mockCountriesData.find((c) => c.id === countryId) || null;
+    this.myControlCountries.setValue(selectedCountry);
+
+    const selectedProvince = this.mockProvincesData.find((p) => p.id === provinceId) || null;
+    this.myControlProvinces.setValue(selectedProvince);
   }
 
   saveSchoolSports() {

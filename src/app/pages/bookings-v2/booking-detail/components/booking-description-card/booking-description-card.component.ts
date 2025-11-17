@@ -20,6 +20,11 @@ import {
   getApplicableDiscounts,
   resolveIntervalName
 } from 'src/app/pages/bookings-v2/shared/discount-utils';
+import {
+  BookingDataService,
+  FormattedActivityData,
+  IntervalGroup
+} from 'src/app/shared/services/booking-data.service';
 
 export interface BookingDescriptionCardDate {
   date: string;
@@ -73,19 +78,18 @@ export class BookingDescriptionCard implements OnChanges {
   uniqueMonitors: any[] = []; // Monitores únicos
   private _dates: any[] = [];
   discountInfoList: AppliedDiscountInfo[] = [];
-  intervalGroups: Array<{
-    key: string;
-    label: string;
-    dates: any[];
-    discountInfo: AppliedDiscountInfo[];
-  }> = [];
+  intervalGroups: IntervalGroup[] = [];
+
+  // Datos formateados desde el servicio (fuente única de verdad)
+  formattedData: FormattedActivityData | null = null;
 
   constructor(
     public translateService: TranslateService,
     public bookingService: BookingService,
     protected langService: LangService,
     protected utilsService: UtilsService,
-    public dialog: MatDialog
+    public dialog: MatDialog,
+    private bookingDataService: BookingDataService
   ) {
     this.extractUniqueMonitors();
   }
@@ -102,7 +106,10 @@ export class BookingDescriptionCard implements OnChanges {
   }
 
   private extractUniqueMonitors() {
-    if (this.dates.length) {
+    // Mantener este método por compatibilidad, pero usar el servicio
+    if (this.formattedData) {
+      this.uniqueMonitors = this.formattedData.monitors.unique;
+    } else if (this.dates.length) {
       const allMonitors = this.dates.map((date) => date.monitor).filter((monitor) => !!monitor);
       this.uniqueMonitors = allMonitors.filter(
         (monitor, index, self) => self.findIndex((m) => m.id === monitor.id) === index
@@ -113,50 +120,42 @@ export class BookingDescriptionCard implements OnChanges {
   }
 
   private refreshDiscountInfo(): void {
+    // Usar el servicio para formatear todos los datos
     if (this.course && Array.isArray(this._dates) && this._dates.length > 0) {
-      this.discountInfoList = buildDiscountInfoList(this.course, this._dates);
+      this.formattedData = this.bookingDataService.formatActivityData(
+        this.course,
+        this._dates,
+        this.utilizers,
+        {
+          includeIntervals: true,
+          includeDiscounts: true,
+          calculateTotals: true,
+          extractUniqueMonitors: true,
+          groupParticipants: true
+        }
+      );
+
+      // Actualizar propiedades locales para compatibilidad con el template
+      this.discountInfoList = this.formattedData.intervals
+        ? this.formattedData.intervals.flatMap(interval => interval.discountInfo)
+        : [];
+      this.intervalGroups = this.formattedData.intervals || [];
+      this.uniqueMonitors = this.formattedData.monitors.unique;
     } else {
+      this.formattedData = null;
       this.discountInfoList = [];
+      this.intervalGroups = [];
+      this.uniqueMonitors = [];
     }
-    this.rebuildIntervalGroups();
   }
 
   hasExtrasForDate(date: any): boolean {
-    // Verifica si hay utilizadores para la fecha y si al menos uno tiene extras
+    // Usar el servicio si está disponible
+    if (this.bookingDataService) {
+      return this.bookingDataService.hasExtrasForDate(date);
+    }
+    // Fallback: lógica original
     return date.utilizers?.some((utilizer: any) => utilizer.extras && utilizer.extras.length > 0) || false;
-  }
-
-  private rebuildIntervalGroups(): void {
-    const discountByKey = new Map<string, AppliedDiscountInfo[]>();
-    this.discountInfoList.forEach(discount => {
-      const key = discount.intervalId ? String(discount.intervalId) : 'default';
-      if (!discountByKey.has(key)) {
-        discountByKey.set(key, []);
-      }
-      discountByKey.get(key)!.push(discount);
-    });
-
-    const groupsMap = new Map<string, {
-      key: string;
-      label: string;
-      dates: any[];
-      discountInfo: AppliedDiscountInfo[];
-    }>();
-
-    this._dates.forEach(date => {
-      const key = date?.interval_id ? String(date.interval_id) : 'default';
-      if (!groupsMap.has(key)) {
-        groupsMap.set(key, {
-          key,
-          label: this.resolveIntervalLabel(key, date),
-          dates: [],
-          discountInfo: discountByKey.get(key) || []
-        });
-      }
-      groupsMap.get(key)!.dates.push(date);
-    });
-
-    this.intervalGroups = Array.from(groupsMap.values());
   }
 
   private resolveIntervalLabel(key: string, sampleDate: any): string {
@@ -176,6 +175,17 @@ export class BookingDescriptionCard implements OnChanges {
   }
 
   getGlobalPriceSummary(): { base: number; discount: number; final: number; currency: string } | null {
+    // Usar datos del servicio si están disponibles
+    if (this.formattedData && this.formattedData.pricing) {
+      return {
+        base: this.formattedData.pricing.basePrice,
+        discount: this.formattedData.pricing.discountAmount,
+        final: this.formattedData.pricing.finalPrice,
+        currency: this.formattedData.pricing.currency
+      };
+    }
+
+    // Fallback: lógica original
     if (!Array.isArray(this.intervalGroups) || this.intervalGroups.length === 0) {
       return null;
     }
@@ -206,6 +216,19 @@ export class BookingDescriptionCard implements OnChanges {
     if (!intervalKey) {
       return null;
     }
+
+    // Usar datos del servicio si están disponibles
+    if (this.formattedData && this.formattedData.pricing.breakdown[intervalKey]) {
+      const breakdown = this.formattedData.pricing.breakdown[intervalKey];
+      return {
+        base: breakdown.basePrice,
+        discount: breakdown.discountAmount,
+        final: breakdown.finalPrice,
+        currency: this.formattedData.pricing.currency
+      };
+    }
+
+    // Fallback: lógica original
     return this.calculateIntervalFinancialSummary(intervalKey);
   }
 

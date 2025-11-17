@@ -1,0 +1,500 @@
+import { Injectable } from '@angular/core';
+import {
+  AppliedDiscountInfo,
+  applyFlexibleDiscount,
+  buildDiscountInfoList,
+  getApplicableDiscounts,
+  resolveIntervalName
+} from 'src/app/pages/bookings-v2/shared/discount-utils';
+
+/**
+ * Configuración para controlar qué datos incluir en el formateo
+ */
+export interface BookingDataFormatOptions {
+  includeIntervals?: boolean;       // Agrupar por intervalos (si existen)
+  includeDiscounts?: boolean;       // Calcular descuentos
+  calculateTotals?: boolean;        // Calcular totales de precio
+  extractUniqueMonitors?: boolean;  // Extraer monitores únicos
+  groupParticipants?: boolean;      // Agrupar participantes
+}
+
+/**
+ * Datos formateados de una fecha individual
+ */
+export interface FormattedDateData {
+  date: string;
+  startHour: string;
+  endHour: string;
+  price: number;
+  originalPrice?: number;           // Precio antes de descuentos
+  currency: string;
+  monitor?: any;
+  utilizers?: any[];
+  booking_users?: any[];
+  extras?: any[];
+  interval_id?: string | null;
+  interval_name?: string | null;
+  discountInfo?: AppliedDiscountInfo | null;
+  isDiscounted?: boolean;
+  changeMonitorOption?: any;        // Opción de cambio de monitor
+  [key: string]: any;               // Permitir propiedades adicionales
+}
+
+/**
+ * Grupo de fechas por intervalo
+ */
+export interface IntervalGroup {
+  key: string;                      // ID del intervalo o 'default'
+  label: string;                    // Nombre del intervalo traducido
+  dates: FormattedDateData[];
+  discountInfo: AppliedDiscountInfo[];
+  priceSummary?: {
+    baseTotal: number;
+    discountAmount: number;
+    finalTotal: number;
+    currency: string;
+  };
+}
+
+/**
+ * Monitor único extraído
+ */
+export interface UniqueMonitor {
+  id: number;
+  name: string;
+  [key: string]: any;
+}
+
+/**
+ * Resumen de precio de una actividad
+ */
+export interface ActivityPriceSummary {
+  basePrice: number;                // Suma de precios sin descuentos
+  discountAmount: number;           // Total ahorrado
+  finalPrice: number;               // Precio final con descuentos
+  currency: string;
+  breakdown: {                      // Desglose por intervalo (si aplica)
+    [intervalKey: string]: {
+      basePrice: number;
+      discountAmount: number;
+      finalPrice: number;
+      dateCount: number;
+    };
+  };
+}
+
+/**
+ * Datos formateados completos de una actividad
+ */
+export interface FormattedActivityData {
+  course: {
+    id: number;
+    name: string;
+    type: number;                   // 1=colectivo, 2=privado
+    sport_id: number;
+    is_flexible: boolean;
+    [key: string]: any;
+  };
+  dates: FormattedDateData[];
+  intervals?: IntervalGroup[];      // Solo si includeIntervals=true
+  participants: {
+    client: any;
+    level?: any;
+    [key: string]: any;
+  }[];
+  monitors: {
+    unique: UniqueMonitor[];        // Monitores únicos
+    byDate: Map<string, any>;       // Monitores por fecha
+  };
+  pricing: ActivityPriceSummary;
+  extras?: any[];                   // Extras globales
+}
+
+/**
+ * Servicio centralizado para formatear datos de reservas/actividades
+ *
+ * RESPONSABILIDAD:
+ * Este servicio es la ÚNICA fuente de verdad para formatear datos de booking.
+ * Todos los componentes (planner, list, detail, create) deben usar este servicio
+ * para garantizar consistencia en:
+ * - Cálculo de precios
+ * - Aplicación de descuentos
+ * - Agrupación por intervalos
+ * - Extracción de monitores
+ * - Agrupación de participantes
+ */
+@Injectable({
+  providedIn: 'root'
+})
+export class BookingDataService {
+
+  constructor() { }
+
+  /**
+   * Formatea los datos de una actividad de forma consistente
+   *
+   * @param course - Datos del curso
+   * @param dates - Array de fechas/sesiones
+   * @param utilizers - Participantes (opcional)
+   * @param options - Opciones de formateo
+   * @returns Datos formateados listos para presentación
+   */
+  formatActivityData(
+    course: any,
+    dates: any[],
+    utilizers: any[] = [],
+    options: BookingDataFormatOptions = {}
+  ): FormattedActivityData {
+    // Opciones por defecto
+    const opts: BookingDataFormatOptions = {
+      includeIntervals: true,
+      includeDiscounts: true,
+      calculateTotals: true,
+      extractUniqueMonitors: true,
+      groupParticipants: true,
+      ...options
+    };
+
+    // 1. Formatear fechas individuales
+    const formattedDates = this.formatDates(course, dates, opts);
+
+    // 2. Calcular descuentos (si está habilitado)
+    const discountInfoList = opts.includeDiscounts
+      ? buildDiscountInfoList(course, dates)
+      : [];
+
+    // 3. Agrupar por intervalos (si está habilitado y existen)
+    const intervals = opts.includeIntervals
+      ? this.buildIntervalGroups(course, formattedDates, discountInfoList)
+      : undefined;
+
+    // 4. Extraer monitores únicos
+    const monitors = opts.extractUniqueMonitors
+      ? this.extractMonitorsData(dates)
+      : { unique: [], byDate: new Map() };
+
+    // 5. Agrupar participantes
+    const participants = opts.groupParticipants
+      ? this.extractParticipants(utilizers, dates)
+      : [];
+
+    // 6. Calcular totales de precio
+    const pricing = opts.calculateTotals
+      ? this.calculatePricingSummary(course, formattedDates, intervals)
+      : this.getEmptyPricingSummary(formattedDates[0]?.currency || '€');
+
+    // 7. Extraer extras globales
+    const extras = this.extractGlobalExtras(dates);
+
+    return {
+      course: {
+        id: course.id,
+        name: course.name,
+        type: course.course_type,
+        sport_id: course.sport_id,
+        is_flexible: course.is_flexible,
+        ...course
+      },
+      dates: formattedDates,
+      intervals,
+      participants,
+      monitors,
+      pricing,
+      extras
+    };
+  }
+
+  /**
+   * Formatea las fechas individuales
+   */
+  private formatDates(
+    course: any,
+    dates: any[],
+    options: BookingDataFormatOptions
+  ): FormattedDateData[] {
+    return dates.map(date => {
+      const price = parseFloat(date?.price ?? course?.price ?? course?.minPrice ?? 0) || 0;
+      const currency = date?.currency || course?.currency || '€';
+
+      // Calcular descuento si está habilitado
+      let discountInfo: AppliedDiscountInfo | null = null;
+      let finalPrice = price;
+
+      if (options.includeDiscounts && course?.is_flexible) {
+        const intervalId = date?.interval_id ? String(date.interval_id) : undefined;
+        const applicableDiscounts = getApplicableDiscounts(course, intervalId);
+
+        if (applicableDiscounts && applicableDiscounts.length > 0) {
+          // Nota: para descuentos individuales necesitamos contar las fechas del mismo intervalo
+          // Esto es una aproximación; el cálculo exacto se hace en buildDiscountInfoList
+          finalPrice = applyFlexibleDiscount(price, 1, applicableDiscounts);
+        }
+      }
+
+      const isDiscounted = finalPrice < price;
+
+      return {
+        ...date,                      // Copiar todas las propiedades originales
+        startHour: date.startHour || date.start_hour || '',
+        endHour: date.endHour || date.end_hour || '',
+        price: finalPrice,
+        originalPrice: isDiscounted ? price : undefined,
+        currency,
+        utilizers: date.utilizers || date.utilizer || [],
+        booking_users: date.booking_users || [],
+        extras: date.extras || [],
+        interval_id: date.interval_id || null,
+        interval_name: date.interval_name || null,
+        discountInfo,
+        isDiscounted
+      };
+    });
+  }
+
+  /**
+   * Agrupa fechas por intervalo
+   */
+  private buildIntervalGroups(
+    course: any,
+    formattedDates: FormattedDateData[],
+    discountInfoList: AppliedDiscountInfo[]
+  ): IntervalGroup[] {
+    // Agrupar descuentos por intervalo
+    const discountByKey = new Map<string, AppliedDiscountInfo[]>();
+    discountInfoList.forEach(discount => {
+      const key = discount.intervalId ? String(discount.intervalId) : 'default';
+      if (!discountByKey.has(key)) {
+        discountByKey.set(key, []);
+      }
+      discountByKey.get(key)!.push(discount);
+    });
+
+    // Agrupar fechas por intervalo
+    const groupsMap = new Map<string, IntervalGroup>();
+
+    formattedDates.forEach(date => {
+      const key = date.interval_id ? String(date.interval_id) : 'default';
+
+      if (!groupsMap.has(key)) {
+        const intervalName = date.interval_name ||
+                            (date.interval_id ? resolveIntervalName(course, String(date.interval_id)) : null) ||
+                            'interval_date_range';
+
+        groupsMap.set(key, {
+          key,
+          label: intervalName,
+          dates: [],
+          discountInfo: discountByKey.get(key) || []
+        });
+      }
+
+      groupsMap.get(key)!.dates.push(date);
+    });
+
+    // Calcular resumen de precio por intervalo
+    const intervals = Array.from(groupsMap.values());
+    intervals.forEach(interval => {
+      interval.priceSummary = this.calculateIntervalPriceSummary(interval);
+    });
+
+    return intervals;
+  }
+
+  /**
+   * Calcula resumen de precio para un intervalo
+   */
+  private calculateIntervalPriceSummary(interval: IntervalGroup): {
+    baseTotal: number;
+    discountAmount: number;
+    finalTotal: number;
+    currency: string;
+  } {
+    const baseTotal = interval.dates.reduce((sum, date) =>
+      sum + (date.originalPrice || date.price), 0
+    );
+
+    const finalTotal = interval.dates.reduce((sum, date) =>
+      sum + date.price, 0
+    );
+
+    const currency = interval.dates[0]?.currency || '€';
+
+    return {
+      baseTotal,
+      discountAmount: baseTotal - finalTotal,
+      finalTotal,
+      currency
+    };
+  }
+
+  /**
+   * Extrae datos de monitores
+   */
+  private extractMonitorsData(dates: any[]): {
+    unique: UniqueMonitor[];
+    byDate: Map<string, any>;
+  } {
+    const uniqueMap = new Map<number, UniqueMonitor>();
+    const byDate = new Map<string, any>();
+
+    dates.forEach(date => {
+      if (date.monitor && date.monitor.id) {
+        // Añadir a únicos
+        if (!uniqueMap.has(date.monitor.id)) {
+          uniqueMap.set(date.monitor.id, {
+            id: date.monitor.id,
+            name: date.monitor.name || '',
+            ...date.monitor
+          });
+        }
+
+        // Mapear por fecha
+        byDate.set(date.date, date.monitor);
+      }
+    });
+
+    return {
+      unique: Array.from(uniqueMap.values()),
+      byDate
+    };
+  }
+
+  /**
+   * Extrae participantes únicos
+   */
+  private extractParticipants(utilizers: any[], dates: any[]): any[] {
+    const participantsMap = new Map<number, any>();
+
+    // Extraer de utilizers directos
+    if (utilizers && Array.isArray(utilizers)) {
+      utilizers.forEach(utilizer => {
+        if (utilizer?.id) {
+          participantsMap.set(utilizer.id, utilizer);
+        }
+      });
+    }
+
+    // Extraer de fechas (por si hay utilizers por fecha)
+    dates.forEach(date => {
+      const dateUtilizers = date.utilizers || date.utilizer || [];
+      dateUtilizers.forEach((utilizer: any) => {
+        if (utilizer?.id && !participantsMap.has(utilizer.id)) {
+          participantsMap.set(utilizer.id, utilizer);
+        }
+      });
+    });
+
+    return Array.from(participantsMap.values());
+  }
+
+  /**
+   * Extrae extras globales (que aparecen en todas las fechas)
+   */
+  private extractGlobalExtras(dates: any[]): any[] {
+    if (!dates || dates.length === 0) {
+      return [];
+    }
+
+    // Simplificación: devolver todos los extras únicos
+    const extrasMap = new Map<number, any>();
+
+    dates.forEach(date => {
+      const extras = date.extras || [];
+      extras.forEach((extra: any) => {
+        if (extra?.id) {
+          extrasMap.set(extra.id, extra);
+        }
+      });
+    });
+
+    return Array.from(extrasMap.values());
+  }
+
+  /**
+   * Calcula resumen total de precio
+   */
+  private calculatePricingSummary(
+    course: any,
+    dates: FormattedDateData[],
+    intervals?: IntervalGroup[]
+  ): ActivityPriceSummary {
+    const currency = dates[0]?.currency || '€';
+
+    // Calcular total base (sin descuentos)
+    const basePrice = dates.reduce((sum, date) =>
+      sum + (date.originalPrice || date.price), 0
+    );
+
+    // Calcular total final (con descuentos)
+    const finalPrice = dates.reduce((sum, date) =>
+      sum + date.price, 0
+    );
+
+    const discountAmount = basePrice - finalPrice;
+
+    // Desglose por intervalo (si existe)
+    const breakdown: ActivityPriceSummary['breakdown'] = {};
+
+    if (intervals) {
+      intervals.forEach(interval => {
+        breakdown[interval.key] = {
+          basePrice: interval.priceSummary?.baseTotal || 0,
+          discountAmount: interval.priceSummary?.discountAmount || 0,
+          finalPrice: interval.priceSummary?.finalTotal || 0,
+          dateCount: interval.dates.length
+        };
+      });
+    }
+
+    return {
+      basePrice,
+      discountAmount,
+      finalPrice,
+      currency,
+      breakdown
+    };
+  }
+
+  /**
+   * Retorna resumen de precio vacío
+   */
+  private getEmptyPricingSummary(currency: string = '€'): ActivityPriceSummary {
+    return {
+      basePrice: 0,
+      discountAmount: 0,
+      finalPrice: 0,
+      currency,
+      breakdown: {}
+    };
+  }
+
+  /**
+   * Verifica si una fecha tiene extras
+   */
+  hasExtrasForDate(date: any): boolean {
+    return date?.utilizers?.some((utilizer: any) =>
+      utilizer.extras && utilizer.extras.length > 0
+    ) || false;
+  }
+
+  /**
+   * Obtiene el precio de una fecha específica (con descuentos aplicados)
+   */
+  getDatePrice(date: FormattedDateData): number {
+    return date.price;
+  }
+
+  /**
+   * Obtiene el precio original de una fecha (sin descuentos)
+   */
+  getDateOriginalPrice(date: FormattedDateData): number {
+    return date.originalPrice || date.price;
+  }
+
+  /**
+   * Verifica si una fecha está descontada
+   */
+  isDateDiscounted(date: FormattedDateData): boolean {
+    return date.isDiscounted || false;
+  }
+}

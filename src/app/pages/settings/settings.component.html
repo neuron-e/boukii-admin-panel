@@ -34,6 +34,29 @@
 
               </div>
               <div style="width: 100%; float: left; border:#e6e6e6 1px solid;padding: 1%;">
+                <div style="display:flex; flex-wrap: wrap; gap:16px; margin-bottom: 24px; align-items:flex-start;">
+                  <vex-flux-upload-img [width]="200" [height]="200" [edit]="true"
+                                       [imagePreviewUrl]="schoolLogoPreview || ''"
+                                       (upload)="handleSchoolLogoUpload($event)"
+                                       (uploadFile)="handleSchoolLogoFile($event)">
+                  </vex-flux-upload-img>
+                  <div style="flex:1; min-width: 220px;">
+                    <p style="margin-top:0; font-weight:600;">
+                      {{ 'settings.school.logo' | translate }}
+                    </p>
+                    <p style="margin:0 0 8px 0;">
+                      {{ 'settings.school.logo_help' | translate }}
+                    </p>
+                    <div *ngIf="shouldShowLogoLink()" style="word-break: break-all; font-size: 14px;">
+                      <small>{{ 'settings.school.logo_link' | translate }}</small>
+                      <div>
+                        <a [href]="schoolLogoPreview" target="_blank" rel="noopener">
+                          {{ schoolLogoPreview }}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
 
                   <div class="flex-auto">
@@ -155,7 +178,7 @@
                   </p>
                 </div>
                 <div>
-                  <button (click)="saveContactData();" class="btn-primary-accent"
+                  <button type="button" (click)="saveContactData();" class="btn-primary-accent"
                           style="float: right;">
                     {{'settings.school.save' |
                     translate}}
@@ -170,13 +193,13 @@
                     </mat-label>
 
                     <input [(ngModel)]="defaultsSchoolData.contact_address"
-                           formControlName="contact_phone" matInput required type="text">
+                           formControlName="contact_address" matInput required type="text">
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="flex-auto">
                     <mat-label>Email</mat-label>
                     <input [(ngModel)]="defaultsSchoolData.contact_email"
-                           formControlName="contact_address" matInput required type="text">
+                           formControlName="contact_email" matInput required type="text">
 
                   </mat-form-field>
                 </div>
@@ -187,7 +210,7 @@
                     </mat-label>
 
                     <input [(ngModel)]="defaultsSchoolData.contact_cp"
-                           formControlName="contact_address_number" matInput required type="text">
+                           formControlName="contact_cp" matInput required type="text">
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="flex-auto">
@@ -195,7 +218,7 @@
                       {{'phone' | translate}}
                     </mat-label>
                     <input [(ngModel)]="defaultsSchoolData.contact_phone"
-                           formControlName="contact_cp" matInput required type="tel">
+                           formControlName="contact_phone" matInput required type="tel">
 
                   </mat-form-field>
                 </div>
@@ -230,9 +253,32 @@
                                   [value]="province"
                                   (onSelectionChange)="defaultsSchoolData.contact_province = province.id">
                         {{province.name}}
-                      </mat-option>
+                  </mat-option>
                     </mat-autocomplete>
                   </mat-form-field>
+                </div>
+                <div style="display:flex; flex-wrap: wrap; gap:12px; margin-top: 16px; align-items: flex-start; margin-bottom: 24px;">
+                  <vex-flux-upload-img [width]="200" [height]="200" [edit]="true"
+                                       [imagePreviewUrl]="schoolLogoPreview || ''"
+                                       (upload)="handleSchoolLogoUpload($event)"
+                                       (uploadFile)="handleSchoolLogoFile($event)">
+                  </vex-flux-upload-img>
+                  <div style="flex:1; min-width: 200px;">
+                    <p style="margin-top: 0; font-weight: 600;">
+                      {{ 'settings.school.logo' | translate }}
+                    </p>
+                    <p style="margin: 0 0 8px 0;">
+                      {{ 'settings.school.logo_help' | translate }}
+                    </p>
+                    <div *ngIf="shouldShowLogoLink()" style="word-break: break-all; font-size: 14px;">
+                      <small>{{ 'settings.school.logo_link' | translate }}</small>
+                      <div>
+                        <a [href]="schoolLogoPreview" target="_blank" rel="noopener">
+                          {{ schoolLogoPreview }}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                   <mat-form-field appearance="outline" class="flex-auto">

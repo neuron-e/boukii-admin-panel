@@ -83,16 +83,33 @@
               </span>
             </div>
           </div>
-          <app-form-select
-            [table]="filteredMonitorsForSelect"
-            [value]="getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor
-    ? (getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor?.first_name + ' ' +
-       getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.monitor?.last_name)
-    : ''"
-            (do)="SelectMonitor($event,selectDate)"
-            name="first_name"
-            name2="last_name">
-          </app-form-select>
+          <mat-form-field appearance="outline" class="monitor-select-field">
+            <mat-label>{{'monitor' | translate}}</mat-label>
+            <mat-select
+              placeholder="{{'monitor' | translate}}"
+              [value]="getSelectedMonitorIdForDate()"
+              (selectionChange)="SelectMonitor($event, selectDate)">
+              <mat-option class="monitor-search-option" disabled>
+                <mat-form-field appearance="outline" class="monitor-select-search" (click)="$event.stopPropagation()">
+                  <mat-icon matPrefix>search</mat-icon>
+                  <input matInput
+                         type="text"
+                         [value]="monitorSearchTerm"
+                         (input)="onMonitorSearchInput($event)"
+                         placeholder="{{'search' | translate}}">
+                </mat-form-field>
+              </mat-option>
+              <ng-container *ngIf="shouldShowSelectedMonitorOption()">
+                <mat-option [value]="getSelectedMonitorIdForDate()">
+                  {{ getSelectedMonitorDisplayName() }}
+                </mat-option>
+              </ng-container>
+              <mat-option *ngFor="let monitor of filteredMonitorsForSelect"
+                          [value]="monitor.id">
+                {{ getMonitorDisplayName(monitor) }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
           <div class="level" *ngIf="monitors === undefined || monitors === null"
                style="width: 100%; height: 100%; padding: 10px; background: #F5F5F5; border-radius: 8px; justify-content: flex-start; align-items: center; gap: 8px; display: inline-flex">
             <mat-icon style="color: #666;" class="icon24">

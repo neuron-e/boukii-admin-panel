@@ -283,7 +283,7 @@ export class BookingDetailV2Component implements OnInit {
         "payments",
         "bookingLogs"
       ])
-      .subscribe((data) => {
+        .subscribe((data) => {
         this.bookingData$.next(data.data);
         this.bookingData = data.data;
         // Asegurar estructura de actividades agrupadas y totales calculados
