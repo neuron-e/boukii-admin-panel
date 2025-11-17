@@ -671,6 +671,7 @@
   "settings.school.logo": "Logo de l'école",
   "settings.school.logo_help": "Téléversez un logo pour qu'il soit utilisé dans les e-mails et sur la plateforme.",
   "settings.school.logo_link": "Lien du logo",
+  "settings.school.address_number": "Numéro",
   "settings.sports.title": "Sports actifs",
   "settings.sports.subtitle": "Sélectionnez vos sports",
   "settings.sports.all_sessions": "Toutes les saisons",

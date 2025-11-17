@@ -671,6 +671,7 @@
   "settings.school.logo": "Schullogo",
   "settings.school.logo_help": "Lade ein Logo hoch, das in E-Mails und auf der Plattform verwendet wird.",
   "settings.school.logo_link": "Logolink",
+  "settings.school.address_number": "Hausnummer",
   "settings.sports.title": "Aktiver Sport",
   "settings.sports.subtitle": "Wählen Sie Ihren Schulsport aus",
   "settings.sports.all_sessions": "alle Jahreszeit",

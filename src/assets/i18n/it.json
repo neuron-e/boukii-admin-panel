@@ -634,6 +634,7 @@
   "settings.school.logo": "Logo della scuola",
   "settings.school.logo_help": "Carica un logo da utilizzare nelle email e sulla piattaforma.",
   "settings.school.logo_link": "Link al logo",
+  "settings.school.address_number": "Numero civico",
   "settings.sports.title": "Sport attivi",
   "settings.sports.subtitle": "Seleziona gli sport scolastici",
   "settings.sports.all_sessions": "tutte le stazioni",

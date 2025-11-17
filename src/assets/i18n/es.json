@@ -655,6 +655,7 @@
   "settings.school.logo": "Logo de la escuela",
   "settings.school.logo_help": "Sube un logo para usarlo en correos y en toda la plataforma.",
   "settings.school.logo_link": "Enlace del logo",
+  "settings.school.address_number": "Número",
   "settings.sports.title": "Deportes activos",
   "settings.sports.subtitle": "Selecciona los deportes de tu escuela",
   "settings.sports.all_sessions": "Todas las temporadas",

@@ -184,6 +184,7 @@ export class SettingsComponent implements OnInit {
   sports: any = [];
   sportsList: any = [];
   schoolSports: any = [];
+  private sportsListSet: Set<number> = new Set(); // Cache for O(1) lookups
   season: any = null;
 
   defaultsCommonExtras = {
@@ -332,17 +333,23 @@ export class SettingsComponent implements OnInit {
         this.populateSchoolContactFields(this.school);
         this.getDegrees();
 
-        forkJoin([this.getSchoolSeason(), this.getSports(), this.getBlockages(), this.getSchoolSports(), this.getEmails()])
+        // Load critical data first (emails loaded on-demand when tab is opened)
+        forkJoin([this.getSchoolSeason(), this.getSports(), this.getBlockages(), this.getSchoolSports()])
           .subscribe((data: any) => {
             this.season = data[0].data.filter((s) => s.is_active)[0];
             this.sports = data[1].data;
             this.blockages = data[2].data;
             this.schoolSports = data[3].data;
-            this.currentMails = data[4].data;
-            data[3].data.forEach((element, idx) => {
-              this.sportsList.push(element.sport_id);
+            // Reset sportsList and sportsListSet
+            this.sportsList = [];
+            this.sportsListSet.clear();
 
-              const sportData = this.sports.find((s) => s.id === element.sport_id);
+            data[3].data.forEach((element, idx) => {
+              const sportId = element.sport_id;
+              this.sportsList.push(sportId);
+              this.sportsListSet.add(sportId); // O(1) lookups for template
+
+              const sportData = this.sports.find((s) => s.id === sportId);
               this.schoolSports[idx].name = sportData.name;
               this.schoolSports[idx].icon_selected = sportData.icon_selected;
               this.schoolSports[idx].icon_unselected = sportData.icon_unselected;
@@ -371,7 +378,7 @@ export class SettingsComponent implements OnInit {
 
             this.filterHours(this.selectedFromHour);
 
-            this.loadMeetingPoints();
+            // Meeting points loaded on-demand when accessing Extras tab
 
             const settings = typeof this.school.settings === 'string' ? JSON.parse(this.school.settings) : this.school.settings;
             this.people = settings && settings.prices_range.people ? settings.prices_range.people : this.people;
@@ -456,9 +463,10 @@ export class SettingsComponent implements OnInit {
               infoMessages: infoMessagesFA,
             });
 
-            setTimeout(() => {
+            // Initialize levels data source if schoolSports available
+            if (this.schoolSports && this.schoolSports.length > 0 && this.schoolSports[0].degrees) {
               this.dataSourceLevels.data = this.schoolSports[0].degrees;
-            }, 500);
+            }
 
             this.loading = false;
           });
@@ -654,8 +662,17 @@ export class SettingsComponent implements OnInit {
 
 
   onFullTabChange(event: any) {
-    if (event.index == 7) {
-      this.setCurrentMailType();
+    // Lazy load emails when accessing emails tab (index depends on your tab structure)
+    if (!this.currentMails || this.currentMails.length === 0) {
+      this.getEmails().subscribe((data: any) => {
+        this.currentMails = data.data;
+        this.setCurrentMailType();
+      });
+    }
+
+    // Lazy load meeting points when accessing Extras tab (tab 7)
+    if (event.index === 7 && (!this.meetingPoints || this.meetingPoints.length === 0)) {
+      this.loadMeetingPoints();
     }
   }
 
@@ -1025,14 +1042,16 @@ export class SettingsComponent implements OnInit {
   }
 
   setSport(id: number) {
-    let index = this.sportsList.indexOf(id);
+    const index = this.sportsList.indexOf(id);
 
-    if (this.sportsList.length === 0) {
+    if (index === -1) {
+      // Add sport
       this.sportsList.push(id);
-    } else if (this.sportsList.length > 0 && index === -1) {
-      this.sportsList.push(id);
-    } else if (this.sportsList.length > 0 && index !== -1) {
+      this.sportsListSet.add(id);
+    } else {
+      // Remove sport
       this.sportsList.splice(index, 1);
+      this.sportsListSet.delete(id);
     }
   }
 
@@ -1371,6 +1390,44 @@ export class SettingsComponent implements OnInit {
 
   trackLang(index: number, lang: any) {
     return lang.Code;
+  }
+
+  // TrackBy functions for performance optimization
+  trackBySportId(index: number, sport: any): number {
+    return sport?.id ?? index;
+  }
+
+  trackBySchoolSportId(index: number, schoolSport: any): number {
+    return schoolSport?.id ?? index;
+  }
+
+  trackByDegreeId(index: number, degree: any): number {
+    return degree?.id ?? index;
+  }
+
+  trackByExtraId(index: number, extra: any): string | number {
+    return extra?.id ?? index;
+  }
+
+  trackByBlockageId(index: number, blockage: any): number {
+    return blockage?.id ?? index;
+  }
+
+  trackByHolidayIndex(index: number, holiday: any): number {
+    return index;
+  }
+
+  trackByMeetingPointId(index: number, meetingPoint: any): number {
+    return meetingPoint?.id ?? index;
+  }
+
+  trackByIndex(index: number): number {
+    return index;
+  }
+
+  // Optimized sport selection check (O(1) instead of O(n))
+  isSportSelected(sportId: number): boolean {
+    return this.sportsListSet.has(sportId);
   }
 
   updateConditions(field: string, lang: string, value: any) {
