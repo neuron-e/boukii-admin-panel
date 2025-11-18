@@ -1,4 +1,15 @@
-import {Component, OnInit, Output, EventEmitter, Input, ElementRef, ViewChild, AfterViewInit} from '@angular/core';
+import {
+  Component,
+  OnInit,
+  Output,
+  EventEmitter,
+  Input,
+  ElementRef,
+  ViewChild,
+  AfterViewInit,
+  OnDestroy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 
 @Component({
@@ -6,15 +17,16 @@ import { FormBuilder, FormGroup, Validators } from "@angular/forms";
   templateUrl: "./step-observations.component.html",
   styleUrls: ["./step-observations.component.scss"],
 })
-export class StepObservationsComponent implements OnInit, AfterViewInit {
+export class StepObservationsComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() initialData: any;
   @Output() stepCompleted = new EventEmitter<FormGroup>();
   @Output() saveAndCreateNew = new EventEmitter<FormGroup>();
   @Output() prevStep = new EventEmitter();
   stepForm: FormGroup;
   @ViewChild('clientObsField') clientObsField: ElementRef;
+  private focusTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private fb: FormBuilder) {}
+  constructor(private fb: FormBuilder, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.stepForm = this.fb.group({
@@ -25,6 +37,13 @@ export class StepObservationsComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.setFocusOnClientObs();
+  }
+
+  ngOnDestroy(): void {
+    if (this.focusTimeoutId) {
+      clearTimeout(this.focusTimeoutId);
+      this.focusTimeoutId = null;
+    }
   }
 
   isFormValid() {
@@ -50,8 +69,15 @@ export class StepObservationsComponent implements OnInit, AfterViewInit {
 
 
   private setFocusOnClientObs(): void {
-    if (this.clientObsField) {
-      this.clientObsField.nativeElement.focus();
+    if (!this.clientObsField) {
+      return;
     }
+
+    // Delay the focus to the next task so Angular finishes CD before Material toggles the placeholder (avoids NG0100).
+    this.focusTimeoutId = setTimeout(() => {
+      this.clientObsField?.nativeElement?.focus();
+      this.cdr.detectChanges();
+      this.focusTimeoutId = null;
+    });
   }
 }

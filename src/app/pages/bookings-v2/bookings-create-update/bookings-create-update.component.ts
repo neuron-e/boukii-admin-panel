@@ -438,7 +438,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.sport = sport;
     this.sportLevel = sportLevel;
     this.course = course;
-    this.dates = course_dates ? this.getSelectedDates(course_dates) : [];
+    const normalizedCourseDates = this.ensureCourseDatesSource(course, course_dates);
+    this.dates = Array.isArray(normalizedCourseDates) && normalizedCourseDates.length
+      ? this.getSelectedDates(normalizedCourseDates)
+      : [];
     //this.monitors = MOCK_MONITORS;
     this.clientObs = clientObs;
     this.schoolObs = schoolObs;
@@ -481,7 +484,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.sport = sport;
     this.sportLevel = sportLevel;
     this.course = course;
-    this.dates = course_dates ? this.getSelectedDates(course_dates) : [];
+    const normalizedCourseDates = this.ensureCourseDatesSource(course, course_dates);
+    this.dates = Array.isArray(normalizedCourseDates) && normalizedCourseDates.length
+      ? this.getSelectedDates(normalizedCourseDates)
+      : [];
     //this.monitors = MOCK_MONITORS;
     this.clientObs = clientObs;
     this.schoolObs = schoolObs;
@@ -562,6 +568,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       this.total = null
       this.subtotal = null
       this.extraPrice = null
+      this.bookingService.updateBookingData({ price_total: 0 });
     } else {
       if (this.course.course_type === 1) {
         total = this.calculateColectivePrice();
@@ -576,7 +583,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
       // Calcular el total de los extras
       // Calcula el total de los extras
-      const extrasTotal = this.dates.reduce((acc, date) => {
+      const dateList = Array.isArray(this.dates) ? this.dates : [];
+      const extrasTotal = dateList.reduce((acc, date) => {
         // Para cursos colectivos
         if (this.course.course_type === 1) {
           if (date.extras && date.extras.length) {
@@ -617,10 +625,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         total = 0;
       }
 
-      // Formatear los resultados
-      this.total = `${total.toFixed(2)} ${this.course.currency}`;
-      this.subtotal = `${totalSinExtras.toFixed(2)}`;
-      this.extraPrice = `${validExtrasTotal.toFixed(2)}`;
+      // Formatear los resultados - mantener total como número para DecimalPipe
+      this.total = parseFloat(total.toFixed(2));
+      this.subtotal = parseFloat(totalSinExtras.toFixed(2));
+      this.extraPrice = parseFloat(validExtrasTotal.toFixed(2));
+      this.bookingService.updateBookingData({ price_total: this.total });
     }
   }
 
@@ -710,7 +719,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         step6: { clientObs, schoolObs },
       } = form.value;
 
-      const dates = course_dates ? this.getSelectedDates(course_dates) : [];
+      const normalizedCourseDates = this.ensureCourseDatesSource(course, course_dates);
+      const dates = Array.isArray(normalizedCourseDates) && normalizedCourseDates.length
+        ? this.getSelectedDates(normalizedCourseDates)
+        : [];
 
       // Calcular el total para cada actividad
       const {
@@ -757,7 +769,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (course.course_type === 1) {
       const price = parseFloat(course?.price ?? '0');
       const basePrice = isNaN(price) ? 0 : price;
-      courseBaseTotal = Math.max(0, basePrice * dates.length);
+      if (course.is_flexible) {
+        courseBaseTotal = Math.max(0, basePrice * dates.length);
+      } else {
+        courseBaseTotal = Math.max(0, basePrice);
+      }
       courseSubtotalAfterDiscount = this.calculateColectivePriceForDates(course, dates);
     } else if (course.course_type === 2) {
       courseBaseTotal = this.calculatePrivatePriceForDates(course, dates, utilizers);
@@ -1021,6 +1037,57 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     }
 
     return selectedDates;
+  }
+
+  private ensureCourseDatesSource(course: any, courseDates: any): any[] {
+    if (Array.isArray(courseDates) && courseDates.length > 0) {
+      return courseDates;
+    }
+
+    if (
+      course &&
+      course.course_type === 1 &&
+      !course.is_flexible &&
+      Array.isArray(course.course_dates) &&
+      course.course_dates.length > 0
+    ) {
+      return course.course_dates.map((courseDate: any) => ({
+        selected: true,
+        date: courseDate.date,
+        startHour: courseDate.hour_start,
+        endHour: courseDate.hour_end,
+        price: course.price || '0',
+        currency: course.currency || 'CHF',
+        extras: [],
+        monitor: this.resolveMonitorForCourseDate(courseDate)
+      }));
+    }
+
+    return Array.isArray(courseDates) ? courseDates : [];
+  }
+
+  private resolveMonitorForCourseDate(courseDate: any): any {
+    const degreeId = this.sportLevel?.id;
+    if (!degreeId || !Array.isArray(courseDate?.course_groups)) {
+      return null;
+    }
+
+    const matchingGroup = courseDate.course_groups.find(
+      (group: any) => group.degree_id === degreeId
+    );
+    if (!matchingGroup || !Array.isArray(matchingGroup.course_subgroups)) {
+      return null;
+    }
+
+    const availableSubgroup = matchingGroup.course_subgroups.find((subgroup: any) => {
+      const bookings = Array.isArray(subgroup.booking_users) ? subgroup.booking_users.length : 0;
+      const maxParticipants = typeof subgroup.max_participants === 'number'
+        ? subgroup.max_participants
+        : null;
+      return maxParticipants === null || bookings < maxParticipants;
+    });
+
+    return availableSubgroup?.monitor || null;
   }
 
   openBookingDialog() {

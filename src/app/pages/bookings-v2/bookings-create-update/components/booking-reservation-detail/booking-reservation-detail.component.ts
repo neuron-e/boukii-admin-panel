@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { LangService } from '../../../../../../service/langService';
 import { UtilsService } from '../../../../../../service/utils.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -11,7 +11,7 @@ import { BookingCreateData, BookingService } from '../../../../../../service/boo
   templateUrl: './booking-reservation-detail.component.html',
   styleUrls: ['./booking-reservation-detail.component.scss'],
 })
-export class BookingReservationDetailComponent implements OnInit {
+export class BookingReservationDetailComponent implements OnInit, OnChanges {
   @Input() client: any;
   @Input() activities: any;
   @Input() hideBotton = false;
@@ -49,6 +49,13 @@ export class BookingReservationDetailComponent implements OnInit {
     }
 
     this.updateBookingData();
+    this.syncPriceTotalWithActivities();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['activities']) {
+      this.syncPriceTotalWithActivities();
+    }
   }
 
   private initializeBookingData(): BookingCreateData {
@@ -83,7 +90,8 @@ export class BookingReservationDetailComponent implements OnInit {
   }
 
   sumActivityTotal(): number {
-    return this.activities.reduce((acc, item) => {
+    const activityList = Array.isArray(this.activities) ? this.activities : [];
+    return activityList.reduce((acc, item) => {
       const raw = typeof item.total === 'number' ? item.total : parseFloat(String(item.total).replace(/[^\d.-]/g, '')) || 0;
       return acc + raw;
     }, 0);
@@ -279,4 +287,13 @@ export class BookingReservationDetailComponent implements OnInit {
   }
 
   protected readonly isNaN = isNaN;
+
+  private syncPriceTotalWithActivities(): void {
+    if (!this.bookingData) {
+      this.bookingData = this.initializeBookingData();
+    }
+    const total = this.sumActivityTotal();
+    this.bookingData.price_total = Number(total.toFixed(2));
+    this.updateBookingData();
+  }
 }

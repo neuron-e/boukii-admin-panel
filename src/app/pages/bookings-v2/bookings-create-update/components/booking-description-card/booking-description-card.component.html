@@ -1,4 +1,7 @@
 <div class="wrapper">
+  <ng-template #collectiveFixedDatePrice>
+    <span class="price">-</span>
+  </ng-template>
   <div class="headerWrapper"
        [ngClass]="{'header1': course && course.course_type===1,
       'header2': course && course.course_type===2,
@@ -191,9 +194,11 @@
                 <span class="date">{{ formatDate(date?.date) }} </span>
                 <span class="hour">{{ date.startHour}}h - {{ date.endHour }}h
                 </span>
-                <span class="price">
-                  {{ resolveDatePrice(date) | number:"1.2-2" }} {{date.currency}}
-                </span>
+                <ng-container *ngIf="shouldDisplayDatePrice(); else collectiveFixedDatePrice">
+                  <span class="price">
+                    {{ resolveDatePrice(date) | number:"1.2-2" }} {{date.currency}}
+                  </span>
+                </ng-container>
               </div>
               <div class="monitorRow" *ngIf="course && course.course_type!==1">
                 <div class="row1">

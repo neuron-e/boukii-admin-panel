@@ -171,7 +171,7 @@ export class BookingDataService {
     // 4. Extraer monitores únicos
     const monitors = opts.extractUniqueMonitors
       ? this.extractMonitorsData(dates)
-      : { unique: [], byDate: new Map() };
+      : {unique: [], byDate: new Map()};
 
     // 5. Agrupar participantes
     const participants = opts.groupParticipants
@@ -181,7 +181,7 @@ export class BookingDataService {
     // 6. Calcular totales de precio
     const pricing = opts.calculateTotals
       ? this.calculatePricingSummary(course, formattedDates, intervals)
-      : this.getEmptyPricingSummary(formattedDates[0]?.currency || '€');
+      : this.getEmptyPricingSummary(formattedDates[0]?.currency || 'CHF');
 
     // 7. Extraer extras globales
     const extras = this.extractGlobalExtras(dates);
@@ -202,7 +202,9 @@ export class BookingDataService {
       pricing,
       extras
     };
+
   }
+
 
   /**
    * Formatea las fechas individuales
@@ -214,7 +216,7 @@ export class BookingDataService {
   ): FormattedDateData[] {
     return dates.map(date => {
       const price = parseFloat(date?.price ?? course?.price ?? course?.minPrice ?? 0) || 0;
-      const currency = date?.currency || course?.currency || '€';
+      const currency = date?.currency || course?.currency || 'CHF';
 
       // Calcular descuento si está habilitado
       let discountInfo: AppliedDiscountInfo | null = null;
@@ -251,6 +253,7 @@ export class BookingDataService {
     });
   }
 
+
   /**
    * Agrupa fechas por intervalo
    */
@@ -258,57 +261,80 @@ export class BookingDataService {
     course: any,
     formattedDates: FormattedDateData[],
     discountInfoList: AppliedDiscountInfo[]
-  ): IntervalGroup[] {
-    // Agrupar descuentos por intervalo
-    const discountByKey = new Map<string, AppliedDiscountInfo[]>();
-    discountInfoList.forEach(discount => {
-      const key = discount.intervalId ? String(discount.intervalId) : 'default';
-      if (!discountByKey.has(key)) {
-        discountByKey.set(key, []);
-      }
-      discountByKey.get(key)!.push(discount);
-    });
+  ): IntervalGroup[]
+    {
+      // Agrupar descuentos por intervalo
+      const discountByKey = new Map<string, AppliedDiscountInfo[]>();
+      discountInfoList.forEach(discount => {
+        const key = discount.intervalId ? String(discount.intervalId) : 'default';
+        if (!discountByKey.has(key)) {
+          discountByKey.set(key, []);
+        }
+        discountByKey.get(key)!.push(discount);
+      });
 
-    // Agrupar fechas por intervalo
-    const groupsMap = new Map<string, IntervalGroup>();
+      // Agrupar fechas por intervalo
+      const groupsMap = new Map<string, IntervalGroup>();
 
-    formattedDates.forEach(date => {
-      const key = date.interval_id ? String(date.interval_id) : 'default';
+      formattedDates.forEach(date => {
+        const key = date.interval_id ? String(date.interval_id) : 'default';
 
-      if (!groupsMap.has(key)) {
-        const intervalName = date.interval_name ||
-                            (date.interval_id ? resolveIntervalName(course, String(date.interval_id)) : null) ||
-                            'interval_date_range';
+        if (!groupsMap.has(key)) {
+          const intervalName = date.interval_name ||
+            (date.interval_id ? resolveIntervalName(course, String(date.interval_id)) : null) ||
+            'interval_date_range';
 
-        groupsMap.set(key, {
-          key,
-          label: intervalName,
-          dates: [],
-          discountInfo: discountByKey.get(key) || []
-        });
-      }
+          groupsMap.set(key, {
+            key,
+            label: intervalName,
+            dates: [],
+            discountInfo: discountByKey.get(key) || []
+          });
+        }
 
-      groupsMap.get(key)!.dates.push(date);
-    });
+        groupsMap.get(key)!.dates.push(date);
+      });
 
-    // Calcular resumen de precio por intervalo
-    const intervals = Array.from(groupsMap.values());
-    intervals.forEach(interval => {
-      interval.priceSummary = this.calculateIntervalPriceSummary(interval);
-    });
+      // Calcular resumen de precio por intervalo
+      const intervals = Array.from(groupsMap.values());
+      const totalDatesCount = formattedDates.length;
+      intervals.forEach(interval => {
+        interval.priceSummary = this.calculateIntervalPriceSummary(course, interval, totalDatesCount);
+      });
 
-    return intervals;
-  }
+      return intervals;
+    }
+
 
   /**
    * Calcula resumen de precio para un intervalo
    */
-  private calculateIntervalPriceSummary(interval: IntervalGroup): {
+  private calculateIntervalPriceSummary(
+    course: any,
+    interval: IntervalGroup,
+    totalDatesCount: number
+  ): {
     baseTotal: number;
     discountAmount: number;
     finalTotal: number;
     currency: string;
   } {
+    const currency = interval.dates[0]?.currency || course?.currency || 'CHF';
+
+    if (this.isCollectiveFixedCourse(course)) {
+      const coursePrice = this.getCourseBasePrice(course);
+      const totalDates = totalDatesCount > 0 ? totalDatesCount : interval.dates.length;
+      const ratio = totalDates > 0 ? interval.dates.length / totalDates : 0;
+      const allocatedPrice = Math.max(0, coursePrice * ratio);
+
+      return {
+        baseTotal: allocatedPrice,
+        discountAmount: 0,
+        finalTotal: allocatedPrice,
+        currency
+      };
+    }
+
     const baseTotal = interval.dates.reduce((sum, date) =>
       sum + (date.originalPrice || date.price), 0
     );
@@ -317,7 +343,6 @@ export class BookingDataService {
       sum + date.price, 0
     );
 
-    const currency = interval.dates[0]?.currency || '€';
 
     return {
       baseTotal,
@@ -418,21 +443,24 @@ export class BookingDataService {
     dates: FormattedDateData[],
     intervals?: IntervalGroup[]
   ): ActivityPriceSummary {
-    const currency = dates[0]?.currency || '€';
+    const currency = dates[0]?.currency || course?.currency || 'CHF';
+    const isCollectiveFixed = this.isCollectiveFixedCourse(course);
+    const fixedCoursePrice = isCollectiveFixed ? this.getCourseBasePrice(course) : 0;
 
-    // Calcular total base (sin descuentos)
-    const basePrice = dates.reduce((sum, date) =>
-      sum + (date.originalPrice || date.price), 0
-    );
+    const basePrice = isCollectiveFixed
+      ? fixedCoursePrice
+      : dates.reduce((sum, date) =>
+        sum + (date.originalPrice || date.price), 0
+      );
 
-    // Calcular total final (con descuentos)
-    const finalPrice = dates.reduce((sum, date) =>
-      sum + date.price, 0
-    );
+    const finalPrice = isCollectiveFixed
+      ? fixedCoursePrice
+      : dates.reduce((sum, date) =>
+        sum + date.price, 0
+      );
 
-    const discountAmount = basePrice - finalPrice;
+    const discountAmount = Math.max(0, basePrice - finalPrice);
 
-    // Desglose por intervalo (si existe)
     const breakdown: ActivityPriceSummary['breakdown'] = {};
 
     if (intervals) {
@@ -458,7 +486,7 @@ export class BookingDataService {
   /**
    * Retorna resumen de precio vacío
    */
-  private getEmptyPricingSummary(currency: string = '€'): ActivityPriceSummary {
+  private getEmptyPricingSummary(currency: string = 'CHF'): ActivityPriceSummary {
     return {
       basePrice: 0,
       discountAmount: 0,
@@ -466,6 +494,16 @@ export class BookingDataService {
       currency,
       breakdown: {}
     };
+  }
+
+  private isCollectiveFixedCourse(course: any): boolean {
+    return !!course && Number(course.course_type) === 1 && !course.is_flexible;
+  }
+
+  private getCourseBasePrice(course: any): number {
+    const raw = course?.price ?? course?.minPrice ?? 0;
+    const parsed = typeof raw === 'number' ? raw : parseFloat(raw);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
   }
 
   /**

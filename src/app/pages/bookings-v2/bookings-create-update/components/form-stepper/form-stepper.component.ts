@@ -6,7 +6,7 @@ import {
   OnChanges,
   SimpleChanges,
 } from "@angular/core";
-import { FormBuilder, FormGroup } from "@angular/forms";
+import { FormArray, FormBuilder, FormGroup } from "@angular/forms";
 
 @Component({
   selector: "booking-form-stepper",
@@ -108,12 +108,8 @@ export class BookingFormStepper implements OnChanges {
         // Es un curso colectivo fijo, verificar si tiene extras
         const hasExtras = courseData.course_extras && courseData.course_extras.length > 0;
         if (!hasExtras) {
-          // No tiene extras, saltar el step 5 (detalles) y crear un formulario vacío
-          const emptyDetailsForm = this.fb.group({
-            course: [courseData],
-            course_dates: this.fb.array([])
-          });
-          this.stepperForm.setControl('step5', emptyDetailsForm);
+          // No tiene extras, construir los course_dates automáticamente y saltar el step 5
+          this.stepperForm.setControl('step5', this.createFixedCollectiveDetailsForm(courseData));
           // Saltar directo al step 6 (observaciones)
           this.currentStep = 5;
           this.changedCurrentStep.emit(this.currentStep);
@@ -125,5 +121,28 @@ export class BookingFormStepper implements OnChanges {
 
     this.nextStep();
     this.changedFormData.emit(this.stepperForm);
+  }
+
+  private createFixedCollectiveDetailsForm(courseData: any): FormGroup {
+    const courseDates = Array.isArray(courseData?.course_dates) ? courseData.course_dates : [];
+    const courseDatesArray = this.fb.array(
+      courseDates.map((courseDate: any) =>
+        this.fb.group({
+          selected: [true],
+          date: [courseDate.date],
+          startHour: [courseDate.hour_start],
+          endHour: [courseDate.hour_end],
+          price: [courseData?.price || '0'],
+          currency: [courseData?.currency || 'CHF'],
+          extras: [[]],
+          monitor: [null]
+        })
+      )
+    ) as FormArray;
+
+    return this.fb.group({
+      course: [courseData],
+      course_dates: courseDatesArray
+    });
   }
 }

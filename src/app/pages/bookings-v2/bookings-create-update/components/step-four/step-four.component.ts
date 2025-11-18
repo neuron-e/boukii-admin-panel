@@ -19,8 +19,8 @@ import {UtilsService} from '../../../../../../service/utils.service';
 import { PerformanceCacheService } from 'src/app/services/performance-cache.service';
 import { VisualFeedbackService } from 'src/app/services/visual-feedback.service';
 import { AnalyticsService } from 'src/app/services/analytics.service';
-import { Observable } from 'rxjs';
-import { map, shareReplay } from 'rxjs/operators';
+import { Observable, Subject, of } from 'rxjs';
+import { map, shareReplay, debounceTime, distinctUntilChanged, switchMap, takeUntil, catchError } from 'rxjs/operators';
 
 @Component({
   selector: "booking-step-four",
@@ -62,6 +62,11 @@ export class StepFourComponent implements OnDestroy {
   private availabilityRequests = new Map<string, Observable<any[]>>();
   private readonly availabilityTtlMs = 60 * 1000; // 1 minuto
   private checkAvailabilityCache = new Map<string, Promise<boolean>>();
+  private destroy$ = new Subject<void>();
+  private availabilityPreviewTrigger$ = new Subject<AvailabilityPreviewParams | null>();
+  previewAvailability: AvailabilityPreviewResponse | null = null;
+  previewLoading = false;
+  previewError = false;
 
 
   tabs = [
@@ -114,6 +119,7 @@ export class StepFourComponent implements OnDestroy {
     });
 
     // MEJORA CRÍTICA: Preload de datos relacionados para mejor performance
+    this.setupAvailabilityPreviewStream();
     this.preloadRelatedData();
 
     this.getCourses(this.sportLevel);
@@ -122,6 +128,7 @@ export class StepFourComponent implements OnDestroy {
       this.updateNextMonth();
       this.autoSelectFirstDayIfCurrentMonth();
       this.getCourses(this.sportLevel);
+      this.queueAvailabilityPreview(newDate);
     });
   }
 
@@ -137,25 +144,123 @@ export class StepFourComponent implements OnDestroy {
     ];
 
     this.performanceCache.preloadRelatedData('/admin/courses', relatedEndpoints);
+    this.queueAvailabilityPreview();
+  }
 
-    // Preload capacidad para fechas cercanas si ya hay sport/level seleccionado
-    if (this.sportLevel) {
-      const today = new Date();
-      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      // Esto se ejecutará en background sin bloquear la UI
-      setTimeout(() => {
-        this.performanceCache.get('/admin/courses/check-availability', {
-          sport_id: this.sportLevel.sport_id,
-          degree_id: this.sportLevel.id,
-          date_from: today.toISOString().split('T')[0],
-          date_to: nextWeek.toISOString().split('T')[0]
-        }).subscribe({
-          next: () => {},
-          error: (err) => console.warn('⚠️ Failed to preload availability:', err)
-        });
-      }, 500);
+  private setupAvailabilityPreviewStream(): void {
+    this.availabilityPreviewTrigger$
+      .pipe(
+        debounceTime(350),
+        distinctUntilChanged((prev, curr) => this.arePreviewParamsEqual(prev, curr)),
+        switchMap(params => {
+          if (!params) {
+            this.previewLoading = false;
+            return of<AvailabilityPreviewStreamResult>({ status: 'skip' });
+          }
+
+          this.previewLoading = true;
+          this.previewError = false;
+
+          return this.performanceCache
+            .get<AvailabilityPreviewResponse>('/admin/courses/check-availability', params)
+            .pipe(
+              map(data => ({ status: 'success', data } as AvailabilityPreviewStreamResult)),
+              catchError(error => {
+                console.warn('Failed to preload availability preview', error);
+                return of<AvailabilityPreviewStreamResult>({ status: 'error' });
+              })
+            );
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(result => {
+        switch (result.status) {
+          case 'skip':
+            if (!this.shouldPreloadCollectiveAvailability()) {
+              this.previewAvailability = null;
+              this.previewError = false;
+            }
+            this.previewLoading = false;
+            break;
+          case 'success':
+            this.previewLoading = false;
+            if (result.data) {
+              this.previewAvailability = {
+                ...result.data,
+                courses: Array.isArray(result.data.courses) ? result.data.courses : []
+              };
+              this.previewError = false;
+            } else {
+              this.previewAvailability = null;
+              this.previewError = true;
+            }
+            break;
+          case 'error':
+          default:
+            this.previewLoading = false;
+            this.previewAvailability = null;
+            this.previewError = true;
+            break;
+        }
+      });
+  }
+
+  private queueAvailabilityPreview(anchorDate?: Date): void {
+    if (!this.shouldPreloadCollectiveAvailability()) {
+      this.previewAvailability = null;
+      this.previewError = false;
+      this.previewLoading = false;
+      this.availabilityPreviewTrigger$.next(null);
+      return;
     }
+
+    const { date_from, date_to } = this.buildPreviewRange(anchorDate || this.selectedDate || new Date());
+    this.availabilityPreviewTrigger$.next({
+      sport_id: this.sportLevel.sport_id,
+      degree_id: this.sportLevel.id,
+      course_type: 1,
+      date_from,
+      date_to
+    });
+  }
+
+  private buildPreviewRange(anchor: Date): { date_from: string; date_to: string } {
+    const start = new Date(anchor);
+    const end = new Date(anchor);
+    end.setDate(end.getDate() + 7);
+    return {
+      date_from: this.formatDateForApi(start),
+      date_to: this.formatDateForApi(end)
+    };
+  }
+
+  private formatDateForApi(date: Date): string {
+    return date.toISOString().split('T')[0];
+  }
+
+  private shouldPreloadCollectiveAvailability(): boolean {
+    return !!this.sportLevel && this.courseTypeId === 1;
+  }
+
+  private arePreviewParamsEqual(
+    a: AvailabilityPreviewParams | null,
+    b: AvailabilityPreviewParams | null
+  ): boolean {
+    if (a === b) {
+      return true;
+    }
+
+    if (!a || !b) {
+      return false;
+    }
+
+    return (
+      a.sport_id === b.sport_id &&
+      (a.degree_id ?? null) === (b.degree_id ?? null) &&
+      a.date_from === b.date_from &&
+      a.date_to === b.date_to
+    );
   }
 
   handleCourseSelection(course: any): void {
@@ -351,6 +456,9 @@ export class StepFourComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.clearCapacityPolling();
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.availabilityPreviewTrigger$.complete();
   }
 
   onSubgroupChange(event: any): void {
@@ -580,6 +688,7 @@ export class StepFourComponent implements OnDestroy {
         }
       })
     );
+    this.queueAvailabilityPreview(event);
   }
 
   compareCourseDates() {
@@ -1031,6 +1140,7 @@ export class StepFourComponent implements OnDestroy {
   onTabChange(event) {
     this.courseTypeId = this.tabs[event.index].courseTypeId;
     this.getCourses(this.sportLevel);
+    this.queueAvailabilityPreview();
   }
 
   preventTabChange(event: Event) {
@@ -1042,3 +1152,26 @@ export class StepFourComponent implements OnDestroy {
 
   protected readonly CustomHeader = CustomHeader;
 }
+
+
+interface AvailabilityPreviewParams {
+  sport_id: number;
+  degree_id?: number;
+  course_type?: number;
+  date_from: string;
+  date_to: string;
+}
+
+interface AvailabilityPreviewResponse {
+  courses?: any[];
+  summary?: {
+    total_courses?: number;
+    total_dates?: number;
+    [key: string]: any;
+  };
+}
+
+type AvailabilityPreviewStreamResult =
+  | { status: 'skip' }
+  | { status: 'success'; data: AvailabilityPreviewResponse | null }
+  | { status: 'error' };

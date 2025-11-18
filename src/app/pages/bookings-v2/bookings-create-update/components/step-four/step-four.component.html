@@ -46,6 +46,20 @@
         </div>
       </div>
 
+      <div class="availability-preview-banner" *ngIf="courseTypeId === 1">
+        <mat-icon color="primary">insights</mat-icon>
+        <span *ngIf="previewLoading">{{ 'loading' | translate }}</span>
+        <span *ngIf="!previewLoading && !previewError && (previewAvailability?.courses?.length || 0) > 0">
+          {{ previewAvailability?.summary?.total_dates || previewAvailability?.courses?.length }} fechas precargadas
+        </span>
+        <span *ngIf="!previewLoading && !previewError && (previewAvailability?.courses?.length || 0) === 0">
+          {{ 'bookings_page.description.no_dates_month' | translate }}
+        </span>
+        <span *ngIf="!previewLoading && previewError">
+          Preview no disponible
+        </span>
+      </div>
+
       <mat-radio-group aria-label="Select an option" formControlName="course" class="courses-wrapper">
         <label class="courseCard" [ngClass]="{ active: stepForm.get('course').value === item }"
                (click)="handleCourseSelection(item)" *ngFor="let item of cursesInSelectedDate">

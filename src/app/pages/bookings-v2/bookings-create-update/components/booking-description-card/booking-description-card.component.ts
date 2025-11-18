@@ -160,6 +160,17 @@ export class BookingDescriptionCard implements OnChanges {
     }
 
     // Fallback: lógica original
+    if (this.isCollectiveFixedCourse()) {
+      const currency = this.course?.currency || this._dates?.[0]?.currency || '';
+      const price = this.getCollectiveFixedCoursePrice();
+      return {
+        base: price,
+        discount: 0,
+        final: price,
+        currency
+      };
+    }
+
     if (!Array.isArray(this.intervalGroups) || this.intervalGroups.length === 0) {
       return null;
     }
@@ -214,6 +225,15 @@ export class BookingDescriptionCard implements OnChanges {
     const targetInterval = this.intervalGroups.find(interval => interval.key === intervalKey);
     if (!targetInterval || !Array.isArray(targetInterval.dates) || targetInterval.dates.length === 0) {
       return null;
+    }
+
+    if (this.isCollectiveFixedCourse()) {
+      const totalDates = this.intervalGroups.reduce((sum, group) => sum + (group.dates?.length || 0), 0);
+      const ratio = totalDates > 0 ? targetInterval.dates.length / totalDates : 0;
+      const price = this.getCollectiveFixedCoursePrice() * ratio;
+      const currency = this.course?.currency || targetInterval.dates[0]?.currency || '';
+      const rounded = Number(price.toFixed(2));
+      return { base: rounded, discount: 0, final: rounded, currency };
     }
 
     const base = targetInterval.dates.reduce((sum, date) => sum + this.resolveDatePrice(date), 0);
@@ -298,6 +318,20 @@ export class BookingDescriptionCard implements OnChanges {
         step: step
       }
     )
+  }
+
+  isCollectiveFixedCourse(): boolean {
+    return !!this.course && this.course.course_type === 1 && !this.course.is_flexible;
+  }
+
+  shouldDisplayDatePrice(): boolean {
+    return !this.isCollectiveFixedCourse();
+  }
+
+  private getCollectiveFixedCoursePrice(): number {
+    const raw = this.course?.price ?? this.course?.minPrice ?? 0;
+    const parsed = typeof raw === 'number' ? raw : parseFloat(raw);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
   }
 
   protected readonly parseFloat = parseFloat;

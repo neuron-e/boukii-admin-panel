@@ -43,6 +43,7 @@ export class PerformanceCacheService {
     ['/admin/degrees', { ttl: 30 * 60 * 1000, persistent: true }], // 30 min
     ['/admin/monitors', { ttl: 10 * 60 * 1000, persistent: false }], // 10 min
     ['/admin/courses', { ttl: 5 * 60 * 1000, persistent: false }], // 5 min
+    ['/admin/courses/check-availability', { ttl: 60 * 1000, persistent: false }], // 1 min
     ['/admin/clients', { ttl: 2 * 60 * 1000, persistent: false }], // 2 min
   ]);
 
@@ -81,7 +82,11 @@ export class PerformanceCacheService {
         this.setCache(cacheKey, data, config.ttl, config.persistent);
       }),
       catchError(error => {
-        console.error(`❌ Error fetching ${endpoint}:`, error);
+        if (endpoint === '/admin/courses/check-availability' && error?.status === 404) {
+          console.warn('Availability preview returned 404 - ignoring preload error', { params, error });
+          return of(null as T);
+        }
+        console.error(`??O Error fetching ${endpoint}:`, error);
         return throwError(() => error);
       }),
       shareReplay(1)
