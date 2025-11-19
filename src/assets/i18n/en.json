@@ -259,7 +259,19 @@
       "range": "Between two dates"
     },
     "start_date": "Start date",
-    "end_date": "End date"
+    "end_date": "End date",
+    "partial": {
+      "title": "Monitor availability conflicts",
+      "description": "The selected monitor is not available on every session. Continue only with the available dates or cancel the change.",
+      "blocked": "Blocked dates",
+      "available": "Available dates",
+      "apply_available": "Apply to available dates",
+      "no_available": "The monitor is not available on any of the selected dates."
+    },
+    "past_warning_title": "Date in the past",
+    "past_warning_message": "The selected date is earlier than today. Do you want to continue?",
+    "loading_checking": "Checking monitor availability...",
+    "loading_applying": "Applying monitor changes..."
   },
   "birth_date": "Birthdate",
   "address": "Address",

@@ -271,7 +271,19 @@
       "all": "Gesamter Kurs"
     },
     "start_date": "Startdatum",
-    "end_date": "Enddatum"
+      "end_date": "Enddatum",
+    "partial": {
+        "title": "Konflikte bei der Trainerverfügbarkeit",
+        "description": "Der ausgewählte Trainer ist nicht an allen Terminen verfügbar. Du kannst nur mit den verfügbaren Tagen fortfahren oder die Änderung abbrechen.",
+        "blocked": "Blockierte Tage",
+        "available": "Verfügbare Tage",
+        "apply_available": "Nur verfügbare Tage übernehmen",
+        "no_available": "Der Trainer ist an keinem der ausgewählten Tage verfügbar."
+    },
+    "past_warning_title": "Datum liegt in der Vergangenheit",
+    "past_warning_message": "Das ausgewählte Datum liegt vor heute. Möchtest du trotzdem fortfahren?",
+    "loading_checking": "Verfügbarkeit des Trainers wird geprüft...",
+    "loading_applying": "Traineränderungen werden angewendet..."
   },
   "birth_date": "Geburtsdatum",
   "address": "Adresse",

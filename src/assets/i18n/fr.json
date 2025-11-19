@@ -271,7 +271,19 @@
       "all": "Tout le cours"
     },
     "start_date": "Date de début",
-    "end_date": "Date de fin"
+    "end_date": "Date de fin",
+    "partial": {
+      "title": "Conflits de disponibilité du moniteur",
+      "description": "Le moniteur sélectionné n'est pas disponible à toutes les séances. Vous pouvez poursuivre uniquement avec les jours disponibles ou annuler le changement.",
+      "blocked": "Jours bloqués",
+      "available": "Jours disponibles",
+      "apply_available": "Appliquer aux jours disponibles",
+      "no_available": "Le moniteur n'est disponible à aucune des dates sélectionnées."
+    },
+    "past_warning_title": "Date dans le passé",
+    "past_warning_message": "La date sélectionnée est antérieure à aujourd'hui. Voulez-vous continuer ?",
+    "loading_checking": "Vérification de la disponibilité du moniteur...",
+    "loading_applying": "Application des changements du moniteur..."
   },
   "birth_date": "Date de naissance",
   "address": "adresse",

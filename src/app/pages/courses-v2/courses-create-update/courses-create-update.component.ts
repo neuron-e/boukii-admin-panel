@@ -138,6 +138,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
   private _subgroupDatesCache = new Map<string, any[]>();
   private _intervalsForSubgroupCache = new Map<string, any[]>();
   private _lastCourseDatesLength = 0;
+  private _isRecalculatingSubgroups = false;
   selectedIntervalFilterIndex = 0; // 0 = all intervals, 1+ = specific interval (index - 1)
   private intervalSubgroupKeySeed = 0;
 
@@ -1631,6 +1632,15 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this._uniqueSubgroupsCache.clear();
     this._subgroupDatesCache.clear();
     this._intervalsForSubgroupCache.clear();
+    if (this._isRecalculatingSubgroups) {
+      return;
+    }
+    this._isRecalculatingSubgroups = true;
+    try {
+      this.recalculateAllSubgroupIntervals();
+    } finally {
+      this._isRecalculatingSubgroups = false;
+    }
   }
 
   /**
@@ -1747,6 +1757,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
    */
   getSubgroupIntervals(level: any, subgroupIndex: number): any[] {
     const key = `${level?.id}_${subgroupIndex}`;
+    if (!this.subgroupIntervalsMap.has(key)) {
+      this.recalculateAllSubgroupIntervals();
+    }
     return this.subgroupIntervalsMap.get(key) || [];
   }
 
@@ -4592,8 +4605,17 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   monitorSelect(event: any, level: any, j: number) {
     let course_dates = this.courses.courseFormGroup.controls['course_dates'].value
-    course_dates[event.i].course_groups[course_dates[event.i].course_groups.findIndex((a: any) => a.degree_id === level.id)].course_subgroups[j].monitor = event.monitor
-    course_dates[event.i].course_groups[course_dates[event.i].course_groups.findIndex((a: any) => a.degree_id === level.id)].course_subgroups[j].monitor_id = event.monitor.id
+    const groupIndex = course_dates[event.i].course_groups.findIndex((a: any) => a.degree_id === level.id);
+    if (groupIndex === -1) {
+      return;
+    }
+    const subgroup = course_dates[event.i].course_groups[groupIndex].course_subgroups[j];
+    if (!subgroup) {
+      return;
+    }
+    subgroup.monitor = event.monitor ?? null;
+    subgroup.monitor_id = event.monitor?.id ?? null;
+    subgroup.monitor_modified = true;
     this.courses.courseFormGroup.patchValue({ course_dates })
   }
   async deleteCourseDate(i: number) {

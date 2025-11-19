@@ -36,10 +36,11 @@ import { ConfirmUnmatchMonitorModule } from './confirm-unmatch-monitor/confirm-u
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { IconComponent } from 'src/@vex/components/icon/app.component';
 import { EditDateComponent } from './edit-date/edit-date.component';
-import { MonitorAssignmentDialogComponent } from './monitor-assignment-dialog/monitor-assignment-dialog.component';
+import { MonitorAssignmentDialogModule } from './monitor-assignment-dialog/monitor-assignment-dialog.module';
+import { MonitorPartialAvailabilityDialogModule } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-partial-availability-dialog.module';
 
 @NgModule({
-  declarations: [TimelineComponent, EditDateComponent, MonitorAssignmentDialogComponent],
+  declarations: [TimelineComponent, EditDateComponent],
   imports: [
     CommonModule,
     FormsModule,
@@ -76,7 +77,9 @@ import { MonitorAssignmentDialogComponent } from './monitor-assignment-dialog/mo
     TranslateModule,
     MatDatepickerModule,
     ConfirmUnmatchMonitorModule,
-    MatAutocompleteModule
+    MatAutocompleteModule,
+    MonitorAssignmentDialogModule,
+    MonitorPartialAvailabilityDialogModule
   ],
   exports: [TimelineComponent]
 })

@@ -258,8 +258,20 @@
       "from": "Dalla data selezionata in poi",
       "range": "Tra due date"
     },
-    "start_date": "Data inizio",
-    "end_date": "Data fine"
+      "start_date": "Data inizio",
+      "end_date": "Data fine",
+    "partial": {
+        "title": "Conflitti di disponibilità del monitor",
+        "description": "Il monitor selezionato non è disponibile in tutte le sessioni. Puoi continuare solo con i giorni liberi oppure annullare la modifica.",
+        "blocked": "Giorni bloccati",
+        "available": "Giorni disponibili",
+        "apply_available": "Applica ai giorni disponibili",
+        "no_available": "Il monitor non è disponibile in nessuna delle date selezionate."
+    },
+    "past_warning_title": "Data nel passato",
+    "past_warning_message": "La data selezionata è precedente a oggi. Vuoi continuare?",
+    "loading_checking": "Verifica della disponibilità del monitor in corso...",
+    "loading_applying": "Applicazione delle modifiche del monitor..."
   },
   "birth_date": "Data di nascita",
   "address": "Indirizzo",

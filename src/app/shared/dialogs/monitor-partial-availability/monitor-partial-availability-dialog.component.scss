@@ -1,0 +1,40 @@
+.partial-dialog-content {
+  width: 100%;
+}
+
+.partial-description {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--color-dark2, #4a4a4a);
+}
+
+.partial-section {
+  margin-bottom: 16px;
+
+  h3 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-dark1, #2b2b2b);
+  }
+
+  .partial-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 14px;
+
+    mat-icon {
+      flex-shrink: 0;
+    }
+
+    &.warn mat-icon {
+      color: #f44336;
+    }
+
+    &.success mat-icon {
+      color: #00bfa5;
+    }
+  }
+}

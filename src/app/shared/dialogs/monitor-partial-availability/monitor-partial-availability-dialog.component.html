@@ -1,0 +1,34 @@
+<h2 mat-dialog-title>{{ 'monitor_assignment.partial.title' | translate:{monitor: data.monitorName} }}</h2>
+
+<mat-dialog-content class="partial-dialog-content">
+  <p class="partial-description">
+    {{ 'monitor_assignment.partial.description' | translate:{monitor: data.monitorName} }}
+  </p>
+
+  <div class="partial-section" *ngIf="data.blockedDates.length">
+    <h3>{{ 'monitor_assignment.partial.blocked' | translate }}</h3>
+    <div class="partial-row warn" *ngFor="let date of data.blockedDates">
+      <mat-icon color="warn">error</mat-icon>
+      <span>{{ date }}</span>
+    </div>
+  </div>
+
+  <div class="partial-section" *ngIf="data.availableDates.length">
+    <h3>{{ 'monitor_assignment.partial.available' | translate }}</h3>
+    <div class="partial-row success" *ngFor="let date of data.availableDates">
+      <mat-icon color="primary">event_available</mat-icon>
+      <span>{{ date }}</span>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">
+    {{ 'cancel' | translate }}
+  </button>
+  <button mat-raised-button color="primary" type="button"
+          [disabled]="!data.availableDates.length"
+          (click)="continueOnlyAvailable()">
+    {{ 'monitor_assignment.partial.apply_available' | translate }}
+  </button>
+</mat-dialog-actions>

@@ -281,7 +281,19 @@
       "range": "Intervalo de fechas"
     },
     "start_date": "Fecha inicio",
-    "end_date": "Fecha fin"
+    "end_date": "Fecha fin",
+    "partial": {
+      "title": "Conflictos de disponibilidad del monitor",
+      "description": "El monitor seleccionado no está disponible en todas las sesiones. Continúa sólo con los días libres o cancela el cambio.",
+      "blocked": "Días bloqueados",
+      "available": "Días disponibles",
+      "apply_available": "Aplicar en días disponibles",
+      "no_available": "El monitor no está disponible en ninguna de las fechas seleccionadas."
+    },
+    "past_warning_title": "Fecha en el pasado",
+    "past_warning_message": "La fecha seleccionada es anterior a hoy. ¿Quieres continuar?",
+    "loading_checking": "Consultando disponibilidad del monitor...",
+    "loading_applying": "Aplicando cambios del monitor..."
   },
   "birth_date": "Fecha de nacimiento",
   "address": "Dirección",

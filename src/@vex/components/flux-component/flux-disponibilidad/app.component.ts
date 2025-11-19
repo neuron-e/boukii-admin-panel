@@ -1,19 +1,27 @@
-import { Component, EventEmitter, Input, OnInit, Output, } from '@angular/core';
+import { formatDate } from '@angular/common';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { ApiCrudService } from 'src/service/crud.service';
 import { MonitorTransferPayload, MonitorsService } from 'src/service/monitors.service';
-import { MatSelectChange } from '@angular/material/select';
+import { MatSelect, MatSelectChange } from '@angular/material/select';
+import { MonitorAssignmentDialogData, MonitorAssignmentDialogResult, MonitorAssignmentDialogComponent, MonitorAssignmentScope, MonitorAssignmentDialogDateOption } from 'src/app/pages/timeline/monitor-assignment-dialog/monitor-assignment-dialog.component';
+import { ConfirmModalComponent } from 'src/app/pages/monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
+import { MonitorAssignmentLoadingDialogComponent } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-assignment-loading-dialog.component';
+import { MonitorAssignmentSyncService, MonitorAssignmentSyncEvent } from 'src/app/shared/services/monitor-assignment-sync.service';
+import { MonitorAssignmentHelperService, MonitorAssignmentSlot } from 'src/app/shared/services/monitor-assignment-helper.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'vex-flux-disponibilidad',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class FluxDisponibilidadComponent implements OnInit {
+export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   cambiarModal: boolean = false
   @Input() mode: 'create' | 'update' = "create"
   @Input() courseFormGroup!: UntypedFormGroup
@@ -48,6 +56,12 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   modified: any[] = []
   modified2: any[] = []
+  private availabilityCache = new Map<number, any[]>();
+  private monitorSelectionInProgress = false;
+  private static instanceCounter = 0;
+  private readonly componentInstanceId = `flux-${++FluxDisponibilidadComponent.instanceCounter}`;
+  private syncSub?: Subscription;
+  private loadingDialogRef?: MatDialogRef<MonitorAssignmentLoadingDialogComponent>;
   selectedSubgroup: any;
   today: Date = new Date()
   ISODate = (n: number) => new Date(new Date().getTime() + n * 24 * 60 * 60 * 1000).toLocaleString()
@@ -55,12 +69,20 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   displayFn = (value: any): string => value
   selectDate: number = 0
-  assignmentScope: 'single' | 'interval' | 'from' | 'range' = 'single';
+  assignmentScope: 'single' | 'interval' | 'from' | 'range' | 'all' = 'single';
   assignmentStartIndex = 0;
   assignmentEndIndex = 0;
   private _cachedDatesForSubgroup: Array<{ date: any, index: number }> | null = null;
   private _cachedIntervalHeaders: Array<{ name: string; colspan: number }> | null = null;
-  constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private snackbar: MatSnackBar, private translateService: TranslateService) { }
+  constructor(
+    private crudService: ApiCrudService,
+    private monitorsService: MonitorsService,
+    private snackbar: MatSnackBar,
+    private translateService: TranslateService,
+    private dialog: MatDialog,
+    private assignmentSync: MonitorAssignmentSyncService,
+    private assignmentHelper: MonitorAssignmentHelperService
+  ) { }
   getLanguages = () => this.crudService.list('/languages', 1, 1000).subscribe((data) => this.languages = data.data.reverse())
   getLanguage(id: any) {
     const lang: any = this.languages.find((c: any) => c.id == +id);
@@ -186,9 +208,38 @@ export class FluxDisponibilidadComponent implements OnInit {
   }
 
   selectUser: any[] = []
-  async getAvail(item: any) {
-    const monitor = await this.getAvailable({ date: item.date, endTime: item.hour_end, minimumDegreeId: this.level.id, sportId: this.courseFormGroup.controls['sport_id'].value, startTime: item.hour_start })
-    this.monitors = this.sortMonitorsList(monitor.data || []);
+  async getAvail(item: any, index?: number): Promise<void> {
+    const targetIndex = index ?? this.selectDate;
+    if (!item) {
+      this.availabilityCache.delete(targetIndex);
+      if (targetIndex === this.selectDate) {
+        this.monitors = [];
+      }
+      return;
+    }
+
+    const payload = {
+      date: item.date,
+      endTime: item.hour_end,
+      minimumDegreeId: this.level.id,
+      sportId: this.courseFormGroup.controls['sport_id'].value,
+      startTime: item.hour_start
+    };
+
+    try {
+      const monitor = await this.getAvailable(payload);
+      const sortedList = this.sortMonitorsList(monitor.data || []);
+      this.availabilityCache.set(targetIndex, sortedList);
+      if (targetIndex === this.selectDate) {
+        this.monitors = sortedList;
+      }
+    } catch (error) {
+      console.error('Error loading monitor availability for date', payload, error);
+      this.availabilityCache.delete(targetIndex);
+      if (targetIndex === this.selectDate) {
+        this.monitors = [];
+      }
+    }
   }
   booking_users: any
 
@@ -299,12 +350,17 @@ export class FluxDisponibilidadComponent implements OnInit {
     return this.collectUsersForSelectedDate();
   }
 
-  onAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range'): void {
+  onAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range' | 'all'): void {
     this.assignmentScope = scope;
     const total = this.getCourseDates().length;
     if (scope === 'single' || total <= 1) {
       this.assignmentStartIndex = this.selectDate;
       this.assignmentEndIndex = this.selectDate;
+      return;
+    }
+    if (scope === 'all') {
+      this.assignmentStartIndex = 0;
+      this.assignmentEndIndex = total > 0 ? total - 1 : this.selectDate;
       return;
     }
     if (scope === 'interval') {
@@ -347,7 +403,12 @@ export class FluxDisponibilidadComponent implements OnInit {
     } else if (this.assignmentScope === 'from' && this.assignmentStartIndex > index) {
       this.assignmentStartIndex = index;
     }
-    this.getAvail(item);
+    const cached = this.availabilityCache.get(index);
+    if (cached) {
+      this.monitors = cached;
+    } else {
+      this.getAvail(item, index);
+    }
   }
 
   private resolveAssignmentIndexes(selectDate: number): { startIndex: number; endIndex: number } {
@@ -358,7 +419,18 @@ export class FluxDisponibilidadComponent implements OnInit {
     if (this.assignmentScope === 'single' || total === 1) {
       return { startIndex: selectDate, endIndex: selectDate };
     }
+    if (this.assignmentScope === 'all') {
+      return { startIndex: 0, endIndex: total - 1 };
+    }
     if (this.assignmentScope === 'interval') {
+      if (this.assignmentStartIndex !== undefined && this.assignmentEndIndex !== undefined && this.assignmentStartIndex !== this.assignmentEndIndex) {
+        const startIdx = Math.max(0, Math.min(this.assignmentStartIndex, total - 1));
+        const endIdx = Math.max(0, Math.min(this.assignmentEndIndex, total - 1));
+        return {
+          startIndex: Math.min(startIdx, endIdx),
+          endIndex: Math.max(startIdx, endIdx)
+        };
+      }
       const intervalIndexes = this.getIntervalDateIndexes();
       if (intervalIndexes.length > 0) {
         return { startIndex: intervalIndexes[0], endIndex: intervalIndexes[intervalIndexes.length - 1] };
@@ -375,6 +447,11 @@ export class FluxDisponibilidadComponent implements OnInit {
       startIndex: Math.max(0, Math.min(startIdx, total - 1)),
       endIndex: Math.max(0, Math.min(endIdx, total - 1))
     };
+  }
+
+  private buildTargetIndexesFromSelection(selectDate: number): number[] {
+    const { startIndex, endIndex } = this.resolveAssignmentIndexes(selectDate);
+    return this.buildTargetIndexes(startIndex, endIndex);
   }
 
   private buildTargetIndexes(startIndex: number, endIndex: number): number[] {
@@ -430,6 +507,8 @@ export class FluxDisponibilidadComponent implements OnInit {
   private invalidateDatesCache(): void {
     this._cachedDatesForSubgroup = null;
     this._cachedIntervalHeaders = null;
+    this.availabilityCache.clear();
+    this.rebuildLegendState();
   }
 
   private collectBookingUserIds(indexes: number[]): number[] {
@@ -489,15 +568,29 @@ export class FluxDisponibilidadComponent implements OnInit {
     return '';
   }
 
-  getSelectedMonitorForDate(): any | null {
+  getSelectedMonitorForDate(index: number = this.selectDate): any | null {
     const courseDates = this.getCourseDates();
-    const date = courseDates?.[this.selectDate];
+    const date = courseDates?.[index];
     const subgroup = this.getSubgroupForDate(date);
     return subgroup?.monitor ?? null;
   }
 
   getSelectedMonitorIdForDate(): number | null {
-    return this.getSelectedMonitorForDate()?.id ?? null;
+    return this.getSelectedMonitorIdForIndex(this.selectDate);
+  }
+
+  private getSelectedMonitorIdForIndex(index: number): number | null {
+    const subgroup = this.getSubgroupForDate(this.getCourseDates()?.[index]);
+    if (!subgroup) {
+      return null;
+    }
+    if (subgroup.monitor?.id != null) {
+      return subgroup.monitor.id;
+    }
+    if (subgroup.monitor_id != null) {
+      return subgroup.monitor_id;
+    }
+    return null;
   }
 
   shouldShowSelectedMonitorOption(): boolean {
@@ -545,7 +638,11 @@ export class FluxDisponibilidadComponent implements OnInit {
     return Array.from(ids);
   }
 
-  private buildMonitorTransferPayload(monitorId: number | null, indexes: number[]): MonitorTransferPayload {
+  private buildMonitorTransferPayload(
+    monitorId: number | null,
+    indexes: number[],
+    scopeOverride?: MonitorAssignmentScope
+  ): MonitorTransferPayload {
     const bookingUserIds = this.collectBookingUserIds(indexes);
     const { startDate, endDate } = this.resolveAssignmentDateRangeFromIndexes(indexes);
     const courseDates = this.getCourseDates();
@@ -557,7 +654,7 @@ export class FluxDisponibilidadComponent implements OnInit {
     return {
       monitor_id: monitorId,
       booking_users: bookingUserIds,
-      scope: this.assignmentScope,
+      scope: scopeOverride ?? this.assignmentScope,
       start_date: startDate,
       end_date: endDate,
       course_id: courseId,
@@ -750,13 +847,30 @@ export class FluxDisponibilidadComponent implements OnInit {
 
     // Cargar monitores disponibles de la primera fecha automáticamente
     if (availableDates.length > 0) {
-      this.getAvail(availableDates[0].date);
+      this.getAvail(availableDates[0].date, this.selectDate);
     }
 
     const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
     this.booking_users = bookingUsers.filter((user: any, index: any, self: any) =>
       index === self.findIndex((u: any) => u.client_id === user.client_id)
     );
+
+    this.rebuildLegendState();
+
+    const courseId = this.courseFormGroup?.controls?.['id']?.value ?? null;
+    this.syncSub = this.assignmentSync.changes$.subscribe(event => {
+      if (event.sourceId === this.componentInstanceId) {
+        return;
+      }
+      if (event.courseId && courseId && Number(event.courseId) !== Number(courseId)) {
+        return;
+      }
+      this.handleExternalAssignmentEvent();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.syncSub?.unsubscribe();
   }
   changeMonitor(event: any) {
     const subIndex = event.date[0].course_subgroups.findIndex((a: any) => a.id === event.subgroup.id)
@@ -817,36 +931,307 @@ export class FluxDisponibilidadComponent implements OnInit {
 
   Date = (v: string): Date => new Date(v)
 
-  async SelectMonitor(event: MatSelectChange, selectDate: number) {
-    const selectedMonitorId = event.value ?? null;
-    const selectedMonitor = this.findMonitorById(selectedMonitorId);
-    const monitorId = selectedMonitor ? selectedMonitor.id : null;
-    const courseDates = this.getCourseDates();
-    const baseSubgroup = this.getSubgroupForDate(courseDates?.[selectDate]);
-
-    if (baseSubgroup && baseSubgroup.monitor_id === monitorId) {
+  async onMonitorSelectionChange(event: MatSelectChange, selectDate: number): Promise<void> {
+    const previousMonitorId = this.getSelectedMonitorIdForIndex(selectDate);
+    if (this.monitorSelectionInProgress) {
+      this.restoreSelectValue(event.source, previousMonitorId);
       return;
     }
 
-    const { startIndex, endIndex } = this.resolveAssignmentIndexes(selectDate);
-    const targetIndexes = this.buildTargetIndexes(startIndex, endIndex);
-    const payload = this.buildMonitorTransferPayload(selectedMonitor ? selectedMonitor.id : null, targetIndexes);
+    if ((event.value ?? null) === previousMonitorId) {
+      return;
+    }
+
+    this.monitorSelectionInProgress = true;
+    try {
+      const selectedMonitor = this.findMonitorById(event.value ?? null);
+      const success = await this.runMonitorSelectionFlow(selectedMonitor ?? null, selectDate);
+      if (!success) {
+        this.restoreSelectValue(event.source, previousMonitorId);
+      }
+    } finally {
+      this.monitorSelectionInProgress = false;
+    }
+  }
+
+  private async runMonitorSelectionFlow(monitor: any | null, selectDate: number): Promise<boolean> {
+    const courseDates = this.getCourseDates();
+    const baseDate = courseDates?.[selectDate];
+    if (!baseDate) {
+      return false;
+    }
+
+    const confirmed = await this.confirmPastDateIfNeeded(baseDate);
+    if (!confirmed) {
+      return false;
+    }
+
+    const scopeSelection = await this.openMonitorAssignmentScopeDialog(monitor, selectDate);
+    if (!scopeSelection) {
+      return false;
+    }
+
+    this.applyDialogSelection(scopeSelection, selectDate);
+
+    const originalIndexes = this.buildTargetIndexesFromSelection(selectDate);
+    if (!originalIndexes.length) {
+      return false;
+    }
+
+    const filteredIndexes = await this.filterIndexesByAvailability(monitor, originalIndexes);
+    if (!filteredIndexes?.length) {
+      return false;
+    }
+
+    const forceSplit = filteredIndexes.length !== originalIndexes.length;
+    const affectedIndexes = await this.applyMonitorSelection(
+      monitor,
+      selectDate,
+      filteredIndexes,
+      { forceSplitSequences: forceSplit }
+    );
+    if (!affectedIndexes.length) {
+      return false;
+    }
+
+    await this.refreshAvailabilityForIndexes(affectedIndexes);
+    this.rebuildLegendState(affectedIndexes);
+    return true;
+  }
+
+  private async confirmPastDateIfNeeded(date: any): Promise<boolean> {
+    if (!this.isSessionInPast(date)) {
+      return true;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      data: {
+        title: this.translateWithFallback('monitor_assignment.past_warning_title', 'Fecha en el pasado'),
+        message: this.translateWithFallback('monitor_assignment.past_warning_message', 'La fecha seleccionada es anterior a hoy. ¿Quieres continuar?'),
+        confirmButtonText: this.translateWithFallback('continue', 'Continuar'),
+        cancelButtonText: this.translateWithFallback('cancel', 'Cancelar')
+      }
+    });
+
+    const result = await firstValueFrom(dialogRef.afterClosed());
+    return !!result;
+  }
+
+  private async openMonitorAssignmentScopeDialog(monitor: any | null, selectDate: number): Promise<MonitorAssignmentDialogResult | undefined> {
+    const dateOptions = this.buildMonitorAssignmentDates();
+    if (!dateOptions.length) {
+      return undefined;
+    }
+
+    const courseDates = this.getCourseDates();
+    const normalizedDefault = this.normalizeCourseDateValue(courseDates?.[selectDate]);
+    const startDateValue = this.normalizeCourseDateValue(courseDates?.[this.assignmentStartIndex]);
+    const endDateValue = this.normalizeCourseDateValue(courseDates?.[this.assignmentEndIndex]);
+
+    const dialogData: MonitorAssignmentDialogData = {
+      monitor,
+      dates: dateOptions,
+      defaultDate: normalizedDefault ?? dateOptions[0]?.value ?? null,
+      intervalDates: this.buildIntervalDateValues(),
+      hasMultipleIntervals: this.hasMultipleIntervals(),
+      allowAllOption: dateOptions.length > 1,
+      initialScope: (this.assignmentScope as MonitorAssignmentScope) ?? 'single',
+      startDate: startDateValue ?? normalizedDefault ?? dateOptions[0]?.value ?? null,
+      endDate: endDateValue ?? normalizedDefault ?? dateOptions[0]?.value ?? null
+    };
+
+    const dialogRef = this.dialog.open(MonitorAssignmentDialogComponent, {
+      width: '420px',
+      disableClose: true,
+      autoFocus: false,
+      data: dialogData
+    });
+
+    return await firstValueFrom(dialogRef.afterClosed());
+  }
+
+  private applyDialogSelection(selection: MonitorAssignmentDialogResult, selectDate: number): void {
+    this.assignmentScope = selection.scope;
+    const total = this.getCourseDates().length;
+    const startIndex = this.findDateIndexByValue(selection.startDate);
+    const endIndex = this.findDateIndexByValue(selection.endDate);
+
+    if (selection.scope === 'single') {
+      this.assignmentStartIndex = selectDate;
+      this.assignmentEndIndex = selectDate;
+      return;
+    }
+
+    if (selection.scope === 'all') {
+      this.assignmentStartIndex = 0;
+      this.assignmentEndIndex = total > 0 ? total - 1 : selectDate;
+      return;
+    }
+
+    if (selection.scope === 'interval') {
+      if (startIndex !== null && endIndex !== null) {
+        this.assignmentStartIndex = startIndex;
+        this.assignmentEndIndex = endIndex;
+      } else {
+        const indexes = this.getIntervalDateIndexes();
+        this.assignmentStartIndex = indexes[0] ?? selectDate;
+        this.assignmentEndIndex = indexes[indexes.length - 1] ?? selectDate;
+      }
+      return;
+    }
+
+    if (selection.scope === 'from') {
+      this.assignmentStartIndex = startIndex ?? selectDate;
+      this.assignmentEndIndex = total > 0 ? total - 1 : selectDate;
+      return;
+    }
+
+    if (selection.scope === 'range') {
+      const normalizedStart = startIndex ?? selectDate;
+      const normalizedEnd = endIndex ?? normalizedStart;
+      this.assignmentStartIndex = Math.min(normalizedStart, normalizedEnd);
+      this.assignmentEndIndex = Math.max(normalizedStart, normalizedEnd);
+      return;
+    }
+  }
+
+  private async filterIndexesByAvailability(
+    monitor: any | null,
+    targetIndexes: number[]
+  ): Promise<number[] | null> {
+    if (!monitor?.id) {
+      return targetIndexes;
+    }
+
+    const slots = this.buildSlotsFromIndexes(targetIndexes);
+    if (!slots.length) {
+      return [];
+    }
+
+    this.showLoadingDialog('monitor_assignment.loading_checking');
+    let checkResult;
+    try {
+      checkResult = await this.assignmentHelper.checkMonitorAvailabilityForSlots(monitor.id, slots);
+    } finally {
+      this.hideLoadingDialog();
+    }
+    if (!checkResult.blocked.length) {
+      return targetIndexes;
+    }
+
+    const proceed = await this.assignmentHelper.confirmPartialAvailability(
+      this.getMonitorDisplayName(monitor),
+      checkResult
+    );
+    if (!proceed) {
+      return null;
+    }
+
+    if (!checkResult.available.length) {
+      this.snackbar.open(this.translateWithFallback('monitor_assignment.partial.no_available', 'El monitor no está disponible en ninguna de las fechas seleccionadas.'), 'OK', { duration: 4000 });
+      return null;
+    }
+
+    return checkResult.available
+      .map(slot => slot.context?.['index'])
+      .filter((index): index is number => typeof index === 'number');
+  }
+
+  private buildSlotsFromIndexes(indexes: number[]): MonitorAssignmentSlot[] {
+    const courseDates = this.getCourseDates();
+    const sportId = this.courseFormGroup?.controls?.['sport_id']?.value ?? null;
+    const slots: MonitorAssignmentSlot[] = [];
+
+    indexes.forEach(idx => {
+      const dateEntry = courseDates[idx];
+      if (!dateEntry) {
+        return;
+      }
+
+      const dateValue = this.normalizeCourseDateValue(dateEntry);
+      const startTime = dateEntry?.hour_start ?? dateEntry?.start_time;
+      const endTime = dateEntry?.hour_end ?? dateEntry?.end_time ?? startTime;
+
+      if (!dateValue || !startTime) {
+        return;
+      }
+
+      const label = this.assignmentHelper.formatSlotLabel(dateValue, startTime, endTime);
+
+      slots.push({
+        date: dateValue,
+        startTime,
+        endTime,
+        degreeId: this.level?.id,
+        sportId,
+        label,
+        context: { index: idx }
+      });
+    });
+
+    return slots;
+  }
+
+  private findDateIndexByValue(value: string | null): number | null {
+    if (!value) {
+      return null;
+    }
+    const normalized = value.trim();
+    if (!normalized) {
+      return null;
+    }
+    const courseDates = this.getCourseDates();
+    for (let i = 0; i < courseDates.length; i++) {
+      if (this.normalizeCourseDateValue(courseDates[i]) === normalized) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  private async applyMonitorSelection(
+    monitor: any | null,
+    selectDate: number,
+    targetIndexesOverride?: number[],
+    options?: { forceSplitSequences?: boolean }
+  ): Promise<number[]> {
+    const courseDates = this.getCourseDates();
+    const baseSubgroup = this.getSubgroupForDate(courseDates?.[selectDate]);
+    const monitorId = monitor?.id ?? null;
+
+    if (baseSubgroup && (baseSubgroup.monitor_id === monitorId || baseSubgroup.monitor?.id === monitorId)) {
+      return [];
+    }
+
+    const targetIndexes = targetIndexesOverride ?? this.buildTargetIndexesFromSelection(selectDate);
+    if (!targetIndexes.length) {
+      return [];
+    }
+
+    if (options?.forceSplitSequences) {
+      return this.applyMonitorSelectionInChunks(monitor, targetIndexes);
+    }
+
+    const payload = this.buildMonitorTransferPayload(monitorId, targetIndexes);
 
     if (!payload.booking_users.length && !payload.subgroup_id) {
       this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
-      return;
+      return [];
     }
 
+    this.showLoadingDialog('monitor_assignment.loading_applying');
     try {
       await firstValueFrom(this.monitorsService.transferMonitor(payload));
 
       targetIndexes.forEach(idx => {
-        this.monitorSelect.emit({ monitor: selectedMonitor, i: idx });
-        this.modified[idx] = true;
+        this.monitorSelect.emit({ monitor, i: idx });
+        this.flagLocalMonitorChange(idx, monitor);
       });
 
       this.invalidateDatesCache();
       this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+      this.assignmentSync.broadcastChange(this.buildSyncEvent(monitorId, targetIndexes));
+      return targetIndexes;
     } catch (error) {
       console.error('Error occurred while assigning monitor:', error);
       if (error?.error?.message && error.error.message.includes('Overlap')) {
@@ -854,7 +1239,221 @@ export class FluxDisponibilidadComponent implements OnInit {
       } else {
         this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
       }
+      return [];
+    } finally {
+      this.hideLoadingDialog();
     }
+  }
+
+  private async applyMonitorSelectionInChunks(monitor: any | null, indexes: number[]): Promise<number[]> {
+    const monitorId = monitor?.id ?? null;
+    const applied: number[] = [];
+    const sequences = this.splitIndexesIntoChunks(indexes);
+
+    this.showLoadingDialog('monitor_assignment.loading_applying');
+    try {
+      for (const seq of sequences) {
+        const scopeOverride: MonitorAssignmentScope = seq.length === 1 ? 'single' : 'range';
+        const payload = this.buildMonitorTransferPayload(monitorId, seq, scopeOverride);
+
+        if (!payload.booking_users.length && !payload.subgroup_id) {
+          continue;
+        }
+
+        try {
+          await firstValueFrom(this.monitorsService.transferMonitor(payload));
+          seq.forEach(idx => {
+            this.monitorSelect.emit({ monitor, i: idx });
+            this.flagLocalMonitorChange(idx, monitor);
+            applied.push(idx);
+          });
+        } catch (error) {
+          console.error('Error occurred while assigning monitor chunk:', error);
+          if (error?.error?.message && error.error.message.includes('Overlap')) {
+            this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
+          } else {
+            this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
+          }
+          break;
+        }
+      }
+    } finally {
+      this.hideLoadingDialog();
+    }
+
+    if (applied.length) {
+      this.invalidateDatesCache();
+      this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+      this.assignmentSync.broadcastChange(this.buildSyncEvent(monitorId, applied));
+    }
+
+    return applied;
+  }
+
+  private flagLocalMonitorChange(index: number, monitor: any | null): void {
+    try {
+      const courseDates = this.getCourseDates();
+      const targetDate = courseDates[index];
+      const subgroup = this.getSubgroupForDate(targetDate);
+      if (subgroup) {
+        subgroup.monitor = monitor ?? null;
+        subgroup.monitor_id = monitor?.id ?? null;
+        subgroup.monitor_modified = true;
+      }
+      this.modified[index] = !!subgroup?.monitor_modified;
+    } catch (error) {
+      console.warn('Unable to flag monitor change', error);
+    }
+  }
+
+  private async refreshAvailabilityForIndexes(indexes: number[]): Promise<void> {
+    const uniqueIndexes = Array.from(new Set(indexes));
+    const courseDates = this.getCourseDates();
+    for (const idx of uniqueIndexes) {
+      const date = courseDates[idx];
+      if (!date) {
+        continue;
+      }
+      await this.getAvail(date, idx);
+    }
+  }
+
+  private rebuildLegendState(indexes?: number[]): void {
+    const indices = indexes && indexes.length ? indexes : this.getDatesForSubgroup().map(entry => entry.index);
+    const unique = Array.from(new Set(indices));
+    const courseDates = this.getCourseDates();
+    unique.forEach(idx => {
+      const subgroup = this.getSubgroupForDate(courseDates[idx]);
+      this.modified[idx] = !!subgroup?.monitor_modified;
+    });
+  }
+
+  private restoreSelectValue(select: MatSelect, value: number | null): void {
+    if (!select) {
+      return;
+    }
+    Promise.resolve().then(() => {
+      if (typeof (select as any).writeValue === 'function') {
+        (select as any).writeValue(value);
+      } else {
+        (select as any).value = value;
+      }
+    });
+  }
+
+  private buildMonitorAssignmentDates(): MonitorAssignmentDialogDateOption[] {
+    const entries = this.getDatesForSubgroup();
+    const options: MonitorAssignmentDialogDateOption[] = [];
+    entries.forEach(entry => {
+      const value = this.normalizeCourseDateValue(entry.date);
+      if (!value) {
+        return;
+      }
+      options.push({
+        value,
+        label: this.formatDateLabel(value)
+      });
+    });
+    return options;
+  }
+
+  private buildIntervalDateValues(): string[] {
+    const courseDates = this.getCourseDates();
+    return this.getIntervalDateIndexes()
+      .map(idx => this.normalizeCourseDateValue(courseDates[idx]))
+      .filter((value): value is string => !!value);
+  }
+
+  private isSessionInPast(date: any): boolean {
+    const reference = this.buildDateFromParts(date?.date, date?.hour_start ?? date?.hour_end);
+    if (!reference) {
+      return false;
+    }
+    return reference.getTime() < Date.now();
+  }
+
+  private buildDateFromParts(dateValue?: string, timeValue?: string): Date | null {
+    if (!dateValue) {
+      return null;
+    }
+    const normalizedTime = timeValue && timeValue.includes(':') ? timeValue : '00:00';
+    const composed = `${dateValue}T${normalizedTime.length === 5 ? `${normalizedTime}:00` : normalizedTime}`;
+    const parsed = new Date(composed);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private formatDateLabel(value: string): string {
+    try {
+      const locale = this.translateService.currentLang || 'es-ES';
+      return formatDate(value, 'dd/MM/yyyy', locale);
+    } catch {
+      return value;
+    }
+  }
+
+  private translateWithFallback(key: string, fallback: string): string {
+    const translated = this.translateService.instant(key);
+    return translated === key ? fallback : translated;
+  }
+
+  private splitIndexesIntoChunks(indexes: number[]): number[][] {
+    const sorted = [...indexes].sort((a, b) => a - b);
+    const chunks: number[][] = [];
+    let currentChunk: number[] = [];
+
+    sorted.forEach(index => {
+      if (!currentChunk.length) {
+        currentChunk.push(index);
+        return;
+      }
+      const last = currentChunk[currentChunk.length - 1];
+      if (index === last + 1) {
+        currentChunk.push(index);
+      } else {
+        chunks.push(currentChunk);
+        currentChunk = [index];
+      }
+    });
+
+    if (currentChunk.length) {
+      chunks.push(currentChunk);
+    }
+
+    return chunks;
+  }
+
+  private buildSyncEvent(monitorId: number | null, indexes: number[]): MonitorAssignmentSyncEvent {
+    const courseId = this.courseFormGroup?.controls?.['id']?.value ?? null;
+    const courseDates = this.getCourseDates();
+    const slotKeys = indexes.map(idx => {
+      const date = courseDates[idx];
+      const dateLabel = this.normalizeCourseDateValue(date) ?? `idx-${idx}`;
+      return `${dateLabel}-${this.level?.id ?? 'lvl'}-${this.subgroup_index}`;
+    });
+    return {
+      sourceId: this.componentInstanceId,
+      courseId,
+      monitorId,
+      slotKeys
+    };
+  }
+
+  private showLoadingDialog(messageKey: string): void {
+    const message = this.translateWithFallback(messageKey, 'Procesando...');
+    if (this.loadingDialogRef) {
+      this.loadingDialogRef.componentInstance.data.message = message;
+      return;
+    }
+    this.loadingDialogRef = this.dialog.open(MonitorAssignmentLoadingDialogComponent, {
+      disableClose: true,
+      panelClass: 'monitor-assignment-loading-dialog',
+      data: { message }
+    });
+  }
+
+  private hideLoadingDialog(): void {
+    this.loadingDialogRef?.close();
+    this.loadingDialogRef = undefined;
   }
 
   /**
@@ -1102,6 +1701,20 @@ export class FluxDisponibilidadComponent implements OnInit {
       }
     });
     return ids;
+  }
+
+  private handleExternalAssignmentEvent(): void {
+    try {
+      this.availabilityCache.clear();
+      const courseDates = this.getCourseDates();
+      const currentDate = courseDates?.[this.selectDate];
+      if (currentDate) {
+        this.getAvail(currentDate, this.selectDate);
+      }
+      this.rebuildLegendState();
+    } catch (error) {
+      console.warn('Unable to refresh availability after external update', error);
+    }
   }
 }
 

@@ -19,7 +19,7 @@ import {ApiCrudService} from 'src/service/crud.service';
 import {MonitorTransferPayload, MonitorsService} from 'src/service/monitors.service';
 import {LEVELS} from 'src/app/static-data/level-data';
 import {MOCK_COUNTRIES} from 'src/app/static-data/countries-data';
-import {MatDialog} from '@angular/material/dialog';
+import {MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {ConfirmModalComponent} from '../monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
 import {CalendarEditComponent} from '../monitors/monitor-detail/calendar/calendar-edit/calendar-edit.component';
 import * as moment from 'moment';
@@ -43,6 +43,8 @@ import {
   MonitorAssignmentDialogResult,
   MonitorAssignmentScope
 } from './monitor-assignment-dialog/monitor-assignment-dialog.component';
+import { MonitorAssignmentHelperService, MonitorAssignmentSlot } from 'src/app/shared/services/monitor-assignment-helper.service';
+import { MonitorAssignmentLoadingDialogComponent } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-assignment-loading-dialog.component';
 
 moment.locale('fr');
 
@@ -54,6 +56,7 @@ moment.locale('fr');
 export class TimelineComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
+  private loadingDialogRef?: MatDialogRef<MonitorAssignmentLoadingDialogComponent>;
 
   hoursRange: string[];
   hoursRangeMinusLast: string[];
@@ -150,7 +153,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
   monitorSearchTerm: string = '';
 
   constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private dialog: MatDialog, public translateService: TranslateService,
-    private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router) {
+    private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router,
+    private assignmentHelper: MonitorAssignmentHelperService) {
     this.dateAdapter.setLocale(this.translateService.getDefaultLang());
     this.dateAdapter.getFirstDayOfWeek = () => { return 1; }
     this.mockLevels.forEach(level => {
@@ -1386,15 +1390,13 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
   }
 
-  moveMonitor(monitor: any, event: MouseEvent): void {
+  async moveMonitor(monitor: any, event: MouseEvent): Promise<void> {
     if (!this.moveTask || !this.taskDetail) {
       return;
     }
 
-    // Stop event propagation immediately when we are moving a task
     event.stopPropagation();
 
-    // If clicking the same monitor, cancel the move
     if (this.taskMoved && this.taskMoved.monitor_id === monitor.id) {
       this.moveTask = false;
       this.taskMoved = null;
@@ -1410,68 +1412,73 @@ export class TimelineComponent implements OnInit, OnDestroy {
       clientIds: (this.taskDetail?.all_clients || []).map((client: any) => client.id)
     };
 
-    const fallbackSubgroupId = !this.taskDetail?.all_clients?.length ? (this.taskDetail?.booking_id ?? null) : null;
+    const performTransfer = async (): Promise<void> => {
+      let response: any;
+      this.showLoadingDialog('monitor_assignment.loading_checking');
+      try {
+        response = await firstValueFrom(this.crudService.post('/admin/monitors/available', availabilityPayload));
+      } finally {
+        this.hideLoadingDialog();
+      }
 
-    const proceedWithTransfer = () => {
-      this.crudService.post('/admin/monitors/available', availabilityPayload)
-        .subscribe((response) => {
-          this.monitorsForm = response.data;
+      try {
+        this.monitorsForm = response.data;
 
-          if (this.moveTask && !this.monitorMatchesCurrentSport(monitor)) {
-            this.snackbar.open(this.translateService.instant('match_error_sport') + this.taskDetail.sport.name, 'OK', { duration: 3000 });
-            return;
-          }
+        if (!this.monitorMatchesCurrentSport(monitor)) {
+          this.snackbar.open(this.translateService.instant('match_error_sport') + this.taskDetail.sport.name, 'OK', { duration: 3000 });
+          return;
+        }
 
-          if (this.moveTask && event) {
-            event.stopPropagation();
-          }
+        const selection = await firstValueFrom(this.openMonitorAssignmentDialog(monitor));
+        if (!selection) {
+          return;
+        }
 
-          this.openMonitorAssignmentDialog(monitor)
-            .subscribe((selection) => {
-              if (!selection) {
-                return;
-              }
+        this.applyMonitorAssignmentSelection(selection);
 
-              this.applyMonitorAssignmentSelection(selection);
-
-              const payload = this.buildFullMonitorTransferPayload(monitor?.id);
-
-              if (!payload.booking_users.length && payload.subgroup_id === null) {
-                this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
-                return;
-              }
-
-              this.monitorsService.transferMonitor(payload)
-                .subscribe(
-                  () => this.handleMonitorTransferSuccess(),
-                  (error) => this.handleMonitorTransferError(error)
-                );
-            });
-        }, (error) => {
-          console.error('Error occurred while checking monitor availability:', error);
+        const slots = this.buildSlotsForCurrentSelection();
+        if (!slots.length) {
           this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
-        });
+          return;
+        }
+
+        const canProceed = await this.confirmTimelinePastDates(slots);
+        if (!canProceed) {
+          return;
+        }
+
+        const resolvedSlots = await this.resolveTimelineSlotsAfterAvailability(monitor, slots);
+        if (!resolvedSlots?.length) {
+          return;
+        }
+
+        const success = await this.executeTimelineTransferForSlots(monitor, resolvedSlots);
+        if (success) {
+          this.handleMonitorTransferSuccess();
+        }
+      } catch (error) {
+        console.error('Error occurred while checking monitor availability:', error);
+        this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+      }
     };
 
-    this.matchTeacher(monitor.id).then((needsConfirmation) => {
-      if (needsConfirmation) {
-        const dialogRef = this.dialog.open(ConfirmUnmatchMonitorComponent, {
-          data: {
-            booking: this.taskDetail,
-            monitor,
-            school_id: this.activeSchool
-          }
-        });
+    const needsConfirmation = await this.matchTeacher(monitor.id);
+    if (needsConfirmation) {
+      const dialogRef = this.dialog.open(ConfirmUnmatchMonitorComponent, {
+        data: {
+          booking: this.taskDetail,
+          monitor,
+          school_id: this.activeSchool
+        }
+      });
 
-        dialogRef.afterClosed().subscribe((confirmed) => {
-          if (confirmed) {
-            proceedWithTransfer();
-          }
-        });
-      } else {
-        proceedWithTransfer();
+      const confirmed = await firstValueFrom(dialogRef.afterClosed());
+      if (confirmed) {
+        await performTransfer();
       }
-    });
+    } else {
+      await performTransfer();
+    }
   }
 
   private monitorMatchesCurrentSport(monitor: any): boolean {
@@ -2217,36 +2224,229 @@ export class TimelineComponent implements OnInit, OnDestroy {
     };
   }
 
+  private buildSlotsForCurrentSelection(): MonitorAssignmentSlot[] {
+    const baseTask = this.taskDetail;
+    if (!baseTask) {
+      return [];
+    }
+    const { start, end } = this.resolveAssignmentDateRange();
+    const relatedTasks = this.getRelatedTasks(baseTask);
+    const slots: MonitorAssignmentSlot[] = [];
+    const seen = new Set<string>();
 
-  saveEditedMonitor() {
-    const monitorId = this.editedMonitor ? this.editedMonitor.id : null;
+    const pushSlot = (task: any) => {
+      if (!task?.date) {
+        return;
+      }
+      const taskDate = moment(task.date, 'YYYY-MM-DD');
+      if (!taskDate.isValid() || taskDate.isBefore(start) || taskDate.isAfter(end)) {
+        return;
+      }
+      const key = `${task.date}-${task.hour_start || ''}-${task.hour_end || ''}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      slots.push({
+        date: task.date,
+        startTime: task.hour_start || baseTask.hour_start,
+        endTime: task.hour_end || baseTask.hour_end,
+        degreeId: task.degree_id ?? task.degree?.id ?? baseTask.degree_id,
+        sportId: task.sport_id ?? baseTask.sport_id,
+        label: this.assignmentHelper.formatSlotLabel(task.date, task.hour_start || baseTask.hour_start, task.hour_end || baseTask.hour_end)
+      });
+    };
 
-    // payload completo con scope/fechas/ids/degree
-    const payload = this.buildFullMonitorTransferPayload(monitorId);
+    pushSlot(baseTask);
+    relatedTasks.forEach(task => pushSlot(task));
 
-    if (!payload.booking_users.length && !payload.subgroup_id && !payload.course_id) {
+    return slots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  }
+
+  private resolveMonitorFullName(monitor: any | null): string {
+    if (!monitor) {
+      return '';
+    }
+    const first = monitor.first_name ?? monitor.firstName ?? '';
+    const last = monitor.last_name ?? monitor.lastName ?? '';
+    const combined = `${first} ${last}`.trim();
+    if (combined) {
+      return combined;
+    }
+    return monitor.name ?? '';
+  }
+
+  private async resolveTimelineSlotsAfterAvailability(monitor: any | null, slots: MonitorAssignmentSlot[]): Promise<MonitorAssignmentSlot[] | null> {
+    if (!monitor?.id) {
+      return slots;
+    }
+
+    this.showLoadingDialog('monitor_assignment.loading_checking');
+    let result;
+    try {
+      result = await this.assignmentHelper.checkMonitorAvailabilityForSlots(monitor.id, slots);
+    } finally {
+      this.hideLoadingDialog();
+    }
+    if (!result.blocked.length) {
+      return slots;
+    }
+
+    const proceed = await this.assignmentHelper.confirmPartialAvailability(this.resolveMonitorFullName(monitor), result);
+    if (!proceed) {
+      return null;
+    }
+
+    if (!result.available.length) {
+      this.snackbar.open(this.translateWithFallback('monitor_assignment.partial.no_available', 'El monitor no está disponible en ninguna de las fechas seleccionadas.'), 'OK', { duration: 3000 });
+      return null;
+    }
+
+    return result.available;
+  }
+
+  private async confirmTimelinePastDates(slots: MonitorAssignmentSlot[]): Promise<boolean> {
+    const hasPast = slots.some(slot => {
+      const dateTime = moment(`${slot.date}T${slot.startTime || '00:00'}`);
+      return dateTime.isValid() && dateTime.isBefore(moment());
+    });
+
+    if (!hasPast) {
+      return true;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      data: {
+        title: this.translateWithFallback('monitor_assignment.past_warning_title', 'Fecha en el pasado'),
+        message: this.translateWithFallback('monitor_assignment.past_warning_message', 'La fecha seleccionada es anterior a hoy. ¿Quieres continuar?')
+      }
+    });
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
+  private async executeTimelineTransferForSlots(monitor: any | null, slots: MonitorAssignmentSlot[]): Promise<boolean> {
+    if (!slots.length) {
+      return false;
+    }
+
+    const originalScope = this.monitorAssignmentScope;
+    const originalStart = this.monitorAssignmentStartDate;
+    const originalEnd = this.monitorAssignmentEndDate;
+
+    const sequences = this.groupSlotsByConsecutiveDate(slots);
+
+    this.showLoadingDialog('monitor_assignment.loading_applying');
+    try {
+      for (const seq of sequences) {
+        this.monitorAssignmentScope = seq.length === 1 ? 'single' : 'range';
+        this.monitorAssignmentStartDate = seq[0].date;
+        this.monitorAssignmentEndDate = seq[seq.length - 1].date;
+
+        const payload = this.buildFullMonitorTransferPayload(monitor?.id ?? null);
+
+        if (!payload.booking_users.length && payload.subgroup_id === null && !payload.course_id) {
+          this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+          return false;
+        }
+
+        await firstValueFrom(this.monitorsService.transferMonitor(payload));
+      }
+
+      return true;
+    } catch (error) {
+      this.handleMonitorTransferError(error);
+      return false;
+    } finally {
+      this.monitorAssignmentScope = originalScope;
+      this.monitorAssignmentStartDate = originalStart;
+      this.monitorAssignmentEndDate = originalEnd;
+      this.hideLoadingDialog();
+    }
+  }
+
+  private groupSlotsByConsecutiveDate(slots: MonitorAssignmentSlot[]): MonitorAssignmentSlot[][] {
+    const sorted = [...slots].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const groups: MonitorAssignmentSlot[][] = [];
+    let current: MonitorAssignmentSlot[] = [];
+
+    sorted.forEach(slot => {
+      if (!slot.date) {
+        return;
+      }
+      if (!current.length) {
+        current.push(slot);
+        return;
+      }
+      const last = current[current.length - 1];
+      const lastMoment = moment(last.date, 'YYYY-MM-DD');
+      const currentMoment = moment(slot.date, 'YYYY-MM-DD');
+      if (lastMoment.isValid() && currentMoment.isValid() && currentMoment.diff(lastMoment, 'days') === 1) {
+        current.push(slot);
+      } else {
+        groups.push(current);
+        current = [slot];
+      }
+    });
+
+    if (current.length) {
+      groups.push(current);
+    }
+
+    return groups;
+  }
+
+  private translateWithFallback(key: string, fallback: string): string {
+    const translated = this.translateService.instant(key);
+    return translated === key ? fallback : translated;
+  }
+
+  private showLoadingDialog(messageKey: string): void {
+    const message = this.translateWithFallback(messageKey, 'Traitement en cours...');
+    if (this.loadingDialogRef) {
+      this.loadingDialogRef.componentInstance.data.message = message;
+      return;
+    }
+    this.loadingDialogRef = this.dialog.open(MonitorAssignmentLoadingDialogComponent, {
+      disableClose: true,
+      panelClass: 'monitor-assignment-loading-dialog',
+      data: { message }
+    });
+  }
+
+  private hideLoadingDialog(): void {
+    this.loadingDialogRef?.close();
+    this.loadingDialogRef = undefined;
+  }
+
+
+  async saveEditedMonitor() {
+    const monitor = this.editedMonitor ?? null;
+    const slots = this.buildSlotsForCurrentSelection();
+    if (!slots.length) {
       this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
       return;
     }
 
-    this.monitorsService.transferMonitor(payload).subscribe(
-      () => {
-        this.editedMonitor = null;
-        this.showEditMonitor = false;
-        this.hideDetail();
-        this.loadBookings(this.currentDate);
-        this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-      },
-      (error) => {
-        console.error('Error occurred:', error);
-        const msg = error?.error?.message || '';
-        if (msg.includes('Overlap')) {
-          this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-        } else {
-          this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-        }
-      }
-    );
+    const canProceed = await this.confirmTimelinePastDates(slots);
+    if (!canProceed) {
+      return;
+    }
+
+    const resolvedSlots = await this.resolveTimelineSlotsAfterAvailability(monitor, slots);
+    if (!resolvedSlots?.length) {
+      return;
+    }
+
+    const success = await this.executeTimelineTransferForSlots(monitor, resolvedSlots);
+    if (success) {
+      this.editedMonitor = null;
+      this.showEditMonitor = false;
+      this.hideDetail();
+      this.loadBookings(this.currentDate);
+      this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+    }
   }
 
   goTo(route: string) {
