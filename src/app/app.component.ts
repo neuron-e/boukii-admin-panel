@@ -304,7 +304,7 @@ export class AppComponent {
           {
             type: "dropdown",
             label: gatewayLabel,
-            icon: "mat:payment",
+            icon: "../assets/img/icons/boukii_pay.svg",
             children: [
               {
                 type: "link",
