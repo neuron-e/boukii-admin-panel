@@ -16,7 +16,12 @@ export interface MonitorAssignmentSlot {
   degreeId?: number | null;
   sportId?: number | null;
   label?: string;
-  context?: Record<string, any>;
+  context?: {
+    [key: string]: any;
+    currentMonitorName?: string | null;
+    currentMonitorId?: number | null;
+    conflicts?: string[];
+  };
 }
 
 export interface MonitorAvailabilityCheckResult {
@@ -36,7 +41,8 @@ export class MonitorAssignmentHelperService {
 
   async checkMonitorAvailabilityForSlots(
     monitorId: number | null,
-    slots: MonitorAssignmentSlot[]
+    slots: MonitorAssignmentSlot[],
+    context?: { bookingUserIds?: number[]; subgroupIds?: number[]; courseId?: number | null }
   ): Promise<MonitorAvailabilityCheckResult> {
     if (!monitorId || slots.length === 0) {
       return { available: slots, blocked: [] };
@@ -52,14 +58,24 @@ export class MonitorAssignmentHelperService {
       }
 
       try {
+        const payload: any = {
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime || slot.startTime,
+          minimumDegreeId: slot.degreeId,
+          sportId: slot.sportId
+        };
+        if (context?.bookingUserIds?.length) {
+          payload.bookingUserIds = context.bookingUserIds;
+        }
+        if (context?.subgroupIds?.length) {
+          payload.subgroupIds = context.subgroupIds;
+        }
+        if (context?.courseId) {
+          payload.courseId = context.courseId;
+        }
         const response: any = await firstValueFrom(
-          this.crudService.post('/admin/monitors/available', {
-            date: slot.date,
-            startTime: slot.startTime,
-            endTime: slot.endTime || slot.startTime,
-            minimumDegreeId: slot.degreeId,
-            sportId: slot.sportId
-          })
+          this.crudService.post('/admin/monitors/available', payload)
         );
         const list = Array.isArray(response?.data) ? response.data : [];
         if (list.some((monitor: any) => monitor?.id === monitorId)) {
@@ -83,10 +99,27 @@ export class MonitorAssignmentHelperService {
       return true;
     }
 
+    const currentMonitorLabel = this.translateService.instant('monitor_assignment.partial.current_monitor');
+    const conflictLabel = this.translateService.instant('monitor_assignment.partial.conflict_reason');
+    const currentMonitorPrefix = currentMonitorLabel !== 'monitor_assignment.partial.current_monitor' ? currentMonitorLabel : 'Actual: ';
+    const conflictPrefix = conflictLabel !== 'monitor_assignment.partial.conflict_reason' ? conflictLabel : 'Ocupado en';
+
+    const formatAvailable = (slot: MonitorAssignmentSlot): string => {
+      const base = slot.label ?? slot.date;
+      const monitorName = slot.context?.currentMonitorName ?? slot.context?.currentMonitor?.name ?? null;
+      return monitorName ? `${base} · ${currentMonitorPrefix}${monitorName}` : base;
+    };
+
+    const formatBlocked = (slot: MonitorAssignmentSlot): string => {
+      const base = slot.label ?? slot.date;
+      const conflicts = Array.isArray(slot.context?.conflicts) ? slot.context?.conflicts : [];
+      return conflicts.length ? `${base} · ${conflictPrefix} ${conflicts.join(', ')}` : base;
+    };
+
     const dialogData: MonitorPartialAvailabilityDialogData = {
       monitorName,
-      availableDates: result.available.map(slot => slot.label ?? slot.date),
-      blockedDates: result.blocked.map(slot => slot.label ?? slot.date)
+      availableDates: result.available.map(formatAvailable),
+      blockedDates: result.blocked.map(formatBlocked)
     };
 
     const dialogRef = this.dialog.open(MonitorPartialAvailabilityDialogComponent, {

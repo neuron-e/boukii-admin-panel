@@ -20,6 +20,15 @@ export interface MonitorTransferPayload {
   subgroup_ids?: number[];
 }
 
+export interface MonitorTransferPreviewPayload {
+  scope?: MonitorTransferPayload['scope'];
+  start_date?: string | null;
+  end_date?: string | null;
+  course_id?: number | null;
+  subgroup_id?: number | null;
+  subgroup_ids?: number[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -30,5 +39,8 @@ export class MonitorsService {
   transferMonitor(payload: MonitorTransferPayload): Observable<any> {
     return this.crudService.post('/admin/planner/monitors/transfer', payload);
   }
-}
 
+  previewMonitorTransfer(payload: MonitorTransferPreviewPayload): Observable<any> {
+    return this.crudService.post('/admin/planner/monitors/transfer-preview', payload);
+  }
+}

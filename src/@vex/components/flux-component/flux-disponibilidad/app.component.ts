@@ -192,6 +192,14 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     return this.courseFormGroup?.controls?.['course_dates']?.value || [];
   }
 
+  private isCollectiveCourse(): boolean {
+    const value = Number(this.courseFormGroup?.controls?.['course_type']?.value);
+    if (Number.isNaN(value)) {
+      return true;
+    }
+    return value === 1;
+  }
+
   private normalizeId(value: any): string | null {
     if (value === undefined || value === null) {
       return null;
@@ -218,12 +226,17 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const bookingUserIds = this.collectBookingUserIds([targetIndex]);
+    const subgroupIds = this.collectSubgroupIds([targetIndex]);
     const payload = {
       date: item.date,
       endTime: item.hour_end,
       minimumDegreeId: this.level.id,
       sportId: this.courseFormGroup.controls['sport_id'].value,
-      startTime: item.hour_start
+      startTime: item.hour_start,
+      bookingUserIds,
+      subgroupIds,
+      courseId: this.courseFormGroup?.controls['id']?.value ?? null
     };
 
     try {
@@ -351,6 +364,12 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   }
 
   onAssignmentScopeChange(scope: 'single' | 'interval' | 'from' | 'range' | 'all'): void {
+    if (!this.isCollectiveCourse()) {
+      this.assignmentScope = 'single';
+      this.assignmentStartIndex = this.selectDate;
+      this.assignmentEndIndex = this.selectDate;
+      return;
+    }
     this.assignmentScope = scope;
     const total = this.getCourseDates().length;
     if (scope === 'single' || total <= 1) {
@@ -650,20 +669,28 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     const subgroup = this.getSubgroupForDate(primaryDate);
     const courseId = this.courseFormGroup?.controls['id']?.value ?? null;
     const subgroupIds = this.collectSubgroupIds(indexes);
+    const scopeToUse = scopeOverride ?? this.assignmentScope;
+    const finalScope: MonitorAssignmentScope = this.isCollectiveCourse() ? scopeToUse : 'single';
 
-    return {
+    const payload: MonitorTransferPayload = {
       monitor_id: monitorId,
       booking_users: bookingUserIds,
-      scope: scopeOverride ?? this.assignmentScope,
+      scope: finalScope,
       start_date: startDate,
       end_date: endDate,
       course_id: courseId,
       booking_id: null,
       subgroup_id: subgroup?.id ?? null,
       course_subgroup_id: subgroup?.id ?? null,
-      course_date_id: primaryDate?.id ?? null,
+      course_date_id: finalScope === 'single' ? primaryDate?.id ?? null : null,
       subgroup_ids: subgroupIds
     };
+
+    if (finalScope !== 'single') {
+      payload.course_date_id = null;
+    }
+
+    return payload;
   }
 
   private resolveAssignmentDateRangeFromIndexes(indexes: number[]): { startDate: string | null; endDate: string | null } {
@@ -966,12 +993,17 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    const scopeSelection = await this.openMonitorAssignmentScopeDialog(monitor, selectDate);
-    if (!scopeSelection) {
-      return false;
+    if (!this.isCollectiveCourse()) {
+      this.assignmentScope = 'single';
+      this.assignmentStartIndex = selectDate;
+      this.assignmentEndIndex = selectDate;
+    } else {
+      const scopeSelection = await this.openMonitorAssignmentScopeDialog(monitor, selectDate);
+      if (!scopeSelection) {
+        return false;
+      }
+      this.applyDialogSelection(scopeSelection, selectDate);
     }
-
-    this.applyDialogSelection(scopeSelection, selectDate);
 
     const originalIndexes = this.buildTargetIndexesFromSelection(selectDate);
     if (!originalIndexes.length) {
@@ -1108,10 +1140,16 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
       return [];
     }
 
+    const availabilityContext = {
+      bookingUserIds: this.collectBookingUserIds(targetIndexes),
+      subgroupIds: this.collectSubgroupIds(targetIndexes),
+      courseId: this.courseFormGroup?.controls['id']?.value ?? null
+    };
+
     this.showLoadingDialog('monitor_assignment.loading_checking');
     let checkResult;
     try {
-      checkResult = await this.assignmentHelper.checkMonitorAvailabilityForSlots(monitor.id, slots);
+      checkResult = await this.assignmentHelper.checkMonitorAvailabilityForSlots(monitor.id, slots, availabilityContext);
     } finally {
       this.hideLoadingDialog();
     }
@@ -1158,6 +1196,9 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
 
       const label = this.assignmentHelper.formatSlotLabel(dateValue, startTime, endTime);
 
+      const subgroup = this.getSubgroupForDate(dateEntry);
+      const courseId = this.courseFormGroup?.controls?.['id']?.value ?? null;
+
       slots.push({
         date: dateValue,
         startTime,
@@ -1165,7 +1206,14 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
         degreeId: this.level?.id,
         sportId,
         label,
-        context: { index: idx }
+        context: {
+          index: idx,
+          subgroupId: subgroup?.id ?? null,
+          courseSubgroupId: subgroup?.id ?? null,
+          courseId,
+          currentMonitorId: subgroup?.monitor?.id ?? subgroup?.monitor_id ?? null,
+          currentMonitorName: subgroup?.monitor ? this.getMonitorDisplayName(subgroup.monitor) : null
+        }
       });
     });
 

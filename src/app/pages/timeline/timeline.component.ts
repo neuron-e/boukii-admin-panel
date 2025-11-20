@@ -16,7 +16,7 @@ import {
   subWeeks
 } from 'date-fns';
 import {ApiCrudService} from 'src/service/crud.service';
-import {MonitorTransferPayload, MonitorsService} from 'src/service/monitors.service';
+import {MonitorTransferPayload, MonitorTransferPreviewPayload, MonitorsService} from 'src/service/monitors.service';
 import {LEVELS} from 'src/app/static-data/level-data';
 import {MOCK_COUNTRIES} from 'src/app/static-data/countries-data';
 import {MatDialog, MatDialogRef} from '@angular/material/dialog';
@@ -41,7 +41,8 @@ import {BookingDetailV2Component} from '../bookings-v2/booking-detail/booking-de
 import {
   MonitorAssignmentDialogComponent,
   MonitorAssignmentDialogResult,
-  MonitorAssignmentScope
+  MonitorAssignmentScope,
+  MonitorAssignmentDialogSummaryItem
 } from './monitor-assignment-dialog/monitor-assignment-dialog.component';
 import { MonitorAssignmentHelperService, MonitorAssignmentSlot } from 'src/app/shared/services/monitor-assignment-helper.service';
 import { MonitorAssignmentLoadingDialogComponent } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-assignment-loading-dialog.component';
@@ -1345,16 +1346,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
         if (userConfirmed) {
 
-          const clientIds = (this.taskDetail.all_clients || []).map((client) => client.id);
-
-          const data = {
-            sportId: this.taskDetail.sport_id,
-            minimumDegreeId: this.taskDetail.degree_id || this.taskDetail.degree.id,
-            startTime: this.taskDetail.hour_start,
-            endTime: this.taskDetail.hour_end,
-            date: this.taskDetail.date,
-            clientIds: clientIds
-          };
+          const data = this.buildMonitorAvailabilityPayload(this.taskDetail);
 
           firstValueFrom(this.crudService.post('/admin/monitors/available', data))
             .then(response => {
@@ -1403,14 +1395,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const availabilityPayload = {
-      sportId: this.taskDetail?.sport_id,
-      minimumDegreeId: this.taskDetail?.degree_id || this.taskDetail?.degree?.id,
-      startTime: this.taskDetail?.hour_start,
-      endTime: this.taskDetail?.hour_end,
-      date: this.taskDetail?.date,
-      clientIds: (this.taskDetail?.all_clients || []).map((client: any) => client.id)
-    };
+    const availabilityPayload = this.buildMonitorAvailabilityPayload(this.taskDetail);
 
     const performTransfer = async (): Promise<void> => {
       let response: any;
@@ -1452,7 +1437,11 @@ export class TimelineComponent implements OnInit, OnDestroy {
           return;
         }
 
-        const success = await this.executeTimelineTransferForSlots(monitor, resolvedSlots);
+        const success = await this.executeTimelineTransferForSlots(
+          monitor,
+          resolvedSlots,
+          resolvedSlots.length === slots.length
+        );
         if (success) {
           this.handleMonitorTransferSuccess();
         }
@@ -1509,6 +1498,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.initializeMonitorAssignment(this.taskDetail); // <- tu método existente que carga monitorAssignmentDates, scope, etc.
     const defaultDate = this.taskDetail?.date || null;
 
+    const summaryItems = this.buildMonitorAssignmentSummary();
+    const targetSubgroupIds = this.collectSubgroupIdsForAssignment();
+    const previewContext = this.buildMonitorTransferPreviewPayload();
     const dialogRef = this.dialog.open(MonitorAssignmentDialogComponent, {
       width: '420px',
       disableClose: true,
@@ -1523,7 +1515,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
         allowAllOption: (this.monitorAssignmentDates?.length ?? 0) > 1,
         initialScope: this.monitorAssignmentScope as MonitorAssignmentScope,
         startDate: this.monitorAssignmentStartDate,
-        endDate: this.monitorAssignmentEndDate
+        endDate: this.monitorAssignmentEndDate,
+        summaryItems,
+        targetSubgroupIds,
+        previewContext
       }
     });
 
@@ -2090,16 +2085,18 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
       const clients = Array.isArray(candidate.all_clients) ? candidate.all_clients : [];
       clients.forEach((client: any) => {
-        if (client && client.id != null) {
-          bookingUserIds.add(client.id);
+        const resolvedId = this.resolveBookingUserId(client);
+        if (resolvedId != null) {
+          bookingUserIds.add(resolvedId);
         }
       });
     });
 
     if (bookingUserIds.size === 0 && Array.isArray(baseTask.all_clients)) {
       baseTask.all_clients.forEach((client: any) => {
-        if (client && client.id != null) {
-          bookingUserIds.add(client.id);
+        const resolvedId = this.resolveBookingUserId(client);
+        if (resolvedId != null) {
+          bookingUserIds.add(resolvedId);
         }
       });
     }
@@ -2107,7 +2104,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     return Array.from(bookingUserIds);
   }
 
-  private collectSubgroupIdsForAssignment(): number[] {
+  private collectSubgroupIdsForAssignment(forceIncludeRelated = false): number[] {
     const baseTask = this.taskDetail;
     if (!baseTask) {
       return [];
@@ -2115,29 +2112,72 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     const { start, end } = this.resolveAssignmentDateRange();
     const subgroupIds = new Set<number>();
+    const scope = this.monitorAssignmentScope;
+    const baseDegreeId = this.resolveTaskDegreeId(baseTask);
 
     const addCandidateSubgroup = (candidate: any) => {
-      const subgroupId = candidate?.course_subgroup_id ?? candidate?.subgroup_id ?? null;
+      const subgroupId = candidate?.course_subgroup_id ?? candidate?.subgroup_id ?? candidate?.booking_id ?? null;
       if (subgroupId != null) {
         subgroupIds.add(subgroupId);
       }
     };
 
-    const relatedTasks = this.getRelatedTasks(baseTask);
-    relatedTasks.forEach(candidate => {
-      const candidateDate = moment(candidate.date, 'YYYY-MM-DD');
-      if (!candidateDate.isValid()) {
-        return;
-      }
-      if (candidateDate.isBefore(start) || candidateDate.isAfter(end)) {
-        return;
-      }
-      addCandidateSubgroup(candidate);
-    });
+    const includeRelatedTasks = forceIncludeRelated || scope !== 'single';
+    const enforceDateRange = !forceIncludeRelated;
+    if (includeRelatedTasks) {
+      const relatedTasks = this.getRelatedTasks(baseTask);
+      relatedTasks.forEach(candidate => {
+        const candidateDate = moment(candidate.date, 'YYYY-MM-DD');
+        if (!candidateDate.isValid()) {
+          return;
+        }
+        if (enforceDateRange) {
+          if (candidateDate.isBefore(start) || candidateDate.isAfter(end)) {
+            return;
+          }
+        }
+        if (!this.isSameAssignmentDegree(baseDegreeId, candidate)) {
+          return;
+        }
+        addCandidateSubgroup(candidate);
+      });
+    }
 
     addCandidateSubgroup(baseTask);
 
     return Array.from(subgroupIds);
+  }
+
+  private resolveTaskDegreeId(task: any): number | null {
+    if (!task) {
+      return null;
+    }
+
+    const candidates = [
+      task.degree_id,
+      task.degreeId,
+      task.degree?.id,
+      task.degree?.degree_id,
+      task.course_subgroup?.degree_id,
+      task.course_subgroup?.degree?.id,
+      task.course_subgroup?.level_id
+    ];
+
+    for (const value of candidates) {
+      if (typeof value === 'number') {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
+  private isSameAssignmentDegree(baseDegreeId: number | null, candidate: any): boolean {
+    if (baseDegreeId == null) {
+      return true;
+    }
+    const candidateDegreeId = this.resolveTaskDegreeId(candidate);
+    return candidateDegreeId == null ? false : candidateDegreeId === baseDegreeId;
   }
 
   getSelectedAssignmentSessionCount(): number {
@@ -2155,7 +2195,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
     return Math.max(diff + 1, 1);
   }
 
-  private buildFullMonitorTransferPayload(monitorId: number | null) {
+  private buildFullMonitorTransferPayload(
+    monitorId: number | null,
+    options?: { courseDateId?: number | null; subgroupIds?: number[] }
+  ) {
     const bookingUserIds = this.collectBookingUserIdsForAssignment();
 
     // Fechas seg?n el scope elegido en el preview (las mismas que usa el modal)
@@ -2185,6 +2228,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     const scope = this.monitorAssignmentScope;
     const subgroupIdsSet = new Set<number>(this.collectSubgroupIdsForAssignment());
+    options?.subgroupIds?.forEach(id => {
+      if (id != null) subgroupIdsSet.add(id);
+    });
 
     if (ctx.course_subgroup_id != null) {
       subgroupIdsSet.add(ctx.course_subgroup_id);
@@ -2194,7 +2240,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       subgroupIdsSet.add(fallbackSubgroupId);
     }
 
-    if (scope === 'all' && ctx.course_id) {
+    if ((scope === 'all' || scope === 'from' || scope === 'range') && ctx.course_id) {
       this.collectCourseSubgroupIdsForTask(ctx).forEach(id => subgroupIdsSet.add(id));
     }
 
@@ -2207,7 +2253,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     const subgroupIdToUse = subgroupIds[0] ?? fallbackSubgroupId ?? null;
 
-    return {
+    const payload: MonitorTransferPayload = {
       monitor_id: monitorId,
       booking_users: bookingUserIds,
 
@@ -2219,9 +2265,53 @@ export class TimelineComponent implements OnInit, OnDestroy {
       subgroup_id: subgroupIdToUse,                 // en el backend lo recoges como subgroup_id
       course_subgroup_id: subgroupIdToUse ?? null,
       course_date_id: courseDateId,
-      degree_id: degreeId,
       subgroup_ids: subgroupIds
     };
+
+    if (scope !== 'single') {
+      payload.course_date_id = null;
+    }
+
+    if (options?.courseDateId != null && scope === 'single') {
+      payload.course_date_id = options.courseDateId;
+    }
+
+    if (options?.subgroupIds?.length) {
+      payload.subgroup_ids = Array.from(new Set([...(payload.subgroup_ids ?? []), ...options.subgroupIds.filter(id => id != null) as number[]]));
+    }
+
+    return payload;
+  }
+
+  private buildMonitorTransferPreviewPayload(): MonitorTransferPreviewPayload | null {
+    const ctx = this.taskDetail;
+    if (!ctx) {
+      return null;
+    }
+
+    const { start, end } = this.resolveAssignmentDateRange();
+    const startDate = start?.format('YYYY-MM-DD') ?? null;
+    const endDate = end?.format('YYYY-MM-DD') ?? startDate;
+    const subgroupIds = this.collectSubgroupIdsForAssignment(true);
+    const courseId = ctx.course_id ?? ctx.course?.id ?? null;
+    const subgroupId = ctx.course_subgroup_id ?? ctx.booking_id ?? null;
+    const scope = this.monitorAssignmentScope;
+
+    const payload: MonitorTransferPreviewPayload = {
+      scope,
+      start_date: startDate,
+      end_date: endDate,
+      course_id: courseId
+    };
+
+    if (subgroupId != null) {
+      payload.subgroup_id = subgroupId;
+    }
+    if (subgroupIds?.length) {
+      payload.subgroup_ids = subgroupIds;
+    }
+
+    return payload;
   }
 
   private buildSlotsForCurrentSelection(): MonitorAssignmentSlot[] {
@@ -2229,36 +2319,111 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (!baseTask) {
       return [];
     }
+
     const { start, end } = this.resolveAssignmentDateRange();
     const relatedTasks = this.getRelatedTasks(baseTask);
     const slots: MonitorAssignmentSlot[] = [];
     const seen = new Set<string>();
 
-    const pushSlot = (task: any) => {
-      if (!task?.date) {
+    const courseDateInfo = new Map<string, any>();
+    const registerCourseDate = (cd: any) => {
+      const dateValue = this.getDateStrFromAny(cd?.date ?? cd);
+      if (!dateValue) {
         return;
       }
-      const taskDate = moment(task.date, 'YYYY-MM-DD');
+      courseDateInfo.set(dateValue, cd);
+    };
+    (baseTask.course?.course_dates ?? []).forEach(registerCourseDate);
+    (baseTask.booking?.course_dates ?? []).forEach(registerCourseDate);
+
+    const addSlot = (
+      dateValue: string | null,
+      startTime?: string,
+      endTime?: string,
+      courseDateId?: number | null,
+      subgroupId?: number | null
+    ) => {
+      if (!dateValue) {
+        return;
+      }
+      const taskDate = moment(dateValue, 'YYYY-MM-DD');
       if (!taskDate.isValid() || taskDate.isBefore(start) || taskDate.isAfter(end)) {
         return;
       }
-      const key = `${task.date}-${task.hour_start || ''}-${task.hour_end || ''}`;
+      const startLabel = startTime ?? baseTask.hour_start;
+      const endLabel = endTime ?? baseTask.hour_end;
+      const subgroupKey = subgroupId != null ? subgroupId : 'none';
+      const key = `${dateValue}-${startLabel}-${endLabel}-${subgroupKey}`;
       if (seen.has(key)) {
         return;
       }
       seen.add(key);
+      const label = this.assignmentHelper.formatSlotLabel(dateValue, startLabel, endLabel);
+      const normalizedSubgroupId = subgroupId ?? baseTask.course_subgroup_id ?? null;
+      const currentMonitorTask = this.findTaskForSubgroup(normalizedSubgroupId, dateValue);
+      const courseSubgroupDetails = this.findCourseSubgroupDetails(normalizedSubgroupId, dateValue);
+      const currentMonitorInfo = currentMonitorTask
+        ? {
+            id: currentMonitorTask.monitor_id ?? currentMonitorTask.monitor?.id ?? null,
+            name: this.getMonitorNameFromTask(currentMonitorTask)
+          }
+        : (courseSubgroupDetails
+            ? { id: courseSubgroupDetails.monitorId, name: courseSubgroupDetails.monitorName }
+            : this.findCurrentMonitorForSubgroup(normalizedSubgroupId, dateValue));
+      const levelLabel =
+        this.getLevelLabelFromTask(currentMonitorTask) ??
+        courseSubgroupDetails?.levelLabel ??
+        this.resolveCurrentLevelLabel();
       slots.push({
-        date: task.date,
-        startTime: task.hour_start || baseTask.hour_start,
-        endTime: task.hour_end || baseTask.hour_end,
-        degreeId: task.degree_id ?? task.degree?.id ?? baseTask.degree_id,
-        sportId: task.sport_id ?? baseTask.sport_id,
-        label: this.assignmentHelper.formatSlotLabel(task.date, task.hour_start || baseTask.hour_start, task.hour_end || baseTask.hour_end)
+        date: dateValue,
+        startTime: startLabel,
+        endTime: endLabel,
+        degreeId: baseTask.degree_id,
+        sportId: baseTask.sport_id,
+        label,
+        context: {
+          courseDateId: courseDateId ?? courseDateInfo.get(dateValue)?.id ?? null,
+          subgroupId: normalizedSubgroupId,
+          courseId: baseTask.course_id ?? baseTask.course?.id ?? null,
+          currentMonitorId: currentMonitorInfo?.id ?? null,
+          currentMonitorName: currentMonitorInfo?.name ?? null,
+          levelLabel
+        }
       });
     };
 
-    pushSlot(baseTask);
-    relatedTasks.forEach(task => pushSlot(task));
+    addSlot(baseTask.date, baseTask.hour_start, baseTask.hour_end, baseTask.course_date_id, baseTask.course_subgroup_id);
+    relatedTasks.forEach(task => addSlot(task.date, task.hour_start, task.hour_end, task.course_date_id, task.course_subgroup_id));
+
+    courseDateInfo.forEach((cd, dateValue) => {
+      const subgroups = (cd?.course_groups ?? [])
+        .flatMap((group: any) => group?.course_subgroups ?? [])
+        .map((sub: any) => sub?.id)
+        .filter((id: any) => id != null);
+
+      if (subgroups.length) {
+        subgroups.forEach(subId => {
+          addSlot(
+            dateValue,
+            cd?.hour_start ?? baseTask.hour_start,
+            cd?.hour_end ?? baseTask.hour_end,
+            cd?.id ?? null,
+            subId
+          );
+        });
+      } else {
+        addSlot(
+          dateValue,
+          cd?.hour_start ?? baseTask.hour_start,
+          cd?.hour_end ?? baseTask.hour_end,
+          cd?.id ?? null,
+          baseTask.course_subgroup_id
+        );
+      }
+    });
+
+    const fallbackDates = this.collectCourseDatesForTask(baseTask);
+    fallbackDates.forEach(dateValue => addSlot(dateValue, baseTask.hour_start, baseTask.hour_end, null, baseTask.course_subgroup_id));
 
     return slots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   }
@@ -2276,18 +2441,342 @@ export class TimelineComponent implements OnInit, OnDestroy {
     return monitor.name ?? '';
   }
 
+  private formatPersonName(first: string | null | undefined, last: string | null | undefined): string {
+    return `${first ?? ''} ${last ?? ''}`.trim();
+  }
+
+  private getMonitorNameFromTask(task: any): string | null {
+    if (!task) {
+      return null;
+    }
+    if (task.monitor) {
+      const name = this.resolveMonitorFullName(task.monitor);
+      if (name) {
+        return name;
+      }
+    }
+    const first = task.monitor_first_name ?? task.monitor_firstName ?? task.monitor_first ?? task.monitorName?.split(' ')?.[0];
+    const last = task.monitor_last_name ?? task.monitor_lastName ?? task.monitor_last ?? null;
+    const fromFields = this.formatPersonName(first, last);
+    if (fromFields) {
+      return fromFields;
+    }
+    if (typeof task.monitor_name === 'string' && task.monitor_name.length) {
+      return task.monitor_name;
+    }
+    return null;
+  }
+
+  private resolveCurrentLevelLabel(): string | null {
+    const degree = this.taskDetail?.degree;
+    if (degree?.name) {
+      return degree.name;
+    }
+    if (degree?.annotation) {
+      return degree.annotation;
+    }
+    const subgroupDegree = this.taskDetail?.course_subgroup?.degree ?? this.taskDetail?.course_subgroup?.level;
+    if (subgroupDegree?.name) {
+      return subgroupDegree.name;
+    }
+    if (typeof this.taskDetail?.degree_id === 'number') {
+      return `${this.translateWithFallback('monitor_assignment.partial.level', 'Nivel')} ${this.taskDetail.degree_id}`;
+    }
+    return null;
+  }
+
+  private getLevelLabelFromTask(task: any): string | null {
+    if (!task) {
+      return null;
+    }
+    const subgroup = task.course_subgroup ?? task.courseSubgroup ?? null;
+    if (subgroup?.name) {
+      return subgroup.name;
+    }
+    if (subgroup?.label) {
+      return subgroup.label;
+    }
+    const degree = subgroup?.degree ?? subgroup?.level ?? task.degree ?? null;
+    if (typeof degree === 'string') {
+      return degree;
+    }
+    if (degree?.name) {
+      return degree.name;
+    }
+    if (degree?.annotation) {
+      return degree.annotation;
+    }
+    if (task.level_label) {
+      return task.level_label;
+    }
+    return null;
+  }
+
+  private buildMonitorAssignmentSummary(): MonitorAssignmentDialogSummaryItem[] {
+    const originalScope = this.monitorAssignmentScope;
+    const originalStart = this.monitorAssignmentStartDate;
+    const originalEnd = this.monitorAssignmentEndDate;
+
+    const firstDate = this.monitorAssignmentDates[0]?.value ?? originalStart;
+    const lastDate =
+      this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value ?? originalEnd ?? firstDate;
+
+    this.monitorAssignmentScope = 'range';
+    this.monitorAssignmentStartDate = firstDate;
+    this.monitorAssignmentEndDate = lastDate;
+
+    const slots = this.buildSlotsForCurrentSelection();
+
+    this.monitorAssignmentScope = originalScope;
+    this.monitorAssignmentStartDate = originalStart;
+    this.monitorAssignmentEndDate = originalEnd;
+
+    return slots.map(slot => ({
+      value: slot.date,
+      dateLabel: slot.label ?? this.assignmentHelper.formatSlotLabel(slot.date, slot.startTime, slot.endTime),
+      levelLabel: slot.context?.levelLabel ?? this.resolveCurrentLevelLabel(),
+      currentMonitor: slot.context?.currentMonitorName ?? null,
+      subgroupId: slot.context?.subgroupId ?? null
+    }));
+  }
+
+
+  private findCurrentMonitorForSubgroup(subgroupId: number | null, dateValue?: string | null): { id: number | null; name: string | null } | null {
+    if (!subgroupId) {
+      return null;
+    }
+    const dateStr = dateValue ?? null;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const holder = tasksSource.find(task => {
+      if (task?.course_subgroup_id !== subgroupId) {
+        return false;
+      }
+      if (!task?.monitor_id) {
+        return false;
+      }
+      if (!dateStr) {
+        return true;
+      }
+      return this.getDateStrFromAny(task?.date) === dateStr;
+    });
+    if (!holder) {
+      return null;
+    }
+    return {
+      id: holder.monitor_id ?? holder.monitor?.id ?? null,
+      name: this.getMonitorNameFromTask(holder)
+    };
+  }
+
+  private findTaskForSubgroup(subgroupId: number | null, dateValue?: string | null): any | null {
+    if (!subgroupId) {
+      return null;
+    }
+    const dateStr = dateValue ?? null;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    return tasksSource.find(task => {
+      if (task?.course_subgroup_id !== subgroupId) {
+        return false;
+      }
+      if (!dateStr) {
+        return true;
+      }
+      return this.getDateStrFromAny(task?.date) === dateStr;
+    }) ?? null;
+  }
+
+  private getSlotDetailsForDate(dateValue: string | null): { levelLabel: string | null; currentMonitor: string | null } {
+    const normalizedDate = this.normalizeDateValue(dateValue);
+    const subgroupId = this.taskDetail?.course_subgroup_id ?? null;
+    let levelLabel = this.resolveCurrentLevelLabel();
+    let currentMonitor: string | null = null;
+
+    const task = this.findTaskForSubgroup(subgroupId, normalizedDate);
+    if (task) {
+      currentMonitor = this.getMonitorNameFromTask(task);
+      levelLabel = this.getLevelLabelFromTask(task) ?? levelLabel;
+    } else {
+      const details = this.findCourseSubgroupDetails(subgroupId, normalizedDate);
+      if (details) {
+        currentMonitor = details.monitorName ?? currentMonitor;
+        levelLabel = details.levelLabel ?? levelLabel;
+      }
+    }
+
+    return { levelLabel, currentMonitor };
+  }
+
+  private normalizeDateValue(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+    return this.getDateStrFromAny(value);
+  }
+
+  private findCourseSubgroupDetails(subgroupId: number | null, dateValue?: string | null): { monitorId: number | null; monitorName: string | null; levelLabel: string | null } | null {
+    if (!subgroupId) {
+      return null;
+    }
+    const course = this.taskDetail?.course;
+    if (!course) {
+      return null;
+    }
+
+    const normalizedDate = dateValue ? this.getDateStrFromAny(dateValue) : null;
+    const normalizeId = (val: any) => (val == null ? null : Number(val));
+    const targetId = normalizeId(subgroupId);
+    if (targetId == null) {
+      return null;
+    }
+
+    const buildDetails = (sub: any): { monitorId: number | null; monitorName: string | null; levelLabel: string | null } => {
+      if (!sub) {
+        return { monitorId: null, monitorName: null, levelLabel: null };
+      }
+      const monitor = sub.monitor ?? null;
+      const monitorName = monitor ? this.resolveMonitorFullName(monitor) : (sub.monitor_name ?? null);
+      const monitorId = sub.monitor_id ?? monitor?.id ?? null;
+      const degree = sub.degree ?? sub.level ?? null;
+      const levelLabel = degree?.name ?? degree?.annotation ?? sub.level_label ?? null;
+      return { monitorId, monitorName, levelLabel };
+    };
+
+    const checkContainer = (container: any): { monitorId: number | null; monitorName: string | null; levelLabel: string | null } | null => {
+      if (!container) {
+        return null;
+      }
+      const subgroups = container.course_subgroups ?? container.courseSubgroups ?? container.subgroups ?? [];
+      for (const sub of subgroups) {
+        if (targetId === normalizeId(sub?.id)) {
+          return buildDetails(sub);
+        }
+      }
+      return null;
+    };
+
+    const courseDates = course.course_dates ?? [];
+    for (const cd of courseDates) {
+      if (normalizedDate) {
+        const dateValueNormalized = this.getDateStrFromAny(cd?.date ?? cd?.date_start ?? cd?.date_start_res ?? null);
+        if (dateValueNormalized !== normalizedDate) {
+          continue;
+        }
+      }
+      const direct = checkContainer(cd);
+      if (direct) {
+        return direct;
+      }
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      for (const group of groups) {
+        const details = checkContainer(group);
+        if (details) {
+          return details;
+        }
+      }
+    }
+
+    if (!normalizedDate) {
+      const groups = course.course_groups ?? [];
+      for (const group of groups) {
+        const details = checkContainer(group);
+        if (details) {
+          return details;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private timeRangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
+    return startA < endB && endA > startB;
+  }
+
+  private describeTaskAssignment(task: any): string {
+    const courseName = task?.course?.name
+      ?? task?.booking?.course?.name
+      ?? task?.booking?.name
+      ?? task?.course_name
+      ?? null;
+    const subgroupLabel = task?.course_subgroup?.name
+      ?? task?.course_subgroup_label
+      ?? (task?.course_subgroup_id ? `${this.translateWithFallback('monitor_assignment.partial.subgroup', 'Subgrupo')} ${task.course_subgroup_id}` : null);
+    const bookingLabel = task?.booking?.code ?? task?.booking?.id ?? task?.booking_id ?? null;
+
+    if (courseName && subgroupLabel) {
+      return `${courseName} · ${subgroupLabel}`;
+    }
+    if (courseName) {
+      return courseName;
+    }
+    if (bookingLabel) {
+      return `${this.translateWithFallback('monitor_assignment.partial.booking', 'Reserva')} ${bookingLabel}`;
+    }
+    return this.translateWithFallback('monitor_assignment.partial.conflict_default', 'Otra sesión');
+  }
+
+  private describeMonitorConflicts(monitorId: number, slot: MonitorAssignmentSlot): string[] {
+    if (!monitorId || !slot?.date || !slot?.startTime) {
+      return [];
+    }
+    const date = slot.date;
+    const slotStart = slot.startTime;
+    const slotEnd = slot.endTime || slot.startTime;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+
+    const conflicts = tasksSource.filter(task => {
+      if (task?.monitor_id !== monitorId) {
+        return false;
+      }
+      if (this.getDateStrFromAny(task?.date) !== date) {
+        return false;
+      }
+      if (!task?.hour_start || !task?.hour_end) {
+        return false;
+      }
+      return this.timeRangesOverlap(task.hour_start, task.hour_end, slotStart, slotEnd);
+    });
+
+    return conflicts.map(task => this.describeTaskAssignment(task));
+  }
+
   private async resolveTimelineSlotsAfterAvailability(monitor: any | null, slots: MonitorAssignmentSlot[]): Promise<MonitorAssignmentSlot[] | null> {
     if (!monitor?.id) {
       return slots;
     }
 
+    const availabilityContext = {
+      bookingUserIds: this.collectBookingUserIdsForAssignment(),
+      subgroupIds: this.extractSubgroupIdsFromSlots(slots),
+      courseId: this.taskDetail?.course_id ?? this.taskDetail?.course?.id ?? null
+    };
+    if (!availabilityContext.subgroupIds.length && this.taskDetail) {
+      availabilityContext.subgroupIds = this.collectCourseSubgroupIdsForTask(this.taskDetail);
+    }
+
     this.showLoadingDialog('monitor_assignment.loading_checking');
     let result;
     try {
-      result = await this.assignmentHelper.checkMonitorAvailabilityForSlots(monitor.id, slots);
+      result = await this.assignmentHelper.checkMonitorAvailabilityForSlots(monitor.id, slots, availabilityContext);
     } finally {
       this.hideLoadingDialog();
     }
+    if (monitor?.id) {
+      result.blocked.forEach(slot => {
+        slot.context = slot.context ?? {};
+        slot.context.conflicts = this.describeMonitorConflicts(monitor.id, slot);
+      });
+    }
+
+    if (result.blocked.length && this.monitorAssignmentScope === 'single') {
+      const translationKey = 'monitor_assignment.partial.single_forbidden';
+      const translated = this.translateService.instant(translationKey);
+      const fallback = 'El monitor ya está ocupado en esa franja.';
+      const message = translated === translationKey ? fallback : translated;
+      this.snackbar.open(message, 'OK', { duration: 4000 });
+      return null;
+    }
+
     if (!result.blocked.length) {
       return slots;
     }
@@ -2326,7 +2815,11 @@ export class TimelineComponent implements OnInit, OnDestroy {
     return !!confirmed;
   }
 
-  private async executeTimelineTransferForSlots(monitor: any | null, slots: MonitorAssignmentSlot[]): Promise<boolean> {
+  private async executeTimelineTransferForSlots(
+    monitor: any | null,
+    slots: MonitorAssignmentSlot[],
+    preserveOriginalScope: boolean
+  ): Promise<boolean> {
     if (!slots.length) {
       return false;
     }
@@ -2334,17 +2827,21 @@ export class TimelineComponent implements OnInit, OnDestroy {
     const originalScope = this.monitorAssignmentScope;
     const originalStart = this.monitorAssignmentStartDate;
     const originalEnd = this.monitorAssignmentEndDate;
-
-    const sequences = this.groupSlotsByConsecutiveDate(slots);
+    const shouldPreserveScope = preserveOriginalScope;
 
     this.showLoadingDialog('monitor_assignment.loading_applying');
     try {
-      for (const seq of sequences) {
-        this.monitorAssignmentScope = seq.length === 1 ? 'single' : 'range';
-        this.monitorAssignmentStartDate = seq[0].date;
-        this.monitorAssignmentEndDate = seq[seq.length - 1].date;
-
-        const payload = this.buildFullMonitorTransferPayload(monitor?.id ?? null);
+      if (shouldPreserveScope) {
+        const overrideSubgroups = Array.from(
+          new Set(
+            slots
+              .map(slot => slot.context?.subgroupId)
+              .filter((id): id is number => id != null)
+          )
+        );
+        const payload = this.buildFullMonitorTransferPayload(monitor?.id ?? null, {
+          subgroupIds: overrideSubgroups
+        });
 
         if (!payload.booking_users.length && payload.subgroup_id === null && !payload.course_id) {
           this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
@@ -2352,6 +2849,40 @@ export class TimelineComponent implements OnInit, OnDestroy {
         }
 
         await firstValueFrom(this.monitorsService.transferMonitor(payload));
+      } else {
+        const sequences = this.groupSlotsByConsecutiveDate(slots);
+
+        for (const seq of sequences) {
+          if (!seq.length) {
+            continue;
+          }
+          this.monitorAssignmentScope = seq.length === 1 ? 'single' : 'range';
+          this.monitorAssignmentStartDate = seq[0].date;
+          this.monitorAssignmentEndDate = seq[seq.length - 1].date;
+
+          const sequenceSubgroupIds = this.extractSubgroupIdsFromSlots(seq);
+          const subgroupIdsToUse =
+            sequenceSubgroupIds.length || !this.taskDetail
+              ? sequenceSubgroupIds
+              : this.collectCourseSubgroupIdsForTask(this.taskDetail);
+          if (!subgroupIdsToUse.length && this.taskDetail?.course_subgroup_id != null) {
+            subgroupIdsToUse.push(this.taskDetail.course_subgroup_id);
+          }
+          const payload = this.buildFullMonitorTransferPayload(
+            monitor?.id ?? null,
+            {
+              courseDateId: seq.length === 1 ? seq[0].context?.courseDateId ?? null : null,
+              subgroupIds: subgroupIdsToUse.length ? subgroupIdsToUse : undefined
+            }
+          );
+
+          if (!payload.booking_users.length && payload.subgroup_id === null && !payload.course_id) {
+            this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+            return false;
+          }
+
+          await firstValueFrom(this.monitorsService.transferMonitor(payload));
+        }
       }
 
       return true;
@@ -2439,7 +2970,11 @@ export class TimelineComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const success = await this.executeTimelineTransferForSlots(monitor, resolvedSlots);
+    const success = await this.executeTimelineTransferForSlots(
+      monitor,
+      resolvedSlots,
+      resolvedSlots.length === slots.length
+    );
     if (success) {
       this.editedMonitor = null;
       this.showEditMonitor = false;
@@ -3011,15 +3546,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     this.loadingMonitors = true;
 
-    const clientIds = (this.taskDetail.all_clients || []).map((client) => client.id);
-    const data = {
-      sportId: this.taskDetail.sport_id,
-      minimumDegreeId: this.taskDetail.degree_id || this.taskDetail.degree.id,
-      startTime: this.taskDetail.hour_start,
-      endTime: this.taskDetail.hour_end,
-      date: this.taskDetail.date,
-      clientId: clientIds
-    };
+    const data = this.buildMonitorAvailabilityPayload(this.taskDetail);
 
     this.crudService.post('/admin/monitors/available', data)
       .subscribe((response) => {
@@ -3080,6 +3607,85 @@ export class TimelineComponent implements OnInit, OnDestroy {
       .forEach(t => addId(t.course_subgroup_id));
 
     return Array.from(subgroupIds);
+  }
+
+  private resolveBookingUserId(client: any): number | null {
+    if (!client) {
+      return null;
+    }
+    if (client.booking_user_id != null) {
+      return client.booking_user_id;
+    }
+    if (client.bookingUserId != null) {
+      return client.bookingUserId;
+    }
+    if (client.booking_user?.id != null) {
+      return client.booking_user.id;
+    }
+    return client.id ?? null;
+  }
+
+  private getBookingUserIdsFromTask(task: any): number[] {
+    if (!task) {
+      return [];
+    }
+    const ids = new Set<number>();
+    const clients = Array.isArray(task.all_clients) ? task.all_clients : [];
+    clients.forEach((client: any) => {
+      const resolvedId = this.resolveBookingUserId(client);
+      if (resolvedId != null) {
+        ids.add(resolvedId);
+      }
+    });
+    return Array.from(ids);
+  }
+
+  private buildMonitorAvailabilityPayload(task: any): any {
+    if (!task) {
+      return {};
+    }
+    const clientIds = (task.all_clients || [])
+      .map((client: any) => client?.id)
+      .filter((id: any) => id != null);
+
+    const subgroupContextIds = this.collectCourseSubgroupIdsForTask(task);
+    const fallbackSubgroup =
+      task.course_subgroup_id && subgroupContextIds.indexOf(task.course_subgroup_id) === -1
+        ? [task.course_subgroup_id]
+        : [];
+
+    return {
+      sportId: task.sport_id,
+      minimumDegreeId: task.degree_id || task.degree?.id,
+      startTime: task.hour_start,
+      endTime: task.hour_end,
+      date: task.date,
+      clientIds,
+      bookingUserIds: this.getBookingUserIdsFromTask(task),
+      subgroupIds: [...subgroupContextIds, ...fallbackSubgroup],
+      courseId: task.course_id ?? task.course?.id ?? null
+    };
+  }
+
+  private extractSubgroupIdsFromSlots(slots: MonitorAssignmentSlot[]): number[] {
+    const ids = new Set<number>();
+    slots.forEach(slot => {
+      const rawId = slot?.context?.subgroupId ?? slot?.context?.courseSubgroupId;
+      if (rawId == null) {
+        return;
+      }
+      const parsed = Number(rawId);
+      if (!Number.isNaN(parsed)) {
+        ids.add(parsed);
+      }
+    });
+    if (!ids.size && this.taskDetail) {
+      this.collectCourseSubgroupIdsForTask(this.taskDetail).forEach(id => ids.add(id));
+      if (this.taskDetail?.course_subgroup_id != null) {
+        ids.add(Number(this.taskDetail.course_subgroup_id));
+      }
+    }
+    return Array.from(ids);
   }
 
   private getMonitorDisplayName(monitor: any): string {
