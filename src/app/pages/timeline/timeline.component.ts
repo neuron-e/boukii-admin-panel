@@ -64,6 +64,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
   hoursRangeMinutes: string[];
 
   monitorsForm: any[];
+  private currentAssignmentSlots: MonitorAssignmentSlot[] = [];
+  private currentAssignmentTargetSubgroupIds = new Set<number>();
 
   loadingMonitors = true;
   loading = true;
@@ -1315,6 +1317,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.editedMonitor = null;
     this.showEditMonitor = false;
     this.resetMonitorAssignmentState();
+    this.clearCurrentAssignmentContext();
   }
 
   hideBlock() {
@@ -1379,6 +1382,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (this.moveTask) {
       this.moveTask = false;
       this.taskMoved = null;
+      this.clearCurrentAssignmentContext();
     }
   }
 
@@ -1392,6 +1396,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (this.taskMoved && this.taskMoved.monitor_id === monitor.id) {
       this.moveTask = false;
       this.taskMoved = null;
+      this.clearCurrentAssignmentContext();
       return;
     }
 
@@ -1529,6 +1534,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorAssignmentScope = selection.scope;
     this.monitorAssignmentStartDate = selection.startDate;
     this.monitorAssignmentEndDate = selection.endDate;
+    this.updateCurrentAssignmentContext();
   }
 
   private buildMonitorTransferPayload(
@@ -1579,11 +1585,13 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.hideGrouped();
     this.loadBookings(this.currentDate);
     this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+    this.clearCurrentAssignmentContext();
   }
 
   private handleMonitorTransferError(error: any): void {
     this.moveTask = false;
     this.taskMoved = null;
+    this.clearCurrentAssignmentContext();
     console.error('Error occurred:', error);
     const message = error?.error?.message;
     if (message && message.includes('Overlap detected')) {
@@ -1703,6 +1711,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     // 3) Rango por defecto (primera y última del curso)
     this.monitorAssignmentStartDate = this.monitorAssignmentDates[0]?.value || null;
     this.monitorAssignmentEndDate   = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || this.monitorAssignmentStartDate;
+    this.updateCurrentAssignmentContext();
   }
 
   private resetMonitorAssignmentState(): void {
@@ -1710,6 +1719,21 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorAssignmentStartDate = null;
     this.monitorAssignmentEndDate = null;
     this.monitorAssignmentDates = [];
+    this.updateCurrentAssignmentContext();
+  }
+
+  private updateCurrentAssignmentContext(): void {
+    if (!this.taskDetail) {
+      this.clearCurrentAssignmentContext();
+      return;
+    }
+    this.currentAssignmentSlots = this.buildSlotsForCurrentSelection();
+    this.currentAssignmentTargetSubgroupIds = new Set(this.collectSubgroupIdsForAssignment());
+  }
+
+  private clearCurrentAssignmentContext(): void {
+    this.currentAssignmentSlots = [];
+    this.currentAssignmentTargetSubgroupIds.clear();
   }
 
   /** Extrae fechas del curso con tolerancia a distintos campos (date, date_full, etc.) */
@@ -1805,6 +1829,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (scope === 'single') {
       this.monitorAssignmentStartDate = defaultDate;
       this.monitorAssignmentEndDate = defaultDate;
+      this.updateCurrentAssignmentContext();
       return;
     }
 
@@ -1818,6 +1843,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
         this.monitorAssignmentStartDate = defaultDate;
         this.monitorAssignmentEndDate = defaultDate;
       }
+      this.updateCurrentAssignmentContext();
       return;
     }
 
@@ -1828,12 +1854,14 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (scope === 'all') {
       this.monitorAssignmentStartDate = firstDate;
       this.monitorAssignmentEndDate = lastDate;
+      this.updateCurrentAssignmentContext();
       return;
     }
 
     if (scope === 'from') {
       this.monitorAssignmentStartDate = defaultDate ?? firstDate;
       this.monitorAssignmentEndDate = lastDate;
+      this.updateCurrentAssignmentContext();
       return;
     }
 
@@ -1841,6 +1869,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorAssignmentStartDate = defaultDate ?? firstDate;
     this.monitorAssignmentEndDate = lastDate;
     this.ensureAssignmentRangeOrder();
+    this.updateCurrentAssignmentContext();
   }
 
   onMonitorAssignmentStartChange(value: string): void {
@@ -1851,6 +1880,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (this.monitorAssignmentScope === 'range') {
       this.ensureAssignmentRangeOrder();
     }
+    this.updateCurrentAssignmentContext();
   }
 
   onMonitorAssignmentEndChange(value: string): void {
@@ -1858,6 +1888,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (this.monitorAssignmentScope === 'range') {
       this.ensureAssignmentRangeOrder();
     }
+    this.updateCurrentAssignmentContext();
   }
 
   private ensureAssignmentRangeOrder(): void {
@@ -2716,6 +2747,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   private describeMonitorConflicts(monitorId: number, slot: MonitorAssignmentSlot): string[] {
+    return this.getMonitorConflictsForSlot(monitorId, slot).map(task => this.describeTaskAssignment(task));
+  }
+
+  private getMonitorConflictsForSlot(monitorId: number, slot: MonitorAssignmentSlot): any[] {
     if (!monitorId || !slot?.date || !slot?.startTime) {
       return [];
     }
@@ -2724,7 +2759,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     const slotEnd = slot.endTime || slot.startTime;
     const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
 
-    const conflicts = tasksSource.filter(task => {
+    return tasksSource.filter(task => {
       if (task?.monitor_id !== monitorId) {
         return false;
       }
@@ -2736,8 +2771,29 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
       return this.timeRangesOverlap(task.hour_start, task.hour_end, slotStart, slotEnd);
     });
+  }
 
-    return conflicts.map(task => this.describeTaskAssignment(task));
+  private monitorHasOverlapOutsideTargets(monitorId: number): boolean {
+    if (!monitorId || !this.currentAssignmentSlots.length) {
+      return false;
+    }
+    return this.currentAssignmentSlots.some(slot => {
+      const conflicts = this.getMonitorConflictsForSlot(monitorId, slot);
+      if (!conflicts.length) {
+        return false;
+      }
+      if (!this.currentAssignmentTargetSubgroupIds.size) {
+        return conflicts.length > 0;
+      }
+      return conflicts.some(task => {
+        const subgroupId = task?.course_subgroup_id;
+        if (subgroupId == null) {
+          return true;
+        }
+        const numericId = Number(subgroupId);
+        return Number.isNaN(numericId) || !this.currentAssignmentTargetSubgroupIds.has(numericId);
+      });
+    });
   }
 
   private async resolveTimelineSlotsAfterAvailability(monitor: any | null, slots: MonitorAssignmentSlot[]): Promise<MonitorAssignmentSlot[] | null> {
@@ -3552,7 +3608,16 @@ export class TimelineComponent implements OnInit, OnDestroy {
       .subscribe((response) => {
         this.monitorsForm = response.data;
         this.loadingMonitors = false;
+      }, () => {
+        this.loadingMonitors = false;
       })
+  }
+
+  isMonitorTemporarilyBlocked(monitor: any): boolean {
+    if (!this.moveTask || !monitor || monitor.id == null || !this.taskDetail) {
+      return false;
+    }
+    return this.monitorHasOverlapOutsideTargets(monitor.id);
   }
 
   onMonitorSearchInput(event: Event): void {

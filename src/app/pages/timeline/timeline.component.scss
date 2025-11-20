@@ -158,6 +158,11 @@
   font-size: 9px;
   color: #666;
 }
+
+.monitor-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
 .day-start-week {
   position: absolute;
   top: 0px;

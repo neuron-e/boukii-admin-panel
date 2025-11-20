@@ -157,8 +157,8 @@
         <div class="schedule-container"
              *ngIf="filteredMonitors && filteredMonitors.length && timelineView != 'month'">
           <div class="monitors-column">
-            <ng-container *ngFor="let monitor of filteredMonitors">
-              <div class="monitor">
+              <ng-container *ngFor="let monitor of filteredMonitors">
+                <div class="monitor" [ngClass]="{'monitor-disabled': isMonitorTemporarilyBlocked(monitor)}">
                 <ng-container *ngIf="monitor.id">
                   <div class="monitor-left">
 
@@ -245,12 +245,12 @@
               <div class="grid-row"
                    *ngFor="let monitor of filteredMonitors;let monitorIndex = index"
                    [ngClass]="{'outside-month-day': !isDayVisibleDay() && timelineView == 'day', 'select-row': moveTask && monitor.id !== taskMoved.monitor_id,
-                        'bg-linear-no-match': moveTask && isMatch(monitor.id)}"
-                   (click)="moveTask && moveMonitor(monitor,$event)">
+                        'bg-linear-no-match': moveTask && isMatch(monitor.id), 'monitor-disabled': isMonitorTemporarilyBlocked(monitor)}"
+                   (click)="moveTask && !isMonitorTemporarilyBlocked(monitor) && moveMonitor(monitor,$event)">
                 <ng-container *ngIf="timelineView == 'day'">
                   <div *ngFor="let hour of hoursRange;let last = last"
                        [ngClass]="{'grid-cell-last': last, 'grid-cell': !last}"
-                       (dblclick)="handleDbClickEvent('Clicked', $event, 'day', hour, monitor.id)">
+                       (dblclick)="!isMonitorTemporarilyBlocked(monitor) && handleDbClickEvent('Clicked', $event, 'day', hour, monitor.id)">
                     <div *ngIf="monitorIndex % 5 === 0  && monitorIndex !== 0"
                          class="hour-day-scroll">{{ hour }}</div>
                   </div>
@@ -261,7 +261,7 @@
                        [ngClass]="{'outside-month': !isDayVisibleWeek(dayIndex)}">
                     <div class="grid-cell-inside"
                          *ngFor="let hour of hoursRangeMinusLast"
-                         (dblclick)="handleDbClickEvent('Clicked', $event, 'week', dayIndex, monitor.id, hour)"></div>
+                         (dblclick)="!isMonitorTemporarilyBlocked(monitor) && handleDbClickEvent('Clicked', $event, 'week', dayIndex, monitor.id, hour)"></div>
                     <div *ngIf="monitorIndex % 5 === 0  && monitorIndex !== 0"
                          class="hour-day-scroll">{{ day }} {{
                         getDayOfWeek(dayIndex) }}</div>
@@ -424,7 +424,7 @@
               <ng-container
                 *ngFor="let week of weeksInMonth; let weekIndex = index">
                 <div class="monitor"
-                     [ngClass]="{'big-border': weekIndex === 0 && monitorIndex !== 0}">
+                     [ngClass]="{'big-border': weekIndex === 0 && monitorIndex !== 0, 'monitor-disabled': isMonitorTemporarilyBlocked(monitor)}">
                   <ng-container *ngIf="weekIndex === 0">
                     <ng-container *ngIf="monitor.id">
                       <div class="monitor-left">
@@ -1118,7 +1118,8 @@
               </mat-option>
               <ng-container *ngFor="let monitor of filteredMonitorOptions">
                 <mat-option *ngIf="monitor.id != taskDetail.monitor_id"
-                            [value]="monitor">
+                            [value]="monitor"
+                            [disabled]="isMonitorTemporarilyBlocked(monitor)">
                   {{ monitor.first_name }} {{ monitor.last_name }}
                 </mat-option>
               </ng-container>
