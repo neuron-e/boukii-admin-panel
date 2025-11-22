@@ -2897,15 +2897,30 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.showLoadingDialog('monitor_assignment.loading_applying');
     try {
       if (shouldPreserveScope) {
-        const overrideSubgroups = Array.from(
+        let subgroupsToUse = Array.from(
           new Set(
             slots
               .map(slot => slot.context?.subgroupId)
               .filter((id): id is number => id != null)
           )
         );
+
+        // For different scopes, use appropriate subgroup collection:
+        // - scope='all': use ALL course subgroups (no degree filtering)
+        // - scope='from'/'range': use all related subgroups in date range (WITH degree filtering)
+        // - scope='single'/'interval': use only preview subgroups
+        if (this.taskDetail) {
+          if (this.monitorAssignmentScope === 'all') {
+            // For 'all' scope, change every subgroup in the course
+            subgroupsToUse = this.collectCourseSubgroupIdsForTask(this.taskDetail);
+          } else if (this.monitorAssignmentScope === 'from' || this.monitorAssignmentScope === 'range') {
+            // For 'from'/'range' scope, include all related subgroups in the date range (same degree)
+            subgroupsToUse = this.collectSubgroupIdsForAssignment(false);
+          }
+        }
+
         const payload = this.buildFullMonitorTransferPayload(monitor?.id ?? null, {
-          subgroupIds: overrideSubgroups
+          subgroupIds: subgroupsToUse
         });
 
         if (!payload.booking_users.length && payload.subgroup_id === null && !payload.course_id) {
