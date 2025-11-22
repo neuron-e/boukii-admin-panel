@@ -65,7 +65,7 @@ export class MonitorAssignmentHelperService {
           hour_end: slot.endTime || slot.startTime
         };
         const response: any = await firstValueFrom(
-          this.crudService.post(`/admin/monitor/available/${monitorId}`, payload)
+          this.crudService.post(`/admin/monitors/available/${monitorId}`, payload)
         );
         // Direct check: if response.data.available is true, monitor is available
         if (response?.data?.available === true) {
