@@ -341,9 +341,8 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
       // NUEVO: Si el response contiene all_dates_in_subgroup, mostrar TODAS las fechas
       if (Array.isArray(item?.all_dates_in_subgroup) && item.all_dates_in_subgroup.length > 0) {
         // Crear un item por cada fecha en el subgrupo
-        item.all_dates_in_subgroup.forEach((dateItem: any, index: number) => {
+        item.all_dates_in_subgroup.forEach((dateItem: any) => {
           const value = this.normalizeDateValue(dateItem?.date);
-          const isFirstDate = index === 0;
 
           result.push({
             value,
@@ -352,10 +351,10 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
               hour_start: dateItem?.hour_start,
               hour_end: dateItem?.hour_end
             }),
-            // Solo mostrar nivel y monitor en la primera fecha del subgrupo
-            levelLabel: isFirstDate ? (item?.level_label ?? item?.course?.name ?? null) : null,
-            currentMonitor: isFirstDate ? (item?.current_monitor?.name ?? null) : null,
-            subgroupId: isFirstDate ? (typeof item?.id === 'number' ? item.id : null) : null
+            // Mostrar nivel y monitor en TODAS las fechas del subgrupo
+            levelLabel: item?.level_label ?? item?.course?.name ?? null,
+            currentMonitor: item?.current_monitor?.name ?? null,
+            subgroupId: typeof item?.id === 'number' ? item.id : null
           });
         });
       } else {
