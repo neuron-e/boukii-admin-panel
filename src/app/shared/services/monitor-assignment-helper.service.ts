@@ -58,27 +58,17 @@ export class MonitorAssignmentHelperService {
       }
 
       try {
-        const payload: any = {
+        // Check if THIS specific monitor is available (simpler and more direct)
+        const payload = {
           date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime || slot.startTime,
-          minimumDegreeId: slot.degreeId,
-          sportId: slot.sportId
+          hour_start: slot.startTime,
+          hour_end: slot.endTime || slot.startTime
         };
-        if (context?.bookingUserIds?.length) {
-          payload.bookingUserIds = context.bookingUserIds;
-        }
-        if (context?.subgroupIds?.length) {
-          payload.subgroupIds = context.subgroupIds;
-        }
-        if (context?.courseId) {
-          payload.courseId = context.courseId;
-        }
         const response: any = await firstValueFrom(
-          this.crudService.post('/admin/monitors/available', payload)
+          this.crudService.post(`/admin/monitor/available/${monitorId}`, payload)
         );
-        const list = Array.isArray(response?.data) ? response.data : [];
-        if (list.some((monitor: any) => monitor?.id === monitorId)) {
+        // Direct check: if response.data.available is true, monitor is available
+        if (response?.data?.available === true) {
           available.push(slot);
         } else {
           blocked.push(slot);
