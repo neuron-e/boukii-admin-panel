@@ -152,6 +152,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   monitorAssignmentScope: 'single' | 'interval' | 'all' | 'from' | 'range' = 'single';
   monitorAssignmentStartDate: string | null = null;
   monitorAssignmentEndDate: string | null = null;
+  monitorAssignmentSubgroupIds: number[] = [];
   monitorAssignmentDates: { value: string, label: string }[] = [];
   monitorSearchTerm: string = '';
 
@@ -1534,6 +1535,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorAssignmentScope = selection.scope;
     this.monitorAssignmentStartDate = selection.startDate;
     this.monitorAssignmentEndDate = selection.endDate;
+    this.monitorAssignmentSubgroupIds = selection.targetSubgroupIds ?? [];
     this.updateCurrentAssignmentContext();
   }
 
@@ -2808,6 +2810,13 @@ export class TimelineComponent implements OnInit, OnDestroy {
     };
     if (!availabilityContext.subgroupIds.length && this.taskDetail) {
       availabilityContext.subgroupIds = this.collectCourseSubgroupIdsForTask(this.taskDetail);
+    }
+    // Asegurar que se incluyan los subgrupos a transferir en las exclusiones de disponibilidad
+    if (this.monitorAssignmentSubgroupIds.length) {
+      availabilityContext.subgroupIds = Array.from(new Set([
+        ...(availabilityContext.subgroupIds ?? []),
+        ...this.monitorAssignmentSubgroupIds
+      ]));
     }
 
     this.showLoadingDialog('monitor_assignment.loading_checking');

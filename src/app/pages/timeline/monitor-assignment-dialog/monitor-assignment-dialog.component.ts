@@ -172,7 +172,8 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
     this.dialogRef.close({
       scope: this.scope,
       startDate: this.startDate,
-      endDate: this.endDate
+      endDate: this.endDate,
+      targetSubgroupIds: this.targetSubgroupIds ?? []
     });
   }
 
