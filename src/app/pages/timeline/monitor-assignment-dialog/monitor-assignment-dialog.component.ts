@@ -17,6 +17,7 @@ export interface MonitorAssignmentDialogData {
   intervalDates: string[];
   hasMultipleIntervals: boolean;
   allowAllOption: boolean;
+  allowMultiScope?: boolean;
   initialScope: MonitorAssignmentScope;
   startDate: string | null;
   endDate: string | null;
@@ -49,6 +50,7 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
   readonly intervalDateValues: string[];
   readonly hasIntervals: boolean;
   readonly allowAll: boolean;
+  readonly multiScopeAllowed: boolean;
   readonly monitorName: string;
   summaryItems: MonitorAssignmentDialogSummaryItem[];
   private allSummaryItems: MonitorAssignmentDialogSummaryItem[];
@@ -69,8 +71,9 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
   ) {
     this.dateOptions = data.dates ?? [];
     this.intervalDateValues = data.intervalDates ?? [];
-    this.hasIntervals = !!data.hasMultipleIntervals && this.intervalDateValues.length > 0;
-    this.allowAll = !!data.allowAllOption && this.dateOptions.length > 1;
+    this.multiScopeAllowed = data.allowMultiScope !== false;
+    this.hasIntervals = this.multiScopeAllowed && !!data.hasMultipleIntervals && this.intervalDateValues.length > 0;
+    this.allowAll = this.multiScopeAllowed && !!data.allowAllOption && this.dateOptions.length > 1;
     this.monitorName = this.resolveMonitorName(data.monitor);
     this.allSummaryItems = data.summaryItems ?? [];
     this.summaryItems = [...this.allSummaryItems];
@@ -86,6 +89,12 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
   }
 
   onScopeChange(value: MonitorAssignmentScope): void {
+    if (!this.multiScopeAllowed) {
+      this.scope = 'single';
+      this.applyScopeDefaults('single');
+      this.handleSelectionChange();
+      return;
+    }
     this.scope = value;
     this.applyScopeDefaults(value);
     this.handleSelectionChange();
@@ -111,6 +120,9 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
   }
 
   getAvailableScopes(): MonitorAssignmentScope[] {
+    if (!this.multiScopeAllowed) {
+      return ['single'];
+    }
     const scopes: MonitorAssignmentScope[] = ['single'];
     if (this.hasIntervals) {
       scopes.push('interval');
@@ -176,6 +188,9 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
   }
 
   private applyScopeDefaults(scope: MonitorAssignmentScope): void {
+    if (!this.multiScopeAllowed) {
+      this.scope = 'single';
+    }
     const defaultDate = this.data.defaultDate ?? this.dateOptions[0]?.value ?? null;
     switch (scope) {
       case 'single':
@@ -319,18 +334,44 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
     if (!Array.isArray(data)) {
       return [];
     }
-    return data
-      .map(item => {
+
+    const result: MonitorAssignmentDialogSummaryItem[] = [];
+
+    for (const item of data) {
+      // NUEVO: Si el response contiene all_dates_in_subgroup, mostrar TODAS las fechas
+      if (Array.isArray(item?.all_dates_in_subgroup) && item.all_dates_in_subgroup.length > 0) {
+        // Crear un item por cada fecha en el subgrupo
+        item.all_dates_in_subgroup.forEach((dateItem: any, index: number) => {
+          const value = this.normalizeDateValue(dateItem?.date);
+          const isFirstDate = index === 0;
+
+          result.push({
+            value,
+            dateLabel: this.resolveSummaryDateLabel(value, {
+              ...dateItem,
+              hour_start: dateItem?.hour_start,
+              hour_end: dateItem?.hour_end
+            }),
+            // Solo mostrar nivel y monitor en la primera fecha del subgrupo
+            levelLabel: isFirstDate ? (item?.level_label ?? item?.course?.name ?? null) : null,
+            currentMonitor: isFirstDate ? (item?.current_monitor?.name ?? null) : null,
+            subgroupId: isFirstDate ? (typeof item?.id === 'number' ? item.id : null) : null
+          });
+        });
+      } else {
+        // FALLBACK: Antiguo formato (solo 1 fecha)
         const value = this.normalizeDateValue(item?.date);
-        return {
+        result.push({
           value,
           dateLabel: this.resolveSummaryDateLabel(value, item),
           levelLabel: item?.level_label ?? item?.course?.name ?? null,
           currentMonitor: item?.current_monitor?.name ?? null,
           subgroupId: typeof item?.id === 'number' ? item.id : null
-        };
-      })
-      .filter(item => !!item.dateLabel);
+        });
+      }
+    }
+
+    return result.filter(item => !!item.dateLabel);
   }
 
   private resolveSummaryDateLabel(value: string | null, item: any): string {
