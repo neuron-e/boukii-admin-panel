@@ -38,6 +38,7 @@ export interface MonitorAssignmentDialogResult {
   scope: MonitorAssignmentScope;
   startDate: string | null;
   endDate: string | null;
+  targetSubgroupIds?: number[];
 }
 
 @Component({
