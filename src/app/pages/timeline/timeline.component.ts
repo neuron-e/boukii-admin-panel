@@ -2274,7 +2274,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
 
     if ((scope === 'all' || scope === 'from' || scope === 'range') && ctx.course_id) {
-      this.collectCourseSubgroupIdsForTask(ctx).forEach(id => subgroupIdsSet.add(id));
+      // For 'all' scope, filter to same degree only; for 'from'/'range' it will be filtered later
+      const filterByDegree = scope === 'all';
+      this.collectCourseSubgroupIdsForTask(ctx, filterByDegree).forEach(id => subgroupIdsSet.add(id));
     }
 
     if (!bookingUserIds.length && subgroupIdsSet.size === 0 && !ctx.all_clients?.length && ctx.booking_id) {
@@ -2906,13 +2908,14 @@ export class TimelineComponent implements OnInit, OnDestroy {
         );
 
         // For different scopes, use appropriate subgroup collection:
-        // - scope='all': use ALL course subgroups (no degree filtering)
-        // - scope='from'/'range': use all related subgroups in date range (WITH degree filtering)
+        // - scope='all': use ALL subgroups of the SAME DEGREE in the course
+        // - scope='from'/'range': use all related subgroups in date range (same degree)
         // - scope='single'/'interval': use only preview subgroups
         if (this.taskDetail) {
           if (this.monitorAssignmentScope === 'all') {
-            // For 'all' scope, change every subgroup in the course
-            subgroupsToUse = this.collectCourseSubgroupIdsForTask(this.taskDetail);
+            // For 'all' scope: change every subgroup of the SAME DEGREE in the course
+            // Note: backend will also filter by degree, this ensures frontend-backend alignment
+            subgroupsToUse = this.collectCourseSubgroupIdsForTask(this.taskDetail, true);
           } else if (this.monitorAssignmentScope === 'from' || this.monitorAssignmentScope === 'range') {
             // For 'from'/'range' scope, include all related subgroups in the date range (same degree)
             subgroupsToUse = this.collectSubgroupIdsForAssignment(false);
@@ -3662,22 +3665,32 @@ export class TimelineComponent implements OnInit, OnDestroy {
     });
   }
 
-  private collectCourseSubgroupIdsForTask(task: any): number[] {
+  private collectCourseSubgroupIdsForTask(task: any, filterByDegree: boolean = false): number[] {
     if (!task) return [];
     const subgroupIds = new Set<number>();
-    const addId = (value: any) => {
+    const degreeId = filterByDegree ? this.resolveTaskDegreeId(task) : null;
+
+    const addId = (value: any, subgroupDegree?: any) => {
+      // If filterByDegree is enabled, only add if degree matches
+      if (filterByDegree && degreeId != null) {
+        const subgroupDegreeId = subgroupDegree?.degree_id ?? subgroupDegree?.degree?.id;
+        if (subgroupDegreeId !== degreeId) {
+          return; // Skip subgroups with different degree
+        }
+      }
       const numeric = Number(value);
       if (!Number.isNaN(numeric) && numeric !== 0) {
         subgroupIds.add(numeric);
       }
     };
 
-    addId(task.course_subgroup_id ?? task.subgroup_id);
+    const baseSubgroup = task.course_subgroup_id ?? task.subgroup_id;
+    addId(baseSubgroup, task.course_subgroup || task);
 
     const courseGroups = task.course?.course_groups ?? [];
     courseGroups.forEach((group: any) => {
       const subgroups = group?.course_subgroups ?? group?.subgroups ?? [];
-      subgroups.forEach((subgroup: any) => addId(subgroup?.id));
+      subgroups.forEach((subgroup: any) => addId(subgroup?.id, subgroup));
     });
 
     const courseDates = task.course?.course_dates ?? [];
@@ -3685,15 +3698,15 @@ export class TimelineComponent implements OnInit, OnDestroy {
       const dateGroups = date?.course_groups ?? [];
       dateGroups.forEach((group: any) => {
         const subgroups = group?.course_subgroups ?? group?.subgroups ?? [];
-        subgroups.forEach((subgroup: any) => addId(subgroup?.id));
+        subgroups.forEach((subgroup: any) => addId(subgroup?.id, subgroup));
       });
       const dateSubgroups = date?.course_subgroups ?? date?.courseSubgroups ?? [];
-      dateSubgroups.forEach((subgroup: any) => addId(subgroup?.id));
+      dateSubgroups.forEach((subgroup: any) => addId(subgroup?.id, subgroup));
     });
 
     (this.plannerTasks ?? [])
       .filter(t => t?.course_id === task.course_id)
-      .forEach(t => addId(t.course_subgroup_id));
+      .forEach(t => addId(t.course_subgroup_id, t.course_subgroup || t));
 
     return Array.from(subgroupIds);
   }
