@@ -353,9 +353,9 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
               hour_start: dateItem?.hour_start,
               hour_end: dateItem?.hour_end
             }),
-            // Mostrar nivel y monitor en TODAS las fechas del subgrupo
+            // MEJORADO: Mostrar monitor POR FECHA (ahora viene en dateItem, no en item)
             levelLabel: item?.level_label ?? item?.course?.name ?? null,
-            currentMonitor: item?.current_monitor?.name ?? null,
+            currentMonitor: dateItem?.current_monitor?.name ?? item?.current_monitor?.name ?? null,
             subgroupId: typeof item?.id === 'number' ? item.id : null
           });
         });
