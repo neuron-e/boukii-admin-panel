@@ -2152,9 +2152,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
 
       // Fallback to old structure: course_subgroups inside course_groups
-      const group = (cd?.course_groups || cd?.courseGroups || []).find((g: any) =>
-        (g?.degree_id ?? g?.degreeId) === levelId
-      );
+      const courseGroups = cd?.course_groups || cd?.courseGroups || [];
+      let group = null;
+      if (Array.isArray(courseGroups)) {
+        group = courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+      } else {
+        // course_groups is an Object/Map
+        for (const g of Object.values(courseGroups)) {
+          if ((g as any)?.degree_id === levelId || (g as any)?.degreeId === levelId) {
+            group = g;
+            break;
+          }
+        }
+      }
       const count = (group?.course_subgroups || group?.courseSubgroups || []).length;
       return count;
     });
@@ -2181,9 +2191,19 @@ export class CoursesCreateUpdateComponent implements OnInit {
         }
 
         // Fallback to old structure
-        const group = (cd?.course_groups || cd?.courseGroups || []).find((g: any) =>
-          (g?.degree_id ?? g?.degreeId) === levelId
-        );
+        const courseGroups = cd?.course_groups || cd?.courseGroups || [];
+        let group = null;
+        if (Array.isArray(courseGroups)) {
+          group = courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        } else {
+          // course_groups is an Object/Map
+          for (const g of Object.values(courseGroups)) {
+            if ((g as any)?.degree_id === levelId || (g as any)?.degreeId === levelId) {
+              group = g;
+              break;
+            }
+          }
+        }
         const subgroup = (group?.course_subgroups || group?.courseSubgroups || [])[i];
         if (subgroup) {
           uniqueSubgroups.push({
