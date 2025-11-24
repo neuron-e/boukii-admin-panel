@@ -1218,7 +1218,7 @@
                 delete
               </mat-icon>
             </div>
-            <div *ngIf="level.active && intervalGroups[selectedIntervalIndexForGroups] && intervalGroups[selectedIntervalIndexForGroups][level.id]" style="display: flex;gap: 16px;">
+            <div *ngIf="level.active && (!useMultipleIntervals || (intervalGroups[selectedIntervalIndexForGroups] && intervalGroups[selectedIntervalIndexForGroups][level.id]))" style="display: flex;gap: 16px;">
               <app-form-input [required]="true" [value]="level.age_min" [max]="level.age_max"
                               (do)="level.age_min=$event.target.value;" style="width: calc(33.33% - 10px - 16px);"
                               name="courses.min_age" type="number" Suffix="years">
