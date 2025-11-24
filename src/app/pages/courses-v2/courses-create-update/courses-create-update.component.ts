@@ -2869,11 +2869,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
       };
     });
 
-    // Solo actualizar desde course_dates si no hay estado previo
-    // Leer del FormArray en lugar de detailData para obtener los datos actualizados
+    // Leer del FormArray para detectar cuáles niveles están en course_dates
     const courseDatesFromForm = this.courses.courseFormGroup.controls['course_dates']?.value || [];
 
-    if (courseDatesFromForm && Array.isArray(courseDatesFromForm) && currentLevelGrop.length === 0) {
+    // Detectar niveles activos desde course_dates (SIEMPRE, no solo en primera carga)
+    if (courseDatesFromForm && Array.isArray(courseDatesFromForm) && courseDatesFromForm.length > 0) {
       levelGrop.forEach((level: any) => {
         courseDatesFromForm.forEach((cs: any) => {
           if (cs.course_groups) {
