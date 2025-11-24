@@ -2884,11 +2884,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   getDegrees = () => this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.courses.courseFormGroup.controls['school_id'].value + '&sport_id=' + this.courses.courseFormGroup.controls['sport_id'].value).subscribe((data) => {
     console.log('[getDegrees] Starting, checking course_dates');
-    const courseDatesFromForm = this.courses.courseFormGroup.controls['course_dates']?.value || [];
-    console.log('[getDegrees] course_dates.length=', courseDatesFromForm.length);
-    if (courseDatesFromForm.length > 0) {
-      console.log('[getDegrees] First course_date structure:', JSON.stringify(courseDatesFromForm[0], null, 2).substring(0, 1000));
-    }
 
     // Initialize detailData if it doesn't exist
     if (!this.detailData) {
@@ -2902,6 +2897,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Leer del FormArray para detectar cuáles niveles están en course_dates
     const courseDatesFromForm = this.courses.courseFormGroup.controls['course_dates']?.value || [];
+    console.log('[getDegrees] course_dates.length=', courseDatesFromForm.length);
+    if (courseDatesFromForm.length > 0) {
+      console.log('[getDegrees] First course_date structure:', JSON.stringify(courseDatesFromForm[0], null, 2).substring(0, 1000));
+    }
 
     // Crear un Set con los IDs de niveles que están en course_dates
     const levelsInCourseDates = new Set<number>();
