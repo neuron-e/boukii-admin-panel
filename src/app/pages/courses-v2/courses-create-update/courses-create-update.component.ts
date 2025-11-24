@@ -797,6 +797,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
       const groupClone: any = {
         degree_id: levelData.id,
         id: levelData.id,
+        course_id: this.mode === 'update'
+          ? (this.courses.courseFormGroup?.controls?.['id']?.value ?? this.id ?? null)
+          : undefined,
         annotation: levelData.annotation,
         level: levelData.level,
         color: levelData.color,
