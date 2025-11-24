@@ -2906,6 +2906,18 @@ export class CoursesCreateUpdateComponent implements OnInit {
     const levelsInCourseDates = new Set<number>();
     if (courseDatesFromForm && Array.isArray(courseDatesFromForm)) {
       courseDatesFromForm.forEach((cs: any) => {
+        // IMPORTANTE: Check BOTH structures:
+        // 1. NEW structure: course_subgroups at date level
+        if (cs.course_subgroups && Array.isArray(cs.course_subgroups)) {
+          cs.course_subgroups.forEach((subgroup: any) => {
+            if (subgroup && subgroup.degree_id) {
+              levelsInCourseDates.add(subgroup.degree_id);
+              console.log(`[getDegrees] Found level ${subgroup.degree_id} in course_subgroups`);
+            }
+          });
+        }
+
+        // 2. OLD structure: course_subgroups inside course_groups
         if (cs.course_groups) {
           const groupsArray = Array.isArray(cs.course_groups)
             ? cs.course_groups
@@ -2913,11 +2925,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
           groupsArray.forEach((group: any) => {
             if (group && group.degree_id) {
               levelsInCourseDates.add(group.degree_id);
+              console.log(`[getDegrees] Found level ${group.degree_id} in course_groups`);
             }
           });
         }
       });
     }
+    console.log(`[getDegrees] Total levels found in course_dates: ${levelsInCourseDates.size}`, Array.from(levelsInCourseDates));
 
     // Obtener el estado actual de levelGrop para preservar selecciones
     const currentLevelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
@@ -2941,12 +2955,17 @@ export class CoursesCreateUpdateComponent implements OnInit {
         isActive = currentState.active;
       }
 
+      if (isActive) {
+        console.log(`[getDegrees] Level ${level.id} (${level.annotation} ${level.level}) is ACTIVE`);
+      }
+
       return {
         ...level,
         active: isActive,
         max_participants: currentState?.max_participants ?? level.max_participants,
       };
     });
+    console.log(`[getDegrees] Final levelGrop created with ${levelGrop.length} levels, ${levelGrop.filter((l: any) => l.active).length} active`);
 
     // Actualizar datos desde course_dates si es primera carga
     if (currentLevelGrop.length === 0 && courseDatesFromForm.length > 0) {
