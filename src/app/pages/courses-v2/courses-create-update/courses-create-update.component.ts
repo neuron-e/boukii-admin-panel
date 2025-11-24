@@ -3667,11 +3667,17 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     if (courseFormGroup.course_type === 1 && courseFormGroup.course_dates && courseFormGroup.levelGrop) {
+      const courseId = courseFormGroup.id || this.id;  // Get course_id from form or component property
+
       courseFormGroup.course_dates.forEach((courseDate: any) => {
         if (courseDate.course_groups) {
           // Transform course_groups to groups and course_subgroups to subgroups for backend compatibility
           courseDate.groups = courseDate.course_groups.map((group: any) => {
             const transformedGroup = { ...group };
+
+            // IMPORTANT: Add course_id and course_date_id to the group (required by backend)
+            transformedGroup.course_id = courseId;
+            transformedGroup.course_date_id = courseDate.id;
 
             // Transform course_subgroups to subgroups
             if (group.course_subgroups && Array.isArray(group.course_subgroups)) {
