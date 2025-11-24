@@ -1,0 +1,11 @@
+.interval-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+mat-checkbox {
+  display: block;
+  margin-bottom: 8px;
+}

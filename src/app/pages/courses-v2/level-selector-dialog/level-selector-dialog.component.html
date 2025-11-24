@@ -1,0 +1,18 @@
+<h2 mat-dialog-title>{{ data.title || 'Seleccionar Nivel' }}</h2>
+<div mat-dialog-content>
+  <p>{{ data.message || 'Elige un nivel:' }}</p>
+  <div class="level-list">
+    <button *ngFor="let level of data.levels"
+            mat-stroked-button
+            (click)="selectLevel(level)"
+            [style.borderColor]="level.color"
+            [style.color]="level.color"
+            class="level-button">
+      <span [style.backgroundColor]="level.color" class="level-dot"></span>
+      {{ level.annotation }} {{ level.level }}
+    </button>
+  </div>
+</div>
+<div mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancelar</button>
+</div>

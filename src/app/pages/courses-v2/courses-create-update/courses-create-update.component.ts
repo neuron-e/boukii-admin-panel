@@ -14,6 +14,8 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import { CourseDateValidationService } from 'src/service/course-date-validation.service';
 import { CourseDateOverlapValidationService, CourseDateInfo, CourseDateValidationError } from 'src/service/course-date-overlap-validation.service';
 import {CourseTimingModalComponent} from '../course-timing-modal/course-timing-modal.component';
+import { IntervalSelectorModalComponent } from './interval-selector-modal/interval-selector-modal.component';
+import { LevelSelectorDialogComponent } from '../level-selector-dialog/level-selector-dialog.component';
 
 interface CourseDate {
   date: string;
