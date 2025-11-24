@@ -2847,8 +2847,29 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
     this.detailData.degrees = [];
     data.data.forEach((element: any) => {
-      if (element.active) this.detailData.degrees.push({ ...element, }); //Subgrupo: this.getSubGroups(element.id)
+      // Incluir TODOS los grados, tanto activos como inactivos
+      this.detailData.degrees.push({ ...element, }); //Subgrupo: this.getSubGroups(element.id)
     });
+
+    // Leer del FormArray para detectar cuáles niveles están en course_dates
+    const courseDatesFromForm = this.courses.courseFormGroup.controls['course_dates']?.value || [];
+
+    // Crear un Set con los IDs de niveles que están en course_dates
+    const levelsInCourseDates = new Set<number>();
+    if (courseDatesFromForm && Array.isArray(courseDatesFromForm)) {
+      courseDatesFromForm.forEach((cs: any) => {
+        if (cs.course_groups) {
+          const groupsArray = Array.isArray(cs.course_groups)
+            ? cs.course_groups
+            : Object.values(cs.course_groups);
+          groupsArray.forEach((group: any) => {
+            if (group && group.degree_id) {
+              levelsInCourseDates.add(group.degree_id);
+            }
+          });
+        }
+      });
+    }
 
     // Obtener el estado actual de levelGrop para preservar selecciones
     const currentLevelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
@@ -2859,32 +2880,37 @@ export class CoursesCreateUpdateComponent implements OnInit {
       }
     });
 
+    // Crear levelGrop con TODOS los grados
     const levelGrop = this.detailData.degrees.map((level: any) => {
-      // Preservar el estado activo si ya existe
       const currentState = currentStateMap.get(level.id);
+
+      // Determinar si está activo:
+      // 1. Si está en course_dates, activo = true
+      // 2. Si el usuario lo había seleccionado antes, mantener su estado
+      // 3. Si no, inactivo = false
+      let isActive = levelsInCourseDates.has(level.id);
+      if (currentState?.active !== undefined && currentLevelGrop.length > 0) {
+        isActive = currentState.active;
+      }
+
       return {
         ...level,
-        active: currentState?.active ?? false,
+        active: isActive,
         max_participants: currentState?.max_participants ?? level.max_participants,
       };
     });
 
-    // Solo actualizar desde course_dates si no hay estado previo
-    // Leer del FormArray en lugar de detailData para obtener los datos actualizados
-    const courseDatesFromForm = this.courses.courseFormGroup.controls['course_dates']?.value || [];
-
-    if (courseDatesFromForm && Array.isArray(courseDatesFromForm) && currentLevelGrop.length === 0) {
+    // Actualizar datos desde course_dates si es primera carga
+    if (currentLevelGrop.length === 0 && courseDatesFromForm.length > 0) {
       levelGrop.forEach((level: any) => {
         courseDatesFromForm.forEach((cs: any) => {
           if (cs.course_groups) {
-            // Manejar tanto Array como Object (Map)
             const groupsArray = Array.isArray(cs.course_groups)
               ? cs.course_groups
               : Object.values(cs.course_groups);
 
             groupsArray.forEach((group: any) => {
               if (group && group.degree_id === level.id) {
-                level.active = true;
                 level.old = true;
                 group.age_min = level.age_min;
                 group.age_max = level.age_max;
@@ -2900,9 +2926,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
           }
         });
       });
-
-      levelGrop.sort((a: any) => (a.active ? -1 : 1));
     }
+
+    // Ordenar: activos primero
+    levelGrop.sort((a: any) => (a.active ? -1 : 1));
 
     this.courses.courseFormGroup.patchValue({ levelGrop });
 
