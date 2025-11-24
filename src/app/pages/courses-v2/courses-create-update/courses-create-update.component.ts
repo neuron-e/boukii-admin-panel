@@ -2959,6 +2959,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
       this.ensureIntervalGroupsAlignment();
     }
 
+    // LIMPIAR CACHÉ antes de recalcular subgrupos
+    this.clearSubgroupsCache();
+    this.clearGroupCache();
+
     // Pre-calcular intervalos para todos los subgrupos
     this.recalculateAllSubgroupIntervals();
 
