@@ -2129,7 +2129,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
   getAllUniqueSubgroupsForLevel(level: any): any[] {
     const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
     if (!Array.isArray(courseDates) || courseDates.length === 0) {
-      console.log(`[getAllUniqueSubgroupsForLevel] No course_dates found for level ${level?.id}`);
       return [];
     }
 
@@ -2138,15 +2137,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Verificar caché (sin intentar invalidarlo desde aquí para evitar recursión)
     if (this._uniqueSubgroupsCache.has(cacheKey)) {
-      const cached = this._uniqueSubgroupsCache.get(cacheKey)!;
-      console.log(`[getAllUniqueSubgroupsForLevel] Cache hit for levelId=${levelId}, returning ${cached.length} subgroups`);
-      return cached;
+      return this._uniqueSubgroupsCache.get(cacheKey)!;
     }
-
-    console.log(`[getAllUniqueSubgroupsForLevel] Cache miss for levelId=${levelId}, searching...`);
-    console.log(`[getAllUniqueSubgroupsForLevel] courseDates.length=${courseDates.length}`);
-    console.log(`[getAllUniqueSubgroupsForLevel] First course_date keys:`, Object.keys(courseDates[0] || {}));
-    console.log(`[getAllUniqueSubgroupsForLevel] Full course_dates structure:`, JSON.stringify(courseDates, null, 2).substring(0, 2000));
 
     // HYBRID: Try both structures
     const subgroupCounts = courseDates.map((cd, idx) => {
@@ -2156,13 +2148,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
         (sg?.degree_id ?? sg?.degreeId) === levelId
       );
       if (dateLevelSubgroups.length > 0) {
-        console.log(`[getAllUniqueSubgroupsForLevel] Found ${dateLevelSubgroups.length} subgroups in course_date[${idx}].course_subgroups`);
         return dateLevelSubgroups.length;
       }
 
       // Fallback to old structure: course_subgroups inside course_groups
       const courseGroups = cd?.course_groups || cd?.courseGroups || [];
-      console.log(`[getAllUniqueSubgroupsForLevel] course_date[${idx}].course_groups is ${Array.isArray(courseGroups) ? 'Array' : 'Object'}`);
       let group = null;
       if (Array.isArray(courseGroups)) {
         group = courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
@@ -2176,14 +2166,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
         }
       }
       const count = (group?.course_subgroups || group?.courseSubgroups || []).length;
-      if (count > 0) {
-        console.log(`[getAllUniqueSubgroupsForLevel] Found ${count} subgroups for levelId=${levelId} in course_date[${idx}].course_groups`);
-      }
       return count;
     });
 
     const maxSubgroupsCount = Math.max(...subgroupCounts, 0);
-    console.log(`[getAllUniqueSubgroupsForLevel] maxSubgroupsCount=${maxSubgroupsCount} for levelId=${levelId}`);
 
     // Crear un array con los subgrupos únicos
     const uniqueSubgroups: any[] = [];
@@ -2201,7 +2187,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
             _index: i,
             _level: level
           });
-          console.log(`[getAllUniqueSubgroupsForLevel] Added subgroup ${i} from new structure for levelId=${levelId}`);
           break;
         }
 
@@ -2226,7 +2211,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
             _index: i,
             _level: level
           });
-          console.log(`[getAllUniqueSubgroupsForLevel] Added subgroup ${i} from old structure for levelId=${levelId}`);
           break;
         }
       }
@@ -2234,7 +2218,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Guardar en caché
     this._uniqueSubgroupsCache.set(cacheKey, uniqueSubgroups);
-    console.log(`[getAllUniqueSubgroupsForLevel] Final result for levelId=${levelId}: ${uniqueSubgroups.length} subgroups returned`);
 
     return uniqueSubgroups;
   }
@@ -2244,27 +2227,22 @@ export class CoursesCreateUpdateComponent implements OnInit {
    * Esto se llama después de cargar el curso para poblar el mapa
    */
   private recalculateAllSubgroupIntervals(): void {
-    console.log('[recalculateAllSubgroupIntervals] Starting recalculation');
     this.subgroupIntervalsMap.clear();
 
     if (!this.intervals || !Array.isArray(this.intervals) || this.intervals.length === 0) {
-      console.log('[recalculateAllSubgroupIntervals] No intervals available, returning');
       return;
     }
 
     const levelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
-    console.log('[recalculateAllSubgroupIntervals] levelGrop.length=' + levelGrop.length);
 
     levelGrop.forEach((level: any) => {
       const uniqueSubgroups = this.getAllUniqueSubgroupsForLevel(level);
-      console.log(`[recalculateAllSubgroupIntervals] Level ${level.id}: ${uniqueSubgroups.length} subgroups found`);
       uniqueSubgroups.forEach((subgroup: any) => {
         const filteredIntervals = this.getIntervalsForLevelSubgroup(level, subgroup._index);
         const key = `${level.id}_${subgroup._index}`;
         this.subgroupIntervalsMap.set(key, filteredIntervals);
       });
     });
-    console.log('[recalculateAllSubgroupIntervals] Finished. subgroupIntervalsMap.size=' + this.subgroupIntervalsMap.size);
   }
 
   /**
@@ -2883,8 +2861,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   getDegrees = () => this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.courses.courseFormGroup.controls['school_id'].value + '&sport_id=' + this.courses.courseFormGroup.controls['sport_id'].value).subscribe((data) => {
-    console.log('[getDegrees] Starting, checking course_dates');
-
     // Initialize detailData if it doesn't exist
     if (!this.detailData) {
       this.detailData = {};
@@ -2897,10 +2873,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Leer del FormArray para detectar cuáles niveles están en course_dates
     const courseDatesFromForm = this.courses.courseFormGroup.controls['course_dates']?.value || [];
-    console.log('[getDegrees] course_dates.length=', courseDatesFromForm.length);
-    if (courseDatesFromForm.length > 0) {
-      console.log('[getDegrees] First course_date structure:', JSON.stringify(courseDatesFromForm[0], null, 2).substring(0, 1000));
-    }
 
     // Crear un Set con los IDs de niveles que están en course_dates
     const levelsInCourseDates = new Set<number>();
@@ -2912,7 +2884,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
           cs.course_subgroups.forEach((subgroup: any) => {
             if (subgroup && subgroup.degree_id) {
               levelsInCourseDates.add(subgroup.degree_id);
-              console.log(`[getDegrees] Found level ${subgroup.degree_id} in course_subgroups`);
             }
           });
         }
@@ -2925,13 +2896,11 @@ export class CoursesCreateUpdateComponent implements OnInit {
           groupsArray.forEach((group: any) => {
             if (group && group.degree_id) {
               levelsInCourseDates.add(group.degree_id);
-              console.log(`[getDegrees] Found level ${group.degree_id} in course_groups`);
             }
           });
         }
       });
     }
-    console.log(`[getDegrees] Total levels found in course_dates: ${levelsInCourseDates.size}`, Array.from(levelsInCourseDates));
 
     // Obtener el estado actual de levelGrop para preservar selecciones
     const currentLevelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
@@ -2955,17 +2924,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
         isActive = currentState.active;
       }
 
-      if (isActive) {
-        console.log(`[getDegrees] Level ${level.id} (${level.annotation} ${level.level}) is ACTIVE`);
-      }
-
       return {
         ...level,
         active: isActive,
         max_participants: currentState?.max_participants ?? level.max_participants,
       };
     });
-    console.log(`[getDegrees] Final levelGrop created with ${levelGrop.length} levels, ${levelGrop.filter((l: any) => l.active).length} active`);
 
     // Actualizar datos desde course_dates si es primera carga
     if (currentLevelGrop.length === 0 && courseDatesFromForm.length > 0) {
@@ -3007,12 +2971,10 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     // LIMPIAR CACHÉ antes de recalcular subgrupos
-    console.log('[getDegrees] Clearing cache before recalculating subgroups');
     this.clearSubgroupsCache();  // This already calls recalculateAllSubgroupIntervals() internally
     this.clearGroupCache();
 
     // FORZAR detección de cambios después de cargar niveles
-    console.log('[getDegrees] Forcing change detection');
     this.cdr.detectChanges();
   });
 
