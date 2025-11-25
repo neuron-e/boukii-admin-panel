@@ -13,7 +13,7 @@
 						{{'monitor' | translate}}
 					</div>
 				</td>
-				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+				<td *ngFor="let entry of cachedDatesForTemplate; let i = index; trackBy: trackByEntryIndex"
 					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
 					[style.borderTop]="selectDate===entry.index?'3px solid #E91E63':''" (click)="onSelectDate(entry.index, entry.date)"
 					style="
@@ -51,7 +51,7 @@
                   {{ getSelectedMonitorDisplayName() }}
                 </mat-option>
               </ng-container>
-              <mat-option *ngFor="let monitor of filteredMonitorsForSelect"
+              <mat-option *ngFor="let monitor of filteredMonitorsForSelect; trackBy: trackByMonitorId"
                           [value]="monitor.id">
                 {{ getMonitorDisplayName(monitor) }}
               </mat-option>
@@ -81,7 +81,7 @@
             </div>
           </div>
 				</td>
-				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+				<td *ngFor="let entry of cachedDatesForTemplate; let i = index; trackBy: trackByEntryIndex"
 					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':'var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
 					[style.color]="getSubgroupForDate(entry.date)?.monitor ? (modified[entry.index] ? '#FFCF25' : '#31C044') : '#C7D0D3'"
 					(click)="onSelectDate(entry.index, entry.date)">
@@ -111,14 +111,14 @@
               </div>
             </div>
           </td>
-					<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+					<td *ngFor="let entry of cachedDatesForTemplate; let i = index; trackBy: trackByEntryIndex"
 					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
 					(click)="onSelectDate(entry.index, entry.date)"
 					style="text-align: center; font-size: 11px; font-weight: 600; color: var(--color-dark1);">
 					{{getStudentCount(entry.date)}}
 					</td>
 			</tr>
-			<tr *ngFor="let user of getFilteredBookingUsers(); index as i">
+			<tr *ngFor="let user of getFilteredBookingUsers(); let i = index; trackBy: trackByUserId">
 				<ng-container>
 					<td
 						style="text-align-last: start;background-color: var(--is-light-theme, #ffffff) var(--is-dark-theme, black);">
@@ -131,7 +131,7 @@
 							{{calculateAge(user.client.birth_date)}} {{'years' | translate }}
 						</span>
 					</td>
-					<td *ngFor="let entry of getDatesForSubgroup(); index as j"
+					<td *ngFor="let entry of cachedDatesForTemplate; let j = index; trackBy: trackByEntryIndex"
 						[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
 						(click)="onSelectDate(entry.index, entry.date)">
             <div style="display: flex; gap: 5px; justify-content: center;">
@@ -188,7 +188,7 @@
 						{{"no_user_reserved" | translate}}
 					</div>
 				</td>
-				<td *ngFor="let entry of getDatesForSubgroup(); index as i"
+				<td *ngFor="let entry of cachedDatesForTemplate; let i = index; trackBy: trackByEntryIndex"
 					[style.backgroundColor]="selectDate===entry.index?'var(--is-light-theme, #ffffff) var(--is-dark-theme, black)':' var(--is-light-theme, #f8f9fb) var(--is-dark-theme, #8e97a7)'"
 					(click)="onSelectDate(entry.index, entry.date)">
 				</td>

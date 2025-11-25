@@ -1,5 +1,5 @@
 import { formatDate } from '@angular/common';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -19,7 +19,8 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'vex-flux-disponibilidad',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   cambiarModal: boolean = false
@@ -74,6 +75,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   assignmentEndIndex = 0;
   private _cachedDatesForSubgroup: Array<{ date: any, index: number }> | null = null;
   private _cachedIntervalHeaders: Array<{ name: string; colspan: number }> | null = null;
+
+  // Cache for template to avoid calling getDatesForSubgroup() multiple times per render cycle
+  cachedDatesForTemplate: Array<{ date: any, index: number }> = [];
+
   constructor(
     private crudService: ApiCrudService,
     private monitorsService: MonitorsService,
@@ -81,7 +86,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     private translateService: TranslateService,
     private dialog: MatDialog,
     private assignmentSync: MonitorAssignmentSyncService,
-    private assignmentHelper: MonitorAssignmentHelperService
+    private assignmentHelper: MonitorAssignmentHelperService,
+    private cdr: ChangeDetectorRef
   ) { }
   getLanguages = () => this.crudService.list('/languages', 1, 1000).subscribe((data) => this.languages = data.data.reverse())
   getLanguage(id: any) {
@@ -253,6 +259,9 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
         this.monitors = [];
       }
     }
+
+    // Mark for check to trigger change detection with OnPush
+    this.cdr.markForCheck();
   }
   booking_users: any
 
@@ -527,7 +536,13 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     this._cachedDatesForSubgroup = null;
     this._cachedIntervalHeaders = null;
     this.availabilityCache.clear();
+
+    // Update template cache when interval changes
+    this.cachedDatesForTemplate = this.getDatesForSubgroup();
     this.rebuildLegendState();
+
+    // Mark for check to trigger change detection with OnPush
+    this.cdr.markForCheck();
   }
 
   private collectBookingUserIds(indexes: number[]): number[] {
@@ -858,7 +873,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const availableDates = this.getDatesForSubgroup();
+    // Cache the dates to avoid multiple function calls in template
+    this.cachedDatesForTemplate = this.getDatesForSubgroup();
+    const availableDates = this.cachedDatesForTemplate;
+
     if (availableDates.length) {
       this.selectDate = availableDates[0].index;
     } else {
@@ -894,6 +912,9 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
       }
       this.handleExternalAssignmentEvent();
     });
+
+    // Mark for check to ensure OnPush change detection runs after init
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {
@@ -1763,6 +1784,19 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.warn('Unable to refresh availability after external update', error);
     }
+  }
+
+  // TrackBy functions for *ngFor optimization
+  trackByEntryIndex(index: number, item: any): any {
+    return item?.index ?? index;
+  }
+
+  trackByMonitorId(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByUserId(index: number, item: any): any {
+    return item?.id ?? item?.client_id ?? index;
   }
 }
 
