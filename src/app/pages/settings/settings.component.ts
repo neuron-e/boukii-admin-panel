@@ -1005,8 +1005,11 @@ export class SettingsComponent implements OnInit {
       degrees: this.dataSourceLevels.data
     }
 
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(data) }, this.school.id)
+    const settingsPayload = this.buildSettingsPayload(data);
+
+    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
       .subscribe(() => {
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.prices'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
       })
@@ -1090,8 +1093,11 @@ export class SettingsComponent implements OnInit {
       extras: { forfait: this.dataSourceForfait.data, food: this.dataSourceFood.data, transport: this.dataSourceTransport.data },
       degrees: this.dataSourceLevels.data
     }
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(data) }, this.school.id)
+    const settingsPayload = this.buildSettingsPayload(data);
+
+    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
       .subscribe(() => {
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.auths'), 'OK', { duration: 3000 });
         this.getData();
         this.schoolService.refreshSchoolData();
@@ -1218,8 +1224,11 @@ export class SettingsComponent implements OnInit {
       degrees: this.dataSourceLevels.data
     }
 
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(data) }, this.school.id)
+    const settingsPayload = this.buildSettingsPayload(data);
+
+    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
       .subscribe(() => {
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.extras'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
 
@@ -1301,9 +1310,12 @@ export class SettingsComponent implements OnInit {
       degrees: this.dataSourceLevels.data
     }
 
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(data) }, this.school.id)
+    const settingsPayload = this.buildSettingsPayload(data);
+
+    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
       .subscribe(() => {
 
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.taxes'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
         this.getData();
@@ -1347,12 +1359,15 @@ export class SettingsComponent implements OnInit {
       }
     }
 
+    const settingsPayload = this.buildSettingsPayload(data);
+
     this.crudService.update('/schools', {
       name: this.school.name,
       description: this.school.description,
-      settings: JSON.stringify(data)
+      settings: JSON.stringify(settingsPayload)
     }, this.school.id)
       .subscribe(() => {
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.save'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
         this.bookingForm.enable({ emitEvent: false });
@@ -1620,5 +1635,25 @@ export class SettingsComponent implements OnInit {
     this.infoMessagesFA.markAsDirty();
     this.PageForm.MessageInformation.reset();
     this.PageModal.MessageInformation = false;
+  }
+
+  private getCurrentSettings(): any {
+    const current = this.school?.settings;
+    if (!current) {
+      return {};
+    }
+    if (typeof current === 'string') {
+      try {
+        return JSON.parse(current);
+      } catch {
+        return {};
+      }
+    }
+    return current;
+  }
+
+  private buildSettingsPayload(partial: any): any {
+    const current = this.getCurrentSettings();
+    return { ...current, ...partial };
   }
 }
