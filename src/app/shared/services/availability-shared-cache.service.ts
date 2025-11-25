@@ -118,7 +118,7 @@ export class AvailabilitySharedCacheService {
     // When resolved, clean up in-flight tracking and store in cache
     requestPromise
       .then(data => {
-        this.cache.set(payload, data);
+        this.set(payload, data);  // Use set() method which handles key generation
         this.inFlightRequests.delete(key);
         return data;
       })
