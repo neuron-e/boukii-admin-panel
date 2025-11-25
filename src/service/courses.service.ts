@@ -106,7 +106,36 @@ export class CoursesService {
     // Populate course_dates FormArray manually (patchValue doesn't work well with FormArrays)
     const courseDatesArray = this.courseFormGroup.get('course_dates') as FormArray;
     courseDatesArray.clear();
-    const courseDates = toArray(data.course_dates);
+    let courseDates = toArray(data.course_dates);
+
+    // Enrich course_dates with interval_id based on interval configuration
+    try {
+      if (courseDates.length && settingsObj?.intervals && Array.isArray(settingsObj.intervals)) {
+        const intervals = settingsObj.intervals;
+        courseDates = courseDates.map((dateData: any) => {
+          // Skip if interval_id already set
+          if (dateData?.interval_id) return dateData;
+
+          // Try to find matching interval by date range
+          const dateValue = dateData?.date ? new Date(dateData.date) : null;
+          if (dateValue) {
+            const matchingInterval = intervals.find((interval: any) => {
+              const startDate = interval?.startDate ? new Date(interval.startDate) : null;
+              const endDate = interval?.endDate ? new Date(interval.endDate) : null;
+              return startDate && endDate && dateValue >= startDate && dateValue <= endDate;
+            });
+
+            if (matchingInterval) {
+              dateData.interval_id = matchingInterval.id || intervals.indexOf(matchingInterval) + 1;
+            }
+          }
+          return dateData;
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to enrich course_dates with interval_id:', e);
+    }
+
     courseDates.forEach((dateData: any) => {
       courseDatesArray.push(this.fb.control(dateData));
     });
