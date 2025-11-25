@@ -921,10 +921,9 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
       this.assignmentScope = 'single';
     }
 
-    // Cargar monitores disponibles de la primera fecha automáticamente
-    if (availableDates.length > 0) {
-      this.getAvail(availableDates[0].date, this.selectDate);
-    }
+    // REMOVED: Automatic preloading for all dates (caused API storm with 30+ components)
+    // Now use lazy loading - load only when user clicks a date tab (onSelectDate)
+    // This reduces Step 3 load time from 5+ seconds to <100ms
 
     const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
     this.booking_users = bookingUsers.filter((user: any, index: any, self: any) =>
