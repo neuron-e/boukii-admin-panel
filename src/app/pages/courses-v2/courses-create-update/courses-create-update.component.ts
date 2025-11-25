@@ -108,6 +108,28 @@ export class CoursesCreateUpdateComponent implements OnInit {
   // Only render vex-flux-disponibilidad when expanded (lazy DOM rendering)
   expandedLevels = new Set<string>();
   expandedSubgroups = new Set<string>();
+  // Track which interval tab is active for each subgroup to avoid rendering all 12 interval tabs
+  selectedIntervalIndexBySubgroup = new Map<string, number>();
+
+  /**
+   * Get active interval tab index for a subgroup
+   * Default to 0 if not set (first interval visible)
+   */
+  getSelectedIntervalIndexForSubgroup(level: any, subgroupIndex: number): number {
+    const levelKey = level.id || JSON.stringify(level);
+    const key = `${levelKey}_${subgroupIndex}`;
+    return this.selectedIntervalIndexBySubgroup.get(key) ?? 0;
+  }
+
+  /**
+   * Set active interval tab for a subgroup
+   * Called when user clicks a different interval tab
+   */
+  setSelectedIntervalIndexForSubgroup(level: any, subgroupIndex: number, intervalIndex: number): void {
+    const levelKey = level.id || JSON.stringify(level);
+    const key = `${levelKey}_${subgroupIndex}`;
+    this.selectedIntervalIndexBySubgroup.set(key, intervalIndex);
+  }
 
   /**
    * Toggle level expansion state
