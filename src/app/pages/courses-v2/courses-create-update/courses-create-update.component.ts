@@ -104,6 +104,49 @@ export class CoursesCreateUpdateComponent implements OnInit {
   editFunctionName: string | null = null;
   editFunctionArgs: any[] = [];
 
+  // DOM Optimization: Track which levels and subgroups are expanded
+  // Only render vex-flux-disponibilidad when expanded (lazy DOM rendering)
+  expandedLevels = new Set<string>();
+  expandedSubgroups = new Set<string>();
+
+  /**
+   * Toggle level expansion state
+   * When expanded, subgroups and their flux-disponibilidad components render
+   */
+  toggleLevel(level: any): void {
+    const key = level.id || JSON.stringify(level);
+    if (this.expandedLevels.has(key)) {
+      this.expandedLevels.delete(key);
+    } else {
+      this.expandedLevels.add(key);
+    }
+  }
+
+  /**
+   * Toggle subgroup expansion state
+   * When expanded, its flux-disponibilidad component renders
+   */
+  toggleSubgroup(level: any, subgroupIndex: number): void {
+    const levelKey = level.id || JSON.stringify(level);
+    const key = `${levelKey}_${subgroupIndex}`;
+    if (this.expandedSubgroups.has(key)) {
+      this.expandedSubgroups.delete(key);
+    } else {
+      this.expandedSubgroups.add(key);
+    }
+  }
+
+  isLevelExpanded(level: any): boolean {
+    const key = level.id || JSON.stringify(level);
+    return this.expandedLevels.has(key);
+  }
+
+  isSubgroupExpanded(level: any, subgroupIndex: number): boolean {
+    const levelKey = level.id || JSON.stringify(level);
+    const key = `${levelKey}_${subgroupIndex}`;
+    return this.expandedSubgroups.has(key);
+  }
+
   setEditFunction(functionName: string, ...args: any[]) {
     this.editFunctionName = functionName;
     this.editFunctionArgs = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
