@@ -110,6 +110,7 @@ export class CoursesService {
 
     // Enrich course_dates with interval_id based on interval configuration
     try {
+      // Option 1: Use existing intervals from settings if available
       if (courseDates.length && settingsObj?.intervals && Array.isArray(settingsObj.intervals)) {
         const intervals = settingsObj.intervals;
         courseDates = courseDates.map((dateData: any) => {
@@ -131,6 +132,40 @@ export class CoursesService {
           }
           return dateData;
         });
+      } else if (courseDates.length) {
+        // Option 2: If no intervals in settings, check if course_dates already have interval_id from API
+        const hasIntervalIds = courseDates.some((d: any) => d?.interval_id);
+
+        if (!hasIntervalIds) {
+          // Option 3: If no interval_id anywhere, create a default single interval spanning all dates
+          // Sort dates to find min/max
+          const sortedDates = courseDates
+            .filter((d: any) => d?.date)
+            .map((d: any) => ({ ...d, dateVal: new Date(d.date) }))
+            .sort((a: any, b: any) => a.dateVal.getTime() - b.dateVal.getTime());
+
+          if (sortedDates.length > 0) {
+            // All dates get interval_id = 1 (single default interval)
+            courseDates = courseDates.map((dateData: any) => {
+              if (!dateData?.interval_id) {
+                dateData.interval_id = 1;
+              }
+              return dateData;
+            });
+
+            // Also ensure settings has a default interval for the component to reference
+            if (!settingsObj.intervals) {
+              settingsObj.intervals = [{
+                id: 1,
+                name: null, // Component will generate "Interval 1" as label
+                startDate: sortedDates[0].date,
+                endDate: sortedDates[sortedDates.length - 1].date
+              }];
+              // Update the form control with enriched settings
+              this.courseFormGroup.patchValue({ settings: settingsObj });
+            }
+          }
+        }
       }
     } catch (e) {
       console.warn('Failed to enrich course_dates with interval_id:', e);
