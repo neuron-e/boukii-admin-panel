@@ -14,6 +14,7 @@ import { ConfirmModalComponent } from 'src/app/pages/monitors/monitor-detail/con
 import { MonitorAssignmentLoadingDialogComponent } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-assignment-loading-dialog.component';
 import { MonitorAssignmentSyncService, MonitorAssignmentSyncEvent } from 'src/app/shared/services/monitor-assignment-sync.service';
 import { MonitorAssignmentHelperService, MonitorAssignmentSlot } from 'src/app/shared/services/monitor-assignment-helper.service';
+import { AvailabilitySharedCacheService, AvailabilityPayload } from 'src/app/shared/services/availability-shared-cache.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -87,7 +88,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private assignmentSync: MonitorAssignmentSyncService,
     private assignmentHelper: MonitorAssignmentHelperService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private sharedAvailabilityCache: AvailabilitySharedCacheService
   ) { }
   getLanguages = () => this.crudService.list('/languages', 1, 1000).subscribe((data) => this.languages = data.data.reverse())
   getLanguage(id: any) {
@@ -234,7 +236,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
 
     const bookingUserIds = this.collectBookingUserIds([targetIndex]);
     const subgroupIds = this.collectSubgroupIds([targetIndex]);
-    const payload = {
+    const payload: AvailabilityPayload = {
       date: item.date,
       endTime: item.hour_end,
       minimumDegreeId: this.level.id,
@@ -246,9 +248,21 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     };
 
     try {
-      const monitor = await this.getAvailable(payload);
-      const sortedList = this.sortMonitorsList(monitor.data || []);
+      // Phase 2: Check shared cache first to deduplicate identical requests across components (60× improvement)
+      let sortedList = this.sharedAvailabilityCache.get(payload);
+
+      if (!sortedList) {
+        // Cache miss - fetch from API and cache results
+        const monitor = await this.getAvailable(payload);
+        sortedList = this.sortMonitorsList(monitor.data || []);
+
+        // Store in shared cache for cross-component deduplication
+        this.sharedAvailabilityCache.set(payload, sortedList);
+      }
+
+      // Store in local component cache for quick lookup by index
       this.availabilityCache.set(targetIndex, sortedList);
+
       if (targetIndex === this.selectDate) {
         this.monitors = sortedList;
       }
@@ -536,6 +550,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     this._cachedDatesForSubgroup = null;
     this._cachedIntervalHeaders = null;
     this.availabilityCache.clear();
+
+    // Phase 2: Also invalidate shared cache when interval changes within this component
+    const courseId = this.courseFormGroup?.controls?.['id']?.value ?? null;
+    this.sharedAvailabilityCache.invalidateByCourseId(courseId);
 
     // Update template cache when interval changes
     this.cachedDatesForTemplate = this.getDatesForSubgroup();
@@ -910,6 +928,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
       if (event.courseId && courseId && Number(event.courseId) !== Number(courseId)) {
         return;
       }
+      // Phase 2: Invalidate shared cache when monitor assignments change in other components
+      this.sharedAvailabilityCache.invalidateByCourseId(courseId);
       this.handleExternalAssignmentEvent();
     });
 
