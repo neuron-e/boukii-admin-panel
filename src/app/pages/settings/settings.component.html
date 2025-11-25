@@ -5,7 +5,7 @@
   <mat-spinner *ngIf="loading" style="margin: 0 auto"></mat-spinner>
   <div class="card" *ngIf="!loading">
     <mat-tab-group (selectedTabChange)="onFullTabChange($event)">
-﻿      <mat-tab label="{{ 'settings.school_info' | translate }}">
+      <mat-tab label="{{ 'settings.school_info' | translate }}">
         <vex-school-info-tab
           [form]="schoolInfoForm"
           [logoPreview]="schoolLogoPreview"
@@ -20,7 +20,7 @@
           (provinceSelected)="onProvinceSelected($event)">
         </vex-school-info-tab>
       </mat-tab>
-      <mat-tab label="{{ 'settings.season' | translate }}">
+      <mat-tab label="{{ 'season' | translate }}">
         <vex-page-layout>
           <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
             <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
