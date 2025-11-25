@@ -31,6 +31,7 @@ export interface CacheEntry {
  * - Reduces identical API calls from 60 to 1 (60× improvement)
  * - Shared across all flux-disponibilidad component instances
  * - Configurable TTL for cache staleness
+ * - Handles request deduplication for concurrent identical requests (solves race condition)
  */
 @Injectable({
   providedIn: 'root'
@@ -38,6 +39,9 @@ export interface CacheEntry {
 export class AvailabilitySharedCacheService {
   private readonly cache = new Map<string, CacheEntry>();
   private readonly invalidations$ = new BehaviorSubject<{ courseId?: number | null }|null>(null);
+
+  // Track in-flight requests to prevent race conditions when 60 components request same data simultaneously
+  private readonly inFlightRequests = new Map<string, Promise<any[]>>();
 
   // Cache TTL in milliseconds (5 minutes by default)
   private readonly cacheTtl = 5 * 60 * 1000;
@@ -83,6 +87,47 @@ export class AvailabilitySharedCacheService {
     }
 
     return entry.data;
+  }
+
+  /**
+   * Gets pending promise for in-flight request with same payload.
+   * Returns promise if request is already in progress, null otherwise.
+   * Solves race condition when 60 components request same data simultaneously.
+   */
+  getInFlightPromise(payload: AvailabilityPayload): Promise<any[]> | null {
+    const key = this.generateCacheKey(payload);
+    return this.inFlightRequests.get(key) || null;
+  }
+
+  /**
+   * Registers a promise for an in-flight request.
+   * Called when component starts making API request.
+   * Returns true if this component should make the request, false if another already is.
+   */
+  startTrackedRequest(payload: AvailabilityPayload, requestPromise: Promise<any[]>): boolean {
+    const key = this.generateCacheKey(payload);
+
+    // If already in flight, don't start another
+    if (this.inFlightRequests.has(key)) {
+      return false;
+    }
+
+    // Register this request as in-flight
+    this.inFlightRequests.set(key, requestPromise);
+
+    // When resolved, clean up in-flight tracking and store in cache
+    requestPromise
+      .then(data => {
+        this.cache.set(payload, data);
+        this.inFlightRequests.delete(key);
+        return data;
+      })
+      .catch(error => {
+        this.inFlightRequests.delete(key);
+        throw error;
+      });
+
+    return true;
   }
 
   /**

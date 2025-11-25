@@ -248,16 +248,29 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     };
 
     try {
-      // Phase 2: Check shared cache first to deduplicate identical requests across components (60× improvement)
+      // Phase 2: Check shared cache first to deduplicate identical requests across components
       let sortedList = this.sharedAvailabilityCache.get(payload);
 
       if (!sortedList) {
-        // Cache miss - fetch from API and cache results
-        const monitor = await this.getAvailable(payload);
-        sortedList = this.sortMonitorsList(monitor.data || []);
+        // Check if another component is already fetching this same data
+        const inFlightPromise = this.sharedAvailabilityCache.getInFlightPromise(payload);
 
-        // Store in shared cache for cross-component deduplication
-        this.sharedAvailabilityCache.set(payload, sortedList);
+        if (inFlightPromise) {
+          // Wait for in-flight request (60× improvement when 60 components race to load same data)
+          sortedList = await inFlightPromise;
+        } else {
+          // Cache miss AND no in-flight request - this component makes the API call
+          const requestPromise = (async () => {
+            const monitor = await this.getAvailable(payload);
+            return this.sortMonitorsList(monitor.data || []);
+          })();
+
+          // Register this as an in-flight request so other components wait for it
+          this.sharedAvailabilityCache.startTrackedRequest(payload, requestPromise);
+
+          // Await the result
+          sortedList = await requestPromise;
+        }
       }
 
       // Store in local component cache for quick lookup by index
