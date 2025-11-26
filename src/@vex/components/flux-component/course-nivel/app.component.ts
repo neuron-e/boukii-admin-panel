@@ -15,6 +15,7 @@ export class CourseDetailCardNivelComponent implements OnInit {
   @Input() checkbox: boolean = false
   @Input() selectedSubgroup: any;
   @Input() hideTimingButton: boolean = false;
+  @Input() expandByDefault: boolean = false; // Expand all levels by default (for sidebar view)
   @Output() changeMonitor = new EventEmitter<any>()
   @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any, selectedDate?: any }>()
 
@@ -24,7 +25,21 @@ export class CourseDetailCardNivelComponent implements OnInit {
   collapsedSubgroups: { [key: string]: boolean } = {}
 
   ngOnInit() {
-    // Component initialization without debug logs
+    // If expandByDefault is true, initialize all levels as expanded (modal: true)
+    if (this.expandByDefault) {
+      try {
+        const levels = this.courseFormGroup?.controls?.['levelGrop']?.value || [];
+        if (Array.isArray(levels)) {
+          levels.forEach((level: any) => {
+            if (level) {
+              level.modal = true; // Expand the level to show dates, intervals, monitors
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to expand levels by default:', e);
+      }
+    }
   }
 
   constructor(
@@ -101,6 +116,24 @@ export class CourseDetailCardNivelComponent implements OnInit {
     return startLabel || endLabel || '';
   }
 
+  private getIntervalIndexFromCourseDates(intervalId: any): number | null {
+    if (intervalId === undefined || intervalId === null) {
+      return null;
+    }
+    const key = String(intervalId);
+    const dates = this.getCourseDates();
+    const seen: string[] = [];
+    dates.forEach(cd => {
+      const currentId = cd?.interval_id ?? cd?.intervalId ?? null;
+      const currentKey = currentId === null || currentId === undefined ? '__null__' : String(currentId);
+      if (!seen.includes(currentKey)) {
+        seen.push(currentKey);
+      }
+    });
+    const idx = seen.indexOf(key);
+    return idx >= 0 ? idx : null;
+  }
+
   getIntervalLabelForCourseDate(courseDate: any): string | null {
     if (!courseDate) {
       return null;
@@ -128,7 +161,9 @@ export class CourseDetailCardNivelComponent implements OnInit {
       return false;
     });
 
-    const baseLabel = `${this.translateService.instant('interval')} ${foundIndex >= 0 ? foundIndex + 1 : key}`;
+    const fallbackIndex = this.getIntervalIndexFromCourseDates(intervalId);
+    const numericIndex = foundIndex >= 0 ? foundIndex + 1 : (fallbackIndex != null ? fallbackIndex + 1 : null);
+    const baseLabel = `${this.translateService.instant('interval')} ${numericIndex ?? key}`;
 
     if (match) {
       if (match.name) {

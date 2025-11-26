@@ -19,10 +19,10 @@ export interface IntervalSelectorModalResult {
   template: `
     <h1 mat-dialog-title>Seleccionar Intervalo</h1>
     <div mat-dialog-content>
-      <p>Elige los intervalos para el subgrupo {{ ("00" + ((data.subgroupIndex ?? 0) + 1)).slice(-2) }} de {{ data.level?.annotation }} {{ data.level?.level }}</p>
+      <p>Elige los intervalos para el subgrupo {{ subgroupLabel }} de {{ data.level?.annotation }} {{ data.level?.level }}</p>
       <mat-checkbox [(ngModel)]="selectAll" (change)="onSelectAllChange()">Todos los intervalos</mat-checkbox>
       <div *ngFor="let interval of data.intervals; let i = index">
-        <mat-checkbox [(ngModel)]="selected[i]" [disabled]="selectAll">{{ interval.name || ('Intervalo ' + (i + 1)) }}</mat-checkbox>
+        <mat-checkbox [(ngModel)]="selected[i]" [disabled]="selectAll">{{ getIntervalLabel(interval, i) }}</mat-checkbox>
       </div>
     </div>
     <div mat-dialog-actions align="end">
@@ -34,12 +34,30 @@ export interface IntervalSelectorModalResult {
 export class IntervalSelectorModalComponent {
   selectAll = false;
   selected: boolean[] = [];
+  subgroupLabel: string = '';
 
   constructor(
     public dialogRef: MatDialogRef<IntervalSelectorModalComponent>,
     @Inject(MAT_DIALOG_DATA) public data: IntervalSelectorModalData
   ) {
-    this.selected = new Array(data.intervals.length).fill(false);
+    // Por defecto, seleccionar todos los intervalos para que la acción cree subgrupo en todos
+    this.selectAll = true;
+    this.selected = new Array(data.intervals.length).fill(true);
+    const nextIndex = (data.subgroupIndex ?? 0) + 1;
+    this.subgroupLabel = ("00" + nextIndex).slice(-2);
+  }
+
+  getIntervalLabel(interval: any, index: number): string {
+    if (interval?.name) {
+      return interval.name;
+    }
+    const base = `Intervalo ${index + 1}`;
+    const start = interval?.startDate || interval?.start_date;
+    const end = interval?.endDate || interval?.end_date;
+    if (start && end) {
+      return `${base} (${start} - ${end})`;
+    }
+    return base;
   }
 
   onSelectAllChange(): void {
@@ -51,6 +69,12 @@ export class IntervalSelectorModalComponent {
   }
 
   applySelection(): void {
+    const hasAny = this.selectAll || this.selected.some(Boolean);
+    if (!hasAny) {
+      // Si no hay selección, no hacemos nada
+      this.dialogRef.close(null);
+      return;
+    }
     const result: IntervalSelectorModalResult = {
       selectAll: this.selectAll,
       selectedIndices: this.selectAll

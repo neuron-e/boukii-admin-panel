@@ -20,6 +20,7 @@ export class CourseDetailCardComponent implements OnChanges {
   @Input() detail: boolean = false
   @Input() step: number = 0
   @Input() mode: 'create' | 'update' = "create"
+  @Input() detailMode: boolean = false // diferenciar card de detalle vs card embed en update
   @Output() close = new EventEmitter()
   @Output() open = new EventEmitter<number>()
   @Output() edit = new EventEmitter<number>()

@@ -59,6 +59,9 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   modified: any[] = []
   modified2: any[] = []
   private availabilityCache = new Map<number, any[]>();
+  private loadedAvailabilityIndexes = new Set<number>();
+  @Input() autoLoad: boolean = true; // Cargar disponibilidad automáticamente al inicializar
+  @Input() loadOnInit: boolean = true; // Ejecutar carga inicial si autoLoad=true
   private monitorSelectionInProgress = false;
   private static instanceCounter = 0;
   private readonly componentInstanceId = `flux-${++FluxDisponibilidadComponent.instanceCounter}`;
@@ -292,6 +295,22 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   }
   booking_users: any
 
+  private async loadAvailabilityForIndex(index: number, force: boolean = false): Promise<void> {
+    if (!this.autoLoad && !force) {
+      return;
+    }
+    if (!force && this.loadedAvailabilityIndexes.has(index)) {
+      return;
+    }
+    const courseDates = this.getCourseDates();
+    const date = courseDates?.[index];
+    if (!date) {
+      return;
+    }
+    await this.getAvail(date, index);
+    this.loadedAvailabilityIndexes.add(index);
+  }
+
   private getSelectedDateForCurrentSubgroup(): any | null {
     const courseDates = this.getCourseDates();
     if (!courseDates.length) {
@@ -462,7 +481,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     if (cached) {
       this.monitors = cached;
     } else {
-      this.getAvail(item, index);
+      this.loadAvailabilityForIndex(index, true);
     }
   }
 
@@ -921,9 +940,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
       this.assignmentScope = 'single';
     }
 
-    // REMOVED: Automatic preloading for all dates (caused API storm with 30+ components)
-    // Now use lazy loading - load only when user clicks a date tab (onSelectDate)
-    // This reduces Step 3 load time from 5+ seconds to <100ms
+    // Cargar monitores de la primera fecha solo si está permitido
+    if (availableDates.length > 0 && this.autoLoad && this.loadOnInit) {
+      this.loadAvailabilityForIndex(this.selectDate);
+    }
 
     const bookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
     this.booking_users = bookingUsers.filter((user: any, index: any, self: any) =>
@@ -1807,10 +1827,11 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   private handleExternalAssignmentEvent(): void {
     try {
       this.availabilityCache.clear();
+      this.loadedAvailabilityIndexes.clear();
       const courseDates = this.getCourseDates();
       const currentDate = courseDates?.[this.selectDate];
       if (currentDate) {
-        this.getAvail(currentDate, this.selectDate);
+        this.loadAvailabilityForIndex(this.selectDate, true);
       }
       this.rebuildLegendState();
     } catch (error) {
