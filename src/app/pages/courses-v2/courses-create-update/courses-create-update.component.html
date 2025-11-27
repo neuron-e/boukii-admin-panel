@@ -713,7 +713,7 @@
 
                 <!-- Subgrupos del nivel -->
                 <ng-container *ngIf="getAllUniqueSubgroupsForLevel(level).length > 0">
-                  <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
+                  <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j; trackBy: trackSubgroup">
                     <!-- Header del subgrupo -->
                     <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px;">
                       {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
@@ -1075,7 +1075,7 @@
 
                   <!-- Subgrupos del nivel en este intervalo -->
                   <ng-container *ngIf="isLevelActiveForInterval(intervalIdx, level) && getIntervalLevelSubgroups(intervalIdx, level).length > 0">
-                    <div *ngFor="let subgroup of getIntervalLevelSubgroups(intervalIdx, level); index as j"
+                    <div *ngFor="let subgroup of getIntervalLevelSubgroups(intervalIdx, level); index as j; trackBy: trackIntervalSubgroup"
                          style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px;">
                       {{level.annotation}} {{level.level}} {{("00"+(j+1)).slice(-2)}}
                       <img *ngIf="j > 0" (click)="removeIntervalLevelSubgroup(intervalIdx, level, j)"

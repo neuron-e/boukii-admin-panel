@@ -955,7 +955,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
     const key = this.resolveIntervalKey(interval, intervalIndex);
     const intervalConfig = this.intervalGroupsMap?.[key];
 
-
     if (!intervalConfig) {
       return [];
     }
@@ -1554,7 +1553,37 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Asegurar que existe el estado para este nivel en este intervalo
     if (!intervalState[levelKey]) {
-      intervalState[levelKey] = this.createGroupStateFromLevel(level);
+      // Al crear un nuevo estado, copiar los subgrupos existentes desde course_dates
+      const newState = this.createGroupStateFromLevel(level);
+
+      // Leer subgrupos existentes desde course_dates para este nivel/intervalo
+      const courseDates = this.courses.courseFormGroup?.get('course_dates')?.value || [];
+      const existingSubgroups = new Map<string, any>();
+
+      courseDates.forEach((cd: any) => {
+        const courseGroups = cd?.course_groups || [];
+        const groupForThisLevel = Array.isArray(courseGroups)
+          ? courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId)
+          : courseGroups[String(levelId)];
+
+        if (groupForThisLevel?.course_subgroups) {
+          groupForThisLevel.course_subgroups.forEach((sg: any) => {
+            const key = sg?.id ?? sg?.key;
+            if (key && !existingSubgroups.has(key)) {
+              existingSubgroups.set(key, sg);
+            }
+          });
+        }
+      });
+
+      // Si hay subgrupos existentes, agregarlos al nuevo estado
+      if (existingSubgroups.size > 0) {
+        newState.subgroups = Array.from(existingSubgroups.values()).map((sg: any, idx: number) =>
+          this.createSubgroupState(sg, levelId, idx)
+        );
+      }
+
+      intervalState[levelKey] = newState;
     }
 
     const config = intervalState[levelKey];
@@ -1613,7 +1642,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
   getIntervalLevelSubgroups(intervalIdx: number, level: any): IntervalSubgroupState[] {
     const state = this.ensureIntervalGroupState(intervalIdx, level);
-    return state?.subgroups || [];
+    return [...(state?.subgroups || [])];
   }
 
   private addIntervalLevelSubgroupWithoutSync(intervalIdx: number, level: any): IntervalSubgroupState | null {
@@ -1636,7 +1665,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
     }
 
     state.subgroups = [...state.subgroups, newSubgroup];
-    this.clearSubgroupsCache();
+    // NO limpiar el cache aquí - se limpiará después de sincronizar course_dates
+    // clearSubgroupsCache() se llama desde syncIntervalsToCourseFormGroup()
 
     return newSubgroup;
   }
@@ -1940,11 +1970,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
         // Aplicar en lote sin sincronizar en cada inserción
         if (result.selectAll) {
           this.intervals.forEach((_, idx) => {
-            const sgTemplate = this.getTemplateSubgroupForInterval(levelId, idx);
             const sg = this.addIntervalLevelSubgroupWithoutSync(idx, level);
             if (sg) {
-              const merged = sgTemplate ? { ...sgTemplate, ...sg, monitor: null, monitor_id: null } : { ...sg, monitor: null, monitor_id: null };
-              createdEntries.push({ idx, subgroup: merged });
+              createdEntries.push({ idx, subgroup: sg });
             }
           });
         } else {
@@ -1953,11 +1981,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
             if (intervalIdx < 0) {
               return;
             }
-            const sgTemplate = this.getTemplateSubgroupForInterval(levelId, intervalIdx);
             const sg = this.addIntervalLevelSubgroupWithoutSync(intervalIdx, level);
             if (sg) {
-              const merged = sgTemplate ? { ...sgTemplate, ...sg, monitor: null, monitor_id: null } : { ...sg, monitor: null, monitor_id: null };
-              createdEntries.push({ idx: intervalIdx, subgroup: merged });
+              createdEntries.push({ idx: intervalIdx, subgroup: sg });
             }
           });
         }
@@ -1973,11 +1999,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
         // CRÍTICO: Forzar actualización de levelGrop para que el template reconozca los cambios
         // Esto es lo que hace addLevelToIntervalsConfig pero faltaba aquí
         const levelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
-        console.log('[openIntervalSelectorForAddSubgroup] Patcheando levelGrop con', levelGrop.length, 'niveles');
         this.courses.courseFormGroup.patchValue({ levelGrop });
 
         // NO llamar clearSubgroupsCache aquí - syncIntervalsToCourseFormGroup ya lo hace
-        console.log('[openIntervalSelectorForAddSubgroup] Llamando detectChanges()');
         this.cdr.detectChanges();
       });
     });
@@ -2519,11 +2543,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
   private clearSubgroupsCache(): void {
     // Guard against recursive cache clearing during recalculation
     if (this._isRecalculatingSubgroups) {
-      console.log('[clearSubgroupsCache] Ya está recalculando, ignorando...');
       return;
     }
 
-    console.log('[clearSubgroupsCache] Limpiando cache...');
     this._uniqueSubgroupsCache.clear();
     this._subgroupDatesCache.clear();
     this._intervalsForSubgroupCache.clear();
@@ -2543,7 +2565,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
   getAllUniqueSubgroupsForLevel(level: any): any[] {
     const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
     if (!Array.isArray(courseDates) || courseDates.length === 0) {
-      console.log('[getAllUniqueSubgroupsForLevel] courseDates vacío o no array, retornando []');
       return [];
     }
 
@@ -2553,63 +2574,16 @@ export class CoursesCreateUpdateComponent implements OnInit {
     // Verificar caché (sin intentar invalidarlo desde aquí para evitar recursión)
     if (this._uniqueSubgroupsCache.has(cacheKey)) {
       const cached = this._uniqueSubgroupsCache.get(cacheKey)!;
-      console.log('[getAllUniqueSubgroupsForLevel] Retornando de cache - Level:', level.level || level.annotation, 'Subgrupos:', cached.length);
       return cached;
     }
 
-    console.log('[getAllUniqueSubgroupsForLevel] Calculando - Level:', level.level || level.annotation, 'CourseDates:', courseDates.length);
 
-    // HYBRID: Try both structures
+    // HYBRID: Try both structures with priority based on mode
     const subgroupCounts = courseDates.map((cd, idx) => {
-      // Try new structure first: course_subgroups at date level
-      const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
-      const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
-        (sg?.degree_id ?? sg?.degreeId) === levelId
-      );
-      if (dateLevelSubgroups.length > 0) {
-        return dateLevelSubgroups.length;
-      }
-
-      // Fallback to old structure: course_subgroups inside course_groups
-      const courseGroups = cd?.course_groups || cd?.courseGroups || [];
-      let group = null;
-      if (Array.isArray(courseGroups)) {
-        group = courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
-      } else {
-        // course_groups is an Object/Map
-        for (const g of Object.values(courseGroups)) {
-          if ((g as any)?.degree_id === levelId || (g as any)?.degreeId === levelId) {
-            group = g;
-            break;
-          }
-        }
-      }
-      const count = (group?.course_subgroups || group?.courseSubgroups || []).length;
-      return count;
-    });
-
-    const maxSubgroupsCount = Math.max(...subgroupCounts, 0);
-
-    // Crear un array con los subgrupos únicos
-    const uniqueSubgroups: any[] = [];
-    for (let i = 0; i < maxSubgroupsCount; i++) {
-      // Buscar el primer subgrupo en este índice que tenga datos
-      for (const cd of courseDates) {
-        // Try new structure first
-        const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
-        const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
-          (sg?.degree_id ?? sg?.degreeId) === levelId
-        );
-        if (dateLevelSubgroups[i]) {
-          uniqueSubgroups.push({
-            ...dateLevelSubgroups[i],
-            _index: i,
-            _level: level
-          });
-          break;
-        }
-
-        // Fallback to old structure
+      // In múltiples intervalos mode, prioritize course_groups structure
+      // because that's where updated data is stored after sync
+      if (this.configureLevelsByInterval) {
+        // MÚLTIPLES INTERVALOS MODE: Read from course_groups[i].course_subgroups
         const courseGroups = cd?.course_groups || cd?.courseGroups || [];
         let group = null;
         if (Array.isArray(courseGroups)) {
@@ -2623,14 +2597,107 @@ export class CoursesCreateUpdateComponent implements OnInit {
             }
           }
         }
-        const subgroup = (group?.course_subgroups || group?.courseSubgroups || [])[i];
-        if (subgroup) {
-          uniqueSubgroups.push({
-            ...subgroup,
-            _index: i,
-            _level: level
-          });
-          break;
+        const count = (group?.course_subgroups || group?.courseSubgroups || []).length;
+        return count;
+      } else {
+        // SIMPLE MODE: Read from date-level course_subgroups first (fallback to course_groups)
+        const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
+        const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
+          (sg?.degree_id ?? sg?.degreeId) === levelId
+        );
+        if (dateLevelSubgroups.length > 0) {
+          return dateLevelSubgroups.length;
+        }
+
+        // Fallback to course_groups for simple mode
+        const courseGroups = cd?.course_groups || cd?.courseGroups || [];
+        let group = null;
+        if (Array.isArray(courseGroups)) {
+          group = courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        } else {
+          // course_groups is an Object/Map
+          for (const g of Object.values(courseGroups)) {
+            if ((g as any)?.degree_id === levelId || (g as any)?.degreeId === levelId) {
+              group = g;
+              break;
+            }
+          }
+        }
+        const count = (group?.course_subgroups || group?.courseSubgroups || []).length;
+        return count;
+      }
+    });
+
+    const maxSubgroupsCount = Math.max(...subgroupCounts, 0);
+
+    // Crear un array con los subgrupos únicos
+    const uniqueSubgroups: any[] = [];
+    for (let i = 0; i < maxSubgroupsCount; i++) {
+      // Buscar el primer subgrupo en este índice que tenga datos
+      for (const cd of courseDates) {
+        // In múltiples intervalos mode, prioritize course_groups structure
+        if (this.configureLevelsByInterval) {
+          // MÚLTIPLES INTERVALOS MODE: Read from course_groups[i].course_subgroups
+          const courseGroups = cd?.course_groups || cd?.courseGroups || [];
+          let group = null;
+          if (Array.isArray(courseGroups)) {
+            group = courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+          } else {
+            // course_groups is an Object/Map
+            for (const g of Object.values(courseGroups)) {
+              if ((g as any)?.degree_id === levelId || (g as any)?.degreeId === levelId) {
+                group = g;
+                break;
+              }
+            }
+          }
+          const subgroup = (group?.course_subgroups || group?.courseSubgroups || [])[i];
+          if (subgroup) {
+            uniqueSubgroups.push({
+              ...subgroup,
+              _index: i,
+              _level: level
+            });
+            break;
+          }
+        } else {
+          // SIMPLE MODE: Read from date-level course_subgroups first (fallback to course_groups)
+          const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
+          const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
+            (sg?.degree_id ?? sg?.degreeId) === levelId
+          );
+          if (dateLevelSubgroups[i]) {
+            uniqueSubgroups.push({
+              ...dateLevelSubgroups[i],
+              _index: i,
+              _level: level
+            });
+            break;
+          }
+
+          // Fallback to course_groups for simple mode
+          const courseGroups = cd?.course_groups || cd?.courseGroups || [];
+          let group = null;
+          if (Array.isArray(courseGroups)) {
+            group = courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+          } else {
+            // course_groups is an Object/Map
+            for (const g of Object.values(courseGroups)) {
+              if ((g as any)?.degree_id === levelId || (g as any)?.degreeId === levelId) {
+                group = g;
+                break;
+              }
+            }
+          }
+          const subgroup = (group?.course_subgroups || group?.courseSubgroups || [])[i];
+          if (subgroup) {
+            uniqueSubgroups.push({
+              ...subgroup,
+              _index: i,
+              _level: level
+            });
+            break;
+          }
         }
       }
     }
@@ -2638,7 +2705,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
     // Guardar en caché
     this._uniqueSubgroupsCache.set(cacheKey, uniqueSubgroups);
 
-    console.log('[getAllUniqueSubgroupsForLevel] RETORNANDO - Level:', level.level || level.annotation, 'Subgrupos encontrados:', uniqueSubgroups.length, uniqueSubgroups);
 
     return uniqueSubgroups;
   }
@@ -3055,16 +3121,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
           }
         }
 
-        // Llamar getDegrees DESPUÉS de cargar intervalos para que lea los course_dates correctamente
-        this.getDegrees();
-
-        // Cargar descuentos existentes
-        this.loadDiscountsFromCourse();
-        this.enforceIntervalGroupAvailability();
-        // NO llamar refreshIntervalGroupStateFromSettings aquí porque sobrescribe el intervalGroupsMap
-        // que acabamos de construir correctamente desde course_dates en loadIntervalsFromCourse
-
         // Si el curso tiene múltiples intervalos, activar automáticamente la configuración por intervalos
+        // IMPORTANTE: Configurar ANTES de getDegrees para que el caché se construya correctamente
         if (hasMultipleIntervals && this.detailData.course_type === 1) {
           this.configureLevelsByInterval = true;
           // También actualizar el control del formulario
@@ -3072,6 +3130,22 @@ export class CoursesCreateUpdateComponent implements OnInit {
         } else {
           this.configureLevelsByInterval = this.isIntervalGroupModeActive;
         }
+
+        // Sincronizar intervalGroupsMap a course_dates ANTES de getDegrees
+        // para que course_dates[0].course_groups[i].course_subgroups esté disponible
+        // cuando getAllUniqueSubgroupsForLevel() intente leerlo
+        if (this.configureLevelsByInterval) {
+          this.syncIntervalsToCourseFormGroup();
+        }
+
+        // Llamar getDegrees DESPUÉS de sincronizar para que lea los course_dates correctamente
+        this.getDegrees();
+
+        // Cargar descuentos existentes
+        this.loadDiscountsFromCourse();
+        this.enforceIntervalGroupAvailability();
+        // NO llamar refreshIntervalGroupStateFromSettings aquí porque sobrescribe el intervalGroupsMap
+        // que acabamos de construir correctamente desde course_dates en loadIntervalsFromCourse
 
         if (this.configureLevelsByInterval) {
           this.invalidateIntervalGroupTemplate();
@@ -4746,7 +4820,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
         courseDatesArray.push(this.fb.control(dateData));
       });
 
-
       // Forzar actualización inmediata del FormArray para que se refleje en la UI
       courseDatesArray.updateValueAndValidity({ emitEvent: true });
       courseDatesArray.markAsDirty();
@@ -4754,7 +4827,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
       // Forzar detección de cambios para actualizar vex-course-detail-card inmediatamente
       this.cdr.detectChanges();
 
-    } else {
     }
 
     this.saveIntervalSettings();
