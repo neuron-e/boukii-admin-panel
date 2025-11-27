@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+﻿import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, ChangeDetectionStrategy } from '@angular/core';
 import {AbstractControl, FormArray, FormGroup, UntypedFormBuilder, UntypedFormGroup, Validators} from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import {map, forkJoin, mergeMap, throwError, catchError, Subject, takeUntil} from 'rxjs';
@@ -62,7 +62,9 @@ type WeekDaysState = {
   selector: 'vex-courses-create-update',
   templateUrl: './courses-create-update.component.html',
   styleUrls: ['./courses-create-update.component.scss',],
-  animations: [fadeInUp400ms, stagger20ms]
+  animations: [fadeInUp400ms, stagger20ms],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [CoursesService]
 })
 export class CoursesCreateUpdateComponent implements OnInit, OnDestroy {
   dataSource: any;
@@ -2986,7 +2988,60 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    // Emit completion to all subscribers and complete the Subject
+    // 1. Clear timeout
+    if (this.intervalGroupSyncHandle) {
+      clearTimeout(this.intervalGroupSyncHandle);
+      this.intervalGroupSyncHandle = null;
+    }
+
+    // 2. Clear all caches (7 Map/Set collections)
+    if (this._uniqueSubgroupsCache) {
+      this._uniqueSubgroupsCache.clear();
+    }
+    if (this._subgroupDatesCache) {
+      this._subgroupDatesCache.clear();
+    }
+    if (this._intervalsForSubgroupCache) {
+      this._intervalsForSubgroupCache.clear();
+    }
+    if (this.allSubgroupsCache) {
+      this.allSubgroupsCache.clear();
+    }
+    if (this.groupForLevelCache) {
+      this.groupForLevelCache.clear();
+    }
+    if (this.expandedLevels) {
+      this.expandedLevels.clear();
+    }
+    if (this.expandedSubgroups) {
+      this.expandedSubgroups.clear();
+    }
+    if (this.selectedIntervalIndexBySubgroup) {
+      this.selectedIntervalIndexBySubgroup.clear();
+    }
+
+    // 3. Nullify large arrays to allow GC
+    if (this.sportData) this.sportData = [];
+    if (this.stations) this.stations = [];
+    if (this.monitors) this.monitors = [];
+    if (this.intervals) this.intervals = [];
+
+    // 4. Cleanup FormGroup if exists
+    if (this.courses?.courseFormGroup) {
+      this.courses.courseFormGroup.reset();
+    }
+
+    // 5. Clear map data structures
+    if (this.intervalGroupsMap) {
+      Object.keys(this.intervalGroupsMap).forEach(key => {
+        delete this.intervalGroupsMap[key];
+      });
+    }
+    if (this.subgroupIntervalsMap) {
+      this.subgroupIntervalsMap.clear();
+    }
+
+    // 6. Emit completion to all subscribers and complete the Subject
     this.destroy$.next();
     this.destroy$.complete();
   }
