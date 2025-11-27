@@ -25,6 +25,26 @@ export class CourseDetailCardNivelComponent implements OnInit {
   collapsedSubgroups: { [key: string]: boolean } = {}
 
   ngOnInit() {
+    // Initialize all subgroups as COLLAPSED by default
+    try {
+      const courseDates = this.getCourseDates();
+      if (Array.isArray(courseDates)) {
+        courseDates.forEach((cd: any) => {
+          const courseGroups = cd.course_groups || [];
+          courseGroups.forEach((group: any) => {
+            const degreeId = group.id || group.degree_id;
+            const subgroups = group.course_subgroups || [];
+            subgroups.forEach((_: any, index: number) => {
+              const key = `${degreeId}_${index}`;
+              this.collapsedSubgroups[key] = true; // Initialize as COLLAPSED
+            });
+          });
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to initialize collapsed subgroups:', e);
+    }
+
     // If expandByDefault is true, initialize all levels as expanded (modal: true)
     if (this.expandByDefault) {
       try {

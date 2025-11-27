@@ -27,6 +27,8 @@ import localeEnGb from "@angular/common/locales/en-GB";
 import localeEs from "@angular/common/locales/es";
 import localeDe from "@angular/common/locales/de";
 import localeFr from "@angular/common/locales/fr";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { MonitorEventsService } from "src/service/monitor-events.service";
 
 @Component({
   selector: "vex-root",
@@ -55,6 +57,8 @@ export class AppComponent {
     private navigationService: NavigationService,
     public splashScreenService: SplashScreenService,
     private schoolService: SchoolService,
+    private snackBar: MatSnackBar,
+    private monitorEventsService: MonitorEventsService,
     private readonly matIconRegistry: MatIconRegistry,
     private readonly domSanitizer: DomSanitizer) {
     for (const locale of this.locales) registerLocaleData(locale.locale, locale.lan)
@@ -63,6 +67,21 @@ export class AppComponent {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     layoutService.isDarkMode = !layoutService.isDarkMode
     layoutService.toggleDarkMode()
+    const monitorId = this.monitorEventsService.extractMonitorId(this.user);
+    if (monitorId) {
+      this.monitorEventsService.connectForMonitor(monitorId);
+      this.monitorEventsService.monitorEvents$.subscribe((event) => {
+        if (!event) {
+          return;
+        }
+        const bookingLabel = event.payload?.booking_id ?? event.payload?.course_date_id ?? '';
+        const message = event.type?.includes('removed')
+          ? `You have been removed from booking ${bookingLabel}`
+          : `You have been assigned to booking ${bookingLabel}`;
+        this.snackBar.open(message, undefined, { duration: 4000 });
+        // TODO: replace with richer notification UI once UX is defined.
+      });
+    }
     const lang = sessionStorage.getItem('lang');
     if (lang && lang.length > 0) {
       this.translateService.setDefaultLang(lang);

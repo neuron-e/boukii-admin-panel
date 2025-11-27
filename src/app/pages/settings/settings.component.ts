@@ -461,6 +461,8 @@ export class SettingsComponent implements OnInit {
               conditions: this.PageForm.Conditions,
               sponsors: sponsorsFA,
               infoMessages: infoMessagesFA,
+              private_min_lead_minutes: [settings?.booking?.private_min_lead_minutes ?? 30, [Validators.min(0)]],
+              private_overbooking_limit: [settings?.booking?.private_overbooking_limit ?? 0, [Validators.min(0)]],
             });
 
             // Initialize levels data source if schoolSports available
@@ -1355,7 +1357,9 @@ export class SettingsComponent implements OnInit {
           youtube: this.bookingForm.value.social?.youtube || null,
           tiktok: this.bookingForm.value.social?.tiktok || null,
           linkedin: this.bookingForm.value.social?.linkedin || null,
-        }
+        },
+        private_min_lead_minutes: this.bookingForm.value.private_min_lead_minutes ?? 30,
+        private_overbooking_limit: this.bookingForm.value.private_overbooking_limit ?? 0
       }
     }
 

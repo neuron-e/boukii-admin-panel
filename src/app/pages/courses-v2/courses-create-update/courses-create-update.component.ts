@@ -1,7 +1,7 @@
-﻿import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
+﻿import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import {AbstractControl, FormArray, FormGroup, UntypedFormBuilder, UntypedFormGroup, Validators} from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import {map, forkJoin, mergeMap, throwError, catchError} from 'rxjs';
+import {map, forkJoin, mergeMap, throwError, catchError, Subject, takeUntil} from 'rxjs';
 import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
 import { stagger20ms } from 'src/@vex/animations/stagger.animation';
 import { ApiCrudService } from 'src/service/crud.service';
@@ -64,7 +64,7 @@ type WeekDaysState = {
   styleUrls: ['./courses-create-update.component.scss',],
   animations: [fadeInUp400ms, stagger20ms]
 })
-export class CoursesCreateUpdateComponent implements OnInit {
+export class CoursesCreateUpdateComponent implements OnInit, OnDestroy {
   dataSource: any;
   editingIndex: number | null = null;
 
@@ -105,6 +105,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
   editModal: boolean = false
   editFunctionName: string | null = null;
   editFunctionArgs: any[] = [];
+
+  // Memory Management: Subject for unsubscribing from observables
+  private destroy$ = new Subject<void>();
 
   // DOM Optimization: Track which levels and subgroups are expanded
   // Only render vex-flux-disponibilidad when expanded (lazy DOM rendering)
@@ -1380,8 +1383,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
       .sort(([indexA], [indexB]) => indexA - indexB)
       .map(([_, subgroup]) => subgroup);
 
-    console.log('[getAllSubgroupsForLevel] Level:', level.level, 'CourseDates:', courseDates.length, 'Subgrupos encontrados:', result.length, result);
-
     this.allSubgroupsCache.set(level.id, result);
     return result;
   }
@@ -1824,10 +1825,13 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     this.syncIntervalGroupsArray();
     this.clearGroupCache();
-    this.clearSubgroupsCache(); // Limpiar caché después de remover subgrupo
 
     // Reflejar eliminación en course_dates para que la UI se actualice sin esperar sincronización completa
     this.removeSubgroupFromCourseDates(intervalIdx, level, subgroupIdx);
+
+    // Recalcular course_dates completo para garantizar coherencia (igual que addIntervalLevelSubgroup)
+    this.syncIntervalsToCourseFormGroup();
+    this.clearSubgroupsCache();
     this.cdr.detectChanges();
   }
 
@@ -1904,7 +1908,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
         }
       });
 
-      dialogRef.afterClosed().subscribe((result: any) => {
+      dialogRef.afterClosed().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((result: any) => {
         if (!result) return;
 
         const selectedIndices: number[] = result.selectAll
@@ -1960,7 +1966,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
         }
       });
 
-      dialogRef.afterClosed().subscribe((result: any) => {
+      dialogRef.afterClosed().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((result: any) => {
         if (!result) {
           return;
         }
@@ -2054,7 +2062,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
           }
         });
 
-        dialogRef.afterClosed().subscribe((result: any) => {
+        dialogRef.afterClosed().pipe(
+          takeUntil(this.destroy$)
+        ).subscribe((result: any) => {
           if (!result) return;
 
           if (result.selectAll) {
@@ -2112,7 +2122,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
           }
         });
 
-        dialogRef.afterClosed().subscribe((result: any) => {
+        dialogRef.afterClosed().pipe(
+          takeUntil(this.destroy$)
+        ).subscribe((result: any) => {
           if (!result) return;
 
           if (result.selectAll) {
@@ -2165,7 +2177,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
         }
       });
 
-      dialogRef.afterClosed().subscribe((selectedLevel: any) => {
+      dialogRef.afterClosed().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((selectedLevel: any) => {
         if (!selectedLevel) return;
 
         // Encontrar el índice del nivel seleccionado en el array levelGrop
@@ -2207,6 +2221,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Ensegurar que existe en el mapa de intervalos
     const intervalsCount = Array.isArray(this.intervals) ? this.intervals.length : 0;
+
     for (let idx = 0; idx < intervalsCount; idx++) {
       const state = this.ensureIntervalGroupState(idx, level);
       if (state) {
@@ -2564,12 +2579,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
    */
   getAllUniqueSubgroupsForLevel(level: any): any[] {
     const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
+    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
+    const cacheKey = `level_${levelId}`;
+
     if (!Array.isArray(courseDates) || courseDates.length === 0) {
       return [];
     }
-
-    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
-    const cacheKey = `level_${levelId}`;
 
     // Verificar caché (sin intentar invalidarlo desde aquí para evitar recursión)
     if (this._uniqueSubgroupsCache.has(cacheKey)) {
@@ -2704,7 +2719,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
 
     // Guardar en caché
     this._uniqueSubgroupsCache.set(cacheKey, uniqueSubgroups);
-
 
     return uniqueSubgroups;
   }
@@ -2954,7 +2968,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
       ...(this.mode === "update" && { monitors: this.getMonitors() }),
     };
 
-    forkJoin(requests).subscribe(({ sports, stations, meetingPoints, monitors }) => {
+    forkJoin(requests).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(({ sports, stations, meetingPoints, monitors }) => {
       this.sportData = sports;
       this.stations = stations;
       this.meetingPoints = meetingPoints || [];
@@ -2967,6 +2983,12 @@ export class CoursesCreateUpdateComponent implements OnInit {
       this.initializeExtrasForm();
       this.loadSchoolData();
     });
+  }
+
+  ngOnDestroy() {
+    // Emit completion to all subscribers and complete the Subject
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private initializeExtras() {
@@ -3033,6 +3055,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
         "booking_users_active.course_sub_group",
         "booking_users_active.monitor"
       ])
+      .pipe(takeUntil(this.destroy$))
       .subscribe((response: any) => {
         this.detailData = response.data;
         this.detailData.station = this.detailData.station || null;
@@ -3129,6 +3152,63 @@ export class CoursesCreateUpdateComponent implements OnInit {
           this.courses?.courseFormGroup?.get('use_interval_groups')?.setValue(true, { emitEvent: false });
         } else {
           this.configureLevelsByInterval = this.isIntervalGroupModeActive;
+        }
+
+        // IMPORTANTE: Cargar el estado de los grupos de intervalos ANTES de sincronizar
+        // para que intervalGroupsMap esté poblado cuando buildCourseGroupsForInterval() lo consulte
+        if (this.configureLevelsByInterval) {
+          this.refreshIntervalGroupStateFromSettings();
+
+          // FIX #6: Asegurar que levelGrop esté poblado con los niveles del curso
+          // buildCourseGroupsForInterval() necesita levelGrop para mapear los niveles
+          const currentLevelGrop = this.courses?.courseFormGroup?.get('levelGrop')?.value || [];
+
+          if (currentLevelGrop.length === 0) {
+            let degreesMap = new Map<number, any>();
+
+            // FIX #8: Extract level IDs from intervalGroupsMap and course_subgroups
+            // to populate levelGrop when it's empty
+            const courseDatesList = this.detailData?.course_dates || [];
+
+            // Iterate through course_dates and extract unique degree_ids from course_subgroups
+            courseDatesList.forEach((cd: any) => {
+              const courseSubgroups = cd.course_subgroups || cd.courseSubgroups || [];
+              courseSubgroups.forEach((subgroup: any) => {
+                const degreeId = subgroup.degree_id || subgroup.degreeId;
+                if (degreeId && !degreesMap.has(degreeId)) {
+                  degreesMap.set(degreeId, {
+                    id: degreeId,
+                    degree_id: degreeId,
+                    level: subgroup.level || subgroup.name || 'Level ' + degreeId,
+                    name: subgroup.name,
+                    color: subgroup.color,
+                    icon: subgroup.icon
+                  });
+                }
+              });
+            });
+
+            const degrees = Array.from(degreesMap.values());
+            if (degrees.length > 0) {
+              this.courses?.courseFormGroup?.patchValue({ levelGrop: degrees });
+            }
+          }
+
+          // FIX #7: Activar niveles en intervalGroupsMap basado en levelGrop
+          // Los niveles en levelGrop deben estar activos en intervalGroupsMap
+          const updatedLevelGrop = this.courses?.courseFormGroup?.get('levelGrop')?.value || [];
+          const levelGropIds = new Set(updatedLevelGrop.map((l: any) => String(l.id)));
+
+          // Activar los niveles en intervalGroupsMap que están en levelGrop
+          Object.keys(this.intervalGroupsMap).forEach(key => {
+            const intervalConfig = this.intervalGroupsMap[key];
+            Object.keys(intervalConfig).forEach(levelKey => {
+              if (levelGropIds.has(levelKey) && intervalConfig[levelKey]) {
+                // Activar este nivel
+                intervalConfig[levelKey].active = true;
+              }
+            });
+          });
         }
 
         // Sincronizar intervalGroupsMap a course_dates ANTES de getDegrees
@@ -3262,7 +3342,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
   }
 
   private loadSchoolData() {
-    this.schoolService.getSchoolData().subscribe(data => {
+    this.schoolService.getSchoolData().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(data => {
       this.schoolData = data.data;
     });
   }
@@ -3358,7 +3440,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
     this.applyMeetingPointData(selectedPoint || null);
   }
 
-  getDegrees = () => this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.courses.courseFormGroup.controls['school_id'].value + '&sport_id=' + this.courses.courseFormGroup.controls['sport_id'].value).subscribe((data) => {
+  getDegrees = () => this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.courses.courseFormGroup.controls['school_id'].value + '&sport_id=' + this.courses.courseFormGroup.controls['sport_id'].value).pipe(takeUntil(this.destroy$)).subscribe((data) => {
     // Initialize detailData if it doesn't exist
     if (!this.detailData) {
       this.detailData = {};
@@ -3691,7 +3773,9 @@ export class CoursesCreateUpdateComponent implements OnInit {
             }
           });
 
-          dialogRef.afterClosed().subscribe((result: any) => {
+          dialogRef.afterClosed().pipe(
+            takeUntil(this.destroy$)
+          ).subscribe((result: any) => {
             if (!result) {
               // Revert the level to inactive since user cancelled
               const levelGrop = this.courses.courseFormGroup.controls['levelGrop'].value;
@@ -3713,8 +3797,8 @@ export class CoursesCreateUpdateComponent implements OnInit {
               if (state) {
                 state.active = true;
 
-                // Agregar el primer subgrupo
-                this.addIntervalLevelSubgroupWithoutSync(idx, levelGrop[i]);
+                // NO agregar subgrupo automáticamente - dejar que el usuario lo agregue manualmente
+                // Agregar subgrupo automático causaba duplicados (1 + 1 generado por sync = 2 subgrupos)
               }
             });
 
@@ -4167,8 +4251,6 @@ export class CoursesCreateUpdateComponent implements OnInit {
       courseFormGroup.settings = currentSettings;
     }
 
-    // DEBUG: Verificar que price_range est├® incluido
-
     // FIXED: Asegurar que price_range se incluya en el payload del curso
     if (this.courses.courseFormGroup.controls['price_range'].value) {
       courseFormGroup.price_range = this.courses.courseFormGroup.controls['price_range'].value;
@@ -4183,6 +4265,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
             return throwError(() => error);
           })
         )
+        .pipe(takeUntil(this.destroy$))
         .subscribe((data:any) => {
           if (data.success) {
             this.router.navigate(["/courses/detail/" + data.data.id]);
@@ -4199,6 +4282,7 @@ export class CoursesCreateUpdateComponent implements OnInit {
             return throwError(() => error);
           })
         )
+        .pipe(takeUntil(this.destroy$))
         .subscribe((data) => {
           if (data.success) {
             this.router.navigate(["/courses/detail/" + data.data.id]);
@@ -6117,10 +6201,14 @@ export class CoursesCreateUpdateComponent implements OnInit {
         }
       });
 
-      ref.afterOpened().subscribe(() => {
+      ref.afterOpened().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe(() => {
       });
 
-      ref.afterClosed().subscribe(result => {
+      ref.afterClosed().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe(result => {
         // Modal cerrado
       });
     } catch (error) {
