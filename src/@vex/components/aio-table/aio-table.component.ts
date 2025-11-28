@@ -87,6 +87,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   @Input() filterColumn: any = null;
   @Input() with: any = '';
   @Input() search: any = '';
+  @Input() currencyCode: string = 'EUR';
   @Output() showDetailEvent = new EventEmitter<any>();
   @Output() dataLoaded = new EventEmitter<any[]>();
   pageIndex = 1;

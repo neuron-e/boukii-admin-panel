@@ -237,6 +237,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ==================== DATA PROPERTIES ====================
   dashboardData: SeasonDashboardData | null = null;
+  exportFormat: 'csv' | 'excel' = 'csv';
   revenueTableData = new MatTableDataSource<any>([]);
   coursesTableData = new MatTableDataSource<any>([]);
   public courseTypeBookingsSummary: any[] = [];
@@ -1536,7 +1537,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     const filters = this.buildFiltersObject();
     const exportFilters = {
       ...filters,
-      format: 'csv',
+      format: this.exportFormat,
+      locale: this.translateService.currentLang,
       sections: ['executive_summary', 'financial_kpis', 'booking_analysis', 'critical_issues']
     };
 

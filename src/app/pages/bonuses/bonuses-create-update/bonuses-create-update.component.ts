@@ -225,7 +225,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
 
     // Validate required fields
     if (!this.isGenericVoucher && !selectedClient) {
-      this.snackbar.open(this.translateService.instant('Please select a client or create as generic voucher'), 'OK', {duration: 3000});
+      this.snackbar.open(this.translateService.instant('voucher.select_client_or_generic'), 'OK', {duration: 3000});
       return;
     }
 
@@ -238,12 +238,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
     const recipientPhone = formValue.recipient_phone ? formValue.recipient_phone.trim() : null;
 
     if (this.isGenericVoucher && (!buyerName || !buyerEmail)) {
-      this.snackbar.open(this.translateService.instant('bonus.error_buyer_required'), 'OK', { duration: 3000 });
+      this.snackbar.open(this.translateService.instant('voucher.buyer_required'), 'OK', { duration: 3000 });
       return;
     }
 
     if (formValue.is_gift && (!recipientName || !recipientEmail)) {
-      this.snackbar.open(this.translateService.instant('bonus.error_recipient_required'), 'OK', { duration: 3000 });
+      this.snackbar.open(this.translateService.instant('voucher.recipient_required'), 'OK', { duration: 3000 });
       return;
     }
 
@@ -279,7 +279,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
         },
         error: (error) => {
           console.error('Error creating voucher:', error);
-          this.snackbar.open(this.translateService.instant('Error creating voucher'), 'OK', {duration: 3000});
+          this.snackbar.open(this.translateService.instant('voucher.error_create'), 'OK', {duration: 3000});
         }
       })
   }
@@ -297,12 +297,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
     const hasAssignedClient = !!(selectedClient?.id || this.defaults.client_id);
 
     if (!hasAssignedClient && (!buyerName || !buyerEmail)) {
-      this.snackbar.open(this.translateService.instant('bonus.error_buyer_required'), 'OK', { duration: 3000 });
+      this.snackbar.open(this.translateService.instant('voucher.buyer_required'), 'OK', { duration: 3000 });
       return;
     }
 
     if (formValue.is_gift && (!recipientName || !recipientEmail)) {
-      this.snackbar.open(this.translateService.instant('bonus.error_recipient_required'), 'OK', { duration: 3000 });
+      this.snackbar.open(this.translateService.instant('voucher.recipient_required'), 'OK', { duration: 3000 });
       return;
     }
 
@@ -337,7 +337,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
         },
         error: (error) => {
           console.error('Error updating voucher:', error);
-          this.snackbar.open(this.translateService.instant('Error updating voucher'), 'OK', {duration: 3000});
+          this.snackbar.open(this.translateService.instant('voucher.error_update'), 'OK', {duration: 3000});
         }
       })
   }
@@ -469,11 +469,15 @@ export class BonusesCreateUpdateComponent implements OnInit {
 
   getVoucherLogs() {
     this.crudService.list('/vouchers-logs', 1, 10000, 'desc', 'id', '&voucher_id='+this.id)
-    .subscribe((vl) => {
+    .subscribe({
+      next: (vl) => {
         this.logs = vl.data;
         this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
       }
-    )
+    });
   }
 
   generateRandomNumber() {

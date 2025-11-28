@@ -37,6 +37,7 @@
                    [route]="currentRoute" [createComponent]="createComponent" [canDelete]="false"
                    [canDeactivate]="false" [sectionIcon]="icon"
                    [with]="currentWith" [search]="searchParams"
+                   [currencyCode]="currencyCode"
                    [createOnModal]="true" [widthModal]="'800px'" [heigthModal]="'90vh'"></vex-aio-table>
 
     <!-- Card view for Gift Vouchers -->
@@ -68,7 +69,7 @@
           <div class="card-gradient">
             <div class="card-header">
               <mat-icon class="gift-icon">card_giftcard</mat-icon>
-              <span class="voucher-amount">{{ voucher.quantity | currency:currencySymbol:'symbol':'1.0-0' }}</span>
+              <span class="voucher-amount">{{ voucher.quantity | currency:currencyCode:'symbol':'1.0-0' }}</span>
             </div>
 
             <div class="card-content">
@@ -102,6 +103,10 @@
                 <mat-icon class="small-icon">calendar_today</mat-icon>
                 <span>{{ voucher.created_at | date:'dd/MM/yyyy' }}</span>
               </div>
+              <div class="usage-section" *ngIf="voucher.uses_count || (voucher.logs?.length)">
+                <mat-icon class="small-icon">history</mat-icon>
+                <span>{{ 'voucher.usage_logs' | translate }}: {{ voucher.uses_count || voucher.logs?.length }}</span>
+              </div>
               <div class="status-badge" [ngClass]="voucher.payed ? 'status-used' : 'status-active'">
                 {{ voucher.payed ? ('used' | translate) : ('active' | translate) }}
               </div>
@@ -115,19 +120,23 @@
               <mat-icon>more_vert</mat-icon>
             </button>
             <mat-menu #menu="matMenu">
-              <button mat-menu-item (click)="viewVoucher(voucher)">
-                <mat-icon>visibility</mat-icon>
-                <span>{{ 'view_details' | translate }}</span>
-              </button>
-              <button mat-menu-item (click)="editVoucher(voucher)">
-                <mat-icon>edit</mat-icon>
-                <span>{{ 'edit' | translate }}</span>
-              </button>
-              <button mat-menu-item (click)="openTransferDialog(voucher)"
-                      [disabled]="!voucher.is_transferable || voucher.transferred_at">
-                <mat-icon>send</mat-icon>
-                <span>{{ 'transfer' | translate }}</span>
-              </button>
+            <button mat-menu-item (click)="viewVoucher(voucher)">
+              <mat-icon>visibility</mat-icon>
+              <span>{{ 'view_details' | translate }}</span>
+            </button>
+            <button mat-menu-item (click)="editVoucher(voucher)">
+              <mat-icon>edit</mat-icon>
+              <span>{{ 'edit' | translate }}</span>
+            </button>
+            <button mat-menu-item (click)="deleteVoucher(voucher)">
+              <mat-icon>delete</mat-icon>
+              <span>{{ 'delete_title' | translate }}</span>
+            </button>
+            <button mat-menu-item (click)="openTransferDialog(voucher)"
+                    [disabled]="!voucher.is_transferable || voucher.transferred_at">
+              <mat-icon>send</mat-icon>
+              <span>{{ 'transfer' | translate }}</span>
+            </button>
             </mat-menu>
           </mat-card-actions>
         </mat-card>
@@ -148,6 +157,7 @@
           [sectionIcon]="icon"
           [with]="giftVouchersTableWith"
           [search]="giftVouchersTableSearch"
+          [currencyCode]="currencyCode"
           [createOnModal]="true"
           [widthModal]="'800px'"
           [heigthModal]="'90vh'"

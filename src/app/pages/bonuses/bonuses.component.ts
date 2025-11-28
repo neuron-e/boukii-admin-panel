@@ -24,25 +24,26 @@ export class BonusesComponent implements OnInit {
   private readonly TAB_GIFT = 2;
 
   private readonly voucherColumns: TableColumn<any>[] = [
-    { label: 'ID', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
-    { label: 'Valor', property: 'quantity', type: 'currency', visible: true },
-    { label: 'Cliente asignado', property: 'client', type: 'client', visible: true },
-    { label: 'Comprador', property: 'buyer_name', type: 'text', visible: true },
-    { label: 'Estado', property: 'payed', type: 'badge', visible: true },
-    { label: 'Fecha creación', property: 'created_at', type: 'date', visible: true },
-    { label: 'Acciones', property: 'actions', type: 'button', visible: true }
+    { label: 'code', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
+    { label: 'amount', property: 'quantity', type: 'currency', visible: true },
+    { label: 'voucher.assigned_client', property: 'client', type: 'client', visible: true },
+    { label: 'voucher.buyer', property: 'buyer_name', type: 'text', visible: true },
+    { label: 'uses', property: 'uses_count', type: 'text', visible: true },
+    { label: 'status', property: 'payed', type: 'badge', visible: true },
+    { label: 'voucher.creation_date', property: 'created_at', type: 'date', visible: true },
+    { label: 'actions', property: 'actions', type: 'button', visible: true }
   ];
 
   private readonly discountColumns: TableColumn<any>[] = [
-    { label: 'Código', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
-    { label: 'Nombre', property: 'name', type: 'text', visible: true },
-    { label: 'Tipo', property: 'discount_type', type: 'text', visible: true },
-    { label: 'Valor', property: 'discount_value', type: 'currency', visible: true },
-    { label: 'Aplicable a', property: 'applicable_to', type: 'text', visible: true },
-    { label: 'Fecha expiración', property: 'valid_to', type: 'date', visible: true },
-    { label: 'Usos', property: 'remaining', type: 'text', visible: true },
-    { label: 'Estado', property: 'active', type: 'badge', visible: true },
-    { label: 'Acciones', property: 'actions', type: 'button', visible: true }
+    { label: 'code', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
+    { label: 'name', property: 'name', type: 'text', visible: true },
+    { label: 'discount_type', property: 'discount_type', type: 'text', visible: true },
+    { label: 'discount_value', property: 'discount_value', type: 'currency', visible: true },
+    { label: 'applicable_to', property: 'applicable_to', type: 'text', visible: true },
+    { label: 'valid_to', property: 'valid_to', type: 'date', visible: true },
+    { label: 'uses', property: 'remaining', type: 'text', visible: true },
+    { label: 'status', property: 'active', type: 'badge', visible: true },
+    { label: 'actions', property: 'actions', type: 'button', visible: true }
   ];
 
   createComponent: any = BonusesCreateUpdateComponent;
@@ -51,15 +52,15 @@ export class BonusesComponent implements OnInit {
   deleteEntity = '/vouchers';
   icon = '../../../assets/img/icons/bonos.svg';
   currentRoute = 'vouchers';
-  currentWith: any = ['client'];
+  currentWith: any = ['client', 'vouchersLogs'];
   user: any;
 
   selectedTab = this.TAB_PURCHASE;
   currentTitle = 'purchase_vouchers';
   searchParams = '&is_gift=0';
 
-  // Currency symbol from school settings
-  currencySymbol: string = 'EUR';
+  // Currency code from school settings
+  currencyCode: string = 'EUR';
 
   // Gift vouchers data
   giftVouchers: any[] = [];
@@ -71,18 +72,19 @@ export class BonusesComponent implements OnInit {
   // Gift vouchers table configuration
   giftVouchersTableColumns: TableColumn<any>[] = [
     { label: 'code', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
-    { label: 'buyer', property: 'buyer_name', type: 'text', visible: true },
+    { label: 'voucher.buyer', property: 'buyer_name', type: 'text', visible: true },
     { label: 'recipient', property: 'recipient_name', type: 'text', visible: true },
     { label: 'amount', property: 'quantity', type: 'currency', visible: true },
+    { label: 'uses', property: 'uses_count', type: 'text', visible: true },
     { label: 'status', property: 'payed', type: 'badge', visible: true },
-    { label: 'creation_date', property: 'created_at', type: 'date', visible: true },
+    { label: 'voucher.creation_date', property: 'created_at', type: 'date', visible: true },
     { label: 'actions', property: 'actions', type: 'button', visible: true }
   ];
   giftVouchersTableEntity = '/vouchers';
   giftVouchersTableDeleteEntity = '/vouchers';
   giftVouchersTableRoute = 'vouchers';
   giftVouchersCreateComponent: any = BonusesCreateUpdateComponent;
-  giftVouchersTableWith: any = ['client'];
+  giftVouchersTableWith: any = ['client', 'vouchersLogs'];
   giftVouchersTableSearch = '&is_gift=1';
 
   constructor(
@@ -113,9 +115,13 @@ export class BonusesComponent implements OnInit {
   private loadCurrencySymbol() {
     this.schoolService.getSchoolData().subscribe({
       next: (response: any) => {
-        if (response?.data?.taxes?.currency) {
-          this.currencySymbol = response.data.taxes.currency;
-        }
+        const currency =
+          response?.data?.taxes?.currency ||
+          response?.data?.currency ||
+          response?.currency ||
+          this.user?.schools?.[0]?.taxes?.currency ||
+          this.user?.schools?.[0]?.currency;
+        this.currencyCode = currency || this.currencyCode;
       },
       error: (error) => {
         console.error('Error loading school settings:', error);
@@ -147,7 +153,7 @@ export class BonusesComponent implements OnInit {
       this.entity = '/vouchers';
       this.deleteEntity = '/vouchers';
       this.currentRoute = 'vouchers';
-      this.currentWith = ['client'];
+      this.currentWith = ['client', 'vouchersLogs'];
       this.searchParams = '&is_gift=1';
       this.currentTitle = 'gift_vouchers';
       this.loadGiftVouchers();
@@ -158,7 +164,7 @@ export class BonusesComponent implements OnInit {
       this.entity = '/vouchers';
       this.deleteEntity = '/vouchers';
       this.currentRoute = 'vouchers';
-      this.currentWith = ['client'];
+      this.currentWith = ['client', 'vouchersLogs'];
       this.searchParams = '&is_gift=0';
       this.currentTitle = 'purchase_vouchers';
     }
@@ -175,7 +181,7 @@ export class BonusesComponent implements OnInit {
 
     if (!voucher.is_transferable) {
       this.snackbar.open(
-        this.translateService.instant('This voucher is not transferable'),
+        this.translateService.instant('voucher.not_transferable'),
         'OK',
         { duration: 3000 }
       );
@@ -184,7 +190,7 @@ export class BonusesComponent implements OnInit {
 
     if (voucher.transferred_at) {
       this.snackbar.open(
-        this.translateService.instant('This voucher has already been transferred'),
+        this.translateService.instant('voucher.already_transferred'),
         'OK',
         { duration: 3000 }
       );
@@ -193,7 +199,7 @@ export class BonusesComponent implements OnInit {
 
     if (voucher.remaining_balance <= 0) {
       this.snackbar.open(
-        this.translateService.instant('This voucher has no remaining balance'),
+        this.translateService.instant('voucher.no_balance'),
         'OK',
         { duration: 3000 }
       );
@@ -208,7 +214,7 @@ export class BonusesComponent implements OnInit {
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
         this.snackbar.open(
-          this.translateService.instant('Voucher transferred successfully'),
+          this.translateService.instant('voucher.transfer_success'),
           'OK',
           { duration: 3000 }
         );
@@ -235,7 +241,7 @@ export class BonusesComponent implements OnInit {
       '',
       null,
       '',
-      ['client']
+      ['client', 'vouchersLogs']
     ).subscribe({
       next: (response: any) => {
         const rawData = response?.data;
@@ -266,7 +272,7 @@ export class BonusesComponent implements OnInit {
       if (result) {
         this.loadGiftVouchers();
         this.snackbar.open(
-          this.translateService.instant('Gift voucher created successfully'),
+          this.translateService.instant('gift_voucher.created_success'),
           'OK',
           { duration: 3000 }
         );
@@ -303,7 +309,7 @@ export class BonusesComponent implements OnInit {
       if (result) {
         this.loadGiftVouchers();
         this.snackbar.open(
-          this.translateService.instant('Voucher updated successfully'),
+          this.translateService.instant('voucher.updated_success'),
           'OK',
           { duration: 3000 }
         );
@@ -314,10 +320,40 @@ export class BonusesComponent implements OnInit {
   copyCode(code: string) {
     this.clipboard.copy(code);
     this.snackbar.open(
-      this.translateService.instant('Code copied to clipboard'),
+      this.translateService.instant('voucher.copy_success'),
       'OK',
       { duration: 2000 }
     );
+  }
+
+  deleteVoucher(voucher: any) {
+    if (this.selectedTab === this.TAB_DISCOUNTS) {
+      return;
+    }
+
+    const confirmDelete = window.confirm(this.translateService.instant('delete_confirm') || 'Delete voucher?');
+    if (!confirmDelete) {
+      return;
+    }
+
+    this.crudService.delete(this.deleteEntity, voucher.id).subscribe({
+      next: () => {
+        this.snackbar.open(
+          this.translateService.instant('voucher.deleted_success'),
+          'OK',
+          { duration: 3000 }
+        );
+        this.loadGiftVouchers();
+      },
+      error: (error) => {
+        console.error('Error deleting voucher:', error);
+        this.snackbar.open(
+          this.translateService.instant('voucher.error_delete'),
+          'OK',
+          { duration: 3000 }
+        );
+      }
+    });
   }
 
   private refreshGiftVouchersTable(): void {
@@ -387,6 +423,9 @@ export class BonusesComponent implements OnInit {
       voucher.created;
 
     const notes = voucher.notes ?? voucher.description ?? voucher.message ?? '';
+    const logs = voucher.vouchers_logs ?? voucher.vouchersLogs ?? [];
+    const usesCount = voucher.uses_count ?? (Array.isArray(logs) ? logs.length : 0);
+    const remainingBalance = voucher.remaining_balance ?? voucher.remainingBalance ?? voucher.quantity;
 
     return {
       ...voucher,
@@ -395,7 +434,10 @@ export class BonusesComponent implements OnInit {
       quantity,
       payed: payedValue,
       created_at: createdAt,
-      notes
+      notes,
+      logs,
+      uses_count: usesCount,
+      remaining_balance: remainingBalance
     };
   }
 
@@ -431,7 +473,7 @@ export class BonusesComponent implements OnInit {
         document.body.removeChild(link);
 
         this.snackbar.open(
-          this.translateService.instant('Discount codes exported successfully'),
+          this.translateService.instant('discount.export_success'),
           'OK',
           { duration: 3000 }
         );
@@ -439,7 +481,7 @@ export class BonusesComponent implements OnInit {
       error: (error) => {
         console.error('Error exporting discounts:', error);
         this.snackbar.open(
-          this.translateService.instant('Error exporting discount codes'),
+          this.translateService.instant('discount.export_error'),
           'OK',
           { duration: 3000 }
         );
@@ -483,7 +525,7 @@ export class BonusesComponent implements OnInit {
   }
 
   shareDiscount(discount: any) {
-    const shareText = `${discount.name}\nCode: ${discount.code}\nType: ${discount.discount_type}\nValue: ${discount.discount_value}`;
+    const shareText = `${discount.name}\n${this.translateService.instant('code')}: ${discount.code}\n${this.translateService.instant('discount_type')}: ${discount.discount_type}\n${this.translateService.instant('discount_value')}: ${discount.discount_value}`;
 
     if (navigator.share) {
       navigator.share({
@@ -491,7 +533,7 @@ export class BonusesComponent implements OnInit {
         text: shareText
       }).then(() => {
         this.snackbar.open(
-          this.translateService.instant('Discount shared successfully'),
+          this.translateService.instant('discount.share_success'),
           'OK',
           { duration: 2000 }
         );
@@ -500,7 +542,7 @@ export class BonusesComponent implements OnInit {
         // Fallback to copying to clipboard
         this.clipboard.copy(shareText);
         this.snackbar.open(
-          this.translateService.instant('Discount details copied to clipboard'),
+          this.translateService.instant('discount.copy_details'),
           'OK',
           { duration: 2000 }
         );
@@ -509,7 +551,7 @@ export class BonusesComponent implements OnInit {
       // Fallback to copying to clipboard
       this.clipboard.copy(shareText);
       this.snackbar.open(
-        this.translateService.instant('Discount details copied to clipboard'),
+        this.translateService.instant('discount.copy_details'),
         'OK',
         { duration: 2000 }
       );

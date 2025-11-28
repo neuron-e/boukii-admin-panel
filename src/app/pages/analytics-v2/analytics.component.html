@@ -1,12 +1,19 @@
 <vex-page-layout>
   <vex-secondary-toolbar current>
-    <vex-breadcrumbs [crumbs]="[
+  <vex-breadcrumbs [crumbs]="[
       {icon:'analytics'},
       {text:'menu.analytics', title: true},
       {text:'dashboard', subtitle: true}
     ]" class="flex"></vex-breadcrumbs>
 
-    <div class="ml-auto flex items-center space-x-4">
+  <div class="ml-auto flex items-center space-x-4">
+      <mat-form-field appearance="outline" class="w-36">
+        <mat-label>Formato</mat-label>
+        <mat-select [value]="exportFormat" (selectionChange)="exportFormat = $event.value">
+          <mat-option value="csv">CSV</mat-option>
+          <mat-option value="excel">Excel</mat-option>
+        </mat-select>
+      </mat-form-field>
       <button mat-raised-button color="primary" (click)="onExportData()" class="text-sm" [disabled]="!dashboardData">
         <mat-icon>download</mat-icon>
         {{ 'export_data' | translate }}

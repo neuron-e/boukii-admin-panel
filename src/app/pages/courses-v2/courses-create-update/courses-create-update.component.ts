@@ -2984,6 +2984,8 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy {
       }
       this.initializeExtrasForm();
       this.loadSchoolData();
+      // Mark component for check when data arrives (required for OnPush change detection)
+      this.cdr.markForCheck();
     });
   }
 
@@ -3401,6 +3403,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(data => {
       this.schoolData = data.data;
+      this.cdr.markForCheck();
     });
   }
 

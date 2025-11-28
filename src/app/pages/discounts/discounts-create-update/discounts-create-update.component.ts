@@ -13,6 +13,7 @@ import { ApiCrudService } from 'src/service/crud.service';
 import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
 import { stagger20ms } from 'src/@vex/animations/stagger.animation';
 import { TranslateService } from '@ngx-translate/core';
+import { SchoolService } from 'src/service/school.service';
 
 function discountValueValidator(control: AbstractControl): ValidationErrors | null {
   const formGroup = control.parent;
@@ -111,6 +112,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
 
   private lastCourseSearch = '';
   private lastClientSearch = '';
+  currencyCode = 'EUR';
 
   @ViewChild('courseInput') courseInput: ElementRef<HTMLInputElement>;
   @ViewChild('clientInput') clientInput: ElementRef<HTMLInputElement>;
@@ -121,6 +123,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
     private snackbar: MatSnackBar,
     private router: Router,
     private translateService: TranslateService,
+    private schoolService: SchoolService,
     @Optional() public dialogRef: MatDialogRef<DiscountsCreateUpdateComponent>,
     @Optional() @Inject(MAT_DIALOG_DATA) public data: any
   ) {
@@ -147,6 +150,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadCurrency();
     this.setupFilters();
     this.loadCourses();
     this.loadClients();
@@ -195,6 +199,23 @@ export class DiscountsCreateUpdateComponent implements OnInit {
         return typeof value === 'string' ? this.filterClients(term) : of([]);
       })
     );
+  }
+
+  private loadCurrency(): void {
+    this.schoolService.getSchoolData().subscribe({
+      next: (response: any) => {
+        const currency =
+          response?.data?.taxes?.currency ||
+          response?.data?.currency ||
+          response?.currency ||
+          this.user?.schools?.[0]?.taxes?.currency ||
+          this.user?.schools?.[0]?.currency;
+        this.currencyCode = currency || this.currencyCode;
+      },
+      error: () => {
+        this.currencyCode = this.user?.schools?.[0]?.currency || this.currencyCode;
+      }
+    });
   }
 
   private loadCourses(searchTerm: string = ''): void {

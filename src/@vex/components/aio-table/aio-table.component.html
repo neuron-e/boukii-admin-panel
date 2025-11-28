@@ -1138,11 +1138,11 @@
                       'bg-green-100 text-green-800': row[column.property] === 1 || row[column.property] === true || row[column.property] === 'active',
                       'bg-red-100 text-red-800': row[column.property] === 0 || row[column.property] === false || row[column.property] === 'inactive'
                     }">
-                {{ row[column.property] === 1 || row[column.property] === true ? 'Activo' : 'Inactivo' }}
+                {{ row[column.property] === 1 || row[column.property] === true ? ('active' | translate) : ('inactive' | translate) }}
               </span>
               <span *ngIf="!row[column.property] && row[column.property] !== 0"
                     class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                Sin estado
+                {{ 'no_status' | translate }}
               </span>
             </td>
           </ng-container>
@@ -1156,7 +1156,7 @@
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
               <span class="font-medium">
-                {{ row[column.property] | currency:'EUR':'symbol':'1.0-2' }}
+                {{ row[column.property] | currency:currencyCode:'symbol':'1.0-2' }}
               </span>
             </td>
           </ng-container>

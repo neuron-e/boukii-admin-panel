@@ -72,7 +72,7 @@ export class TransferVoucherDialogComponent implements OnInit {
         },
         error: (error) => {
           console.error('Error fetching clients:', error);
-          this.snackbar.open(this.translateService.instant('Error loading clients'), 'OK', {duration: 3000});
+          this.snackbar.open(this.translateService.instant('voucher.error_loading_clients'), 'OK', {duration: 3000});
           this.loading = false;
         }
       });
@@ -96,14 +96,18 @@ export class TransferVoucherDialogComponent implements OnInit {
     this.crudService.post('/vouchers/'+this.data.voucher.id+'/check-availability', payload)
       .subscribe({
         next: (response: any) => {
-          this.canBeUsed = response.can_be_used || false;
-          this.availabilityMessage = response.message || '';
+          const data = response?.data || response;
+          this.canBeUsed = data?.available ?? data?.can_be_used ?? false;
+          const reasons = Array.isArray(data?.reasons) && data.reasons.length
+            ? data.reasons.join(', ')
+            : '';
+          this.availabilityMessage = response?.message || data?.message || reasons;
           this.checking = false;
         },
         error: (error) => {
           console.error('Error checking availability:', error);
           this.canBeUsed = false;
-          this.availabilityMessage = error.error?.message || 'Error checking availability';
+          this.availabilityMessage = error.error?.message || this.translateService.instant('voucher.error_checking_availability');
           this.checking = false;
         }
       });
@@ -111,25 +115,25 @@ export class TransferVoucherDialogComponent implements OnInit {
 
   transfer() {
     if (!this.selectedClient || !this.selectedClient.id) {
-      this.snackbar.open(this.translateService.instant('Please select a client'), 'OK', {duration: 3000});
+      this.snackbar.open(this.translateService.instant('voucher.select_client'), 'OK', {duration: 3000});
       return;
     }
 
     if (!this.data.voucher.is_transferable) {
-      this.snackbar.open(this.translateService.instant('This voucher is not transferable'), 'OK', {duration: 3000});
+      this.snackbar.open(this.translateService.instant('voucher.not_transferable'), 'OK', {duration: 3000});
       return;
     }
 
     this.transferring = true;
     const payload = {
-      to_client_id: this.selectedClient.id
+      client_id: this.selectedClient.id
     };
 
     this.crudService.post('/vouchers/'+this.data.voucher.id+'/transfer', payload)
       .subscribe({
         next: (response: any) => {
           this.snackbar.open(
-            this.translateService.instant('Voucher transferred successfully'),
+            this.translateService.instant('voucher.transfer_success'),
             'OK',
             {duration: 3000}
           );
@@ -137,7 +141,7 @@ export class TransferVoucherDialogComponent implements OnInit {
         },
         error: (error) => {
           console.error('Error transferring voucher:', error);
-          const errorMsg = error.error?.message || 'Error transferring voucher';
+          const errorMsg = error.error?.message || 'voucher.error_transfer';
           this.snackbar.open(this.translateService.instant(errorMsg), 'OK', {duration: 5000});
           this.transferring = false;
         }
