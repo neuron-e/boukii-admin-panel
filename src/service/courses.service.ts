@@ -107,6 +107,12 @@ export class CoursesService {
     const courseDatesArray = this.courseFormGroup.get('course_dates') as FormArray;
     courseDatesArray.clear();
     let courseDates = toArray(data.course_dates);
+    const duplicateCount = this.countCourseDateSubgroupDuplicates(courseDates);
+    if (duplicateCount > 0) {
+      console.warn(`CoursesService detected ${duplicateCount} duplicate subgroup entries in course_dates; sanitizing before building the form.`);
+    }
+    courseDates = this.sanitizeCourseDatesStructure(courseDates);
+    data.course_dates = courseDates;
 
     // Enrich course_dates with interval_id based on interval configuration
     try {
@@ -678,6 +684,98 @@ export class CoursesService {
     const newHours = String(date.getHours()).padStart(2, "0");
     const newMinutes = String(date.getMinutes()).padStart(2, "0");
     return `${newHours}:${newMinutes}`;
+  }
+
+  sanitizeCourseDatesStructure(courseDates: any[]): any[] {
+    if (!Array.isArray(courseDates)) {
+      return [];
+    }
+
+    return courseDates.map((courseDate) => this.sanitizeCourseDate(courseDate));
+  }
+
+  countCourseDateSubgroupDuplicates(courseDates: any[] | null | undefined): number {
+    if (!Array.isArray(courseDates)) {
+      return 0;
+    }
+
+    let duplicates = 0;
+    courseDates.forEach(courseDate => {
+      const groups = Array.isArray(courseDate?.course_groups) ? courseDate.course_groups : [];
+      groups.forEach(group => {
+        const original = Array.isArray(group?.course_subgroups) ? group.course_subgroups : [];
+        const sanitized = this.deduplicateSubgroups(original);
+        duplicates += Math.max(0, original.length - sanitized.length);
+      });
+    });
+    return duplicates;
+  }
+
+  private sanitizeCourseDate(courseDate: any): any {
+    if (!courseDate || typeof courseDate !== 'object') {
+      return courseDate;
+    }
+
+    const courseGroups = Array.isArray(courseDate.course_groups) ? courseDate.course_groups : [];
+    const sanitizedGroups = this.sanitizeCourseGroups(courseGroups);
+
+    return {
+      ...courseDate,
+      course_groups: sanitizedGroups,
+      groups: sanitizedGroups.map(group => ({
+        ...group,
+        subgroups: (group.course_subgroups || []).map(subgroup => ({ ...subgroup }))
+      })),
+      course_subgroups: sanitizedGroups.flatMap(group => group.course_subgroups || [])
+    };
+  }
+
+  private sanitizeCourseGroups(groups: any[]): any[] {
+    return groups.map(group => {
+      const normalizedSubgroups = this.deduplicateSubgroups(group.course_subgroups || group.subgroups || []);
+      return {
+        ...group,
+        course_subgroups: normalizedSubgroups,
+        subgroups: normalizedSubgroups.map(subgroup => ({ ...subgroup }))
+      };
+    });
+  }
+
+  private deduplicateSubgroups(subgroups: any[]): any[] {
+    if (!Array.isArray(subgroups)) {
+      return [];
+    }
+
+    const seen = new Set<string>();
+    const sanitized: any[] = [];
+    subgroups.forEach((subgroup, index) => {
+      const signature = this.buildSubgroupSignature(subgroup, index);
+      if (seen.has(signature)) {
+        return;
+      }
+      seen.add(signature);
+      sanitized.push({ ...subgroup });
+    });
+    return sanitized;
+  }
+
+  private buildSubgroupSignature(subgroup: any, index: number): string {
+    if (!subgroup || typeof subgroup !== 'object') {
+      return `idx-${index}`;
+    }
+    if (subgroup.subgroup_dates_id) {
+      return `dates-${subgroup.subgroup_dates_id}`;
+    }
+    if (subgroup.id) {
+      return `id-${subgroup.id}`;
+    }
+    if (subgroup.course_subgroup_id) {
+      return `courseSubgroup-${subgroup.course_subgroup_id}`;
+    }
+    if (subgroup.course_sub_group_id) {
+      return `courseSubGroup-${subgroup.course_sub_group_id}`;
+    }
+    return `${subgroup.degree_id ?? 'deg'}-${index}`;
   }
 
   //functions intervals course type 1

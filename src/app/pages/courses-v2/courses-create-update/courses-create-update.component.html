@@ -1246,7 +1246,7 @@
                               (do)="level.max_participants=$event.target.value;" name="max_pax"
                               style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="paxes">
               </app-form-input>
-              <mat-icon (click)="useMultipleIntervals ? addIntervalLevelSubgroup(selectedIntervalIndexForGroups, level) : addLevelSubgroup(level,0,true)" color="primary" style="color: white;
+              <mat-icon (click)="onInlineAddSubgroup(level, $event)" color="primary" style="color: white;
 										height: 30px;
 										min-width: 30px;
 										border-radius: 15px;
@@ -1499,10 +1499,10 @@
     </div>
   </div>
   <vex-course-detail-card *ngIf="!loading" [step]="ModalFlux" [mode]="mode" [detailMode]="false"
-                          [courseFormGroup]="courses.courseFormGroup" card>
+                          [subgroupCache]="previewSubgroupCache" [courseFormGroup]="courses.courseFormGroup" card>
   </vex-course-detail-card>
   <vex-course-detail-card *ngIf="!loading" [step]="ModalFlux" [mode]="mode" [detailMode]="false"
-                          [courseFormGroup]="courses.courseFormGroup" card2>
+                          [subgroupCache]="previewSubgroupCache" [courseFormGroup]="courses.courseFormGroup" card2>
   </vex-course-detail-card>
 </vex-flux-layout>
 

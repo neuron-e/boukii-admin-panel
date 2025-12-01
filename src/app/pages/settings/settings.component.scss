@@ -297,3 +297,11 @@ $border-color: rgba(
 @media (min-width: 1280px) {
   .social-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+.paginaReserva {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 16px 24px;
+  width: 100%;
+  box-sizing: border-box;
+}

@@ -55,11 +55,22 @@ export function parseFlexibleDiscounts(raw: any): FlexibleDiscountRule[] {
     .map((item: any) => {
       const threshold = Number(item?.date ?? item?.dates ?? item?.count ?? item?.n ?? item?.days ?? 0);
       const value = Number(item?.discount ?? item?.percentage ?? item?.percent ?? item?.value ?? 0);
-      const type = Number(item?.type ?? 1);
+      const rawType = item?.type;
+      let type: 'percentage' | 'fixed' = 'percentage';
+      if (typeof rawType === 'string') {
+        type = rawType.toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
+      } else if (typeof rawType === 'number' && !isNaN(rawType)) {
+        type = rawType === 2 ? 'fixed' : 'percentage';
+      } else if (rawType != null) {
+        const numericType = Number(rawType);
+        if (!isNaN(numericType)) {
+          type = numericType === 2 ? 'fixed' : 'percentage';
+        }
+      }
       return {
         threshold,
         value,
-        type: type === 2 ? 'fixed' : 'percentage'
+        type
       } as FlexibleDiscountRule;
     })
     .filter(item => item.threshold > 0 && !isNaN(item.value) && item.value > 0);

@@ -431,7 +431,7 @@
   "wife_id": "Spouse's work permit",
   "wife_percent": "Spouse percentage",
   "no": "No",
-  "yes": "Yeah",
+  "yes": "Yes",
   "reason": "Reason",
   "choose_client": "Select a client",
   "choose_level": "Select a level",
@@ -650,7 +650,7 @@
   "settings.sports.title": "Active sports",
   "settings.sports.subtitle": "Select your school sports",
   "settings.sports.all_sessions": "all the seasons",
-"settings.sports.subtitle_info": "It is not necessary to select all of them now, you can do so later according to your needs.",
+  "settings.sports.subtitle_info": "It is not necessary to select all of them now, you can do so later according to your needs.",
   "settings.school_info": "School information",
   "settings.school.description": "Maintain the contact point and logo for your school so clients have the right data.",
   "settings.sports.levels.text1": "Configure the levels as they best suit your school.",
@@ -1186,6 +1186,10 @@
   "settings.booking.social.placeholder": "URL or @username",
   "settings.booking.social.help": "Paste a full URL or an @username. We will store a valid URL.",
   "settings.booking.social.invalidUrl": "Enter a valid URL or @username.",
+  "settings.booking.privates.min_lead_label": "Lead time for private bookings (minutes)",
+  "settings.booking.privates.min_lead_hint": "Minimum minutes before start time to allow a private booking.",
+  "settings.booking.privates.overbooking_limit_label": "Overbooking limit for privates",
+  "settings.booking.privates.overbooking_limit_hint": "Extra bookings allowed when no monitors are free (0 = no overbooking).",
   "sponsors": "SPONSORS",
   "image_recommendations": "JPG or PNG, max 1MB. Recommended size: 400x290px",
   "info_message": "INFORMATION MESSAGE",
@@ -1889,10 +1893,9 @@
   "add_boukii_care": "Apply boukii care",
   "add_boukii_care_message": "Do you want to add boukii care to the reservation?",
   "menu.payment_gateway": "Web Gateway",
-  "menu.payment_terminal": "Payment Terminal"
-,
-  "no_meeting_point_set": "No meeting point set"
-,
+  "menu.payment_terminal": "Payment Terminal",
+  "no_meeting_point_set": "No meeting point set",
   "no_sports_yet": "No sports yet",
-  "add_sports_message": "Add sports in the \"Sports\" tab to see client evolution"
+  "add_sports_message": "Add sports in the \"Sports\" tab to see client evolution",
+  "export_all_courses": "Export all courses"
 }

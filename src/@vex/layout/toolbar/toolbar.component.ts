@@ -12,6 +12,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { AddTaskComponent } from './add-task/add-task.component';
 import moment from 'moment';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ApiCrudService } from 'src/service/crud.service';
+import { saveAs } from 'file-saver';
 
 @Component({
   selector: 'vex-toolbar',
@@ -44,7 +46,8 @@ export class ToolbarComponent {
     private router: Router,
     private dialog: MatDialog,
     private snackbar: MatSnackBar,
-    private translateService: TranslateService) {
+    private translateService: TranslateService,
+    private crudService: ApiCrudService) {
     this.slug = JSON.parse(localStorage.getItem('boukiiUser')).schools[0].slug;
     const initialLang = sessionStorage.getItem('lang') || this.translateService.currentLang || this.translateService.getDefaultLang() || 'es';
     this.currentLangCode = initialLang ? initialLang.toUpperCase() : 'ES';
@@ -56,6 +59,29 @@ export class ToolbarComponent {
 
   openSidenav(): void {
     this.layoutService.openSidenav();
+  }
+
+  exportAllCourses(): void {
+    try {
+      const userRaw = localStorage.getItem('boukiiUser');
+      const schoolId = userRaw ? JSON.parse(userRaw)?.schools?.[0]?.id : null;
+      if (!schoolId) {
+        this.snackbar.open(this.translateService.instant('no_school_selected') || 'No school selected', 'Cerrar', { duration: 3000 });
+        return;
+      }
+      const lang = this.translateService.currentLang || 'en';
+      this.crudService.getFile(`/admin/schools/${schoolId}/courses/export/${lang}`)
+        .subscribe((data: any) => {
+          const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          saveAs(blob, `school_${schoolId}_courses.xlsx`);
+        }, (error: any) => {
+          console.error('Error al descargar export de cursos', error);
+          this.snackbar.open(this.translateService.instant('download_error') || 'Error downloading export', 'Cerrar', { duration: 3000 });
+        });
+    } catch (e) {
+      console.error('exportAllCourses failed', e);
+      this.snackbar.open(this.translateService.instant('download_error') || 'Error downloading export', 'Cerrar', { duration: 3000 });
+    }
   }
 
   changeLang(lang: string) {

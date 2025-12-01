@@ -13,6 +13,7 @@
   "discount_codes": "Códigos descuento",
   "add_client": "Añadir cliente",
   "add_task": "Añadir tarea",
+  "export_all_courses": "Exportar todos los cursos",
   "add_booking": "Añadir reserva",
   "add_subgroup": "Agregar un subgrupo",
   "duracion": "Duración",
@@ -1967,3 +1968,4 @@
   "no_sports_yet": "Todavía no hay deportes",
   "add_sports_message": "Añade deportes en la pestaña \"Deportes\" para ver la evolución del cliente"
 }
+

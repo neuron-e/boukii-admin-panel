@@ -610,36 +610,38 @@
         {{CoursesService.weekString()}}
       </div>
     </div>
-    <div *ngIf="courseFormGroup.controls['levelGrop'].value && count(courseFormGroup.controls['levelGrop'].value,'active') && !detail"
-         class="cardgroup">
-      <div style="width: 100%;display: flex;gap: 8px;flex-wrap: wrap;">
-        <div style="width: 100%;">
-          <div *ngIf="courseFormGroup.controls['id'].value" class="label"
-               style="display: flex;justify-content: space-between;">
-            {{'levels' | translate }}
-            <div>
-              <mat-icon (click)="exportQR(courseFormGroup.controls['id'].value)" svgIcon="mat:print"
-                        style="cursor: pointer;">
-              </mat-icon>
-              <mat-icon (click)="export(courseFormGroup.controls['id'].value)" svgIcon="mat:save"
-                        style="cursor: pointer;">
-              </mat-icon>
-            </div>
+  <div *ngIf="courseFormGroup.controls['levelGrop'].value && count(courseFormGroup.controls['levelGrop'].value,'active') && !detail"
+       class="cardgroup">
+    <div style="width: 100%;display: flex;gap: 8px;flex-wrap: wrap;">
+      <div style="width: 100%;">
+        <div *ngIf="courseFormGroup.controls['id'].value" class="label"
+             style="display: flex;justify-content: space-between;">
+          {{'levels' | translate }}
+          <div>
+            <mat-icon (click)="exportQR(courseFormGroup.controls['id'].value)" svgIcon="mat:print"
+                      style="cursor: pointer;">
+            </mat-icon>
+            <mat-icon (click)="export(courseFormGroup.controls['id'].value)" svgIcon="mat:save"
+                      style="cursor: pointer;">
+            </mat-icon>
           </div>
         </div>
-        <vex-course-detail-nivel [courseFormGroup]="courseFormGroup"
-                                 [hideTimingButton]="true"
-                                 [expandByDefault]="true"
-                                 [selectedSubgroup]="null"
-                                 [checkbox]="false"
-                                 style="width: 100%;"></vex-course-detail-nivel>
       </div>
+      <vex-course-detail-nivel [courseFormGroup]="courseFormGroup"
+                               [hideTimingButton]="true"
+                               [expandByDefault]="true"
+                               [selectedSubgroup]="null"
+                               [checkbox]="false"
+                               [subgroupCache]="subgroupCache"
+                               style="width: 100%;"></vex-course-detail-nivel>
     </div>
-    <div *ngIf="detail" class="cardgroup languaje">
-      <div>
-        <div style="justify-content: space-between;">
-          <p class="label">
-            {{'langs' | translate }}
+  </div>
+
+  <div *ngIf="detail" class="cardgroup languaje">
+    <div>
+      <div style="justify-content: space-between;">
+        <p class="label">
+          {{'langs' | translate }}
           </p>
           <img *ngIf="detail" (click)="edit.emit(5)" src="assets/icons/icon/edit2.png" alt
                class="editbutton icon24">

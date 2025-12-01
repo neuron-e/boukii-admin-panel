@@ -16,6 +16,7 @@ export class CourseDetailCardNivelComponent implements OnInit {
   @Input() selectedSubgroup: any;
   @Input() hideTimingButton: boolean = false;
   @Input() expandByDefault: boolean = false; // Expand all levels by default (for sidebar view)
+  @Input() subgroupCache: Record<string, any[]> = {};
   @Output() changeMonitor = new EventEmitter<any>()
   @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any, selectedDate?: any }>()
 
@@ -231,6 +232,20 @@ export class CourseDetailCardNivelComponent implements OnInit {
     return [];
   }
 
+  private getCachedSubgroupsForDegree(degreeId: number): any[] | null {
+    if (degreeId == null) {
+      return null;
+    }
+
+    const key = String(degreeId);
+    const cached = this.subgroupCache?.[key];
+    if (!Array.isArray(cached) || cached.length === 0) {
+      return null;
+    }
+
+    return cached.map(subgroup => ({ ...subgroup }));
+  }
+
   /**
    * Devuelve TODOS los subgrupos únicos para un degree a través de TODOS los course_dates
    * Útil cuando hay configuración por intervalos y diferentes intervalos tienen diferente número de subgrupos
@@ -238,6 +253,11 @@ export class CourseDetailCardNivelComponent implements OnInit {
    */
   getAllUniqueSubgroupsForDegree(courseDates: any[], degreeId: number): any[] {
     if (!Array.isArray(courseDates)) return [];
+
+    const cached = this.getCachedSubgroupsForDegree(degreeId);
+    if (cached && cached.length > 0) {
+      return cached;
+    }
 
     // Try both structures: cd.course_subgroups (new) and course_groups.course_subgroups (old)
     const maxSubgroupsCount = Math.max(...courseDates.map(cd => {
@@ -527,6 +547,10 @@ export class CourseDetailCardNivelComponent implements OnInit {
   }
   countSubgroups(courseDates: any[], degreeId: number): number {
     if (!Array.isArray(courseDates) || !courseDates.length) return 0;
+    const cached = this.getCachedSubgroupsForDegree(degreeId);
+    if (cached) {
+      return cached.length;
+    }
     // HYBRID: Try both structures
     const sum = courseDates
       .flatMap((cd: any) => {

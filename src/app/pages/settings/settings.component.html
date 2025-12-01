@@ -581,7 +581,7 @@
                     <mat-form-field appearance="outline" class="w-full">
                       <mat-label>Límite de overbooking para privados</mat-label>
                       <input matInput type="number" formControlName="private_overbooking_limit" min="0">
-                      <mat-hint>Reservas extra permitidas cuando no hay monitores libres (0 = no overbooking).</mat-hint>
+                      <mat-hint>{{ 'settings.booking.privates.overbooking_limit_hint' | translate }}</mat-hint>
                     </mat-form-field>
                   </div>
                 </div>
@@ -1959,4 +1959,8 @@
   <iframe [src]="safeUrl" width="100%" height="600px" style="border: none;" body>
   </iframe>
 </vex-flux-modal>
+
+
+
+
 

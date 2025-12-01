@@ -22,6 +22,7 @@
 								(update)="updateCourses()"></vex-course-detail-opcion>
 							<div style="padding: 0;border: none;">
 								<vex-course-detail-card [courseFormGroup]="courses.courseFormGroup" [detail]="true"
+									[subgroupCache]="previewSubgroupCache"
 									[noneExtras]="!courses.courseFormGroup.controls['course_extras'].value.length"
 									(edit)="goTo('courses/update/'+id,{step:$event})" style="width: 100%">
 								</vex-course-detail-card>
@@ -41,7 +42,7 @@
 												class="editbutton icon24">
 										</p>
 									</div>
-            <vex-course-detail-nivel [courseFormGroup]="courses.courseFormGroup"
+            <vex-course-detail-nivel [subgroupCache]="previewSubgroupCache" [courseFormGroup]="courses.courseFormGroup"
                                      (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)"
                                      style="width: 100%;"></vex-course-detail-nivel>
 								</div>

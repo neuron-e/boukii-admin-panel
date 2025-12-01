@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
+﻿import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { TranslateService } from '@ngx-translate/core';
 import { CoursesService } from 'src/service/courses.service';
@@ -21,6 +21,7 @@ export class CourseDetailCardComponent implements OnChanges {
   @Input() step: number = 0
   @Input() mode: 'create' | 'update' = "create"
   @Input() detailMode: boolean = false // diferenciar card de detalle vs card embed en update
+  @Input() subgroupCache: Record<string, any[]> = {};
   @Output() close = new EventEmitter()
   @Output() open = new EventEmitter<number>()
   @Output() edit = new EventEmitter<number>()
@@ -32,7 +33,7 @@ export class CourseDetailCardComponent implements OnChanges {
   intervalNames: Map<number, string> = new Map();
   intervalNamesPrev: Map<number, string> = new Map();
 
-  // Mantener el estado de expansión/colapso de cada intervalo
+  // Mantener el estado de expansiÃ³n/colapso de cada intervalo
   expandedIntervals: Map<number, boolean> = new Map();
   expandedIntervalsPrev: Map<number, boolean> = new Map();
 
@@ -153,7 +154,7 @@ export class CourseDetailCardComponent implements OnChanges {
       if (!groupedDates.has(intervalId)) {
         groupedDates.set(intervalId, []);
 
-        // Inicializar el estado de expansión para este intervalo (por defecto expandido)
+        // Inicializar el estado de expansiÃ³n para este intervalo (por defecto expandido)
         if (!this.expandedIntervals.has(intervalId)) {
           this.expandedIntervals.set(intervalId, true);
         }
@@ -214,6 +215,10 @@ export class CourseDetailCardComponent implements OnChanges {
     }
   }
 
+  public refreshCourseDates(): void {
+    this.processCourseDates();
+  }
+
   /**
    * Obtiene un array de los IDs de intervalo ordenados
    */
@@ -267,7 +272,7 @@ export class CourseDetailCardComponent implements OnChanges {
   }
 
   /**
-   * Obtiene el horario común para un grupo de fechas (si todas tienen el mismo)
+   * Obtiene el horario comÃºn para un grupo de fechas (si todas tienen el mismo)
    */
   getCommonTimeSchedule(dates: any[]): string {
     if (!dates || dates.length === 0) return '';
@@ -280,7 +285,7 @@ export class CourseDetailCardComponent implements OnChanges {
   }
 
   /**
-   * Obtiene los días de la semana en que ocurren las fechas
+   * Obtiene los dÃ­as de la semana en que ocurren las fechas
    */
   getWeekdaysPattern(dates: any[]): string {
     if (!dates || dates.length === 0) return '';
@@ -315,23 +320,23 @@ export class CourseDetailCardComponent implements OnChanges {
   }
 
   /**
-   * Determina si un intervalo debería tener un resumen compacto
-   * basado en el número de fechas y patrones
+   * Determina si un intervalo deberÃ­a tener un resumen compacto
+   * basado en el nÃºmero de fechas y patrones
    */
   shouldShowCompactSummary(dates: any[]): boolean {
     if (!dates || dates.length <= 1) return false;
 
-    // Si hay más de 5 fechas, mostrar resumen
+    // Si hay mÃ¡s de 5 fechas, mostrar resumen
     if (dates.length > 5) return true;
 
     // Si todas las fechas tienen el mismo horario, mostrar resumen
     if (this.hasSameTimeSchedule(dates)) return true;
 
-    // Si las fechas siguen un patrón semanal (por ejemplo, todos los lunes)
+    // Si las fechas siguen un patrÃ³n semanal (por ejemplo, todos los lunes)
     const weekdayPattern = this.getWeekdaysPattern(dates);
     if (weekdayPattern === 'Lunes a Viernes' ||
       weekdayPattern === 'Fines de semana' ||
-      weekdayPattern === 'Todos los días') {
+      weekdayPattern === 'Todos los dÃ­as') {
       return true;
     }
 
@@ -339,7 +344,7 @@ export class CourseDetailCardComponent implements OnChanges {
   }
 
   /**
-   * Alterna el estado de expansión de un intervalo
+   * Alterna el estado de expansiÃ³n de un intervalo
    */
   toggleInterval(intervalId: number, isPrevious: boolean = false): void {
     if (isPrevious) {
@@ -352,7 +357,7 @@ export class CourseDetailCardComponent implements OnChanges {
   }
 
   /**
-   * Verifica si un intervalo está expandido
+   * Verifica si un intervalo estÃ¡ expandido
    */
   isIntervalExpanded(intervalId: number, isPrevious: boolean = false): boolean {
     if (isPrevious) {
@@ -389,7 +394,7 @@ export class CourseDetailCardComponent implements OnChanges {
   }
 
   /**
-   * Cuenta el número de intervalos
+   * Cuenta el nÃºmero de intervalos
    */
   countIntervals(): number {
     return this.groupedCourseDates.size + this.groupedCourseDatesPrev.size;
@@ -410,7 +415,7 @@ export class CourseDetailCardComponent implements OnChanges {
     return months[d.getMonth()];
   }
 
-  // Mapas para controlar la visualización detallada de fechas
+  // Mapas para controlar la visualizaciÃ³n detallada de fechas
   detailedDatesVisible: Map<number, boolean> = new Map();
   detailedDatesPrevVisible: Map<number, boolean> = new Map();
 
@@ -458,10 +463,10 @@ export class CourseDetailCardComponent implements OnChanges {
   }
 
   /**
-   * Obtiene los descuentos de un intervalo específico
+   * Obtiene los descuentos de un intervalo especÃ­fico
    */
   getIntervalDiscounts(intervalId: number): any[] {
-    // Los descuentos de intervalos están guardados en settings.intervals[].discounts
+    // Los descuentos de intervalos estÃ¡n guardados en settings.intervals[].discounts
     let settings = this.courseFormGroup?.controls?.['settings']?.value;
 
     // Si settings es un string, parsearlo
@@ -469,7 +474,7 @@ export class CourseDetailCardComponent implements OnChanges {
       try {
         settings = JSON.parse(settings);
       } catch (e) {
-        console.error('❌ Error parsing settings:', e);
+        console.error('âŒ Error parsing settings:', e);
         return [];
       }
     }
@@ -616,3 +621,4 @@ export class CourseDetailCardComponent implements OnChanges {
       })
   }
 }
+
