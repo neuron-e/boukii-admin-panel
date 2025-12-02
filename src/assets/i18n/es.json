@@ -797,6 +797,7 @@
   "snackbar.client.no_age": "El usuario no es mayor de edad y no puede tener utilizadores",
   "snackbar.course.deleted_group": "Grupo eliminado correctamente",
   "snackbar.course.subgroup_with_bookings": "Este subgrupo tiene reserva asociadas y no puede ser eliminado",
+  "snackbar.course.update": "Curso actualizado correctamente",
   "snackbar.course.capacity": "La capacidad del grupo no puede ser superior al limete de participantes del curso",
   "snackbar.course.trasnfer_user": "Usuario transferido de curso",
   "snackbar.course.coursename": "El campo nombre es obligatorio",

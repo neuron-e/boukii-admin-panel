@@ -184,11 +184,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
     const summary = this.collectSubgroupSummary();
     this.courseSyncLogId += 1;
-    console.group(`Subgroup Sync #${this.courseSyncLogId} @${stage}`);
-    console.log('Left accordion counts:', summary.left);
-    console.log('Right preview counts:', summary.right);
-    console.log('Interval map counts:', summary.map);
-    console.groupEnd();
+    this.debugLog('subgroup-sync', { stage, courseSyncLogId: this.courseSyncLogId, summary });
   }
 
   private logCourseDatesSnapshot(stage: string): void {
@@ -196,16 +192,15 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       return;
     }
     const courseDates = this.courses.courseFormGroup.get('course_dates')?.value || [];
-    console.group(`CourseDates Snapshot @${stage}`);
-    courseDates.forEach((cd: any, index: number) => {
+    const snapshot = courseDates.map((cd: any, index: number) => {
       const courseGroups = Array.isArray(cd?.course_groups) ? cd.course_groups : [];
       const summary = courseGroups.map((group: any) => ({
         level: group?.degree_id,
         subgroups: (group?.course_subgroups || []).length
       }));
-      console.log(`#${index + 1}`, cd.date, summary);
+      return { index: index + 1, date: cd?.date, summary };
     });
-    console.groupEnd();
+    this.debugLog('course-dates-snapshot', { stage, snapshot });
   }
 
   /**
@@ -1975,7 +1970,6 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   addIntervalLevelSubgroup(intervalIdx: number, level: any): void {
     const state = this.ensureIntervalGroupState(intervalIdx, level);
-    console.log("🟡 [addIntervalLevelSubgroup] CALLED", { intervalIdx, level });
     if (state) {
       state.active = true;
     }
@@ -2145,12 +2139,6 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    * Abre modal para añadir subgrupo
    */
   openIntervalSelectorForAddSubgroup(level: any): void {
-    console.log('[AddSubgroup] click', {
-      level,
-      configureLevelsByInterval: this.configureLevelsByInterval,
-      useMultipleIntervals: this.useMultipleIntervals
-    });
-
     const intervalsWithData = Array.isArray(this.intervals) ? this.intervals : [];
     const useIntervalConfig = this.configureLevelsByInterval || (this.useMultipleIntervals && intervalsWithData.length > 0);
 
@@ -4259,8 +4247,6 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       forceSimple
     });
     this.pushDebugLogsToBackend();
-    console.log("🟢 [addLevelSubgroup] CALLED", { levelId, j, add, configureLevelsByInterval: this.configureLevelsByInterval, useMultipleIntervals: this.useMultipleIntervals, courseType, isFlexible, forceSimple });
-
     if (!levelId) {
       return;
     }
@@ -4409,24 +4395,20 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       }
     });
     
-    console.log("🟢 [addLevelSubgroup] setValue + cache populated, new course_dates length:", course_dates.length);
     this.refreshPreviewSubgroupCache();
     this.cdr.detectChanges(); // FIX: Forzar detección inmediata en lugar de markForCheck
 
-    console.log("🟢 [addLevelSubgroup] COMPLETED");
     // NO sincronizar con el mapa aquí, esta función es solo para modificación directa
     // La sincronización del mapa se hace en selectLevel si es necesario
   };
 
   onInlineAddSubgroup(level: any, event?: any): void {
     if (event?.stopPropagation) {
-      console.log("🔵 [onInlineAddSubgroup] CLICK DETECTED", { level, event });
       event.stopPropagation();
     }
     const count = this.getAllUniqueSubgroupsForLevel(level)?.length || 0;
     this.debugLog('inlineAddSubgroup:click', { levelId: level?.id ?? level?.degree_id, currentCount: count, hasIntervals: this.useMultipleIntervals, configureLevelsByInterval: this.configureLevelsByInterval });
     this.pushDebugLogsToBackend();
-    console.log("🔵 [onInlineAddSubgroup] count:", count, "useMultipleIntervals:", this.useMultipleIntervals, "configureLevelsByInterval:", this.configureLevelsByInterval);
     this.addLevelSubgroup(level, count, true);
     this.refreshPreviewSubgroupCache();
     this.cdr.detectChanges();  // FIX A.10: Forzar detección inmediata
@@ -4864,6 +4846,11 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         .pipe(takeUntil(this.destroy$))
         .subscribe((data:any) => {
           if (data.success) {
+            // FIX B.3: Mostrar toast de confirmación
+            this.snackBar.open('Curso creado correctamente', this.translateService.instant('close'), {
+              duration: 3000,
+              panelClass: ['success-snackbar']
+            });
             this.router.navigate(["/courses/detail/" + data.data.id]);
           } else {
             this.showErrorMessage(data.message || "No se pudo crear el curso.");
@@ -4885,6 +4872,11 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           if (data.success) {
             this.debugLog('update:success', { course_id: data?.data?.id ?? this.id ?? null, message: data?.message });
             this.pushDebugLogsToBackend();
+            // FIX B.3: Mostrar toast de confirmación
+            this.snackBar.open(this.translateService.instant('snackbar.course.update'), this.translateService.instant('close'), {
+              duration: 3000,
+              panelClass: ['success-snackbar']
+            });
             this.router.navigate(["/courses/detail/" + data.data.id]);
           } else {
             this.debugLog('update:response-not-success', { course_id: this.id ?? courseFormGroup.id ?? null, message: data?.message });
@@ -5615,8 +5607,6 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           course_groups: courseGroups,
           groups: groupsPayload
         };
-    console.log("🔴 [syncIntervalsToCourseFormGroup] CALLED");
-
         courseDates.push(newDate);
       });
     });
@@ -5625,6 +5615,9 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   // Sincronizar datos de intervalos con el FormGroup del curso
   syncIntervalsToCourseFormGroup(): boolean {
+    // FIX B.1: Guardar settings ANTES de cualquier validación o early return
+    // para asegurar que mustBeConsecutive y mustStartFromFirst se preserven
+    this.saveIntervalSettings();
     if (!this.courses.courseFormGroup) {
       return false;
     }
@@ -5674,8 +5667,6 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     }
 
-    this.saveIntervalSettings();
-
     // Limpiar caché DESPUÉS de sincronizar (no antes, para que no interfiera con la generación)
       this.clearSubgroupsCache();
       this.prefillSubgroupCacheFromIntervalMap();
@@ -5717,9 +5708,15 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       intervalGroupsById: this.serializeIntervalGroupsById()
     };
 
+    // FIX B.2: Actualizar tanto el campo settings como los FormControls individuales
+    // para que el payload incluya mustBeConsecutive y mustStartFromFirst
     this.courses.courseFormGroup.patchValue({
-      settings: JSON.stringify(updatedSettings)
-    });
+      settings: JSON.stringify(updatedSettings),
+      mustBeConsecutive: this.mustBeConsecutive,
+      mustStartFromFirst: this.mustStartFromFirst,
+      useMultipleIntervals: this.useMultipleIntervals,
+      intervals: this.intervals
+    }, { emitEvent: false });
 
   }
 

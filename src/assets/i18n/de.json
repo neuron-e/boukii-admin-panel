@@ -814,6 +814,8 @@
   "snackbar.client.no_age": "Der Benutzer ist nicht volljährig und kann keine Benutzer haben",
   "snackbar.course.deleted_group": "Gruppe erfolgreich gelöscht",
   "snackbar.course.subgroup_with_bookings": "Mit dieser Untergruppe sind Reservierungen verknüpft und sie kann nicht gelöscht werden",
+  "snackbar.course.update": "Kurs erfolgreich aktualisiert",
+
   "snackbar.course.capacity": "Die Gruppenkapazität darf nicht größer sein als die Anzahl der Kursteilnehmer.",
   "snackbar.course.trasnfer_user": "Benutzer vom Kurs übertragen",
   "snackbar.course.coursename": "Das Namensfeld ist erforderlich",

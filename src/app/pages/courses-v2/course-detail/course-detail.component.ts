@@ -7,6 +7,7 @@ import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import {MonitorsCreateUpdateComponent} from '../../monitors/monitors-create-update/monitors-create-update.component';
 import moment from 'moment';
 import {MAT_DIALOG_DATA, MatDialog} from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { CourseTimingModalComponent } from '../course-timing-modal/course-timing-modal.component';
 
 @Component({
@@ -40,7 +41,7 @@ export class CourseDetailComponent implements OnInit {
   constructor(private crudService: ApiCrudService, private activatedRoute: ActivatedRoute,
               public dialog: MatDialog,
               private router: Router, public courses: CoursesService, public TranslateService: TranslateService,
-              @Optional() @Inject(MAT_DIALOG_DATA) public incData: any) {
+              @Optional() @Inject(MAT_DIALOG_DATA) public incData: any, private snackBar: MatSnackBar) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.settings = JSON.parse(this.user.schools[0].settings);
     this.id = this.activatedRoute.snapshot.params.id;
@@ -248,8 +249,32 @@ export class CourseDetailComponent implements OnInit {
   updateCourses() {
     const courseFormGroup = this.courses.courseFormGroup.getRawValue()
     courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value)
-    courseFormGroup.course_type === 1 ? delete courseFormGroup.settings : courseFormGroup.settings = JSON.stringify(this.courses.courseFormGroup.controls['settings'].value)
-    this.crudService.update('/admin/courses', courseFormGroup, this.id).subscribe()
+
+    // FIX C.1: Para cursos colectivos, construir settings con los valores necesarios
+    if (courseFormGroup.course_type === 1) {
+      const currentSettings = this.courses.courseFormGroup.controls['settings'].value || {};
+      courseFormGroup.settings = JSON.stringify({
+        ...currentSettings,
+        useMultipleIntervals: courseFormGroup.useMultipleIntervals,
+        multipleIntervals: courseFormGroup.useMultipleIntervals,
+        mustBeConsecutive: courseFormGroup.mustBeConsecutive,
+        mustStartFromFirst: courseFormGroup.mustStartFromFirst,
+        intervals: courseFormGroup.intervals || [],
+        intervals_config_mode: courseFormGroup.intervals_config_mode || 'unified'
+      });
+    } else {
+      courseFormGroup.settings = JSON.stringify(this.courses.courseFormGroup.controls['settings'].value)
+    }
+
+    // FIX C.2: Mostrar toast de confirmación
+    this.crudService.update('/admin/courses', courseFormGroup, this.id).subscribe((response: any) => {
+      if (response.success) {
+        this.snackBar.open(this.TranslateService.instant('snackbar.course.update'), this.TranslateService.instant('close'), {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+      }
+    })
   }
 
   filterData() {
@@ -471,4 +496,3 @@ export class CourseDetailComponent implements OnInit {
     }
   }
 }
-
