@@ -13,8 +13,8 @@
 	<div class="card flex-auto">
 		<mat-tab-group>
 			<mat-tab label="{{'course' | translate}}">
-				<mat-spinner *ngIf="loading" style="margin: 0 auto"></mat-spinner>
-				<mat-card *ngIf="!loading">
+				<mat-spinner *ngIf="loading || !courses.courseFormGroup" style="margin: 0 auto"></mat-spinner>
+				<mat-card *ngIf="!loading && courses.courseFormGroup">
 					<mat-card-content style="display: flex;padding: 0;">
 						<div [style.width]="count(courses.courseFormGroup.controls['levelGrop'].value,'active')?'':'100%'"
 							class="contents" style="border: 1px solid #dee6ea;">

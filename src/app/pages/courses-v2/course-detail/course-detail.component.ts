@@ -1,4 +1,4 @@
-import {Component, Inject, OnInit, Optional} from '@angular/core';
+import {Component, Inject, OnDestroy, OnInit, Optional} from '@angular/core';
 import { ApiCrudService } from '../../../../service/crud.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CoursesService } from '../../../../service/courses.service';
@@ -9,13 +9,15 @@ import moment from 'moment';
 import {MAT_DIALOG_DATA, MatDialog} from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { CourseTimingModalComponent } from '../course-timing-modal/course-timing-modal.component';
+import {forkJoin, of, Subject} from 'rxjs';
+import {catchError, finalize, map, switchMap, takeUntil} from 'rxjs/operators';
 
 @Component({
   selector: 'vex-course-detail',
   templateUrl: './course-detail.component.html',
   styleUrls: ['./course-detail.component.scss']
 })
-export class CourseDetailComponent implements OnInit {
+export class CourseDetailComponent implements OnInit, OnDestroy {
   minDate = new Date(2000, 1, 1);
   nowDate = new Date()
   maxDate = new Date(2099, 12, 31);
@@ -37,6 +39,9 @@ export class CourseDetailComponent implements OnInit {
   filter = '';
   totalPriceSell = 0;
   previewSubgroupCache: Record<string, any[]> = {};
+  initialFormSnapshot: any = null;
+  saving = false;
+  private destroy$ = new Subject<void>();
 
   constructor(private crudService: ApiCrudService, private activatedRoute: ActivatedRoute,
               public dialog: MatDialog,
@@ -110,171 +115,165 @@ export class CourseDetailComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    if (!this.incData) this.id = this.activatedRoute.snapshot.params.id;
-    else this.id = this.incData.id;
+    this.id = this.incData ? this.incData.id : this.activatedRoute.snapshot.params.id;
+    this.loadCourseDetail();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private loadCourseDetail(): void {
+    this.loading = true;
     this.crudService.get('/admin/courses/' + this.id,
       ['courseGroups.degree', 'courseGroups.courseDates.courseSubgroups.bookingUsers.client',
         'courseGroups.courseDates.courseSubgroups.bookingUsers.booking',
         'bookingUsers.client', 'bookingUsers.booking', 'sport', 'courseExtras'])
-      .subscribe((data: any) => {
-        this.detailData = data.data
+      .pipe(
+        takeUntil(this.destroy$),
+        switchMap((data: any) => {
+          this.detailData = data.data;
 
-        // Check if this is a FIX course (should be treated as flexible)
-        const isFIXCourse = this.detailData.name?.toUpperCase().includes('FIX');
-        const isCollectiveFIX = this.detailData.course_type === 1 && isFIXCourse;
-        this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id=' + this.detailData.sport_id)
-          .subscribe((data) => {
-            this.detailData.degrees = [];
-            data.data.forEach((element: any) => {
-              if (element.active) this.detailData.degrees.push({...element,});
+          const isFIXCourse = this.detailData.name?.toUpperCase().includes('FIX');
+          const schoolId = this.detailData.school_id;
+          const sportId = this.detailData.sport_id;
+
+          const degrees$ = this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + schoolId + '&sport_id=' + sportId)
+            .pipe(map((res: any) => res?.data || []));
+
+          const stationId = this.detailData.station_id;
+          const stations$ = stationId
+            ? this.crudService.getById('/stations', stationId).pipe(
+                map((res: any) => {
+                  const data = res?.data ?? res;
+                  return data ? [data] : [];
+                }),
+                catchError(() => of([]))
+              )
+            : of([]);
+
+          const courseDates = this.detailData.course_dates || [];
+          const embeddedUsers = this.collectBookingUsersFromDetailData(courseDates);
+          const hasEmbeddedUsers = Array.isArray(embeddedUsers) && embeddedUsers.length > 0;
+          const bookingUsers$ = hasEmbeddedUsers
+            ? of(embeddedUsers)
+            : this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + schoolId + '&course_id=' + this.detailData.id + '&with[]=client')
+                .pipe(
+                  map((res: any) => res?.data || []),
+                  catchError(() => of(embeddedUsers || []))
+                );
+
+          return forkJoin({degrees: degrees$, stations: stations$, bookingUsers: bookingUsers$, isFIXCourse: of(isFIXCourse)});
+        }),
+        catchError((error) => {
+          console.error('Error loading course detail', error);
+          this.snackBar.open(this.TranslateService.instant('snackbar.error'), this.TranslateService.instant('close'), {duration: 4000});
+          return of(null);
+        }),
+        finalize(() => this.loading = false)
+      )
+      .subscribe((result: any) => {
+        if (!result) {
+          return;
+        }
+        const {degrees, stations, bookingUsers, isFIXCourse} = result;
+
+        this.detailData.degrees = [];
+        (degrees || []).forEach((element: any) => {
+          if (element.active) this.detailData.degrees.push({...element,});
+        });
+
+        const courseDates = this.detailData.course_dates || [];
+
+        this.detailData.degrees.forEach((level: any) => {
+          level.active = false;
+          level.visible = false;
+          courseDates.forEach((cs: any) => {
+            const courseGroups = cs?.course_groups || [];
+            courseGroups.forEach((group: any) => {
+              if (group.degree_id === level.id) {
+                level.active = true;
+                level.old = true;
+                level.visible = true;
+              }
             });
-            this.detailData.degrees.forEach((level: any) => {
-              level.active = false;
-              level.visible = false;
-              this.detailData.course_dates.forEach((cs: any) => {
-                cs.course_groups.forEach((group: any) => {
-                  if (group.degree_id === level.id) {
-                    level.active = true;
-                    level.old = true;
-                    level.visible = true;
-                  }
-                });
-              });
-            });
-            const duplicates = this.courses.countCourseDateSubgroupDuplicates(this.detailData.course_dates);
-            if (duplicates > 0) {
-              console.warn(`CourseDetail detected ${duplicates} duplicate subgroup rows on load; the data will be sanitized before rendering.`);
-            }
-            this.crudService.list('/stations', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id)
-              .subscribe((st: any) => {
-                st.data.forEach((element: any) => {
-                  if (element.id === this.detailData.station_id) this.detailData.station = element
-                });
-                // For ALL collective courses (regular and FIX), we need to ensure booking users are loaded
-                const isFIXCourse = this.detailData.name?.toUpperCase().includes('FIX');
-
-                if (this.detailData.course_type === 1) {
-                  this.detailData.users = [];
-                  const bookingUsersMap = new Map(); // To avoid duplicates
-
-                  // Check both possible structures
-                  const courseGroupsData = this.detailData.courseGroups || this.detailData.course_groups || [];
-                  const courseDatesData = this.detailData.course_dates || [];
-
-                  // Try courseGroups structure first (from API relation)
-                  courseGroupsData.forEach((group: any) => {
-                    const courseDates = group.courseDates || group.course_dates || [];
-                    courseDates.forEach((courseDate: any) => {
-                      const subgroups = courseDate.courseSubgroups || courseDate.course_subgroups || [];
-                      subgroups.forEach((subgroup: any) => {
-                        const bookingUsers = subgroup.bookingUsers || subgroup.booking_users || [];
-                        bookingUsers.forEach((bookingUser: any) => {
-                          const key = `${bookingUser.client_id}-${bookingUser.booking_id || bookingUser.id}`;
-                          if (!bookingUsersMap.has(key)) {
-                            bookingUsersMap.set(key, {
-                              ...bookingUser,
-                              course_date_id: courseDate.id,
-                              course_group_id: group.id,
-                              course_subgroup_id: subgroup.id
-                            });
-                          }
-                        });
-                      });
-                    });
-                  });
-
-                  this.detailData.users = Array.from(bookingUsersMap.values());
-                  this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
-                    .subscribe((bookingUser) => {
-                      this.detailData.users = bookingUser.data || [];
-                      if (this.detailData.users.length > 0) {
-                        this.detailData.users.forEach((user: any, index: number) => {
-                        });
-                      }
-
-                      // For FIX courses, correct the reservation count to show unique bookings instead of individual dates
-                      if (isFIXCourse && this.detailData.users.length > 0) {
-                        const uniqueBookings = new Set();
-                        this.detailData.users.forEach((user: any) => {
-                          const bookingId = user.booking_id || user.id;
-                          if (bookingId) uniqueBookings.add(bookingId);
-                        });
-
-                        // Override the total_reservations for FIX courses
-                        this.detailData.total_reservations = uniqueBookings.size;
-                      }
-
-                      // Update detailData with the new booking users before setting form group
-                      this.detailData.booking_users = this.detailData.users;
-
-                      // Initialize courseFormGroup for collective courses
-                      this.courses.settcourseFormGroup(this.detailData)
-                      this.refreshPreviewSubgroupCache();
-
-                      // CRITICAL: After setting the form group, ensure booking_users control is updated
-                      if (this.courses.courseFormGroup && this.detailData.users.length > 0) {
-                        const patchData: any = {
-                          booking_users: this.detailData.users
-                        };
-
-                        // For FIX courses, also update the total_reservations in the form
-                        if (isFIXCourse) {
-                          patchData.total_reservations = this.detailData.total_reservations;
-                        }
-
-                        this.courses.courseFormGroup.patchValue(patchData);
-                        this.refreshPreviewSubgroupCache();
-                      }
-
-                      this.toggleClaimText = Boolean(this.courses.courseFormGroup.controls['claim_text'].value)
-                      setTimeout(() => this.loading = false, 0);
-                    });
-                } else {
-                  // Regular courses - use direct API call
-                  this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
-                    .subscribe((bookingUser) => {
-                      this.detailData.users = [];
-                      this.detailData.users = bookingUser.data;
-                      this.courses.settcourseFormGroup(this.detailData)
-                      this.refreshPreviewSubgroupCache();
-                      this.toggleClaimText = Boolean(this.courses.courseFormGroup.controls['claim_text'].value)
-                      setTimeout(() => this.loading = false, 0);
-                    })
-                }
-              })
           });
-      })
+        });
+
+        const duplicates = this.courses.countCourseDateSubgroupDuplicates(courseDates);
+        if (duplicates > 0) {
+          console.warn(`CourseDetail detected ${duplicates} duplicate subgroup rows on load; the data will be sanitized before rendering.`);
+        }
+
+        (stations || []).forEach((element: any) => {
+          if (element.id === this.detailData.station_id) this.detailData.station = element
+        });
+
+        const users = (bookingUsers && bookingUsers.length > 0) ? bookingUsers : [];
+        this.detailData.users = users;
+
+        if (isFIXCourse && this.detailData.users.length > 0) {
+          const uniqueBookings = new Set();
+          this.detailData.users.forEach((user: any) => {
+            const bookingId = user.booking_id || user.id;
+            if (bookingId) uniqueBookings.add(bookingId);
+          });
+          this.detailData.total_reservations = uniqueBookings.size;
+        }
+
+        this.detailData.booking_users = this.detailData.users;
+        this.courses.settcourseFormGroup(this.detailData)
+        this.refreshPreviewSubgroupCache();
+        this.initialFormSnapshot = this.cloneValue(this.courses.courseFormGroup.getRawValue());
+
+        if (this.courses.courseFormGroup && this.detailData.users.length > 0) {
+          const patchData: any = {
+            booking_users: this.detailData.users
+          };
+
+          if (isFIXCourse) {
+            patchData.total_reservations = this.detailData.total_reservations;
+          }
+
+          this.courses.courseFormGroup.patchValue(patchData);
+          this.refreshPreviewSubgroupCache();
+        }
+
+        this.toggleClaimText = Boolean(this.courses.courseFormGroup.controls['claim_text'].value)
+      });
   }
 
   updateCourses() {
-    const courseFormGroup = this.courses.courseFormGroup.getRawValue()
-    courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value)
+    this.saving = true;
+    const { mode, payload, fullPayload } = this.buildUpdatePayload(true);
 
-    // FIX C.1: Para cursos colectivos, construir settings con los valores necesarios
-    if (courseFormGroup.course_type === 1) {
-      const currentSettings = this.courses.courseFormGroup.controls['settings'].value || {};
-      courseFormGroup.settings = JSON.stringify({
-        ...currentSettings,
-        useMultipleIntervals: courseFormGroup.useMultipleIntervals,
-        multipleIntervals: courseFormGroup.useMultipleIntervals,
-        mustBeConsecutive: courseFormGroup.mustBeConsecutive,
-        mustStartFromFirst: courseFormGroup.mustStartFromFirst,
-        intervals: courseFormGroup.intervals || [],
-        intervals_config_mode: courseFormGroup.intervals_config_mode || 'unified'
+    const request$ = mode === 'patch'
+      ? this.crudService.patch('/admin/courses', payload, this.id)
+      : this.crudService.update('/admin/courses', payload, this.id);
+
+    request$
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError((error) => {
+          console.error('Course update failed', error);
+          if (mode === 'patch') {
+            return this.crudService.update('/admin/courses', fullPayload, this.id);
+          }
+          this.snackBar.open(this.TranslateService.instant('snackbar.error'), this.TranslateService.instant('close'), {duration: 4000});
+          return of(null);
+        }),
+        finalize(() => this.saving = false)
+      )
+      .subscribe((response: any) => {
+        if (response && response.success) {
+          this.snackBar.open(this.TranslateService.instant('snackbar.course.update'), this.TranslateService.instant('close'), {
+            duration: 3000,
+            panelClass: ['success-snackbar']
+          });
+          this.initialFormSnapshot = this.cloneValue(this.courses.courseFormGroup.getRawValue());
+        }
       });
-    } else {
-      courseFormGroup.settings = JSON.stringify(this.courses.courseFormGroup.controls['settings'].value)
-    }
-
-    // FIX C.2: Mostrar toast de confirmación
-    this.crudService.update('/admin/courses', courseFormGroup, this.id).subscribe((response: any) => {
-      if (response.success) {
-        this.snackBar.open(this.TranslateService.instant('snackbar.course.update'), this.TranslateService.instant('close'), {
-          duration: 3000,
-          panelClass: ['success-snackbar']
-        });
-      }
-    })
   }
 
   filterData() {
@@ -494,5 +493,63 @@ export class CourseDetailComponent implements OnInit {
       console.warn('collectBookingUsersFromDetailData error:', e);
       return this.detailData?.users || [];
     }
+  }
+
+  private cloneValue<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  private areEqual(a: any, b: any): boolean {
+    return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  }
+
+  private buildSettingsPayload(formValue: any): string {
+    if (formValue.course_type === 1) {
+      const currentSettings = this.courses.courseFormGroup.controls['settings'].value || {};
+      return JSON.stringify({
+        ...currentSettings,
+        useMultipleIntervals: formValue.useMultipleIntervals,
+        multipleIntervals: formValue.useMultipleIntervals,
+        mustBeConsecutive: formValue.mustBeConsecutive,
+        mustStartFromFirst: formValue.mustStartFromFirst,
+        intervals: formValue.intervals || [],
+        intervals_config_mode: formValue.intervals_config_mode || 'unified'
+      });
+    }
+    return JSON.stringify(this.courses.courseFormGroup.controls['settings'].value);
+  }
+
+  private buildUpdatePayload(preferPatch: boolean): { mode: 'patch' | 'put', payload: any, fullPayload: any } {
+    const formValue = this.courses.courseFormGroup.getRawValue();
+    const translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value);
+    const settings = this.buildSettingsPayload(formValue);
+
+    const fullPayload = {
+      ...formValue,
+      translations,
+      settings
+    };
+
+    const initial = this.initialFormSnapshot || {};
+    const heavyKeys = ['course_dates', 'booking_users', 'courseGroups', 'course_groups', 'courseSubgroups', 'course_subgroups'];
+    const hasHeavyChanges = heavyKeys.some(key => !this.areEqual(formValue[key], initial[key]));
+
+    const alwaysInclude = ['course_type', 'sport_id', 'school_id'];
+    const changedScalars: any = { id: this.id, translations, settings };
+
+    Object.keys(formValue || {}).forEach((key) => {
+      if (heavyKeys.includes(key)) {
+        return;
+      }
+      if (alwaysInclude.includes(key) || !this.areEqual(formValue[key], initial[key])) {
+        changedScalars[key] = formValue[key];
+      }
+    });
+
+    if (preferPatch && !hasHeavyChanges) {
+      return { mode: 'patch', payload: changedScalars, fullPayload };
+    }
+
+    return { mode: 'put', payload: fullPayload, fullPayload };
   }
 }
