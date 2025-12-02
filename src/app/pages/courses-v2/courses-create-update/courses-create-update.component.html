@@ -1264,7 +1264,7 @@
                 <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px;">
                   {{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}
                   <img *ngIf="getAllUniqueSubgroupsForLevel(level).length>1 && (!uniqueSubgroup.booking_users || uniqueSubgroup.booking_users.length===0)"
-                       (click)="mode==='create'?(useMultipleIntervals?removeIntervalLevelSubgroup(selectedIntervalIndexForGroups, level, uniqueSubgroup._index):addLevelSubgroup(level,uniqueSubgroup._index,false)):editModal=true;setEditFunction(useMultipleIntervals?'removeIntervalLevelSubgroup':'addLevelSubgroup',useMultipleIntervals?selectedIntervalIndexForGroups:level,level,uniqueSubgroup._index,false)"
+                       (click)="mode==='create'?(useMultipleIntervals?removeIntervalLevelSubgroup(selectedIntervalIndexForGroups, level, uniqueSubgroup._index):addLevelSubgroup(level,uniqueSubgroup._index,false)):editModal=true;setEditFunction(useMultipleIntervals?'removeIntervalLevelSubgroup':'addLevelSubgroup',level,uniqueSubgroup._index,false)"
                        src="assets/icons/icon/delete.png" alt class="icon20"
                        style="cursor: pointer; font-size: 20px;align-content: space-evenly;">
                 </div>
