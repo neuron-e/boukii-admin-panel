@@ -328,7 +328,7 @@
   "price_per_date": "Precio por fecha",
   "prices": "Precios",
   "course_price": "Precio del curso",
-  "max_pax": "Participantes max.",
+  "max_pax": "Pax máx.",
   "participants": "Participantes",
   "available_groups": "Grupos disponibles",
   "select_group": "Seleccionar grupo",
@@ -1968,5 +1968,7 @@
   "no_sports_yet": "Todavía no hay deportes",
   "add_sports_message": "Añade deportes en la pestaña \"Deportes\" para ver la evolución del cliente",
   "course_updated_successfully": "Curso actualizado correctamente",
-  "course_created_successfully": "Curso creado correctamente"
+  "course_created_successfully": "Curso creado correctamente",
+  "min_age": "Edad mín.",
+  "max_age": "Edad máx."
 }

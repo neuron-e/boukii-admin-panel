@@ -672,8 +672,9 @@ export class SettingsComponent implements OnInit {
       });
     }
 
-    // Lazy load meeting points when accessing Extras tab (tab 7)
-    if (event.index === 7 && (!this.meetingPoints || this.meetingPoints.length === 0)) {
+    // Lazy load meeting points when accessing Meeting Points tab (3rd tab, index 2)
+    const isMeetingPointsTab = event?.index === 2 || (event?.tab?.textLabel && event.tab.textLabel.toLowerCase().includes('meeting'));
+    if (isMeetingPointsTab && (!this.meetingPoints || this.meetingPoints.length === 0)) {
       this.loadMeetingPoints();
     }
   }
@@ -1247,8 +1248,8 @@ export class SettingsComponent implements OnInit {
       }))
       .subscribe({
         next: (data) => {
-          this.meetingPoints = data;
-          this.dataSourceMeetingPoints.data = data;
+          this.meetingPoints = Array.isArray(data) ? data : [];
+          this.dataSourceMeetingPoints.data = this.meetingPoints;
         },
         error: () => {
           this.meetingPoints = [];

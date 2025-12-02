@@ -44,6 +44,24 @@ export class BookingDetailV2Component implements OnInit {
   isPaid = false;
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
+  // Prefer basket.price_total when available
+  private resolveDisplayTotal(booking: any): number {
+    if (!booking) return 0;
+    const basketRaw = booking.basket;
+    let basket: any = null;
+    if (basketRaw) {
+      try {
+        basket = typeof basketRaw === 'string' ? JSON.parse(basketRaw) : basketRaw;
+      } catch {
+        basket = null;
+      }
+    }
+    const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
+    const originalTotal = booking.price_total !== undefined ? Number(booking.price_total) : NaN;
+    if (!isNaN(basketTotal)) return basketTotal;
+    if (!isNaN(originalTotal)) return originalTotal;
+    return 0;
+  }
 
   private activitiesChangedSubject = new Subject<void>();
 
@@ -286,6 +304,10 @@ export class BookingDetailV2Component implements OnInit {
         .subscribe((data) => {
         this.bookingData$.next(data.data);
         this.bookingData = data.data;
+        const displayTotal = this.resolveDisplayTotal(this.bookingData);
+        if (displayTotal) {
+          this.bookingData.price_total = displayTotal;
+        }
         // Asegurar estructura de actividades agrupadas y totales calculados
         this.groupedActivities = this.groupBookingUsersByGroupId(data.data);
         this.mainClient = data.data.client_main;
@@ -908,9 +930,8 @@ export class BookingDetailV2Component implements OnInit {
       paid_total: 0
     };
 
-    const priceTotalRaw = bookingData.price_total as any;
-    const priceTotalNum = typeof priceTotalRaw === 'number' ? priceTotalRaw : parseFloat(priceTotalRaw ?? '0');
-    const safePriceTotal = isNaN(priceTotalNum) ? 0 : priceTotalNum;
+    const priceTotalRaw = this.resolveDisplayTotal(bookingData);
+    const safePriceTotal = isNaN(priceTotalRaw) ? 0 : priceTotalRaw;
 
     const vouchersTotal = this.calculateTotalVoucherPrice();
     const safeVouchersTotal = isNaN(vouchersTotal) ? 0 : vouchersTotal;

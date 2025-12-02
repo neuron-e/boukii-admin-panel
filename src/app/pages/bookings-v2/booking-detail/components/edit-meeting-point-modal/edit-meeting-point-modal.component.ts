@@ -36,7 +36,8 @@ export class EditMeetingPointModalComponent implements OnInit {
     this.loading = true;
     this.meetingPointService.list({ active: true }).subscribe({
       next: (response: any) => {
-        this.meetingPoints = response.data || [];
+        // response ya viene normalizado en el service; usarlo directamente
+        this.meetingPoints = Array.isArray(response) ? response : (response?.data || []);
         this.loading = false;
       },
       error: () => {
@@ -52,6 +53,10 @@ export class EditMeetingPointModalComponent implements OnInit {
       this.meetingPointName = selected.name;
       this.meetingPointAddress = selected.address || '';
       this.meetingPointInstructions = selected.instructions || '';
+    } else {
+      this.meetingPointName = '';
+      this.meetingPointAddress = '';
+      this.meetingPointInstructions = '';
     }
   }
 

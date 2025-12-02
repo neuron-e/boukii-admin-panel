@@ -154,12 +154,12 @@ export class CourseDetailCardComponent implements OnChanges {
       if (!groupedDates.has(intervalId)) {
         groupedDates.set(intervalId, []);
 
-        // Inicializar el estado de expansiÃ³n para este intervalo (por defecto expandido)
+        // Inicializar el estado de expansiÃ³n para este intervalo (por defecto colapsado)
         if (!this.expandedIntervals.has(intervalId)) {
-          this.expandedIntervals.set(intervalId, true);
+          this.expandedIntervals.set(intervalId, false);
         }
         if (!this.expandedIntervalsPrev.has(intervalId)) {
-          this.expandedIntervalsPrev.set(intervalId, true);
+          this.expandedIntervalsPrev.set(intervalId, false);
         }
       }
 

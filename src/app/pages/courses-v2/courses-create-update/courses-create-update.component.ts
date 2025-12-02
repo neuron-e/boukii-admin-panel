@@ -7488,4 +7488,61 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.syncIntervalsToCourseFormGroup();
     this.enforceIntervalGroupAvailability();
   }
+
+  // FIX E.1: Actualizar max_participants de un subgrupo específico en todas las fechas
+  updateSubgroupMaxParticipants(level: any, subgroupIndex: number, newValue: number): void {
+    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
+    if (levelId == null || subgroupIndex == null) {
+      return;
+    }
+
+    const maxParticipants = parseInt(String(newValue), 10);
+    if (isNaN(maxParticipants) || maxParticipants < 1) {
+      return;
+    }
+
+    // Actualizar en course_dates
+    const courseDates = this.courses.courseFormGroup.get('course_dates')?.value || [];
+    let updated = false;
+
+    courseDates.forEach((cd: any) => {
+      const courseGroups = cd?.course_groups || cd?.courseGroups || [];
+      const group = Array.isArray(courseGroups)
+        ? courseGroups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId)
+        : null;
+
+      if (group) {
+        const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+        if (subgroups[subgroupIndex]) {
+          subgroups[subgroupIndex].max_participants = maxParticipants;
+          updated = true;
+        }
+      }
+    });
+
+    // Actualizar en intervalGroupsMap si existe
+    if (this.configureLevelsByInterval || this.useMultipleIntervals) {
+      Object.values(this.intervalGroupsMap || {}).forEach((intervalState: any) => {
+        const levelKey = String(levelId);
+        const levelState = intervalState?.[levelKey];
+        if (levelState?.subgroups?.[subgroupIndex]) {
+          levelState.subgroups[subgroupIndex].max_participants = maxParticipants;
+          updated = true;
+        }
+      });
+    }
+
+    if (updated) {
+      // Forzar actualización del FormArray con nueva referencia
+      const courseDatesControl = this.courses.courseFormGroup.get('course_dates');
+      if (courseDatesControl) {
+        courseDatesControl.setValue([...courseDates]);
+        courseDatesControl.markAsDirty();
+      }
+
+      // Limpiar caché para forzar recalcular
+      this.clearSubgroupsCache();
+      this.cdr.detectChanges();
+    }
+  }
 }

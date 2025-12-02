@@ -38,6 +38,28 @@ export class BookingsV2Component implements OnInit, OnChanges {
   bookingLog: any = [];
   bookingUsersUnique = [];
   allLevels: any;
+  // Use basket.price_total when available to display accurate totals
+  private resolveDisplayTotal(booking: any): number {
+    if (!booking) return 0;
+    const basketRaw = booking.basket;
+    let basket: any = null;
+    if (basketRaw) {
+      try {
+        basket = typeof basketRaw === 'string' ? JSON.parse(basketRaw) : basketRaw;
+      } catch {
+        basket = null;
+      }
+    }
+    const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
+    const originalTotal = booking.price_total !== undefined ? Number(booking.price_total) : NaN;
+    if (!isNaN(basketTotal)) {
+      return basketTotal;
+    }
+    if (!isNaN(originalTotal)) {
+      return originalTotal;
+    }
+    return 0;
+  }
 
   createComponent = BookingsCreateUpdateV2Component;
   icon = '../../../assets/img/icons/reservas.svg';
@@ -107,6 +129,10 @@ export class BookingsV2Component implements OnInit, OnChanges {
 
         const res: any = await this.crudService.get(`${this.entity}/${event.item.id}`, relations).toPromise();
         this.detailData = res?.data || event.item;
+        const displayTotal = this.resolveDisplayTotal(this.detailData);
+        if (displayTotal) {
+          this.detailData.price_total = displayTotal;
+        }
 
         // Ordenar los usuarios de la reserva
         this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
@@ -137,6 +163,10 @@ export class BookingsV2Component implements OnInit, OnChanges {
       } catch (e) {
         // Fallback mínimo si la carga de detalle falla
         this.detailData = event.item;
+        const displayTotal = this.resolveDisplayTotal(this.detailData);
+        if (displayTotal) {
+          this.detailData.price_total = displayTotal;
+        }
         this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
         this.getUniqueBookingUsers(this.detailData.bookingusers);
       }
@@ -659,6 +689,15 @@ export class BookingsV2Component implements OnInit, OnChanges {
   }
 
   onDataLoaded(data: any[]): void {
+    if (Array.isArray(data)) {
+      data.forEach(booking => {
+        const displayTotal = this.resolveDisplayTotal(booking);
+        if (displayTotal) {
+          booking.price_total = displayTotal;
+        }
+      });
+    }
+
     if (this.isFlexCourse && data.length > 0) {
 
       // For flex courses, group bookings by booking_id to get unique reservations

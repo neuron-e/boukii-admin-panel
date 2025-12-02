@@ -305,7 +305,7 @@
   "price_per_date": "Price per date",
   "prices": "Prices",
   "course_price": "Course price",
-  "max_pax": "Participants max.",
+  "max_pax": "Max pax",
   "participants": "Participants",
   "available_groups": "Available groups",
   "select_group": "Select group",
@@ -1900,5 +1900,7 @@
   "add_sports_message": "Add sports in the \"Sports\" tab to see client evolution",
   "export_all_courses": "Export all courses",
   "course_updated_successfully": "Course updated successfully",
-  "course_created_successfully": "Course created successfully"
+  "course_created_successfully": "Course created successfully",
+  "min_age": "Min. age",
+  "max_age": "Max. age"
 }

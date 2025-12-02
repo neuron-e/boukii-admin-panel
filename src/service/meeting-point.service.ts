@@ -11,7 +11,13 @@ export class MeetingPointService {
 
   list(filters: Record<string, any> = {}): Observable<any[]> {
     return this.crudService.get('/admin/meeting-points', [], filters).pipe(
-      map(response => response.data || [])
+      map(response => {
+        if (!response) return [];
+        if (Array.isArray(response)) return response;
+        if (Array.isArray(response.data)) return response.data;
+        if (response.data && Array.isArray(response.data.data)) return response.data.data;
+        return [];
+      })
     );
   }
 

@@ -317,7 +317,7 @@
   "price_per_date": "Prix par date",
   "prices": "Des prix",
   "course_price": "Prix du cours",
-  "max_pax": "Participants max.",
+  "max_pax": "Pax max.",
   "participants": "Participants",
   "available_groups": "Groupes disponibles",
   "select_group": "Sélectionner un groupe",
@@ -1930,5 +1930,7 @@
   "delete_confirm": "?tes-vous s?r de vouloir supprimer cet ?l?ment ?",
   "no_status": "Sans statut",
   "course_updated_successfully": "Cours mis à jour avec succès",
-  "course_created_successfully": "Cours créé avec succès"
+  "course_created_successfully": "Cours créé avec succès",
+  "min_age": "Âge min.",
+  "max_age": "Âge max."
 }
