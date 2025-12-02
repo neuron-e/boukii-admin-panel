@@ -4236,6 +4236,15 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const forceSimple = courseType === 1 && !isFlexible;
     const levelId = Number(level?.id ?? level?.degree_id);
 
+    // Forzar flags simples para cursos colectivos fijos para evitar ramas de intervalos
+    if (forceSimple) {
+      this.configureLevelsByInterval = false;
+      this.useMultipleIntervals = false;
+      if (!Array.isArray(this.intervals)) {
+        this.intervals = [];
+      }
+    }
+
     this.debugLog('addLevelSubgroup:entry', {
       levelId,
       j,
