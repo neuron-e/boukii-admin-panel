@@ -1195,6 +1195,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return;
     }
 
+    // Asegurar que el total enviado incluya opcionales (p.e. seguro de cancelaciÃ³n)
+    const finalPriceTotal = this.buildFinalPriceTotal(bookingData);
+    bookingData.price_total = finalPriceTotal;
+
     bookingData.cart = this.bookingService.setCart(this.normalizedDates, bookingData);
 
     const paymentMethodId = this.determinePaymentMethodId();
@@ -1327,6 +1331,23 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       const parsed = typeof value === 'number' ? value : parseFloat(value ?? '0');
       return acc + (isNaN(parsed) ? 0 : parsed);
     }, 0);
+  }
+
+  private buildFinalPriceTotal(bookingData: any): number {
+    const baseRaw = bookingData?.price_total ?? 0;
+    const base = typeof baseRaw === 'number' ? baseRaw : parseFloat(String(baseRaw)) || 0;
+
+    const insurance = bookingData?.has_cancellation_insurance
+      ? Number(bookingData.price_cancellation_insurance || 0)
+      : 0;
+
+    const reduction = bookingData?.price_reduction ? Number(bookingData.price_reduction) : 0;
+    const boukiiCare = bookingData?.has_boukii_care ? Number(bookingData.price_boukii_care || 0) : 0;
+    const tva = bookingData?.has_tva ? Number(bookingData.price_tva || 0) : 0;
+
+    const total = base + insurance - reduction + boukiiCare + tva;
+    const safeTotal = isNaN(total) ? 0 : total;
+    return Number(safeTotal.toFixed(2));
   }
 
 

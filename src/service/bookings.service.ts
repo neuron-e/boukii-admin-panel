@@ -204,6 +204,8 @@ export class BookingService {
       return 0;
     }
 
+    const finalTotal = this.computeFrontendTotal(data);
+
     const vouchers = Array.isArray((data as any).vouchers) ? (data as any).vouchers : [];
     const totalVouchers = vouchers.reduce((acc: number, item: any) => {
       const value = item?.bonus?.reducePrice;
@@ -211,11 +213,7 @@ export class BookingService {
       return acc + (isNaN(parsed) ? 0 : parsed);
     }, 0);
 
-    const priceTotal = typeof (data as any).price_total === 'number'
-      ? (data as any).price_total
-      : parseFloat((data as any).price_total ?? '0');
-
-    const pending = priceTotal - totalVouchers;
+    const pending = finalTotal - totalVouchers;
     return pending > 0 ? pending : 0;
   }
 
@@ -419,6 +417,22 @@ export class BookingService {
       basket: null,  // Reset de reduction
       cart:  null
     });
+  }
+
+  private computeFrontendTotal(data: BookingCreateData): number {
+    const baseRaw = (data as any).price_total ?? 0;
+    const base = typeof baseRaw === 'number' ? baseRaw : parseFloat(String(baseRaw)) || 0;
+
+    const insurance = (data as any).has_cancellation_insurance
+      ? Number((data as any).price_cancellation_insurance || 0)
+      : 0;
+    const reduction = (data as any).price_reduction ? Number((data as any).price_reduction) : 0;
+    const boukiiCare = (data as any).has_boukii_care ? Number((data as any).price_boukii_care || 0) : 0;
+    const tva = (data as any).has_tva ? Number((data as any).price_tva || 0) : 0;
+
+    const total = base + insurance - reduction + boukiiCare + tva;
+    const safe = isNaN(total) ? 0 : total;
+    return Number(safe.toFixed(2));
   }
 
   /**

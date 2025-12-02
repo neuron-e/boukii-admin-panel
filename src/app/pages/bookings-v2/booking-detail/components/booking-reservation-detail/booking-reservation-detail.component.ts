@@ -46,6 +46,8 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   price_boukii_care: number;
   school: any;
   settings: any;
+  displayTotal = 0;
+  displayOutstanding = 0;
   meetingPoints: any[] = [];
   selectedMeetingPointId: number | null = null;
   meetingPointName: string = '';
@@ -78,6 +80,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     //this.bookingData = this.bookingService.getBookingData() || this.initializeBookingData();
     this.recalculateBonusPrice();
     this.updateBookingData();
+    this.refreshDisplayTotals();
     this.activitiesChangedSub = this.activitiesChanged.subscribe((res: any) => {
       if (res) {
         this.bookingData = res;
@@ -86,6 +89,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       this.loadExistingVouchers();
       this.recalculateBonusPrice();
       this.updateBookingData();
+      this.refreshDisplayTotals();
     });
     this.loadMeetingPoints();
   }
@@ -243,8 +247,10 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       this.bookingData.price_cancellation_insurance = 0;
       this.bookingData.has_cancellation_insurance = event.source.checked;
     }
+    this.applyComputedTotals();
     this.updateBookingData();
     this.recalculateBonusPrice();
+    this.persistCancellationInsurance();
   }
 
   recalculateBonusPrice() {
@@ -298,12 +304,60 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       + parseFloat(this.bookingData.price_tva);
   }
 
+  getFinalTotal(): number {
+    this.recalculateTva();
+
+    const base = this.sumActivityTotal();
+    const insurance = this.bookingData?.has_cancellation_insurance ? Number(this.bookingData.price_cancellation_insurance || 0) : 0;
+    const reduction = this.bookingData?.price_reduction ? Number(this.bookingData.price_reduction) : 0;
+    const boukiiCare = this.bookingData?.has_boukii_care ? Number(this.bookingData.price_boukii_care || 0) : 0;
+    const tva = this.bookingData?.has_tva ? Number(this.bookingData.price_tva || 0) : 0;
+
+    const total = base + insurance - reduction + boukiiCare + tva;
+    return Number((isNaN(total) ? 0 : total).toFixed(2));
+  }
+
+  getOutstandingTotal(): number {
+    const total = this.getFinalTotal();
+    const vouchers = this.calculateTotalVoucherPrice();
+    const outstanding = total - vouchers;
+    return Number((outstanding < 0 ? 0 : outstanding).toFixed(2));
+  }
+
   calculateTotalVoucherPrice(): number {
     const vouchers = this.bookingData?.vouchers;
     if (Array.isArray(vouchers)) {
       return vouchers.reduce((acc, item) => acc + parseFloat(item?.bonus?.reducePrice ?? '0'), 0);
     }
     return 0;
+  }
+
+  private applyComputedTotals(): void {
+    const finalTotal = this.getFinalTotal();
+    this.bookingData.price_total = finalTotal;
+    this.refreshDisplayTotals();
+  }
+
+  private refreshDisplayTotals(): void {
+    this.displayTotal = this.getFinalTotal();
+    this.displayOutstanding = this.getOutstandingTotal();
+  }
+
+  private persistCancellationInsurance(): void {
+    if (!this.bookingData || !this.bookingData.id || this.bookingData.paid) {
+      return;
+    }
+
+    const payload: any = {
+      has_cancellation_insurance: this.bookingData.has_cancellation_insurance,
+      price_cancellation_insurance: this.bookingData.price_cancellation_insurance,
+      price_total: this.getFinalTotal()
+    };
+
+    this.crudService.update('/bookings', payload, this.bookingData.id).subscribe({
+      next: () => {},
+      error: (err) => console.error('Error updating cancellation insurance', err)
+    });
   }
 
   addBonus(): void {

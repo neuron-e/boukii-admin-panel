@@ -186,14 +186,14 @@
     {{ "bookings_page.description.total" | translate }}
     <ng-container>
       <span class="totalPrice">
-        {{ bookingData.price_total | number:'0.2-2' }}
+        {{ displayTotal | number:'0.2-2' }}
         {{ activities[0].course.currency }}
       </span>
     </ng-container>
     {{ "to_pay" | translate }}
     <ng-container>
       <span class="totalPrice">
-        {{ bookingData.price_total - calculateTotalVoucherPrice() | number:'0.2-2' }}
+        {{ displayOutstanding | number:'0.2-2' }}
         {{ activities[0].course.currency }}
       </span>
     </ng-container>

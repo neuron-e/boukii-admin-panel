@@ -466,29 +466,36 @@ export class CourseDetailCardComponent implements OnChanges {
    * Obtiene los descuentos de un intervalo especÃ­fico
    */
   getIntervalDiscounts(intervalId: number): any[] {
-    // Los descuentos de intervalos estÃ¡n guardados en settings.intervals[].discounts
-    let settings = this.courseFormGroup?.controls?.['settings']?.value;
+    const parseMaybeJson = (val: any) => {
+      if (typeof val === 'string') {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return null;
+        }
+      }
+      return val;
+    };
 
-    // Si settings es un string, parsearlo
-    if (typeof settings === 'string') {
-      try {
-        settings = JSON.parse(settings);
-      } catch (e) {
-        console.error('âŒ Error parsing settings:', e);
-        return [];
+    // 1) Intentar con intervals del form (payload actual)
+    let intervals = parseMaybeJson(this.courseFormGroup?.controls?.['intervals']?.value);
+    if (intervals && Array.isArray(intervals)) {
+      const match = intervals.find((i: any) => String(i.id) === String(intervalId));
+      if (match && Array.isArray(match.discounts) && match.discounts.length) {
+        return match.discounts;
       }
     }
 
-    if (!settings || !settings.intervals || !Array.isArray(settings.intervals)) {
-      return [];
+    // 2) Intentar con settings.intervals (legacy)
+    let settings = parseMaybeJson(this.courseFormGroup?.controls?.['settings']?.value);
+    if (settings && Array.isArray(settings.intervals)) {
+      const interval = settings.intervals.find((i: any) => String(i.id) === String(intervalId));
+      if (interval && Array.isArray(interval.discounts) && interval.discounts.length) {
+        return interval.discounts;
+      }
     }
 
-    const interval = settings.intervals.find((i: any) => String(i.id) === String(intervalId));
-
-    if (!interval || !interval.discounts || !Array.isArray(interval.discounts)) {
-      return [];
-    }
-    return interval.discounts;
+    return [];
   }
 
   /**
@@ -502,7 +509,7 @@ export class CourseDetailCardComponent implements OnChanges {
     const currency = this.courseFormGroup?.controls?.['currency']?.value || '';
     // El tipo puede venir como 'fixed'/'percentage' o 'fixed_amount'/'percentage'
     const isFixed = discount.type === 'fixed' || discount.type === 'fixed_amount' || discount.type === 2;
-    const value = discount.value;
+    const value = discount.value ?? discount.discount_value ?? discount.discount;
 
     if (value === undefined || value === null || value === '') {
       return '';

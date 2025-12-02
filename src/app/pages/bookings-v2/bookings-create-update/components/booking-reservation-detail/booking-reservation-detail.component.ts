@@ -25,6 +25,8 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   price_boukii_care: number;
   school: any;
   settings: any;
+  displayTotal = 0;
+  displayOutstanding = 0;
 
   constructor(
     protected langService: LangService,
@@ -50,6 +52,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
 
     this.updateBookingData();
     this.syncPriceTotalWithActivities();
+    this.refreshDisplayTotals();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -113,6 +116,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     // Razon: Causaba discrepancias entre frontend/backend y errores en pasarela de pago (ej: reserva 5608)
     
     this.bookingService.setBookingData(this.bookingData);
+    this.refreshDisplayTotals();
   }
 
   calculateRem(event: any) {
@@ -287,6 +291,45 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   protected readonly isNaN = isNaN;
+
+  getFinalTotal(): number {
+    this.recalculateTva();
+
+    const base = typeof this.bookingData?.price_total === 'number'
+      ? this.bookingData.price_total
+      : parseFloat(String(this.bookingData?.price_total ?? '0')) || 0;
+
+    const insurance = this.bookingData?.has_cancellation_insurance
+      ? Number(this.bookingData.price_cancellation_insurance || 0)
+      : 0;
+
+    const reduction = this.bookingData?.price_reduction
+      ? Number(this.bookingData.price_reduction)
+      : 0;
+
+    const boukiiCare = this.bookingData?.has_boukii_care
+      ? Number(this.bookingData.price_boukii_care || 0)
+      : 0;
+
+    const tva = this.bookingData?.has_tva
+      ? Number(this.bookingData.price_tva || 0)
+      : 0;
+
+    const total = base + insurance - reduction + boukiiCare + tva;
+    return Number((isNaN(total) ? 0 : total).toFixed(2));
+  }
+
+  getOutstandingTotal(): number {
+    const total = this.getFinalTotal();
+    const vouchers = this.calculateTotalVoucherPrice();
+    const outstanding = total - vouchers;
+    return Number((outstanding < 0 ? 0 : outstanding).toFixed(2));
+  }
+
+  private refreshDisplayTotals(): void {
+    this.displayTotal = this.getFinalTotal();
+    this.displayOutstanding = this.getOutstandingTotal();
+  }
 
   private syncPriceTotalWithActivities(): void {
     if (!this.bookingData) {

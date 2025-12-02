@@ -248,7 +248,7 @@
           </div>
 
           <!-- Configuraci├│n de descuentos globales por m├║ltiples fechas (solo para cursos flexibles) -->
-          <div *ngIf="courses.courseFormGroup.controls['is_flexible'].value" style="margin-top: 16px; padding: 16px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
+<!--          <div *ngIf="courses.courseFormGroup.controls['is_flexible'].value" style="margin-top: 16px; padding: 16px; background-color: white; border: 1px solid #dee2e6; border-radius: 6px;">
             <h5 style="color: #495057; font-size: 15px; font-weight: 600; margin-bottom: 12px;">
               <mat-icon style="vertical-align: middle; margin-right: 8px; color: #6c757d; font-size: 18px;">local_offer</mat-icon>
               {{ 'multidate_discount' | translate }}
@@ -266,7 +266,7 @@
                 {{ 'multidate_discount_explanation' | translate }}
               </div>
 
-              <!-- Lista de descuentos por n├║mero de fechas -->
+              &lt;!&ndash; Lista de descuentos por n├║mero de fechas &ndash;&gt;
               <div *ngFor="let discount of discountsByDates; let i = index" class="discount-item" style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
                 <div style="min-width: 100px;">
                   <label style="font-size: 12px; color: #495057; margin-bottom: 4px; display: block;">
@@ -311,7 +311,7 @@
                 </button>
               </div>
 
-              <!-- Bot├│n para agregar m├ís descuentos -->
+              &lt;!&ndash; Bot├│n para agregar m├ís descuentos &ndash;&gt;
               <button type="button"
                       (click)="addNewDiscount()"
                       style="border: 1px solid #007bff; color: #007bff; background: white; border-radius: 4px; height: 34px; padding: 0 14px; margin-top: 8px; font-size: 13px;">
@@ -319,7 +319,7 @@
                 {{ 'add_discount_by_date' | translate }}
               </button>
             </div>
-          </div>
+          </div>-->
 
           <!-- Bot├│n para aplicar configuraci├│n global a todos los intervalos -->
           <div *ngIf="useMultipleIntervals && intervals && intervals.length > 1" style="margin-top: 12px;">
