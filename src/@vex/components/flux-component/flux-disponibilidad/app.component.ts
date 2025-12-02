@@ -1,5 +1,5 @@
 import { formatDate } from '@angular/common';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, ChangeDetectionStrategy, ChangeDetectorRef, OnChanges, SimpleChanges } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -23,7 +23,7 @@ import { Subscription } from 'rxjs';
   styleUrls: ['./app.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
+export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges {
   cambiarModal: boolean = false
   @Input() mode: 'create' | 'update' = "create"
   @Input() courseFormGroup!: UntypedFormGroup
@@ -67,6 +67,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   private readonly componentInstanceId = `flux-${++FluxDisponibilidadComponent.instanceCounter}`;
   private syncSub?: Subscription;
   private loadingDialogRef?: MatDialogRef<MonitorAssignmentLoadingDialogComponent>;
+  courseDates: any[] = [];
   selectedSubgroup: any;
   today: Date = new Date()
   ISODate = (n: number) => new Date(new Date().getTime() + n * 24 * 60 * 60 * 1000).toLocaleString()
@@ -79,6 +80,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   assignmentEndIndex = 0;
   private _cachedDatesForSubgroup: Array<{ date: any, index: number }> | null = null;
   private _cachedIntervalHeaders: Array<{ name: string; colspan: number }> | null = null;
+  private cachedUsersForSelectedDate: any[] = [];
+  private cachedUsersKey: string | null = null;
 
   // Cache for template to avoid calling getDatesForSubgroup() multiple times per render cycle
   cachedDatesForTemplate: Array<{ date: any, index: number }> = [];
@@ -199,8 +202,26 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     return [];
   }
 
+  private refreshCourseDatesCache(): void {
+    const raw = this.courseFormGroup?.controls?.['course_dates']?.value;
+    this.courseDates = Array.isArray(raw) ? raw : [];
+    this.cachedUsersKey = null;
+    this.cachedUsersForSelectedDate = [];
+  }
+
   private getCourseDates(): any[] {
-    return this.courseFormGroup?.controls?.['course_dates']?.value || [];
+    return this.courseDates;
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['courseFormGroup']) {
+      this.refreshCourseDatesCache();
+      this.cachedDatesForTemplate = this.getDatesForSubgroup();
+      this.rebuildLegendState();
+      this.selectDate = this.cachedDatesForTemplate?.[0]?.index ?? 0;
+      this.cachedUsersKey = null;
+      this.cachedUsersForSelectedDate = [];
+    }
   }
 
   private isCollectiveCourse(): boolean {
@@ -333,9 +354,21 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   }
 
   private collectUsersForSelectedDate(): any[] {
+    const courseDates = this.getCourseDates();
+    const currentDate = courseDates?.[this.selectDate];
+    const currentSubgroup = this.getSubgroupForDate(currentDate);
+    const bookingUsersCount = this.courseFormGroup?.controls?.['booking_users']?.value?.length || 0;
+    const cacheKey = `${this.selectDate}-${currentSubgroup?.id ?? 'none'}-${bookingUsersCount}`;
+    if (this.cachedUsersKey === cacheKey) {
+      return this.cachedUsersForSelectedDate;
+    }
+
+    this.cachedUsersKey = cacheKey;
+    this.cachedUsersForSelectedDate = [];
+
     const selectedDate = this.getSelectedDateForCurrentSubgroup();
     if (!selectedDate) {
-      return [];
+      return this.cachedUsersForSelectedDate;
     }
 
     const levelId = this.normalizeId(this.level?.id ?? this.level?.degree_id);
@@ -395,7 +428,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
     const globalBookingUsers = this.courseFormGroup?.controls['booking_users']?.value || [];
     globalBookingUsers.forEach(user => pushUser(user, true));
 
-    return result;
+    this.cachedUsersForSelectedDate = result;
+    return this.cachedUsersForSelectedDate;
   }
 
   /**
@@ -579,9 +613,12 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   }
 
   private invalidateDatesCache(): void {
+    this.refreshCourseDatesCache();
     this._cachedDatesForSubgroup = null;
     this._cachedIntervalHeaders = null;
     this.availabilityCache.clear();
+    this.cachedUsersKey = null;
+    this.cachedUsersForSelectedDate = [];
 
     // Phase 2: Also invalidate shared cache when interval changes within this component
     const courseId = this.courseFormGroup?.controls?.['id']?.value ?? null;
@@ -923,6 +960,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.refreshCourseDatesCache();
     // Cache the dates to avoid multiple function calls in template
     this.cachedDatesForTemplate = this.getDatesForSubgroup();
     const availableDates = this.cachedDatesForTemplate;

@@ -1,15 +1,16 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { UntypedFormGroup } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiCrudService } from '../../../../service/crud.service';
 import { TranslateService } from '@ngx-translate/core';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'vex-course-detail-nivel',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
-export class CourseDetailCardNivelComponent implements OnInit {
+export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChanges {
 
   @Input() courseFormGroup!: UntypedFormGroup
   @Input() checkbox: boolean = false
@@ -21,16 +22,21 @@ export class CourseDetailCardNivelComponent implements OnInit {
   @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any, selectedDate?: any }>()
 
   today: Date = new Date()
+  courseDates: any[] = [];
+  private subgroupsPerDegree = new Map<string, any[]>();
+  private subscriptions = new Subscription();
 
   // Track collapsed state for each subgroup (key format: "degreeId_subgroupIndex")
   collapsedSubgroups: { [key: string]: boolean } = {}
 
   ngOnInit() {
+    this.refreshCourseDatesCache();
+    this.subscribeToFormChanges();
+
     // Initialize all subgroups as COLLAPSED by default
     try {
-      const courseDates = this.getCourseDates();
-      if (Array.isArray(courseDates)) {
-        courseDates.forEach((cd: any) => {
+      if (Array.isArray(this.courseDates)) {
+        this.courseDates.forEach((cd: any) => {
           const courseGroups = cd.course_groups || [];
           courseGroups.forEach((group: any) => {
             const degreeId = group.id || group.degree_id;
@@ -61,6 +67,21 @@ export class CourseDetailCardNivelComponent implements OnInit {
         console.warn('Failed to expand levels by default:', e);
       }
     }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['courseFormGroup']) {
+      this.refreshCourseDatesCache();
+      this.subscribeToFormChanges();
+    }
+
+    if (changes['subgroupCache']) {
+      this.subgroupsPerDegree.clear();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   constructor(
@@ -142,7 +163,7 @@ export class CourseDetailCardNivelComponent implements OnInit {
       return null;
     }
     const key = String(intervalId);
-    const dates = this.getCourseDates();
+    const dates = (this.courseDates && this.courseDates.length) ? this.courseDates : this.getCourseDates();
     const seen: string[] = [];
     dates.forEach(cd => {
       const currentId = cd?.interval_id ?? cd?.intervalId ?? null;
@@ -230,6 +251,56 @@ export class CourseDetailCardNivelComponent implements OnInit {
       if (subs.length) return subs;
     }
     return [];
+  }
+  private refreshCourseDatesCache(next?: any): void {
+    const resolved = Array.isArray(next) ? next : this.getCourseDates();
+    this.courseDates = Array.isArray(resolved) ? resolved : [];
+    this.subgroupsPerDegree.clear();
+  }
+
+  private subscribeToFormChanges(): void {
+    this.subscriptions.unsubscribe();
+    this.subscriptions = new Subscription();
+
+    const courseDatesControl = this.courseFormGroup?.get('course_dates');
+    if (courseDatesControl?.valueChanges) {
+      this.subscriptions.add(courseDatesControl.valueChanges.subscribe((dates: any) => {
+        this.refreshCourseDatesCache(dates);
+      }));
+    }
+
+    const courseDatesPrevControl = this.courseFormGroup?.get('course_dates_prev');
+    if (courseDatesPrevControl?.valueChanges) {
+      this.subscriptions.add(courseDatesPrevControl.valueChanges.subscribe((dates: any) => {
+        // Solo usar course_dates_prev como respaldo cuando course_dates esté vacío
+        if (!this.courseDates?.length) {
+          this.refreshCourseDatesCache(dates);
+        }
+      }));
+    }
+  }
+
+  private normalizeDegreeKey(value: number | string | undefined | null): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    return String(value);
+  }
+
+  getSubgroupsForDegreeCached(degreeId: number): any[] {
+    const key = this.normalizeDegreeKey(degreeId);
+    if (!key) {
+      return [];
+    }
+
+    const cached = this.subgroupsPerDegree.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const computed = this.getAllUniqueSubgroupsForDegree(this.courseDates, degreeId);
+    this.subgroupsPerDegree.set(key, computed);
+    return computed;
   }
 
   private getCachedSubgroupsForDegree(degreeId: number): any[] | null {
@@ -415,7 +486,7 @@ export class CourseDetailCardNivelComponent implements OnInit {
         // If no match and this is a FIX course, try matching by date
         if (!matches && user?.date && courseDateId) {
           // Get the course date object to compare actual dates
-          const courseDates = this.getCourseDates();
+          const courseDates = (this.courseDates && this.courseDates.length) ? this.courseDates : this.getCourseDates();
           const targetDate = courseDates.find(cd => cd.id === courseDateId);
 
           if (targetDate && user.date) {

@@ -267,7 +267,7 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
       )
       .subscribe((response: any) => {
         if (response && response.success) {
-          this.snackBar.open(this.TranslateService.instant('snackbar.course.update'), this.TranslateService.instant('close'), {
+          this.snackBar.open(this.TranslateService.instant('course_updated_successfully'), this.TranslateService.instant('close'), {
             duration: 3000,
             panelClass: ['success-snackbar']
           });

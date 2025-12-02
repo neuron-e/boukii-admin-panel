@@ -258,15 +258,15 @@
       "from": "Dalla data selezionata in poi",
       "range": "Tra due date"
     },
-      "start_date": "Data inizio",
-      "end_date": "Data fine",
+    "start_date": "Data inizio",
+    "end_date": "Data fine",
     "partial": {
-        "title": "Conflitti di disponibilità del monitor",
-        "description": "Il monitor selezionato non è disponibile in tutte le sessioni. Puoi continuare solo con i giorni liberi oppure annullare la modifica.",
-        "blocked": "Giorni bloccati",
-        "available": "Giorni disponibili",
-        "apply_available": "Applica ai giorni disponibili",
-        "no_available": "Il monitor non è disponibile in nessuna delle date selezionate."
+      "title": "Conflitti di disponibilità del monitor",
+      "description": "Il monitor selezionato non è disponibile in tutte le sessioni. Puoi continuare solo con i giorni liberi oppure annullare la modifica.",
+      "blocked": "Giorni bloccati",
+      "available": "Giorni disponibili",
+      "apply_available": "Applica ai giorni disponibili",
+      "no_available": "Il monitor non è disponibile in nessuna delle date selezionate."
     },
     "past_warning_title": "Data nel passato",
     "past_warning_message": "La data selezionata è precedente a oggi. Vuoi continuare?",
@@ -778,7 +778,6 @@
   "snackbar.course.deleted_group": "Gruppo eliminato correttamente",
   "snackbar.course.subgroup_with_bookings": "A questo sottogruppo sono associate prenotazioni e non può essere eliminato",
   "snackbar.course.update": "Corso aggiornato correttamente",
-
   "snackbar.course.capacity": "La capienza del gruppo non può essere superiore al numero dei partecipanti al corso.",
   "snackbar.course.trasnfer_user": "Partecipante trasferito dal corso",
   "snackbar.course.coursename": "È richiesto il campo nome",
@@ -1771,8 +1770,7 @@
   "add_boukii_care": "Applicare la cura Boukii",
   "add_boukii_care_message": "Vuoi aggiungere Boukii Care alla prenotazione?",
   "menu.payment_gateway": "Gateway Web",
-  "menu.payment_terminal": "Terminale di Pagamento"
-,
+  "menu.payment_terminal": "Terminale di Pagamento",
   "no_meeting_point_set": "Nessun punto di incontro definito",
   "no_sports_yet": "Ancora nessuno sport",
   "add_sports_message": "Aggiungi sport nella scheda \"Sport\" per vedere l'evoluzione del cliente",
@@ -1897,5 +1895,7 @@
   "create_gift_voucher": "Crea buono regalo",
   "no_vouchers_found": "Nessun voucher trovato",
   "delete_confirm": "Sei sicuro di voler eliminare questo elemento?",
-  "no_status": "Senza stato"
+  "no_status": "Senza stato",
+  "course_updated_successfully": "Corso aggiornato con successo",
+  "course_created_successfully": "Corso creato con successo"
 }

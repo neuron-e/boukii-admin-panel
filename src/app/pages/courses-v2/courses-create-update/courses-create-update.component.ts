@@ -2852,10 +2852,17 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const canUseIntervalMap = this.configureLevelsByInterval || this.useMultipleIntervals;
 
     if (canUseIntervalMap) {
-      // Lee SIEMPRE desde intervalGroupsMap (sin caché) para datos actualizados
+      // FIX D.1: Usar caché TAMBIÉN para intervalGroupsMap para evitar freeze
+      // en cursos flexibles cuando se llama 8 veces desde el template
+      if (this._uniqueSubgroupsCache.has(cacheKey)) {
+        return [...this._uniqueSubgroupsCache.get(cacheKey)!];
+      }
+
       const mapSubgroups = this.getSubgroupsFromIntervalMap(levelId);
       if (mapSubgroups.length > 0) {
-        return mapSubgroups;  // Retorna directamente sin guardar en caché
+        // Guardar en caché para evitar recalcular en cada llamada
+        this._uniqueSubgroupsCache.set(cacheKey, mapSubgroups);
+        return [...mapSubgroups];  // Nueva referencia para OnPush
       }
     }
 
@@ -4856,7 +4863,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         .subscribe((data:any) => {
           if (data.success) {
             // FIX B.3: Mostrar toast de confirmación
-            this.snackBar.open('Curso creado correctamente', this.translateService.instant('close'), {
+            this.snackBar.open(this.translateService.instant('course_created_successfully'), this.translateService.instant('close'), {
               duration: 3000,
               panelClass: ['success-snackbar']
             });
@@ -4882,7 +4889,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             this.debugLog('update:success', { course_id: data?.data?.id ?? this.id ?? null, message: data?.message });
             this.pushDebugLogsToBackend();
             // FIX B.3: Mostrar toast de confirmación
-            this.snackBar.open(this.translateService.instant('snackbar.course.update'), this.translateService.instant('close'), {
+            this.snackBar.open(this.translateService.instant('course_updated_successfully'), this.translateService.instant('close'), {
               duration: 3000,
               panelClass: ['success-snackbar']
             });

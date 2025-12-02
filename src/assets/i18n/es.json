@@ -1963,10 +1963,10 @@
   "add_boukii_care_message": "¿Quieres añadir boukii care a la reserva?",
   "Selecciona una opción": "Selecciona una opción",
   "menu.payment_gateway": "Pasarela Web",
-  "menu.payment_terminal": "Terminal de Pago"
-,
+  "menu.payment_terminal": "Terminal de Pago",
   "no_meeting_point_set": "No hay punto de encuentro configurado",
   "no_sports_yet": "Todavía no hay deportes",
-  "add_sports_message": "Añade deportes en la pestaña \"Deportes\" para ver la evolución del cliente"
+  "add_sports_message": "Añade deportes en la pestaña \"Deportes\" para ver la evolución del cliente",
+  "course_updated_successfully": "Curso actualizado correctamente",
+  "course_created_successfully": "Curso creado correctamente"
 }
-
