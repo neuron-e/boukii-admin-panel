@@ -1110,8 +1110,30 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  private normalizePaymentMethodId(value: any): number | null {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
 
-  getPaymentMethod(id: number): string {
+    if (typeof value === 'object') {
+      if ('payment_method_id' in value && value.payment_method_id !== undefined && value.payment_method_id !== null) {
+        value = value.payment_method_id;
+      } else if ('id' in value && value.id !== undefined && value.id !== null) {
+        value = value.id;
+      }
+    }
+
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  getPaymentMethodByRow(row: any, property: string): string {
+    const candidate = row ? row[property] ?? row?.payment_method_id ?? row?.payment_method : null;
+    const paymentMethodId = this.normalizePaymentMethodId(candidate);
+    return this.getPaymentMethod(paymentMethodId);
+  }
+
+  getPaymentMethod(id: number | null): string {
     switch (id) {
       case 1:
         return 'CASH';

@@ -532,7 +532,7 @@
 					<div>
 						<!-- class="col-left" -->
 						<div class="col-l">
-							{{ getPaymentMethod(detailData?.payment_method) | translate }}
+							{{ getPaymentMethod(detailData?.payment_method_id ?? detailData?.payment_method) | translate }}
 						</div>
 						<!-- TODO: revisar metodo de pago cuando hay varios pagos y que estado poner?? -->
 						<!-- <div class="col-r">

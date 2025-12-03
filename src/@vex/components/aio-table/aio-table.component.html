@@ -395,7 +395,7 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
-              {{ getPaymentMethod(row[column.property]) | translate }}
+              {{ getPaymentMethodByRow(row, column.property) | translate }}
             </td>
           </ng-container>
         </ng-container>
@@ -407,7 +407,7 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
-              {{ getPaymentMethod(row[column.property]) | translate }}
+              {{ getPaymentMethodByRow(row, column.property) | translate }}
             </td>
           </ng-container>
         </ng-container>

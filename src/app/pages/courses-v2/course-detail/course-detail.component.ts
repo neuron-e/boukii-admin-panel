@@ -316,7 +316,7 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
     {label: 'op_rem_abr', property: 'has_cancellation_insurance', type: 'light', visible: true},
     {label: 'B. Care', property: 'has_boukii_care', type: 'light', visible: true},
     {label: 'price', property: 'price_total', type: 'price', visible: true},
-    {label: 'method_paiment', property: 'payment_method', type: 'payment_method', visible: true},
+    {label: 'method_paiment', property: 'payment_method_id', type: 'payment_method_id', visible: true},
     {label: 'bonus', property: 'bonus', type: 'light', visible: true},
     {label: 'paid', property: 'paid', type: 'payment_status', visible: true},
     {label: 'status', property: 'status', type: 'cancelation_status', visible: true},

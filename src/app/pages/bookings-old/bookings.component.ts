@@ -48,7 +48,7 @@ export class BookingsComponent {
     { label: 'op_rem_abr', property: 'has_cancellation_insurance', type: 'light', visible: true },
     { label: 'B. Care', property: 'has_boukii_care', type: 'light', visible: true },
     { label: 'price', property: 'price_total', type: 'price', visible: true },
-    { label: 'method_paiment', property: 'payment_method', type: 'payment_method', visible: true },
+    { label: 'method_paiment', property: 'payment_method_id', type: 'payment_method_id', visible: true },
     { label: 'bonus', property: 'bonus', type: 'light', visible: true },
     { label: 'paid', property: 'paid', type: 'payment_status', visible: true },
     { label: 'status', property: 'status', type: 'cancelation_status', visible: true },
@@ -387,8 +387,26 @@ export class BookingsComponent {
     }
   }
 
-  getPaymentMethod(id: number) {
-    switch (id) {
+  private normalizePaymentMethodId(value: any): number | null {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+
+    if (typeof value === 'object') {
+      if ('payment_method_id' in value && value.payment_method_id !== undefined && value.payment_method_id !== null) {
+        value = value.payment_method_id;
+      } else if ('id' in value && value.id !== undefined && value.id !== null) {
+        value = value.id;
+      }
+    }
+
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  getPaymentMethod(id: any) {
+    const normalized = this.normalizePaymentMethodId(id);
+    switch (normalized) {
       case 1:
         return 'CASH';
       case 2:
