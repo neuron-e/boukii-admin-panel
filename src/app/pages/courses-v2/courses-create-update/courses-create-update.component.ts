@@ -103,6 +103,13 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   mode: 'create' | 'update' = 'create';
   loading: boolean = true;
+  translatingLangs: Set<string> = new Set<string>();
+  bulkTranslationInProgress = false;
+  baseTranslationDirty = false;
+  translationListenerReady = false;
+  manuallyEditedTranslations: Set<string> = new Set<string>();
+  private translationWatcherAttached = false;
+  private lastBaseTranslationSnapshot = { name: '', short_description: '', description: '' };
   extrasModal: boolean = false
   confirmModal: boolean = false
   editModal: boolean = false
@@ -3412,6 +3419,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.syncMeetingPointSelection(true);
 
     this.Confirm(0);
+    this.initTranslationTracking();
     this.loading = false
     //setTimeout(() => (), 0);
   }
@@ -3613,6 +3621,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           this.ensureIntervalGroupsAlignment();
           this.scheduleIntervalGroupsSync();
         }
+        this.initTranslationTracking();
         this.loading = false
         // setTimeout(() => (this.loading = false), 0);
       });
@@ -3940,6 +3949,133 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.cdr.detectChanges();
   });
 
+  private getTranslationsValue(): any {
+    const control = this.courses?.courseFormGroup?.controls?.['translations'];
+    let translations = control ? control.value : {};
+    if (typeof translations === 'string') {
+      try {
+        translations = JSON.parse(translations) || {};
+      } catch {
+        translations = {};
+      }
+    }
+    return translations || {};
+  }
+
+  private captureBaseTranslationSnapshot(): void {
+    const controls = this.courses?.courseFormGroup?.controls;
+    if (!controls) {
+      return;
+    }
+    this.lastBaseTranslationSnapshot = {
+      name: controls['name']?.value || '',
+      short_description: controls['short_description']?.value || '',
+      description: controls['description']?.value || ''
+    };
+  }
+
+  private initTranslationTracking(): void {
+    const controls = this.courses?.courseFormGroup?.controls;
+    if (!controls) {
+      return;
+    }
+
+    if (!this.translationWatcherAttached) {
+      ['name', 'short_description', 'description'].forEach((field) => {
+        const control = controls[field];
+        if (control?.valueChanges) {
+          control.valueChanges
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(() => {
+              if (!this.translationListenerReady) {
+                return;
+              }
+              this.baseTranslationDirty = true;
+            });
+        }
+      });
+      this.translationWatcherAttached = true;
+    }
+
+    this.translationListenerReady = false;
+    this.captureBaseTranslationSnapshot();
+    this.baseTranslationDirty = false;
+    this.translationListenerReady = true;
+  }
+
+  private async autoTranslateFromBaseIfNeeded(): Promise<void> {
+    if (this.mode !== 'update' || !this.baseTranslationDirty || this.bulkTranslationInProgress) {
+      return;
+    }
+
+    const formValue = this.courses?.courseFormGroup?.value || {};
+    const { name, short_description, description } = formValue;
+    if (!name || !short_description || !description) {
+      return;
+    }
+
+    let translations = this.getTranslationsValue();
+    const languages = this.Translate.map(t => t.Code);
+    this.bulkTranslationInProgress = true;
+    this.cdr.markForCheck();
+
+    try {
+      const results = await Promise.allSettled(
+        languages.map(async (lang) => {
+          const translatedName = await this.crudService.translateText(name, lang.toUpperCase()).toPromise();
+          const translatedShortDescription = await this.crudService.translateText(short_description, lang.toUpperCase()).toPromise();
+          const translatedDescription = await this.crudService.translateText(description, lang.toUpperCase()).toPromise();
+
+          return {
+            lang,
+            name: translatedName?.data?.translations?.[0]?.text || '',
+            short_description: translatedShortDescription?.data?.translations?.[0]?.text || '',
+            description: translatedDescription?.data?.translations?.[0]?.text || '',
+          };
+        })
+      );
+
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const lang = result.value.lang;
+          if (this.manuallyEditedTranslations.has(lang)) {
+            return;
+          }
+          translations[lang] = {
+            ...(translations[lang] || {}),
+            name: result.value.name || translations[lang]?.name || '',
+            short_description: result.value.short_description || translations[lang]?.short_description || '',
+            description: result.value.description || translations[lang]?.description || '',
+          };
+          this.manuallyEditedTranslations.delete(lang);
+        }
+      });
+
+      this.courses.courseFormGroup.patchValue({ translations }, { emitEvent: false });
+      this.baseTranslationDirty = false;
+      this.captureBaseTranslationSnapshot();
+    } catch (error) {
+      console.error('Error auto-translating course', error);
+    } finally {
+      this.bulkTranslationInProgress = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  onTranslationFieldChange(lang: string, field: 'name' | 'short_description' | 'description', value: any): void {
+    const translations = this.getTranslationsValue();
+    const langData = translations[lang] || { name: '', short_description: '', description: '' };
+    const nextValue = value?.html ?? value ?? '';
+
+    translations[lang] = {
+      ...langData,
+      [field]: nextValue
+    };
+
+    this.courses.courseFormGroup.patchValue({ translations }, { emitEvent: false });
+    this.manuallyEditedTranslations.add(lang);
+  }
+
   Confirm(add: number) {
     this.courses.courseFormGroup.markAsUntouched()
     if ( this.courses.courseFormGroup.controls['course_type'].value === 2 &&
@@ -4021,6 +4157,8 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
               console.error("Unexpected error in translation process:", error);
             }
           }, 1000);
+        } else {
+          this.autoTranslateFromBaseIfNeeded();
         }
       } else {
         this.courses.courseFormGroup.markAllAsTouched()
@@ -4082,12 +4220,19 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       this.ModalFlux--
       this.confirmModal = true
     }
+    if (this.ModalFlux === 5) {
+      this.autoTranslateFromBaseIfNeeded();
+    }
   }
 
   async translateCourse(lang: string): Promise<void> {
-    this.loading = true;
+    if (this.translatingLangs.has(lang)) {
+      return;
+    }
+    this.translatingLangs.add(lang);
+    this.cdr.markForCheck();
     try {
-      const translations = this.courses.courseFormGroup.controls['translations'].value || {};
+      const translations = this.getTranslationsValue();
       const currentTranslation = translations[lang] || {};
 
       const translatedName = await this.crudService.translateText(this.courses.courseFormGroup.value.name, lang.toUpperCase()).toPromise();
@@ -4105,11 +4250,13 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           },
         },
       });
+      this.manuallyEditedTranslations.delete(lang);
 
     } catch (error) {
       console.error(`Error translating to ${lang}:`, error);
     } finally {
-      this.loading = false;
+      this.translatingLangs.delete(lang);
+      this.cdr.markForCheck();
     }
   }
 
@@ -4816,7 +4963,8 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         }
       });
     }
-    courseFormGroup.translations = JSON.stringify(this.courses.courseFormGroup.controls['translations'].value);
+    const translationsValue = this.getTranslationsValue();
+    courseFormGroup.translations = JSON.stringify(translationsValue);
     if (courseFormGroup.course_type !== 1) {
       courseFormGroup.settings = this.extractSettingsPayload(this.courses.courseFormGroup.controls['settings']);
     } else if (!courseFormGroup.settings) {

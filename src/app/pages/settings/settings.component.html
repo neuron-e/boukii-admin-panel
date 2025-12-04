@@ -1641,8 +1641,14 @@
                         {{'mails.type9' |
                         translate}}
                       </mat-option>
-                      <!-- <mat-option value="voucher_confirm">{{'mails.type6' | translate}}</mat-option>
-                        <mat-option value="voucher_create">{{'mails.type7' | translate}}</mat-option> -->
+                      <mat-option value="voucher_confirm">
+                        {{'mails.type6' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="voucher_create">
+                        {{'mails.type7' |
+                        translate}}
+                      </mat-option>
                       <mat-option value="course_reminder">
                         {{'mails.type8' |
                         translate}}
@@ -1813,6 +1819,15 @@
                     </button>
                   </div> -->
                 <div style="padding: 1%;width: 100%;float: left;border: #e6e6e6 1px solid;">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <mat-form-field appearance="outline" style="flex: 1;">
+                      <mat-label>{{'email' | translate}}</mat-label>
+                      <input [(ngModel)]="testEmail" matInput placeholder="you@example.com" type="email">
+                    </mat-form-field>
+                    <button (click)="sendTestMail()" class="btn-primary-accent" style="height: 40px;">
+                      {{'send_test' | translate}}
+                    </button>
+                  </div>
                   <div style="float:left; width:100%">
                     <button (click)="saveDefaultMail()" class="btn-primary-accent"
                             style="float: right;">

@@ -1495,6 +1495,7 @@
                           "
                         class="check">check</mat-icon>
               <button (click)="translateCourse(item.Code);$event.stopPropagation()"
+                      [disabled]="translatingLangs.has(item.Code) || bulkTranslationInProgress"
                       style="margin-top: 0px !important;height: 38px;margin-left: auto;" color="primary"
                       mat-raised-button type="button">{{'translate_ia' | translate}}</button>
             </mat-panel-title>
@@ -1502,19 +1503,19 @@
           <ng-template matExpansionPanelContent>
             <app-form-input [required]="true"
                             [value]="courses.courseFormGroup.controls['translations'].value[item.Code].name"
-                            (do)="courses.courseFormGroup.controls['translations'].value[item.Code].name = $event.target.value"
+                            (do)="onTranslationFieldChange(item.Code, 'name', $event?.target?.value || '')"
                             style="width: 100%;margin-top: 20px;" name="courses.coursename">
             </app-form-input>
             <app-form-editor [required]="true"
                              [value]="courses.courseFormGroup.controls['translations'].value[item.Code].short_description || ''"
-                             (do)="courses.courseFormGroup.controls['translations'].value[item.Code].short_description = $event.html || courses.courseFormGroup.controls['translations'].value[item.Code].short_description"
+                             (do)="onTranslationFieldChange(item.Code, 'short_description', $event?.html || '')"
                              style="margin: 10px 0;"
                              name="courses.summary">
             </app-form-editor>
 
             <app-form-editor [required]="true"
                              [value]="courses.courseFormGroup.controls['translations'].value[item.Code].description || ''"
-                             (do)="courses.courseFormGroup.controls['translations'].value[item.Code].description = $event.html || courses.courseFormGroup.controls['translations'].value[item.Code].description"
+                             (do)="onTranslationFieldChange(item.Code, 'description', $event?.html || '')"
                              style="margin: 10px 0;"
                              name="courses.desc">
             </app-form-editor>
@@ -1655,4 +1656,3 @@
     </div>
   </div>
 </vex-flux-modal>
-

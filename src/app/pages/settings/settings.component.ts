@@ -77,6 +77,8 @@ export class SettingsComponent implements OnInit {
   titleDe: any = '';
   currentMails: any = [];
   selectedIndex = 0;
+  testEmail: string = '';
+  initialDegreesBound = false;
 
   emailTypes = [
     { value: 'booking_confirm', label: 'mails.type1' },
@@ -263,6 +265,7 @@ export class SettingsComponent implements OnInit {
   ngOnInit() {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.loadedTabs = this.Translate.map(() => false);
+    this.testEmail = this.user?.email || '';
     // Marca la primera pestaña como cargada
     this.loadedTabs[0] = true;
     /*this.mockLevelData.forEach(element => {
@@ -537,6 +540,53 @@ export class SettingsComponent implements OnInit {
       this.titleIt = '';
       this.subjectIt = '';
     }
+  }
+
+  private getCurrentLangCode(): string {
+    const langs = ['fr', 'en', 'es', 'de', 'it'];
+    return langs[this.selectedIndex] || 'fr';
+  }
+
+  private getMailContentForLang(lang: string): { subject: string; title: string; body: string } {
+    switch (lang) {
+      case 'en':
+        return { subject: this.subjectEn || '', title: this.titleEn || '', body: this.bodyEn || '' };
+      case 'es':
+        return { subject: this.subjectEs || '', title: this.titleEs || '', body: this.bodyEs || '' };
+      case 'de':
+        return { subject: this.subjectDe || '', title: this.titleDe || '', body: this.bodyDe || '' };
+      case 'it':
+        return { subject: this.subjectIt || '', title: this.titleIt || '', body: this.bodyIt || '' };
+      case 'fr':
+      default:
+        return { subject: this.subjectFr || '', title: this.titleFr || '', body: this.bodyFr || '' };
+    }
+  }
+
+  sendTestMail() {
+    if (!this.testEmail) {
+      this.snackbar.open(this.translateService.instant('email_required') || 'Email is required', 'OK', { duration: 3000 });
+      return;
+    }
+
+    const lang = this.getCurrentLangCode();
+    const content = this.getMailContentForLang(lang);
+    const body = `${content.title || ''}\n\n${content.body || ''}`.trim();
+
+    const payload = {
+      subject: content.subject || 'Test email',
+      body,
+      emails: [this.testEmail]
+    };
+
+    this.crudService.post('/admin/mails/send', payload)
+      .subscribe({
+        next: () => this.snackbar.open(this.translateService.instant('mail_sent') || 'Test email sent', 'OK', { duration: 3000 }),
+        error: (err) => {
+          console.error('Error sending test mail', err);
+          this.snackbar.open(this.translateService.instant('download_error') || 'Error sending email', 'OK', { duration: 3000 });
+        }
+      });
   }
 
   openPreview(): void {
@@ -1031,7 +1081,11 @@ export class SettingsComponent implements OnInit {
       this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.school.id + '&sport_id=' + element)
         .subscribe((data) => {
           this.schoolSports[idx].degrees = data.data;
-          this.selectedSport = this.schoolSports[0].id;
+          if (!this.initialDegreesBound && idx === 0) {
+            this.selectedSport = this.schoolSports[0].id;
+            this.dataSourceLevels.data = this.schoolSports[0].degrees;
+            this.initialDegreesBound = true;
+          }
         });
     });
   }
