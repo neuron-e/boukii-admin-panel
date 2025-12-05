@@ -253,7 +253,14 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         // Filtrar por estado de finalización
         filter = this.finishedBooking ? filter + '&finished=0' : filter + '&finished=1';
         if (this.allBookings) filter = filter + '&all=1';
-        if (this.cancelledBookings) filter = filter + '&status=2';
+
+        // Filtrar por estado de la reserva
+        if (this.cancelledBookings) {
+          filter = filter + '&status=2';
+        } else if (this.activeBooking && !this.allBookings) {
+          // Activas (incluir parcialmente canceladas como activas)
+          filter = filter + '&status=1,3';
+        }
 
       }
 

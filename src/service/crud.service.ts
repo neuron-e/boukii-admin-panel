@@ -134,4 +134,8 @@ export class ApiCrudService extends ApiService {
     return this.http.post(this.baseUrl + '/translate', params, { headers: this.getHeaders() });
   }
 
+  translateCourse(courseId: number | string, payload: any): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(`${this.baseUrl}/admin/courses/${courseId}/translate`, payload, { headers: this.getHeaders() });
+  }
+
 }

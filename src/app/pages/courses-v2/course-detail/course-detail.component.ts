@@ -11,6 +11,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { CourseTimingModalComponent } from '../course-timing-modal/course-timing-modal.component';
 import {forkJoin, of, Subject} from 'rxjs';
 import {catchError, finalize, map, switchMap, takeUntil} from 'rxjs/operators';
+import {UntypedFormArray, UntypedFormControl} from '@angular/forms';
 
 @Component({
   selector: 'vex-course-detail',
@@ -88,6 +89,16 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
   private refreshPreviewSubgroupCache(): void {
     const cache: Record<string, any[]> = {};
     const courseDates = this.courses.courseFormGroup?.controls?.['course_dates']?.value || [];
+    const rawTopLevelGroups =
+      this.detailData?.course_groups ??
+      this.detailData?.courseGroups ??
+      this.detailData?.groups ??
+      this.courses.courseFormGroup?.controls?.['course_groups']?.value ??
+      this.courses.courseFormGroup?.controls?.['courseGroups']?.value ??
+      [];
+    const topLevelGroups = Array.isArray(rawTopLevelGroups)
+      ? rawTopLevelGroups
+      : Object.values(rawTopLevelGroups || {});
 
     courseDates.forEach((courseDate: any) => {
       const courseGroupsRaw = courseDate?.course_groups || courseDate?.courseGroups || [];
@@ -108,6 +119,15 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
         groupSubgroups.forEach((subgroup: any, idx: number) => {
           this.addSubgroupToCache(cache, degreeId, subgroup, idx);
         });
+      });
+    });
+
+    // Fallback: hydrate cache from top-level course_groups if course_dates are empty
+    topLevelGroups.forEach((group: any) => {
+      const degreeId = group?.degree_id ?? group?.degreeId ?? group?.degree?.id ?? group?.id;
+      const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+      subgroups.forEach((subgroup: any, idx: number) => {
+        this.addSubgroupToCache(cache, degreeId, subgroup, idx);
       });
     });
 
@@ -179,27 +199,102 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
         }
         const {degrees, stations, bookingUsers, isFIXCourse} = result;
 
+        const courseDates = this.detailData.course_dates || [];
+        const originalCourseDates = Array.isArray(courseDates)
+          ? JSON.parse(JSON.stringify(courseDates))
+          : [];
+        const rawTopLevelGroups =
+          this.detailData?.course_groups ??
+          this.detailData?.courseGroups ??
+          this.detailData?.groups ??
+          this.courses.courseFormGroup?.controls?.['course_groups']?.value ??
+          this.courses.courseFormGroup?.controls?.['courseGroups']?.value ??
+          [];
+        const topLevelGroups = Array.isArray(rawTopLevelGroups)
+          ? rawTopLevelGroups
+          : Object.values(rawTopLevelGroups || {});
+
+        // Identify all degree_ids referenced by the course (even if degree is inactive)
+        const usedDegreeIds = new Set<number>();
+        const collectDegreeIds = (groupsArr: any[]) => {
+          groupsArr.forEach((group: any) => {
+            const degreeId = group?.degree_id ?? group?.degreeId ?? group?.degree?.id;
+            if (degreeId != null) {
+              usedDegreeIds.add(Number(degreeId));
+            }
+          });
+        };
+        (courseDates || []).forEach((cs: any) => collectDegreeIds(cs?.course_groups || cs?.courseGroups || []));
+        collectDegreeIds(topLevelGroups || []);
+
+        // Build degrees list including inactive ones if they are referenced by the course
         this.detailData.degrees = [];
+        const degreeMap = new Map<number, any>();
         (degrees || []).forEach((element: any) => {
-          if (element.active) this.detailData.degrees.push({...element,});
+          if (element?.id != null) {
+            degreeMap.set(Number(element.id), element);
+          }
+          if (element?.active || usedDegreeIds.has(Number(element.id))) {
+            this.detailData.degrees.push({...element, active: true});
+          }
         });
 
-        const courseDates = this.detailData.course_dates || [];
+        // Add placeholders for any used degrees missing from the fetched list
+        usedDegreeIds.forEach((degId) => {
+          if (!this.detailData.degrees.some((d: any) => Number(d.id) === Number(degId))) {
+            const placeholder = degreeMap.get(Number(degId)) || {id: degId, level: '', annotation: '', color: '#607d8b'};
+            this.detailData.degrees.push({...placeholder, active: true});
+          }
+        });
 
         this.detailData.degrees.forEach((level: any) => {
-          level.active = false;
-          level.visible = false;
-          courseDates.forEach((cs: any) => {
-            const courseGroups = cs?.course_groups || [];
-            courseGroups.forEach((group: any) => {
-              if (group.degree_id === level.id) {
-                level.active = true;
-                level.old = true;
-                level.visible = true;
-              }
-            });
+          const isUsed = usedDegreeIds.has(Number(level?.id));
+          level.active = isUsed;
+          level.visible = isUsed;
+          const matchesCourseDates = courseDates.some((cs: any) =>
+            (cs?.course_groups || []).some((group: any) => Number(group?.degree_id ?? group?.degreeId) === Number(level.id))
+          );
+          const matchesTopLevel = topLevelGroups.some((group: any) => {
+            const degreeId = group?.degree_id ?? group?.degreeId ?? group?.degree?.id;
+            return Number(degreeId) === Number(level.id);
           });
+
+          if (matchesCourseDates || matchesTopLevel || isUsed) {
+            level.active = true;
+            level.old = true;
+            level.visible = true;
+          }
         });
+
+        // If course_dates came without groups but we have top-level course_groups, build a synthetic entry
+        try {
+          const courseDatesArray = this.courses.courseFormGroup.get('course_dates') as UntypedFormArray;
+          const currentDates = courseDatesArray?.value || [];
+          const hasOriginalGroups = Array.isArray(originalCourseDates) && originalCourseDates.some((cd: any) =>
+            Array.isArray(cd?.course_groups) && cd.course_groups.length > 0
+          );
+          const hasDateGroups = Array.isArray(currentDates) && currentDates.some((cd: any) =>
+            Array.isArray(cd?.course_groups) && cd.course_groups.length > 0
+          );
+          if (!hasDateGroups && hasOriginalGroups && courseDatesArray) {
+            courseDatesArray.clear();
+            originalCourseDates.forEach((cd: any) => {
+              courseDatesArray.push(new UntypedFormControl(cd));
+            });
+          } else if (!hasDateGroups && Array.isArray(topLevelGroups) && topLevelGroups.length > 0 && courseDatesArray) {
+            courseDatesArray.clear();
+            const baseDate = currentDates?.[0] ? {...currentDates[0]} : {
+              date: this.detailData?.reservable_from || this.detailData?.start_date || null,
+              date_end: this.detailData?.reservable_to || this.detailData?.end_date || null
+            };
+            baseDate.course_groups = topLevelGroups;
+            courseDatesArray.push(new UntypedFormControl(baseDate));
+          }
+        } catch (e) {
+          console.warn('Failed to hydrate course_dates from top-level groups', e);
+        }
+
+        this.refreshPreviewSubgroupCache();
 
         const duplicates = this.courses.countCourseDateSubgroupDuplicates(courseDates);
         if (duplicates > 0) {
@@ -224,7 +319,6 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
 
         this.detailData.booking_users = this.detailData.users;
         this.courses.settcourseFormGroup(this.detailData)
-        this.refreshPreviewSubgroupCache();
         this.initialFormSnapshot = this.cloneValue(this.courses.courseFormGroup.getRawValue());
 
         if (this.courses.courseFormGroup && this.detailData.users.length > 0) {

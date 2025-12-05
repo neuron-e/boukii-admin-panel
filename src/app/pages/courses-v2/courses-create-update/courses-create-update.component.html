@@ -10,6 +10,10 @@
     }
   ]" class="flex">
   </vex-breadcrumbs>
+  <div *ngIf="saving" style="display:flex;align-items:center;gap:8px;margin-left:auto;padding-right:12px;">
+    <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+    <span>{{'loading' | translate}}</span>
+  </div>
 </vex-secondary-toolbar>
 <vex-flux-toolbad [Modal]="ModalProgress" [Flux]="ModalFlux" [create]="mode!=='create'"
                   (Check)="ModalFlux=$event;Confirm(0)"></vex-flux-toolbad>
@@ -1533,7 +1537,7 @@
         <mat-icon *ngIf="mode==='create'">arrow_back</mat-icon>
         {{ (mode === 'create' ? 'back' : 'cancel') | translate }}
       </button>
-      <button (click)="mode==='create'?Confirm(1):editModal=true;setEditFunction('endCourse')"
+      <button (click)="onPrimaryAction()"
               style="margin-top: 0px !important;height: 38px; width: 128px;margin-left: auto;" color="primary"
               mat-raised-button type="button">
         {{ (mode==='create'?'confirm':'save') | translate }}
@@ -1634,12 +1638,17 @@
             </span>
           </mat-slide-toggle>
         </div>-->
-    <div style="display: flex;width: 100%;justify-content: flex-end;gap: 20px;">
-      <app-form-button form="stroked" name="cancel" (click)="confirmModal=false">
+    <div style="display: flex;width: 100%;justify-content: flex-end;gap: 20px;align-items: center;">
+      <app-form-button form="stroked" name="cancel" (click)="confirmModal=false" [disabled]="saving">
       </app-form-button>
       <app-form-button form="flat" [name]="mode==='create'?'end_create_course':'end_update_course'"
-                       (click)="confirmModal=false;endCourse()">
+                       [disabled]="saving"
+                       (click)="endCourse()">
       </app-form-button>
+      <div *ngIf="saving" style="display:flex;align-items:center;gap:8px; margin-left:12px;">
+        <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+        <span>{{'loading' | translate}}</span>
+      </div>
     </div>
   </div>
 </vex-flux-modal>
@@ -1648,11 +1657,15 @@
     <div>
       {{'are_you_sure_action' | translate}}
     </div>
-    <div style="display: flex;width: 100%;justify-content: flex-end;gap: 20px;">
-      <app-form-button form="stroked" name="cancel" (click)="editModal=false">
+    <div style="display: flex;width: 100%;justify-content: flex-end;gap: 20px;align-items: center;">
+      <app-form-button form="stroked" name="cancel" (click)="editModal=false" [disabled]="saving">
       </app-form-button>
-      <app-form-button form="flat" name="confirm" (click)="executeEditFunction()">
+      <app-form-button form="flat" name="confirm" (click)="executeEditFunction()" [disabled]="saving">
       </app-form-button>
+      <div *ngIf="saving" style="display:flex;align-items:center;gap:8px;">
+        <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+        <span>{{'loading' | translate}}</span>
+      </div>
     </div>
   </div>
 </vex-flux-modal>

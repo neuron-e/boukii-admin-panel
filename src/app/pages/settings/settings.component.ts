@@ -331,6 +331,20 @@ export class SettingsComponent implements OnInit {
       .subscribe((data) => {
 
         this.school = data.data;
+        // Refrescar snapshot local del usuario con settings actualizados para futuros defaults
+        const raw = localStorage.getItem('boukiiUser');
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed?.schools?.length) {
+              parsed.schools[0].settings = this.school.settings;
+              localStorage.setItem('boukiiUser', JSON.stringify(parsed));
+              this.user = parsed;
+            }
+          } catch {
+            // ignore parsing errors
+          }
+        }
         this.schoolLogoPreview = this.school?.logo || null;
         this.schoolLogoBase64 = null;
         this.populateSchoolContactFields(this.school);
@@ -1063,6 +1077,20 @@ export class SettingsComponent implements OnInit {
     this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
       .subscribe(() => {
         this.school.settings = settingsPayload;
+        // Persistir settings actualizados en el usuario para evitar snapshots obsoletos en formularios (p.ej. price_range por defecto)
+        const userRaw = localStorage.getItem('boukiiUser');
+        if (userRaw) {
+          try {
+            const parsed = JSON.parse(userRaw);
+            if (parsed?.schools?.length) {
+              parsed.schools[0].settings = settingsPayload;
+              localStorage.setItem('boukiiUser', JSON.stringify(parsed));
+              this.schoolService.user = parsed;
+            }
+          } catch {
+            // ignore parsing errors
+          }
+        }
         this.snackbar.open(this.translateService.instant('snackbar.settings.prices'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
       })

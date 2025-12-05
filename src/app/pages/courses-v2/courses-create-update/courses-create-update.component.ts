@@ -1,7 +1,8 @@
 ﻿import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef, NgZone, ChangeDetectionStrategy, QueryList, ViewChildren } from '@angular/core';
 import {AbstractControl, FormArray, FormGroup, UntypedFormBuilder, UntypedFormGroup, Validators} from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import {map, forkJoin, mergeMap, throwError, catchError, Subject, takeUntil, Subscription} from 'rxjs';
+import {map, forkJoin, mergeMap, throwError, catchError, Subject, takeUntil, Subscription, firstValueFrom} from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
 import { stagger20ms } from 'src/@vex/animations/stagger.animation';
 import { ApiCrudService } from 'src/service/crud.service';
@@ -103,6 +104,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   mode: 'create' | 'update' = 'create';
   loading: boolean = true;
+  saving: boolean = false;
   translatingLangs: Set<string> = new Set<string>();
   bulkTranslationInProgress = false;
   baseTranslationDirty = false;
@@ -110,11 +112,13 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   manuallyEditedTranslations: Set<string> = new Set<string>();
   private translationWatcherAttached = false;
   private lastBaseTranslationSnapshot = { name: '', short_description: '', description: '' };
+  private initialHeavySnapshot: string = '';
   extrasModal: boolean = false
   confirmModal: boolean = false
   editModal: boolean = false
   editFunctionName: string | null = null;
   editFunctionArgs: any[] = [];
+  private priceRangeInitialized = false;
 
   // Memory Management: Subject for unsubscribing from observables
   private destroy$ = new Subject<void>();
@@ -366,7 +370,19 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   executeEditFunction() {
     if (this.editFunctionName && typeof this[this.editFunctionName] === 'function') {
-      this[this.editFunctionName](...this.editFunctionArgs);
+      // If we're invoking the course save, keep the modal open so the loader is visible
+      if (this.editFunctionName === 'endCourse') {
+        const result = (this as any)[this.editFunctionName](...this.editFunctionArgs);
+        if (result instanceof Promise) {
+          result.catch((err: any) => console.error(err));
+        }
+        return;
+      }
+
+      const result = (this as any)[this.editFunctionName](...this.editFunctionArgs);
+      if (result instanceof Promise) {
+        result.catch((err: any) => console.error(err));
+      }
     }
     this.editModal = false;
   }
@@ -631,7 +647,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   }
 
   private upsertSingleIntervalDates(dates: CourseDate[]): CourseDate[] {
-    // PROTECCI├ôN: No ejecutar durante aplicaci├│n de horario masivo
+    // PROTECCI+ôN: No ejecutar durante aplicaci+¦n de horario masivo
     if (this._applyingBulkSchedule) {
       return dates; // Retornar las fechas tal como vinieron
     }
@@ -2632,7 +2648,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    */
   addSubgroupToLevel(level: any): void {
     if (!this.intervals || this.intervals.length === 0) {
-      console.error('❌ No intervals available');
+      console.error('? No intervals available');
       return;
     }
 
@@ -2651,7 +2667,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
         state.subgroups.push(newSubgroup);
       } else {
-        console.error(`❌ No state for interval ${idx}`);
+        console.error(`? No state for interval ${idx}`);
       }
     });
 
@@ -3259,6 +3275,10 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       this.courseDatesChanges = courseDatesControl.valueChanges.subscribe(() => this.refreshCourseDetailCards());
     }
     this.mode = this.id ? 'update' : 'create';
+    if (this.mode === 'create') {
+      // Refrescar settings de escuela para defaults (price_range) y snapshot de usuario
+      this.getFreshSchoolSettings();
+    }
     // Ensure intervals is always an array
     this.intervals = Array.isArray(this.intervals) ? this.intervals : [];
 
@@ -3507,7 +3527,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         const hasCourseGroupsInDates = courseDates.some((cd: any) => Array.isArray(cd?.course_groups) && cd.course_groups.length > 0);
         const hasMultipleIntervalsFromDates = uniqueIntervalIds.size > 1;
 
-        // Si tiene intervalos m├║ltiples (ya sea por settings o por detección automática), cargarlos ANTES de getDegrees
+        // Si tiene intervalos m+¦ltiples (ya sea por settings o por detección automática), cargarlos ANTES de getDegrees
         if ((hasMultipleIntervals || hasMultipleIntervalsFromDates) && this.detailData.course_type === 1) {
           // Si no está configurado en settings pero tiene múltiples intervalos en fechas, activar automáticamente
           if (!hasMultipleIntervals && hasMultipleIntervalsFromDates) {
@@ -3520,10 +3540,10 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             }
             this.detailData.settings.multipleIntervals = true;
           }
-          // Cargar los intervalos despu├®s de que el FormGroup est├® listo
+          // Cargar los intervalos despu+®s de que el FormGroup est+® listo
           this.loadIntervalsFromCourse(this.detailData, this);
         } else if (this.detailData.course_type === 1) {
-          // Inicializar al menos un intervalo para cursos que no tienen m├║ltiples intervalos
+          // Inicializar al menos un intervalo para cursos que no tienen m+¦ltiples intervalos
           if (!this.intervals || this.intervals.length === 0) {
             this.intervals = [this.createDefaultInterval()];
           }
@@ -3622,41 +3642,42 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           this.scheduleIntervalGroupsSync();
         }
         this.initTranslationTracking();
+        this.initialHeavySnapshot = this.buildHeavySnapshot();
         this.loading = false
         // setTimeout(() => (this.loading = false), 0);
       });
   }
 
   /**
-   * M├®todo seguro para obtener el array de intervalos desde el FormGroup principal
-   * Este m├®todo garantiza que siempre se devuelva un FormArray, incluso si a├║n no est├í inicializado
+   * M+®todo seguro para obtener el array de intervalos desde el FormGroup principal
+   * Este m+®todo garantiza que siempre se devuelva un FormArray, incluso si a+¦n no est+í inicializado
    */
   getIntervalsArray(): FormArray {
     // Verificar si el FormGroup principal existe
     if (!this.courses.courseFormGroup) {
-      console.warn('courseFormGroup no est├í inicializado. Devolviendo un FormArray vac├¡o.');
+      console.warn('courseFormGroup no est+í inicializado. Devolviendo un FormArray vac+¡o.');
       return this.fb.array([]);
     }
 
     // Intentar obtener el FormArray de intervals_ui
     const intervals = this.courses.courseFormGroup.get('intervals_ui');
 
-    // Si el control no existe o no es un FormArray, devolver uno vac├¡o
+    // Si el control no existe o no es un FormArray, devolver uno vac+¡o
     if (!intervals || !(intervals instanceof FormArray)) {
-      console.warn('intervals_ui no est├í inicializado o no es un FormArray. Devolviendo un FormArray vac├¡o.');
+      console.warn('intervals_ui no est+í inicializado o no es un FormArray. Devolviendo un FormArray vac+¡o.');
 
-      // Si el control no existe pero el FormGroup s├¡, podemos intentar inicializarlo
+      // Si el control no existe pero el FormGroup s+¡, podemos intentar inicializarlo
       if (this.courses.courseFormGroup) {
         const emptyArray = this.fb.array([]);
         this.courses.courseFormGroup.setControl('intervals_ui', emptyArray);
         return emptyArray;
       }
 
-      // Como fallback, devolvemos un array vac├¡o
+      // Como fallback, devolvemos un array vac+¡o
       return this.fb.array([]);
     }
 
-    // Si todo est├í bien, devolver el FormArray
+    // Si todo est+í bien, devolver el FormArray
     return intervals as FormArray;
   }
 
@@ -3681,7 +3702,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       console.error("Error loading extras from localStorage:", error);
     }
 
-    // Formatear extras de configuraci├│n
+    // Formatear extras de configuraci+¦n
     const formattedSettingsExtras = settingsExtras.map(extra => ({
       id: extra.id.toString(),
       name: extra.name,
@@ -4003,63 +4024,270 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.translationListenerReady = true;
   }
 
-  private async autoTranslateFromBaseIfNeeded(): Promise<void> {
-    if (this.mode !== 'update' || !this.baseTranslationDirty || this.bulkTranslationInProgress) {
-      return;
+  private async getFreshSchoolSettings(): Promise<any> {
+    try {
+      const schoolId = this.user?.schools?.[0]?.id;
+      if (!schoolId) {
+        return this.user?.schools?.[0]?.settings || {};
+      }
+      const res: any = await firstValueFrom(this.crudService.get(`/schools/${schoolId}`));
+      const settings = res?.data?.settings;
+      if (settings) {
+        const parsedSettings = typeof settings === 'string' ? JSON.parse(settings) : settings;
+        // Actualizar snapshot local del usuario para evitar defaults obsoletos
+        const raw = localStorage.getItem('boukiiUser');
+        if (raw) {
+          const parsedUser = JSON.parse(raw);
+          if (parsedUser?.schools?.length) {
+            parsedUser.schools[0].settings = parsedSettings;
+            localStorage.setItem('boukiiUser', JSON.stringify(parsedUser));
+            this.user = parsedUser;
+          }
+        }
+        return parsedSettings;
+      }
+    } catch (e) {
+      console.warn('No se pudo refrescar settings de la escuela, se usan settings locales.', e);
+    }
+    return this.user?.schools?.[0]?.settings || {};
+  }
+
+  private normalizeTranslationsPayload(translations: any): any {
+    if (typeof translations === 'string') {
+      try {
+        translations = JSON.parse(translations) || {};
+      } catch {
+        translations = {};
+      }
+    }
+    return translations || {};
+  }
+
+  private buildHeavySnapshot(): string {
+    try {
+      const raw = this.courses?.courseFormGroup?.getRawValue?.() || {};
+      const settings = raw?.settings;
+      const normalizedSettings = typeof settings === 'string' ? settings : JSON.stringify(settings || {});
+      const sanitizedDates = this.courses ? this.courses.sanitizeCourseDatesStructure(raw.course_dates || []) : (raw.course_dates || []);
+      return JSON.stringify({
+        course_dates: sanitizedDates,
+        settings: normalizedSettings,
+        levelGrop: raw.levelGrop,
+        extras: raw.extras,
+        price_range: raw.price_range,
+        course_type: raw.course_type,
+        is_flexible: raw.is_flexible,
+      });
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Detecta cambios REALES en campos pesados comparando contadores y valores clave
+   * en lugar de comparar JSON completos (que dan falsos positivos)
+   */
+  private detectRealHeavyChanges(): boolean {
+    if (!this.initialHeavySnapshot || !this.courses?.courseFormGroup) {
+      console.log('[detectRealHeavyChanges] No snapshot or form, assuming no heavy changes');
+      return false; // Sin snapshot inicial, asumir que no hay cambios pesados
+    }
+
+    try {
+      const initial = JSON.parse(this.initialHeavySnapshot);
+      const current = this.courses.courseFormGroup.getRawValue();
+
+      // Comparar contadores de arrays (más confiable que comparar objetos completos)
+      const courseDatesCountChanged = (initial.course_dates?.length || 0) !== (current.course_dates?.length || 0);
+      const levelGropCountChanged = (initial.levelGrop?.length || 0) !== (current.levelGrop?.length || 0);
+      const extrasCountChanged = (initial.extras?.length || 0) !== (current.extras?.length || 0);
+
+      // Comparar campos escalares simples
+      const courseTypeChanged = initial.course_type !== current.course_type;
+      const isFlexibleChanged = initial.is_flexible !== current.is_flexible;
+
+      // Comparar price_range por longitud y stringify simple
+      const priceRangeChanged = JSON.stringify(initial.price_range || []) !== JSON.stringify(current.price_range || []);
+
+      const heavyChangeDetected = courseDatesCountChanged || levelGropCountChanged ||
+                                   extrasCountChanged || courseTypeChanged ||
+                                   isFlexibleChanged || priceRangeChanged;
+
+      console.log('[detectRealHeavyChanges] Analysis:', {
+        courseDatesCountChanged,
+        levelGropCountChanged,
+        extrasCountChanged,
+        courseTypeChanged,
+        isFlexibleChanged,
+        priceRangeChanged,
+        result: heavyChangeDetected,
+        initialCourseDatesCount: initial.course_dates?.length || 0,
+        currentCourseDatesCount: current.course_dates?.length || 0,
+        initialLevelGropCount: initial.levelGrop?.length || 0,
+        currentLevelGropCount: current.levelGrop?.length || 0,
+      });
+
+      return heavyChangeDetected;
+    } catch (error) {
+      console.error('[detectRealHeavyChanges] Error:', error);
+      return false; // En caso de error, asumir que no hay cambios pesados (usar PATCH)
+    }
+  }
+
+  /**
+   * Detecta si SOLO cambiaron campos ligeros (textos, traducciones, etc.)
+   * usando el estado dirty del FormGroup
+   */
+  private onlyLightweightFieldsChanged(): boolean {
+    if (!this.courses?.courseFormGroup) {
+      return false;
+    }
+
+    const form = this.courses.courseFormGroup;
+
+    // Campos ligeros que pueden usar PATCH
+    const lightweightFields = [
+      'name',
+      'description',
+      'short_description',
+      'translations',
+      'claim_text',
+      'summary',
+      'image'
+    ];
+
+    // Campos pesados que requieren UPDATE completo
+    const heavyFields = [
+      'course_dates',
+      'levelGrop',
+      'extras',
+      'price_range',
+      'settings',
+      'course_type',
+      'is_flexible'
+    ];
+
+    // Verificar si algún campo pesado cambió
+    const heavyFieldChanged = heavyFields.some(field => {
+      const control = form.get(field);
+      return control && control.dirty;
+    });
+
+    if (heavyFieldChanged) {
+      console.log('[onlyLightweightFieldsChanged] Heavy field changed, must use full UPDATE');
+      return false;
+    }
+
+    // Verificar si al menos un campo ligero cambió
+    const lightweightFieldChanged = lightweightFields.some(field => {
+      const control = form.get(field);
+      return control && control.dirty;
+    });
+
+    console.log('[onlyLightweightFieldsChanged]', {
+      lightweightFieldChanged,
+      heavyFieldChanged,
+      result: lightweightFieldChanged && !heavyFieldChanged
+    });
+
+    return lightweightFieldChanged && !heavyFieldChanged;
+  }
+
+  private hasHeavyChanges(): boolean {
+    if (!this.initialHeavySnapshot) {
+      console.warn('[hasHeavyChanges] No initial snapshot, assuming heavy changes');
+      return true;
+    }
+    const current = this.buildHeavySnapshot();
+    const hasChanges = current !== this.initialHeavySnapshot;
+
+    console.log('[hasHeavyChanges] Checking for heavy changes:', {
+      hasChanges,
+      initialLength: this.initialHeavySnapshot.length,
+      currentLength: current.length,
+      mode: this.mode
+    });
+
+    if (hasChanges) {
+      // Debug: ver qué específicamente cambió
+      const initial = JSON.parse(this.initialHeavySnapshot);
+      const now = JSON.parse(current);
+      console.log('[hasHeavyChanges] Changes detected:', {
+        course_dates_changed: JSON.stringify(initial.course_dates) !== JSON.stringify(now.course_dates),
+        settings_changed: initial.settings !== now.settings,
+        levelGrop_changed: JSON.stringify(initial.levelGrop) !== JSON.stringify(now.levelGrop),
+        extras_changed: JSON.stringify(initial.extras) !== JSON.stringify(now.extras),
+        price_range_changed: JSON.stringify(initial.price_range) !== JSON.stringify(now.price_range),
+        course_type_changed: initial.course_type !== now.course_type,
+        is_flexible_changed: initial.is_flexible !== now.is_flexible,
+      });
+    }
+
+    return hasChanges;
+  }
+
+  private async translateViaApi(languages?: string[], trackLang?: string): Promise<boolean> {
+    if (!this.id) {
+      return false;
     }
 
     const formValue = this.courses?.courseFormGroup?.value || {};
     const { name, short_description, description } = formValue;
     if (!name || !short_description || !description) {
-      return;
+      return false;
     }
 
-    let translations = this.getTranslationsValue();
-    const languages = this.Translate.map(t => t.Code);
-    this.bulkTranslationInProgress = true;
+    const payload: any = { name, short_description, description };
+    const langs = languages && languages.length ? languages : this.Translate.map(t => t.Code);
+    if (langs?.length) {
+      payload.languages = langs;
+    }
+
+    if (trackLang) {
+      this.translatingLangs.add(trackLang);
+    } else {
+      this.bulkTranslationInProgress = true;
+    }
     this.cdr.markForCheck();
 
     try {
-      const results = await Promise.allSettled(
-        languages.map(async (lang) => {
-          const translatedName = await this.crudService.translateText(name, lang.toUpperCase()).toPromise();
-          const translatedShortDescription = await this.crudService.translateText(short_description, lang.toUpperCase()).toPromise();
-          const translatedDescription = await this.crudService.translateText(description, lang.toUpperCase()).toPromise();
-
-          return {
-            lang,
-            name: translatedName?.data?.translations?.[0]?.text || '',
-            short_description: translatedShortDescription?.data?.translations?.[0]?.text || '',
-            description: translatedDescription?.data?.translations?.[0]?.text || '',
-          };
-        })
-      );
-
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          const lang = result.value.lang;
-          if (this.manuallyEditedTranslations.has(lang)) {
-            return;
-          }
-          translations[lang] = {
-            ...(translations[lang] || {}),
-            name: result.value.name || translations[lang]?.name || '',
-            short_description: result.value.short_description || translations[lang]?.short_description || '',
-            description: result.value.description || translations[lang]?.description || '',
-          };
-          this.manuallyEditedTranslations.delete(lang);
+      const response: any = await this.crudService.translateCourse(this.id, payload).toPromise();
+      if (response?.success && response?.data?.translations) {
+        const updated = this.normalizeTranslationsPayload(response.data.translations);
+        const merged = { ...this.getTranslationsValue(), ...updated };
+        this.courses.courseFormGroup.patchValue({ translations: merged }, { emitEvent: false });
+        this.baseTranslationDirty = false;
+        this.captureBaseTranslationSnapshot();
+        this.manuallyEditedTranslations.clear();
+        if (response?.data?.fallback_enqueued) {
+          this.snackBar.open('Translations will continue in background', this.translateService.instant('close'), {
+            duration: 4000
+          });
         }
-      });
-
-      this.courses.courseFormGroup.patchValue({ translations }, { emitEvent: false });
-      this.baseTranslationDirty = false;
-      this.captureBaseTranslationSnapshot();
+        return true;
+      }
+      this.showErrorMessage(response?.message || 'No se pudo traducir el curso.');
+      return false;
     } catch (error) {
-      console.error('Error auto-translating course', error);
+      console.error('Error translating course', error);
+      this.showErrorMessage('Error translating course.');
+      return false;
     } finally {
-      this.bulkTranslationInProgress = false;
+      if (trackLang) {
+        this.translatingLangs.delete(trackLang);
+      } else {
+        this.bulkTranslationInProgress = false;
+      }
       this.cdr.markForCheck();
     }
+  }
+
+  private async autoTranslateFromBaseIfNeeded(): Promise<void> {
+    if (this.mode !== 'update' || !this.baseTranslationDirty || this.bulkTranslationInProgress) {
+      return;
+    }
+
+    await this.translateViaApi();
   }
 
   onTranslationFieldChange(lang: string, field: 'name' | 'short_description' | 'description', value: any): void {
@@ -4109,7 +4337,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             const languages = ['fr', 'en', 'de', 'es', 'it'];
             const { name, short_description, description } = this.courses.courseFormGroup.controls;
 
-            // Inicializamos el objeto de traducciones con valores vac├¡os
+            // Inicializamos el objeto de traducciones con valores vac+¡os
             const translations: Record<string, any> = {};
             languages.forEach(lang => {
               translations[lang] = {
@@ -4135,7 +4363,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
                     };
                   } catch (error) {
                     console.error(`Error translating to ${lang}:`, error);
-                    return { lang, name: '', short_description: '', description: '' }; // Retorna un objeto vac├¡o si hay error
+                    return { lang, name: '', short_description: '', description: '' }; // Retorna un objeto vac+¡o si hay error
                   }
                 })
               );
@@ -4173,31 +4401,44 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         this.courses.courseFormGroup.markAllAsTouched()
         this.ModalFlux -= add
       }
-      if (this.courses.courseFormGroup.controls['course_type'].value === 2) {
-        const settings = JSON.parse(this.user.schools[0].settings);
-        let durations = this.courses.getFilteredDuration(settings);
-
-        // Usar directamente el max_participants configurado en el formulario
-        const maxParticipants = this.courses.courseFormGroup.controls["max_participants"].value || 6;
-
-        let Range = this.generarIntervalos(
-          maxParticipants,
-          durations.length,
-          durations
-        );
-
-        const priceRanges = settings.prices_range.prices.map(p => ({
-          ...p,
-          intervalo: p.intervalo.replace(/^(\d+)h$/, "$1h 0min") // Convierte "1h" en "1h0min" para que coincida con durations
-        }));
-
-        // Asignar los precios a los intervalos correctos
-        Range = Range.map(intervalo => {
-          const matchingPrice = priceRanges.find(p => p.intervalo === intervalo.intervalo);
-          return matchingPrice ? { ...intervalo, ...matchingPrice } : intervalo;
+      // Solo aplicar price_range de settings al CREAR cursos nuevos (flex privados) y si aún no se inicializó
+      if (!this.priceRangeInitialized &&
+        this.courses.courseFormGroup.controls['course_type'].value === 2 &&
+        this.mode === 'create') {
+        const currentRange = this.courses.courseFormGroup.controls['price_range'].value;
+        const hasCustomRange = Array.isArray(currentRange) && currentRange.some((row: any) => {
+          if (!row || typeof row !== 'object') return false;
+          const entries = Object.entries(row).filter(([key]) => key !== 'intervalo');
+          return entries.some(([, val]) => val);
         });
+        if (!hasCustomRange) {
+          this.getFreshSchoolSettings().then((settings) => {
+            const durations = this.courses.getFilteredDuration(settings);
+            const maxParticipants = this.courses.courseFormGroup.controls["max_participants"].value || 6;
 
-        this.courses.courseFormGroup.patchValue({ price_range: Range });
+            let Range = this.generarIntervalos(
+              maxParticipants,
+              durations.length,
+              durations
+            );
+
+            const priceRanges = settings?.prices_range?.prices?.map((p: any) => ({
+              ...p,
+              intervalo: p.intervalo.replace(/^(\d+)h$/, "$1h 0min") // Convierte "1h" en "1h0min" para que coincida con durations
+            })) || [];
+
+            Range = Range.map(intervalo => {
+              const matchingPrice = priceRanges.find((p: any) => p.intervalo === intervalo.intervalo);
+              return matchingPrice ? { ...intervalo, ...matchingPrice } : intervalo;
+            });
+
+            this.courses.courseFormGroup.patchValue({ price_range: Range });
+            this.priceRangeInitialized = true;
+            this.cdr.markForCheck();
+          });
+        } else {
+          this.priceRangeInitialized = true;
+        }
       }
     }
     else if (this.ModalFlux === 4) {
@@ -4225,39 +4466,65 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
   }
 
-  async translateCourse(lang: string): Promise<void> {
-    if (this.translatingLangs.has(lang)) {
+  onPrimaryAction(): void {
+    if (this.mode === 'create') {
+      this.Confirm(1);
       return;
     }
-    this.translatingLangs.add(lang);
-    this.cdr.markForCheck();
-    try {
-      const translations = this.getTranslationsValue();
-      const currentTranslation = translations[lang] || {};
+    this.openEditConfirmation();
+  }
 
-      const translatedName = await this.crudService.translateText(this.courses.courseFormGroup.value.name, lang.toUpperCase()).toPromise();
-      const translatedShortDescription = await this.crudService.translateText(this.courses.courseFormGroup.value.short_description, lang.toUpperCase()).toPromise();
-      const translatedDescription = await this.crudService.translateText(this.courses.courseFormGroup.value.description, lang.toUpperCase()).toPromise();
+  private openEditConfirmation(): void {
+    this.editModal = true;
+    this.setEditFunction('endCourse');
+  }
 
-      // Actualizar solo los valores traducidos sin afectar los dem├ís idiomas
-      this.courses.courseFormGroup.patchValue({
-        translations: {
-          ...translations,
-          [lang]: {
-            name: translatedName?.data?.translations?.[0]?.text || currentTranslation.name,
-            short_description: translatedShortDescription?.data?.translations?.[0]?.text || currentTranslation.short_description,
-            description: translatedDescription?.data?.translations?.[0]?.text || currentTranslation.description,
-          },
-        },
-      });
-      this.manuallyEditedTranslations.delete(lang);
-
-    } catch (error) {
-      console.error(`Error translating to ${lang}:`, error);
-    } finally {
-      this.translatingLangs.delete(lang);
-      this.cdr.markForCheck();
+  async translateCourse(lang: string): Promise<void> {
+    if (this.translatingLangs.has(lang) || this.bulkTranslationInProgress) {
+      return;
     }
+
+    if (this.mode === 'create' || !this.id) {
+      // En modo creación usamos la traducción directa para pre-rellenar antes de guardar
+      this.translatingLangs.add(lang);
+      this.cdr.markForCheck();
+      try {
+        const translations = this.getTranslationsValue();
+        const currentTranslation = translations[lang] || {};
+
+        const translatedName = await this.crudService.translateText(this.courses.courseFormGroup.value.name, lang.toUpperCase()).toPromise();
+        const translatedShortDescription = await this.crudService.translateText(this.courses.courseFormGroup.value.short_description, lang.toUpperCase()).toPromise();
+        const translatedDescription = await this.crudService.translateText(this.courses.courseFormGroup.value.description, lang.toUpperCase()).toPromise();
+
+        this.courses.courseFormGroup.patchValue({
+          translations: {
+            ...translations,
+            [lang]: {
+              name: translatedName?.data?.translations?.[0]?.text || currentTranslation.name,
+              short_description: translatedShortDescription?.data?.translations?.[0]?.text || currentTranslation.short_description,
+              description: translatedDescription?.data?.translations?.[0]?.text || currentTranslation.description,
+            },
+          },
+        });
+        this.manuallyEditedTranslations.delete(lang);
+
+      } catch (error) {
+        console.error(`Error translating to ${lang}:`, error);
+      } finally {
+        this.translatingLangs.delete(lang);
+        this.cdr.markForCheck();
+      }
+      return;
+    }
+
+    await this.translateViaApi([lang], lang);
+  }
+
+  private async ensureTranslationsBeforeSave(): Promise<void> {
+    if (this.mode !== 'update' || !this.baseTranslationDirty || this.bulkTranslationInProgress) {
+      return;
+    }
+    await this.translateViaApi();
   }
 
   find = (array: any[], key: string, value: string | boolean) => array.find((a: any) => value ? a[key] === value : a[key])
@@ -4790,7 +5057,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.cdr.markForCheck();
   }
 
-  // Opci├│n 3: M├®todo gen├®rico para obtener cualquier FormArray de un FormGroup
+  // Opci+¦n 3: M+®todo gen+®rico para obtener cualquier FormArray de un FormGroup
   getFormArray(formGroup: AbstractControl, name: string): AbstractControl[] {
     const formArray = formGroup?.get(name) as FormArray;
     return formArray?.controls || [];
@@ -4827,7 +5094,14 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     return {};
   }
 
-  endCourse() {
+  async endCourse() {
+    if (this.saving) {
+      return;
+    }
+    this.saving = true;
+    this.cdr.markForCheck();
+    this.loading = true;
+    try {
     // Sync inline changes (dates/hours/durations) before building payload
     try {
       const syncResult = this.syncIntervalsToCourseFormGroup();
@@ -4835,6 +5109,9 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     } catch (e) {
       console.warn('Unable to sync/recalculate dates before save:', e);
     }
+
+    // Refrescar traducciones antes de guardar (solo update)
+    await this.ensureTranslationsBeforeSave();
 
     // Log early snapshot of course_dates before any validation/error
     this.logSubgroupState('beforeSave');
@@ -4882,10 +5159,13 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     if (conflicts.length > 0) {
       const summary = this.dateOverlapValidation.getValidationSummary(conflicts);
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
+      this.saving = false;
+      this.confirmModal = false;
+      this.cdr.markForCheck();
       return;
     }
 
-    // Si no hay conflictos continuamos con el flujo normal manteniendo la carga ├║til original
+    // Si no hay conflictos continuamos con el flujo normal manteniendo la carga +¦til original
     const currentSettings = this.extractSettingsPayload(courseFormGroup.settings);
 
     if (courseFormGroup.course_type !== 1) {
@@ -4912,7 +5192,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         });
       });
 
-      // Actualizar settings con la configuraci├│n de intervalos
+      // Actualizar settings con la configuraci+¦n de intervalos
       courseFormGroup.settings = {
         ...currentSettings,
         multipleIntervals: true,
@@ -4999,16 +5279,22 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
 
     if (this.mode === "create") {
-      this.crudService.create('/admin/courses', courseFormGroup)
-        .pipe(
-          catchError((error) => {
-            console.error("Error al crear el curso:", error);
-            this.showErrorMessage("Hubo un problema al crear el curso. Int├®ntalo de nuevo.");
-            return throwError(() => error);
+        this.crudService.create('/admin/courses', courseFormGroup)
+          .pipe(
+            catchError((error) => {
+              console.error("Error al crear el curso:", error);
+              this.showErrorMessage("Hubo un problema al crear el curso. Int+®ntalo de nuevo.");
+              return throwError(() => error);
+            }),
+          finalize(() => {
+            this.saving = false;
+            this.confirmModal = false;
+            this.editModal = false;
+            this.cdr.markForCheck();
           })
-        )
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((data:any) => {
+          )
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((data:any) => {
           if (data.success) {
             // FIX B.3: Mostrar toast de confirmación
             this.snackBar.open(this.translateService.instant('course_created_successfully'), this.translateService.instant('close'), {
@@ -5021,18 +5307,64 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           }
         });
     } else {
-      this.crudService.update('/admin/courses', courseFormGroup, this.id)
-        .pipe(
-          catchError((error:any) => {
-            console.error("Error al actualizar el curso:", error);
-            this.debugLog('update:error', { course_id: courseFormGroup.id ?? this.id ?? null, message: error?.message, status: error?.status });
-            this.pushDebugLogsToBackend();
-            this.showErrorMessage("Hubo un problema al actualizar el curso. Int├®ntalo de nuevo.");
-            return throwError(() => error);
+      const baseOnlyPayload: any = {
+        name: courseFormGroup.name,
+        short_description: courseFormGroup.short_description,
+        description: courseFormGroup.description,
+        translations: courseFormGroup.translations,
+        claim_text: courseFormGroup.claim_text,
+        summary: courseFormGroup.summary,
+      };
+
+      // DETECCIÓN INTELIGENTE: Verificar si REALMENTE cambiaron campos pesados
+      // comparando tamaños de arrays y contadores clave
+      const realHeavyChanges = this.detectRealHeavyChanges();
+
+      let canUsePatch = false;
+
+      if (this.mode === 'update') {
+        if (realHeavyChanges) {
+          // Cambios pesados detectados (fechas, niveles, grupos)
+          canUsePatch = false;
+          console.log('[COURSE SAVE] Real heavy changes detected, using full UPDATE');
+        } else {
+          // Solo cambios ligeros, usar PATCH optimizado
+          canUsePatch = true;
+          console.log('[COURSE SAVE] Only lightweight changes, using PATCH optimization');
+        }
+      }
+
+      console.log('[COURSE SAVE] Decision:', {
+        mode: this.mode,
+        realHeavyChanges,
+        canUsePatch,
+        method: canUsePatch ? 'PATCH (optimized)' : 'PUT (full update)',
+        baseOnlyPayloadSize: JSON.stringify(baseOnlyPayload).length + ' bytes',
+        fullPayloadSize: JSON.stringify(courseFormGroup).length + ' bytes'
+      });
+
+        const save$ = canUsePatch
+          ? this.crudService.patch('/admin/courses', baseOnlyPayload, this.id)
+          : this.crudService.update('/admin/courses', courseFormGroup, this.id);
+
+        save$
+          .pipe(
+            catchError((error:any) => {
+              console.error("Error al actualizar el curso:", error);
+              this.debugLog('update:error', { course_id: courseFormGroup.id ?? this.id ?? null, message: error?.message, status: error?.status });
+              this.pushDebugLogsToBackend();
+              this.showErrorMessage("Hubo un problema al actualizar el curso. Int+®ntalo de nuevo.");
+              return throwError(() => error);
+            }),
+          finalize(() => {
+            this.saving = false;
+            this.confirmModal = false;
+            this.editModal = false;
+            this.cdr.markForCheck();
           })
-        )
-        .pipe(takeUntil(this.destroy$))
-        .subscribe((data) => {
+          )
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((data) => {
           if (data.success) {
             this.debugLog('update:success', { course_id: data?.data?.id ?? this.id ?? null, message: data?.message });
             this.pushDebugLogsToBackend();
@@ -5048,6 +5380,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             this.showErrorMessage(data.message || "No se pudo actualizar el curso.");
           }
         });
+    }
+    } catch (e) {
+      console.error('Unexpected error while saving course', e);
+      this.saving = false;
+      this.cdr.markForCheck();
+      throw e;
     }
   }
 
@@ -5118,7 +5456,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       date: newDate
     };
 
-    // Validar conflictos antes de agregar - solo para validaci├│n, no modificamos los datos originales
+    // Validar conflictos antes de agregar - solo para validaci+¦n, no modificamos los datos originales
     const validationError = this.dateOverlapValidation.validateNewCourseDate(
       {
         date: newDate.toISOString().split('T')[0],
@@ -5215,7 +5553,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   onMultipleIntervalsChange() {
     if (this.useMultipleIntervals) {
-      // Si no hay intervalos, inicializar con uno vac├¡o
+      // Si no hay intervalos, inicializar con uno vac+¡o
       if (!this.intervals || this.intervals.length === 0) {
         this.addIntervalUI(0);
       }
@@ -5231,7 +5569,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   }
 
-  // A├▒adir un nuevo intervalo
+  // A+¦adir un nuevo intervalo
   addIntervalUI(i:number) {
     const previousInterval = Array.isArray(this.intervals) && this.intervals.length > 0
       ? this.intervals[this.intervals.length - 1]
@@ -5305,7 +5643,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
 
 
-  // A├▒adir una fecha a un intervalo
+  // A+¦adir una fecha a un intervalo
   addCourseDateToInterval(intervalIndex: number) {
     this.ensureSingleIntervalForNonFlexible();
 
@@ -5323,7 +5661,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         lastDate.setDate(lastDate.getDate() + 1);
         const proposedDate = lastDate.toISOString().split('T')[0];
 
-        // Solo usar la fecha propuesta si est├í dentro del rango
+        // Solo usar la fecha propuesta si est+í dentro del rango
         if (interval.endDate && proposedDate <= interval.endDate) {
           newDate = proposedDate;
         } else {
@@ -5404,7 +5742,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         // If validation fails, still allow deletion but warn user
         interval.dates.splice(dateIndex, 1);
         this.syncIntervalsToCourseFormGroup();
-        this.snackBar.open('Fecha del intervalo eliminada (validaci├│n fall├│)', '', { duration: 3000 });
+        this.snackBar.open('Fecha del intervalo eliminada (validaci+¦n fall+¦)', '', { duration: 3000 });
       }
     } else {
       // For new courses or dates without ID, delete directly
@@ -5918,19 +6256,19 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   validateAndUpdateIntervalDate(intervalIndex: number, dateIndex: number, newDate: string) {
 
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) {
-      console.warn('⚠️ Invalid intervalIndex:', intervalIndex);
+      console.warn('?? Invalid intervalIndex:', intervalIndex);
       return;
     }
     const interval = this.intervals[intervalIndex];
     if (dateIndex < 0 || dateIndex >= interval.dates.length) {
-      console.warn('⚠️ Invalid dateIndex:', dateIndex);
+      console.warn('?? Invalid dateIndex:', dateIndex);
       return;
     }
 
     const oldDate = interval.dates[dateIndex].date;
     interval.dates[dateIndex].date = newDate;
 
-    // Obtener todas las fechas existentes para validaci├│n
+    // Obtener todas las fechas existentes para validaci+¦n
     const allDates = this.generateCourseDatesFromIntervals(this.intervals);
     const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(allDates)
@@ -5938,7 +6276,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     if (validationErrors.length > 0) {
       // Revertir el cambio si hay errores
-      console.warn('⚠️ Validation errors, reverting date change');
+      console.warn('?? Validation errors, reverting date change');
       interval.dates[dateIndex].date = oldDate;
       const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
@@ -5951,12 +6289,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   validateAndUpdateIntervalHour(intervalIndex: number, dateIndex: number, newHour: string) {
 
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) {
-      console.warn('⚠️ Invalid intervalIndex:', intervalIndex);
+      console.warn('?? Invalid intervalIndex:', intervalIndex);
       return;
     }
     const interval = this.intervals[intervalIndex];
     if (dateIndex < 0 || dateIndex >= interval.dates.length) {
-      console.warn('⚠️ Invalid dateIndex:', dateIndex);
+      console.warn('?? Invalid dateIndex:', dateIndex);
       return;
     }
 
@@ -5978,7 +6316,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     if (validationErrors.length > 0) {
       // Revertir el cambio si hay errores
-      console.warn('⚠️ Validation errors, reverting hour change');
+      console.warn('?? Validation errors, reverting hour change');
       interval.dates[dateIndex].hour_start = oldHour;
       const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
@@ -5991,12 +6329,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   validateAndUpdateIntervalDuration(intervalIndex: number, dateIndex: number, newDuration: string) {
 
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) {
-      console.warn('⚠️ Invalid intervalIndex:', intervalIndex);
+      console.warn('?? Invalid intervalIndex:', intervalIndex);
       return;
     }
     const interval = this.intervals[intervalIndex];
     if (dateIndex < 0 || dateIndex >= interval.dates.length) {
-      console.warn('⚠️ Invalid dateIndex:', dateIndex);
+      console.warn('?? Invalid dateIndex:', dateIndex);
       return;
     }
 
@@ -6018,7 +6356,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     if (validationErrors.length > 0) {
       // Revertir el cambio si hay errores
-      console.warn('⚠️ Validation errors, reverting duration change');
+      console.warn('?? Validation errors, reverting duration change');
       interval.dates[dateIndex].duration = oldDuration;
       const summary = this.dateOverlapValidation.getValidationSummary(validationErrors);
       this.snackBar.open(summary, 'Cerrar', { duration: 5000, panelClass: ['error-snackbar'] });
@@ -6075,7 +6413,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
   }
 
-  // Validar cambios en duraci├│n principal
+  // Validar cambios en duraci+¦n principal
   validateAndUpdateMainDuration(dateIndex: number, newDuration: string) {
     const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
     if (dateIndex < 0 || dateIndex >= courseDates.length) return;
@@ -6103,12 +6441,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
   }
 
-  // Manejar cambio de per├¡odo (uni/multi per├¡odo)
+  // Manejar cambio de per+¡odo (uni/multi per+¡odo)
   onPeriodChange(selectedIndex: number) {
     this.PeriodoFecha = selectedIndex;
 
     if (selectedIndex === 0) {
-      // Cambio a per├¡odo ├║nico - asegurar que course_dates tiene los campos necesarios
+      // Cambio a per+¡odo +¦nico - asegurar que course_dates tiene los campos necesarios
       const currentDates = this.courses.courseFormGroup.controls['course_dates'].value;
 
       if (currentDates && currentDates.length > 0) {
@@ -6188,12 +6526,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
 
     this.syncIntervalsToCourseFormGroup();
-    // Forzar invalidaci├│n del cache de display intervals
+    // Forzar invalidaci+¦n del cache de display intervals
     this.invalidateDisplayIntervalsCache();
     this.enforceIntervalGroupAvailability();
   }
 
-  // M├®todos de generaci├│n de fechas por intervalo
+  // M+®todos de generaci+¦n de fechas por intervalo
   generateIntervalConsecutiveDates(intervalIndex: number) {
     this.ensureSingleIntervalForNonFlexible();
 
@@ -6229,7 +6567,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     // Validar las fechas generadas antes de aplicarlas
     const allDates = this.generateCourseDatesFromIntervals(this.intervals);
-    // Reemplazar las fechas del intervalo actual con las nuevas para validaci├│n
+    // Reemplazar las fechas del intervalo actual con las nuevas para validaci+¦n
     const testAllDates = allDates.filter(d => d.interval_id !== interval.id).concat(generatedDates);
     const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(testAllDates)
@@ -6322,7 +6660,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     // Validar las fechas generadas antes de aplicarlas
     const allDates = this.generateCourseDatesFromIntervals(this.intervals);
-    // Reemplazar las fechas del intervalo actual con las nuevas para validaci├│n
+    // Reemplazar las fechas del intervalo actual con las nuevas para validaci+¦n
     const testAllDates = allDates.filter(d => d.interval_id !== interval.id).concat(generatedDates);
     const validationErrors = this.dateOverlapValidation.validateAllCourseDates(
       this.convertToCourseDateInfos(testAllDates)
@@ -6367,12 +6705,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     this.intervals[intervalIndex].dateGenerationMethod = method;
 
-    // Si cambia a manual, no hacer nada autom├íticamente
+    // Si cambia a manual, no hacer nada autom+íticamente
     if (method === 'manual') {
       return;
     }
 
-    // Si cambia a consecutive o weekly, generar fechas autom├íticamente
+    // Si cambia a consecutive o weekly, generar fechas autom+íticamente
     if (method === 'consecutive') {
       this.generateIntervalConsecutiveDates(intervalIndex);
     } else if (method === 'weekly') {
@@ -6400,7 +6738,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     interval.weeklyPattern[day] = !interval.weeklyPattern[day];
 
-    // Si est├í en modo weekly, regenerar fechas
+    // Si est+í en modo weekly, regenerar fechas
     if (interval.dateGenerationMethod === 'weekly') {
       this.generateIntervalWeeklyDates(intervalIndex);
     }
@@ -6543,7 +6881,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   // Cargar intervalos desde un curso existente
   loadIntervalsFromCourse(courseData: any, component: any) {
-    // Comprobar si el curso tiene configuraci├│n de intervalos m├║ltiples
+    // Comprobar si el curso tiene configuraci+¦n de intervalos m+¦ltiples
     if (courseData.settings) {
       try {
         const settings = courseData.settings;
@@ -6555,7 +6893,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         const uniqueIntervalIds = new Set(courseDates.map((d: any) => d.interval_id).filter(Boolean));
         const hasMultipleIntervalsFromDates = uniqueIntervalIds.size > 1;
 
-        // Si tiene configuraci├│n de intervalos m├║ltiples O detectamos múltiples intervalos en fechas
+        // Si tiene configuraci+¦n de intervalos m+¦ltiples O detectamos múltiples intervalos en fechas
         if (settings.multipleIntervals || hasMultipleIntervalsFromDates) {
           // Activar el switch en el componente
           component.useMultipleIntervals = true;
@@ -6628,12 +6966,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           // FORZAR detección de cambios para que Angular actualice la vista
           this.cdr.detectChanges();
 
-          // A├▒adir fechas agrupadas por intervalos
+          // A+¦adir fechas agrupadas por intervalos
           Object.values(intervalGroups).forEach((group: any, groupIndex) => {
             // Ordenar fechas por orden
             const sortedDates = [...group.dates].sort((a, b) => a.order - b.order);
 
-            // A├▒adir cada fecha al FormArray
+            // A+¦adir cada fecha al FormArray
             sortedDates.forEach((dateInfo, dateIndex) => {
               // Usar el objeto completo que ya tiene todos los campos preservados
               // Solo normalizar la fecha si es necesario
@@ -6645,7 +6983,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
                 order: dateInfo.order || dateIndex
               };
 
-              // A├▒adir al FormArray
+              // A+¦adir al FormArray
               datesArray.push(this.fb.control(normalizedDate));
             });
           });
@@ -6718,7 +7056,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         console.error('Error validating course date deletion:', error);
         // If validation fails, still allow deletion but warn user
         courseDates.splice(i, 1);
-        this.snackBar.open('Fecha eliminada (validaci├│n fall├│)', '', { duration: 3000 });
+        this.snackBar.open('Fecha eliminada (validaci+¦n fall+¦)', '', { duration: 3000 });
       }
     } else {
       // For new courses or dates without ID, delete directly
@@ -6731,7 +7069,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   }
   /**
    * Open timing modal for subgroup students (cronometraje)
-   * Abre el modal aunque no haya alumnos (se mostrar├í vac├¡o)
+   * Abre el modal aunque no haya alumnos (se mostrar+í vac+¡o)
    */
   openTimingModal(subGroup: any, groupLevel: any, selectedDate?: any): void {
 
@@ -6740,7 +7078,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       return;
     }
 
-    // Usar la misma l├│gica que flux-disponibilidad: filtrar por degree_id del nivel
+    // Usar la misma l+¦gica que flux-disponibilidad: filtrar por degree_id del nivel
     const bookingUsers = this.courses.courseFormGroup.controls['booking_users']?.value || [];
 
     // Filtrar por degree_id en lugar de course_subgroup_id
@@ -6762,7 +7100,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       this.snackBar.open('No hay alumnos registrados en este subgrupo. Abrimos el cronometraje igualmente.', 'OK', { duration: 2500 });
     }
 
-    // Abrir el modal tradicional de tiempos, con lista (posible vac├¡a)
+    // Abrir el modal tradicional de tiempos, con lista (posible vac+¡a)
     this.openTimingModalDialog(subGroup, groupLevel, courseDates, studentsInSubgroup, selectedDate);
   }
 
@@ -6781,7 +7119,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const firstDate = courseDates[0];
     const chronoUrl = `/chrono/${this.id}/${firstDate.id}?courseName=${encodeURIComponent(this.courses.courseFormGroup.get('name')?.value || 'Curso')}&courseDate=${encodeURIComponent(firstDate.date)}`;
 
-    // Abrir en nueva pesta├▒a
+    // Abrir en nueva pesta+¦a
     window.open(chronoUrl, '_blank');
   }
 
@@ -7039,7 +7377,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const endDate = new Date(this.courses.courseFormGroup.get('date_end_res')?.value);
     const courseDates = [];
 
-    // Mapeo de d├¡as de la semana
+    // Mapeo de d+¡as de la semana
     const dayMapping = {
       monday: 1,
       tuesday: 2,
@@ -7079,11 +7417,11 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   }
 
   /**
-   * Abre el modal tradicional de gesti├│n de tiempos
+   * Abre el modal tradicional de gesti+¦n de tiempos
    */
   private openTimingModalDialog(subGroup: any, groupLevel: any, courseDates: any[], studentsInSubgroup: any[], selectedDate?: any): void {
 
-    // Construir bookingUsers con course_date_id para que el modal filtre por d├¡a igual que en detalle
+    // Construir bookingUsers con course_date_id para que el modal filtre por d+¡a igual que en detalle
     const bookingUsersWithDates = this.collectBookingUsersWithDates(courseDates);
 
     // Base de alumnos a partir de bookingUsers enriquecidos (por si no hay globales)
@@ -7099,7 +7437,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       }
     ])).values());
 
-    // Lista de alumnos del subgrupo (si est├í disponible), si no, fallback a base
+    // Lista de alumnos del subgrupo (si est+í disponible), si no, fallback a base
     const students = (studentsInSubgroup && studentsInSubgroup.length > 0)
       ? studentsInSubgroup.map((u: any) => ({
         id: u.client_id,
@@ -7120,11 +7458,11 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           groupLevel,
           courseId: this.id,
           courseDates,
-          // Lista global por compatibilidad (el modal filtrar├í por d├¡a)
+          // Lista global por compatibilidad (el modal filtrar+í por d+¡a)
           students,
-          // Pasar booking users enriquecidos con course_date_id para filtrado por d├¡a
+          // Pasar booking users enriquecidos con course_date_id para filtrado por d+¡a
           bookingUsers: bookingUsersWithDates,
-          // Preselecci├│n de d├¡a
+          // Preselecci+¦n de d+¡a
           selectedCourseDateId: selectedDate?.id ?? selectedDate?.course_date_id ?? null
         }
       });
@@ -7146,7 +7484,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   /**
    * Aplana los booking_users embebidos en course_dates -> course_groups -> course_subgroups
-   * y les a├▒ade course_date_id para que el modal pueda filtrar por d├¡a.
+   * y les a+¦ade course_date_id para que el modal pueda filtrar por d+¡a.
    */
   private collectBookingUsersWithDates(courseDates: any[]): any[] {
     const result: any[] = [];
@@ -7189,7 +7527,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         const fallback = this.courses.courseFormGroup.controls['booking_users']?.value || [];
 
         // Para el fallback, necesitamos asignar course_date_id y course_subgroup_id correctos
-        // bas├índonos en las fechas disponibles
+        // bas+índonos en las fechas disponibles
         const enrichedFallback = fallback.map((bu: any) => {
           // Intentar encontrar la fecha y subgrupo correcto para este booking user
           let foundCourseDate = null;
@@ -7198,7 +7536,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           for (const cd of dates) {
             for (const g of (cd?.course_groups || [])) {
               for (const sg of (g?.course_subgroups || [])) {
-                // Comparar por course_subgroup_id si est├í disponible
+                // Comparar por course_subgroup_id si est+í disponible
                 if (bu?.course_subgroup_id === sg?.id || bu?.course_sub_group_id === sg?.id) {
                   foundCourseDate = cd;
                   foundSubgroup = sg;
@@ -7241,7 +7579,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     // For now, use a simple prompt-based approach
     // TODO: Create a proper dialog component
     const startTime = prompt('Hora de inicio (formato HH:MM):', '09:00');
-    const duration = prompt('Duraci├│n en minutos:', '60');
+    const duration = prompt('Duraci+¦n en minutos:', '60');
 
     if (startTime && duration) {
       this.applyBulkSchedule(startTime, duration);
@@ -7316,7 +7654,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
 
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) {
-      this.showErrorMessage('Intervalo no v├ílido');
+      this.showErrorMessage('Intervalo no v+ílido');
       return false;
     }
 
@@ -7336,7 +7674,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }));
 
     if (this.isSingleIntervalMode && intervalIndex === 0) {
-      // ACTUALIZACI├ôN DIRECTA: Reemplazar las fechas del intervalo directamente
+      // ACTUALIZACI+ôN DIRECTA: Reemplazar las fechas del intervalo directamente
       interval.dates = updatedIntervalDates;
 
       const generatedCourseDates = this.generateCourseDatesFromIntervals(this.intervals);
@@ -7386,7 +7724,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     return true;
   }
 
-  // M├®todos para manejar los selectores inline de horario
+  // M+®todos para manejar los selectores inline de horario
   getIntervalScheduleStartTime(intervalIndex: number): string {
     if (intervalIndex < 0 || intervalIndex >= this.intervals.length) return '';
     const interval = this.intervals[intervalIndex];
@@ -7419,27 +7757,27 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
   applyBulkScheduleToIntervalInline(intervalIndex: number): void {
 
-    // Activar flag para prevenir interferencias durante la aplicaci├│n
+    // Activar flag para prevenir interferencias durante la aplicaci+¦n
     this._applyingBulkSchedule = true;
 
     const startTime = this.getIntervalScheduleStartTime(intervalIndex);
     const duration = this.getIntervalScheduleDuration(intervalIndex);
 
     if (!startTime || !duration) {
-      this.showErrorMessage('Por favor, selecciona la hora de inicio y duraci├│n');
+      this.showErrorMessage('Por favor, selecciona la hora de inicio y duraci+¦n');
       this._applyingBulkSchedule = false; // Resetear flag antes de salir
       return;
     }
     const success = this.applyBulkScheduleToInterval(intervalIndex, startTime, duration);
 
-    // Resetear flag al final de la operaci├│n
+    // Resetear flag al final de la operaci+¦n
     this._applyingBulkSchedule = false;
 
     // CRÍTICO: Sincronizar con el FormArray ahora que el flag está resetado
     if (success) {
       this.syncIntervalsToCourseFormGroup();
     } else {
-      console.warn('⚠️ Bulk schedule application failed');
+      console.warn('?? Bulk schedule application failed');
     }
   }
 
@@ -7447,14 +7785,14 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   individualScheduleStartTime: string = '';
   individualScheduleDuration: string = '';
 
-  // M├®todos para aplicar horario masivo a fechas individuales
+  // M+®todos para aplicar horario masivo a fechas individuales
   applyBulkScheduleToIndividualDates(): void {
 
     const startTime = this.getIndividualScheduleStartTime();
     const duration = this.getIndividualScheduleDuration();
 
     if (!startTime || !duration) {
-      this.showErrorMessage('Por favor, selecciona la hora de inicio y duraci├│n');
+      this.showErrorMessage('Por favor, selecciona la hora de inicio y duraci+¦n');
       return;
     }
 
@@ -7482,7 +7820,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.syncPrivatePeriodsFromForm();
   }
 
-  // M├®todos para manejar los selectores inline de horario para fechas individuales
+  // M+®todos para manejar los selectores inline de horario para fechas individuales
   getIndividualScheduleStartTime(): string {
     return this.individualScheduleStartTime || this.courses.hours?.[0] || '';
   }
@@ -7576,7 +7914,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         // Return direct reference to intervals, not a copy, so ngModel bindings work
         this._displayIntervals = this.intervals;
       } else {
-        // FIXED: En modo intervalo ├║nico, solo mostrar el primer intervalo SIN modificar this.intervals
+        // FIXED: En modo intervalo +¦nico, solo mostrar el primer intervalo SIN modificar this.intervals
         this._displayIntervals = this.intervals.length > 0 ? [this.intervals[0]] : [];
       }
 
@@ -7609,7 +7947,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     });
 
     this.syncIntervalsToCourseFormGroup();
-    this.snackBar.open('Configuraci├│n global aplicada a todos los intervalos', 'OK', { duration: 3000 });
+    this.snackBar.open('Configuraci+¦n global aplicada a todos los intervalos', 'OK', { duration: 3000 });
   }
 
   /**
