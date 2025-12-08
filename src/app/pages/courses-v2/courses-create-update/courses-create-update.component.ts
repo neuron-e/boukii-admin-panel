@@ -214,6 +214,117 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.debugLog('course-dates-snapshot', { stage, snapshot });
   }
 
+  private parseNumber(value: any): number | null {
+    const num = parseInt(String(value), 10);
+    return Number.isFinite(num) ? num : null;
+  }
+
+  /**
+   * Ensure age and max participants edits on levels/subgroups are propagated to course_dates and intervalGroupsMap.
+   * This keeps the payload consistent for admin + booking consumers.
+   */
+  private syncLevelAndSubgroupConstraints(): void {
+    const levelControl = this.courses.courseFormGroup.get('levelGrop');
+    const courseDatesControl = this.courses.courseFormGroup.get('course_dates');
+    const levels = Array.isArray(levelControl?.value) ? [...levelControl.value] : [];
+    const courseDates = Array.isArray(courseDatesControl?.value) ? [...courseDatesControl.value] : [];
+
+    let minAge: number | null = null;
+    let maxAge: number | null = null;
+
+    levels.forEach((level, idx) => {
+      const ageMin = this.parseNumber(level.age_min);
+      const ageMax = this.parseNumber(level.age_max);
+      const maxParticipants = this.parseNumber(level.max_participants);
+
+      if (ageMin != null) {
+        level.age_min = ageMin;
+        minAge = minAge == null ? ageMin : Math.min(minAge, ageMin);
+      }
+      if (ageMax != null) {
+        level.age_max = ageMax;
+        maxAge = maxAge == null ? ageMax : Math.max(maxAge, ageMax);
+      }
+      if (maxParticipants != null) {
+        level.max_participants = maxParticipants;
+      }
+      levels[idx] = { ...level };
+
+      // Propagate to course_dates groups/subgroups
+      courseDates.forEach((cd: any) => {
+        const courseGroups = cd?.course_groups || cd?.courseGroups || [];
+        courseGroups.forEach((group: any) => {
+          if ((group?.degree_id ?? group?.degreeId) === level.id) {
+            if (ageMin != null) group.age_min = ageMin;
+            if (ageMax != null) group.age_max = ageMax;
+            if (maxParticipants != null) {
+              group.max_participants = maxParticipants;
+              const subgroups = group.course_subgroups || group.courseSubgroups || [];
+              subgroups.forEach((sg: any) => {
+                sg.max_participants = maxParticipants;
+              });
+            }
+          }
+        });
+      });
+
+      // Propagate to intervalGroupsMap
+      if (this.intervalGroupsMap) {
+        Object.values(this.intervalGroupsMap).forEach((intervalState: any) => {
+          const levelState = intervalState?.[String(level.id)];
+          if (levelState) {
+            if (ageMin != null) levelState.age_min = ageMin;
+            if (ageMax != null) levelState.age_max = ageMax;
+            if (maxParticipants != null) {
+              levelState.max_participants = maxParticipants;
+              if (Array.isArray(levelState.subgroups)) {
+                levelState.subgroups.forEach((sg: any) => {
+                  sg.max_participants = maxParticipants;
+                });
+              }
+            }
+          }
+        });
+      }
+    });
+
+    if (levelControl) {
+      levelControl.setValue(levels, { emitEvent: false });
+      levelControl.markAsDirty();
+    }
+    if (courseDatesControl) {
+      courseDatesControl.setValue(courseDates, { emitEvent: false });
+      courseDatesControl.markAsDirty();
+    }
+
+    // Sync global course age bounds (used by backend validators/booking flows)
+    const courseType = this.courses.courseFormGroup.get('course_type')?.value;
+    const ageMinControl = this.courses.courseFormGroup.get('age_min');
+    const ageMaxControl = this.courses.courseFormGroup.get('age_max');
+
+    if (courseType === 1) {
+      // Colectivos: mantener límites amplios a nivel curso y delegar la restricción a los grupos
+      if (ageMinControl) {
+        ageMinControl.setValue(1, { emitEvent: false });
+        ageMinControl.markAsDirty();
+      }
+      if (ageMaxControl) {
+        ageMaxControl.setValue(99, { emitEvent: false });
+        ageMaxControl.markAsDirty();
+      }
+    } else {
+      // Privados/otros: reflejar los rangos editados
+      if (ageMinControl && minAge != null) {
+        ageMinControl.setValue(minAge, { emitEvent: false });
+        ageMinControl.markAsDirty();
+      }
+      if (ageMaxControl && maxAge != null) {
+        ageMaxControl.setValue(maxAge, { emitEvent: false });
+        ageMaxControl.markAsDirty();
+      }
+    }
+  }
+
   /**
    * Toggle level expansion state
    * When expanded, subgroups and their flux-disponibilidad components render
@@ -238,6 +349,37 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       this.expandedSubgroups.delete(key);
     } else {
       this.expandedSubgroups.add(key);
+    }
+  }
+
+  onLevelAgeChange(level: any, field: 'age_min' | 'age_max', rawValue: any): void {
+    const parsed = this.parseNumber(rawValue);
+    if (parsed == null) {
+      return;
+    }
+
+    if (field === 'age_min') {
+      level.age_min = parsed;
+      if (level.age_max != null && parsed > level.age_max) {
+        level.age_max = parsed;
+      }
+    } else {
+      level.age_max = parsed;
+      if (level.age_min != null && parsed < level.age_min) {
+        level.age_min = parsed;
+      }
+    }
+
+    // Mark form dirty for change detection
+    const levelControl = this.courses.courseFormGroup.get('levelGrop');
+    if (levelControl) {
+      const levels = Array.isArray(levelControl.value) ? [...levelControl.value] : [];
+      const idx = levels.findIndex((l: any) => (l?.id ?? l?.degree_id) === level.id);
+      if (idx !== -1) {
+        levels[idx] = { ...level };
+        levelControl.setValue(levels, { emitEvent: false });
+        levelControl.markAsDirty();
+      }
     }
   }
 
@@ -5112,6 +5254,9 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     // Refrescar traducciones antes de guardar (solo update)
     await this.ensureTranslationsBeforeSave();
+
+    // Sincronizar edades y aforo por nivel/subgrupo con el estado del formulario
+    this.syncLevelAndSubgroupConstraints();
 
     // Log early snapshot of course_dates before any validation/error
     this.logSubgroupState('beforeSave');

@@ -1062,11 +1062,11 @@
 
                   <div *ngIf="isLevelActiveForInterval(intervalIdx, level)" style="display: flex;gap: 16px;">
                     <app-form-input [required]="true" [value]="level.age_min" [max]="level.age_max"
-                                    (do)="level.age_min=$event.target.value;" style="width: calc(33.33% - 10px - 16px);"
+                                    (do)="onLevelAgeChange(level, 'age_min', $event.target.value);" style="width: calc(33.33% - 10px - 16px);"
                                     name="min_age" type="number" Suffix="years">
                     </app-form-input>
                     <app-form-input [required]="true" [value]="level.age_max" [min]="level.age_min"
-                                    (do)="level.age_max=$event.target.value;" name="max_age"
+                                    (do)="onLevelAgeChange(level, 'age_max', $event.target.value);" name="max_age"
                                     style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="years">
                     </app-form-input>
                     <mat-icon (click)="addIntervalLevelSubgroup(intervalIdx, level)" color="primary" style="color: white;
@@ -1127,7 +1127,7 @@
                   [required]="true"
                   [value]="level.age_min"
                   [max]="level.age_max"
-                  (do)="level.age_min=$event.target.value;"
+                  (do)="onLevelAgeChange(level, 'age_min', $event.target.value);"
                   name="min_age"
                   style="width: 95px;"
                   type="number"
@@ -1139,7 +1139,7 @@
                   [required]="true"
                   [value]="level.age_max"
                   [min]="level.age_min"
-                  (do)="level.age_max=$event.target.value;"
+                  (do)="onLevelAgeChange(level, 'age_max', $event.target.value);"
                   name="max_age"
                   style="width: 95px;"
                   type="number"
@@ -1284,11 +1284,11 @@
             </div>
             <div *ngIf="level.active && (!useMultipleIntervals || (intervalGroups[selectedIntervalIndexForGroups] && intervalGroups[selectedIntervalIndexForGroups][level.id]))" style="display: flex;gap: 16px;">
               <app-form-input [required]="true" [value]="level.age_min" [max]="level.age_max"
-                              (do)="level.age_min=$event.target.value;" style="width: calc(33.33% - 10px - 16px);"
+                              (do)="onLevelAgeChange(level, 'age_min', $event.target.value);" style="width: calc(33.33% - 10px - 16px);"
                               name="min_age" type="number" Suffix="years">
               </app-form-input>
               <app-form-input [required]="true" [value]="level.age_max" [min]="level.age_min"
-                              (do)="level.age_max=$event.target.value;" name="max_age"
+                              (do)="onLevelAgeChange(level, 'age_max', $event.target.value);" name="max_age"
                               style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="years">
               </app-form-input>
               <mat-icon (click)="onInlineAddSubgroup(level, $event)" color="primary" style="color: white;
