@@ -117,6 +117,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   moving: boolean = false;
   taskMoved: any;
   showEditBlock: boolean = false;
+  monitorSearchHint = '';
 
   showFilter: boolean = false;
   checkedSports = new Set();
@@ -155,6 +156,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   monitorAssignmentSubgroupIds: number[] = [];
   monitorAssignmentDates: { value: string, label: string }[] = [];
   monitorSearchTerm: string = '';
+  hasApiAvailability = false;
 
   constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private dialog: MatDialog, public translateService: TranslateService,
     private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router,
@@ -1659,6 +1661,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   openEditMonitor() {
     this.editedMonitor = null;
     this.showEditMonitor = true;
+    this.updateCurrentAssignmentContext();
     this.checkAvailableMonitors();
   }
 
@@ -3634,9 +3637,13 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.crudService.post('/admin/monitors/available', data)
       .subscribe((response) => {
         this.monitorsForm = response.data;
+        this.hasApiAvailability = Array.isArray(this.monitorsForm) && this.monitorsForm.length > 0;
         this.loadingMonitors = false;
+        this.monitorSearchHint = this.buildMonitorSearchHint();
       }, () => {
         this.loadingMonitors = false;
+        this.monitorSearchHint = '';
+        this.hasApiAvailability = false;
       })
   }
 
@@ -3653,7 +3660,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   get filteredMonitorOptions(): any[] {
     const term = (this.monitorSearchTerm || '').trim().toLowerCase();
-    const monitors = Array.isArray(this.monitorsForm) ? this.monitorsForm : [];
+    const monitors = this.getMonitorSelectOptions();
     const filtered = monitors.filter(monitor => {
       const name = this.getMonitorDisplayName(monitor).toLowerCase();
       return !term || name.includes(term);
@@ -3664,6 +3671,112 @@ export class TimelineComponent implements OnInit, OnDestroy {
       return nameA.localeCompare(nameB);
     });
   }
+
+  /**
+   * Build monitor options for the modal select:
+   * - Start with availability API results (monitorsForm).
+   * - Add timeline monitors (visible on the grid) that match sport and are not busy,
+   *   so users can still pick them with confirmation if needed.
+   */
+  getMonitorSelectOptions(): any[] {
+    const apiList = Array.isArray(this.monitorsForm) ? this.monitorsForm : [];
+    const timelineList = Array.isArray(this.filteredMonitors) ? this.filteredMonitors : [];
+    const combined = apiList.length ? [...apiList, ...timelineList] : [...timelineList];
+
+    const seen = new Set<number>();
+    const options = combined.filter(monitor => {
+      if (!monitor || monitor.id == null) {
+        return false;
+      }
+      if (seen.has(monitor.id)) {
+        return false;
+      }
+      seen.add(monitor.id);
+
+      // Hide monitors busy for this task/time window
+      if (this.isMonitorBusyForCurrentTask(monitor)) {
+        return false;
+      }
+
+      // Keep only matching sport; language/degree confirmation handled on selection
+      return this.monitorMatchesCurrentSport(monitor);
+    });
+
+    // Sort: API-available first, then override candidates
+    return options.sort((a, b) => {
+      const aApi = this.isMonitorFromApiList(a) ? 0 : 1;
+      const bApi = this.isMonitorFromApiList(b) ? 0 : 1;
+      return aApi - bApi || this.getMonitorDisplayName(a).localeCompare(this.getMonitorDisplayName(b));
+    });
+  }
+
+  getMonitorSelectTotals(): { available: number; visible: number } {
+    const apiList = Array.isArray(this.monitorsForm) ? this.monitorsForm : [];
+    const options = this.getMonitorSelectOptions();
+    return {
+      available: apiList.filter(m => m && m.id != null && this.monitorMatchesCurrentSport(m)).length,
+      visible: options.length
+    };
+  }
+
+  private buildMonitorSearchHint(): string {
+    const totals = this.getMonitorSelectTotals();
+    if (!totals.visible) {
+      return '';
+    }
+    if (totals.available && totals.visible >= totals.available) {
+      return `${totals.visible} monitores compatibles`;
+    }
+    if (totals.available) {
+      return `${totals.visible} de ${totals.available} monitores compatibles`;
+    }
+    return `${totals.visible} monitores visibles`;
+  }
+
+  isMonitorFromApiList(monitor: any): boolean {
+    return Array.isArray(this.monitorsForm) && this.monitorsForm.some(m => m?.id === monitor?.id);
+  }
+
+  private isMonitorBusyForCurrentTask(monitor: any): boolean {
+    if (!monitor || monitor.id == null || !this.taskDetail) {
+      return false;
+    }
+    return this.monitorHasOverlapOutsideTargets(monitor.id);
+  }
+
+  async onMonitorSelected(monitor: any) {
+    if (!monitor) {
+      this.editedMonitor = null;
+      return;
+    }
+
+    if (this.isMonitorFromApiList(monitor)) {
+      this.editedMonitor = monitor;
+      return;
+    }
+
+    // Not returned by availability API (nivel/idioma/otros). Ask for confirmation.
+    const confirmed = await this.confirmMonitorOverride(monitor);
+    if (confirmed) {
+      this.editedMonitor = monitor;
+    } else {
+      this.editedMonitor = null;
+    }
+  }
+
+  private async confirmMonitorOverride(monitor: any): Promise<boolean> {
+    const dialogRef = this.dialog.open(ConfirmUnmatchMonitorComponent, {
+      data: {
+        booking: this.taskDetail,
+        monitor,
+        school_id: this.activeSchool
+      }
+    });
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
 
   private collectCourseSubgroupIdsForTask(task: any, filterByDegree: boolean = false): number[] {
     if (!task) return [];

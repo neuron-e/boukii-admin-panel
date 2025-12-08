@@ -166,7 +166,11 @@ export class ClientCreateUpdateModalComponent implements OnInit {
 
     this.filteredSports = this.sportsControl.valueChanges.pipe(
       startWith(''),
-      map((sport: string | null) => sport ? this._filterSports(sport) : this.schoolSports.slice())
+      map((value: any) => {
+        // MatSelect with multiple emits arrays; default to full list in that case
+        const search = Array.isArray(value) ? '' : typeof value === 'string' ? value : value?.name;
+        return search ? this._filterSports(search) : this.schoolSports.slice();
+      })
     );
 
     this.filteredLevel = this.levelForm.valueChanges.pipe(
@@ -342,10 +346,19 @@ export class ClientCreateUpdateModalComponent implements OnInit {
       this.update();
     }
   }
-  formatDate = (date: Date): string => {
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
+  formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) {
+      return '';
+    }
+
+    const parsed = typeof date === 'string' ? new Date(date) : date instanceof Date ? date : new Date(date as any);
+    if (isNaN(parsed.getTime())) {
+      return '';
+    }
+
+    const day = parsed.getDate().toString().padStart(2, '0');
+    const month = (parsed.getMonth() + 1).toString().padStart(2, '0');
+    const year = parsed.getFullYear();
     return `${year}-${month}-${day}`;
   };
 
@@ -356,13 +369,13 @@ export class ClientCreateUpdateModalComponent implements OnInit {
     this.defaultsUser.image = this.imagePreviewUrl;
     this.defaults.image = this.imagePreviewUrl;
     this.defaults.accepts_newsletter = this.formSportInfo.get('acceptsNewsletter')?.value || false;
+    const birthDate = this.formPersonalInfo.get('fromDate')?.value || this.defaults.birth_date;
+    this.defaults.birth_date = this.formatDate(birthDate);
     this.setLanguages();
 
     this.crudService.create('/users', this.defaultsUser)
       .subscribe((user) => {
         this.defaults.user_id = user.data.id;
-        this.defaults.birth_date = this.formatDate(this.defaults.birth_date)
-
         // VIP is school-scoped now; avoid setting it on client
         if ((this.defaults as any).hasOwnProperty('is_vip')) {
           delete (this.defaults as any).is_vip;

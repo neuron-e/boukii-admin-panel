@@ -350,8 +350,25 @@ export class CoursesService {
 
   user: any = JSON.parse(localStorage.getItem('boukiiUser'))
 
+  private parseSettings(raw: any): any {
+    if (!raw) {
+      return {};
+    }
+    if (typeof raw === 'object') {
+      return raw;
+    }
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+
   resetcourseFormGroup() {
-    const settings = JSON.parse(JSON.parse(localStorage.getItem('boukiiUser')).schools[0].settings);
+    const schoolSettings = this.parseSettings(this.user?.schools?.[0]?.settings);
     this.courseFormGroup = this.fb.group({
       id: [null, Validators.required],
       sport_id: [null, Validators.required],
@@ -367,7 +384,7 @@ export class CoursesService {
       short_description: ["", Validators.required],
       description: ["", Validators.required],
       price: [100, [Validators.required, Validators.min(1)]],
-      currency: [settings?.taxes?.currency || 'CHF'],
+      currency: [schoolSettings?.taxes?.currency || 'CHF'],
       max_participants: [10, [Validators.required, Validators.min(1)]],
       image: ["", Validators.required],
       icon: ["", Validators.required],

@@ -1093,20 +1093,24 @@
                         </mat-option>
                       </mat-select>
                     </mat-form-field>
-                    <span class="days-info" *ngIf="monitorAssignmentScope !== 'single'">
-                      ({{ getSelectedAssignmentSessionCount() }} {{'days' | translate}})
-                    </span>
-                  </div>
-            </div>
-          <mat-form-field appearance="outline" class="flex-auto monitor-select-field"
-                          style="width: 100%;" *ngIf="!loadingMonitors">
-            <mat-select placeholder="{{'new_monitor' | translate}}"
-                        [(ngModel)]="editedMonitor">
-              <mat-option *ngIf="taskDetail.monitor_id"
-                          [value]="nullMonitor">
-                {{'no_monitor_choose' | translate}}
-              </mat-option>
-              <mat-option class="monitor-search-option" disabled>
+            <span class="days-info" *ngIf="monitorAssignmentScope !== 'single'">
+              ({{ getSelectedAssignmentSessionCount() }} {{'days' | translate}})
+            </span>
+          </div>
+        </div>
+          <div class="text-caption" *ngIf="!loadingMonitors && monitorSearchHint">
+            {{ monitorSearchHint }}
+          </div>
+      <mat-form-field appearance="outline" class="flex-auto monitor-select-field"
+                      style="width: 100%;" *ngIf="!loadingMonitors">
+        <mat-select placeholder="{{'new_monitor' | translate}}"
+                    [(ngModel)]="editedMonitor"
+                    (selectionChange)="onMonitorSelected($event.value)">
+            <mat-option *ngIf="taskDetail.monitor_id"
+                        [value]="nullMonitor">
+              {{'no_monitor_choose' | translate}}
+            </mat-option>
+            <mat-option class="monitor-search-option" disabled>
                 <mat-form-field appearance="outline" class="monitor-select-search" (click)="$event.stopPropagation()">
                   <mat-icon matPrefix>search</mat-icon>
                   <input matInput
@@ -1115,21 +1119,30 @@
                          (input)="onMonitorSearchInput($event)"
                          placeholder="{{'search' | translate}}">
                 </mat-form-field>
-              </mat-option>
-              <ng-container *ngFor="let monitor of filteredMonitorOptions">
-                <mat-option *ngIf="monitor.id != taskDetail.monitor_id"
-                            [value]="monitor"
-                            [disabled]="isMonitorTemporarilyBlocked(monitor)">
-                  {{ monitor.first_name }} {{ monitor.last_name }}
-                </mat-option>
-              </ng-container>
-            </mat-select>
-          </mat-form-field>
+          </mat-option>
+          <ng-container *ngFor="let monitor of filteredMonitorOptions">
+            <mat-option *ngIf="monitor.id != taskDetail.monitor_id"
+                        [value]="monitor"
+                        [disabled]="isMonitorTemporarilyBlocked(monitor)">
+              <div class="flex items-center justify-between gap-2">
+                <span>{{ monitor.first_name }} {{ monitor.last_name }}</span>
+                <span class="text-caption text-warn" *ngIf="hasApiAvailability && !isMonitorFromApiList(monitor)">
+                  Requiere confirmación (nivel/idioma)
+                </span>
+              </div>
+            </mat-option>
+          </ng-container>
+        </mat-select>
+      </mat-form-field>
+          <div class="text-caption"
+               *ngIf="!loadingMonitors && filteredMonitorOptions.length === 0">
+            No hay monitores compatibles para este horario, deporte/nivel o idioma. Revisa deportes/grados autorizados, idiomas y bloqueos en calendario.
+          </div>
 
-              <div class="actions flex items-center justify-end gap-2">
-                <button (click)="hideEditMonitor()" mat-button
-                        type="button">{{'cancel' | translate}}</button>
-                <button (click)="saveEditedMonitor()"
+          <div class="actions flex items-center justify-end gap-2">
+            <button (click)="hideEditMonitor()" mat-button
+                    type="button">{{'cancel' | translate}}</button>
+            <button (click)="saveEditedMonitor()"
                         [disabled]="!editedMonitor" color="primary" mat-raised-button
                         matStepperNext>
                   {{'save' | translate}}
