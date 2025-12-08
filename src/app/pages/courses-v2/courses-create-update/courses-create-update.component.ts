@@ -5314,6 +5314,8 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         translations: courseFormGroup.translations,
         claim_text: courseFormGroup.claim_text,
         summary: courseFormGroup.summary,
+        age_min: courseFormGroup.age_min,
+        age_max: courseFormGroup.age_max,
       };
 
       // DETECCIÓN INTELIGENTE: Verificar si REALMENTE cambiaron campos pesados
