@@ -183,10 +183,32 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
           const isAvailable = response.success; // Ajusta segÃºn la respuesta real de tu API
           resolve(isAvailable); // Resolvemos la promesa con el valor de disponibilidad
         }, (error) => {
-          this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
-            moment(error.error.data[0].date).format('YYYY-MM-DD') +
-            ' | ' + error.error.data[0].hour_start + ' - ' +
-            error.error.data[0].hour_end, 'OK', { duration: 3000 })
+          // Manejo defensivo para evitar TypeError cuando no viene estructura esperada
+          let errorData: any = null;
+          if (error && typeof error === 'object') {
+            if (error.error && typeof error.error === 'object') {
+              errorData = (error.error as any).data ?? error.error;
+            } else {
+              errorData = (error as any).data ?? null;
+            }
+          }
+
+          if (Array.isArray(errorData) && errorData.length > 0) {
+            const overlap = errorData[0];
+            this.snackbar.open(
+              this.translateService.instant('snackbar.booking.overlap') +
+              moment(overlap.date).format('YYYY-MM-DD') +
+              ' | ' + overlap.hour_start + ' - ' + overlap.hour_end,
+              'OK',
+              { duration: 3000 }
+            );
+          } else {
+            this.snackbar.open(
+              this.translateService.instant('snackbar.booking.error'),
+              'OK',
+              { duration: 3000 }
+            );
+          }
           resolve(false); // En caso de error, rechazamos la promesa
         });
     });

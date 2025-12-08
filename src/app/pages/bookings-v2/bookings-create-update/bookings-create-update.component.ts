@@ -830,8 +830,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   /**
    * Determina qué descuentos usar (por intervalo o globales)
    */
-  private getApplicableDiscounts(intervalId?: string): any[] {
-    return getApplicableDiscountsUtil(this.course, intervalId);
+  private getApplicableDiscounts(intervalId?: string, targetCourse?: any): any[] {
+    const course = targetCourse || this.course;
+    return getApplicableDiscountsUtil(course, intervalId);
   }
 
   /**
@@ -877,7 +878,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     datesByInterval.forEach((datesInInterval, intervalId) => {
       const count = datesInInterval.length;
       const baseTotal = Math.max(0, basePrice * count);
-      const applicableDiscounts = this.getApplicableDiscounts(intervalId !== 'default' ? intervalId : undefined);
+      const applicableDiscounts = this.getApplicableDiscounts(
+        intervalId !== 'default' ? intervalId : undefined,
+        course
+      );
       const discountedTotal = applyFlexibleDiscountUtil(baseTotal, count, applicableDiscounts);
       grandTotal += discountedTotal;
     });
@@ -987,7 +991,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       const baseTotal = Math.max(0, basePrice * datesCount);
 
       // Obtener descuentos aplicables (por intervalo o globales)
-      const applicableDiscounts = this.getApplicableDiscounts(intervalId !== 'default' ? intervalId : undefined);
+      const applicableDiscounts = this.getApplicableDiscounts(intervalId !== 'default' ? intervalId : undefined, course);
       const discountedTotal = applyFlexibleDiscountUtil(baseTotal, datesCount, applicableDiscounts);
 
       grandTotal += discountedTotal;

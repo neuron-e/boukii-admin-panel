@@ -94,11 +94,17 @@ export class ApplyDiscountCodeComponent {
 
     const result = this.validationResult;
     const discountCode = result.discount_code;
+    const allowedCourseIds =
+      (discountCode?.course_ids && Array.isArray(discountCode.course_ids) ? discountCode.course_ids : null) ||
+      (result?.code_details?.restrictions?.course_ids && Array.isArray(result.code_details.restrictions.course_ids)
+        ? result.code_details.restrictions.course_ids
+        : null);
 
     this.dialogRef.close({
       code: discountCode.code,
       discountCodeId: discountCode.id,
       discountAmount: result.discount_amount || 0,
+      courseIds: allowedCourseIds,
     });
   }
 }

@@ -49,6 +49,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   settings: any;
   displayTotal = 0;
   displayOutstanding = 0;
+  discountCodeCourseIds: number[] | null = null;
   meetingPoints: any[] = [];
   selectedMeetingPointId: number | null = null;
   meetingPointName: string = '';
@@ -366,10 +367,31 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     });
   }
 
-  private applyDiscountCode(result: { code: string; discountCodeId: number; discountAmount: number }): void {
+  private applyDiscountCode(result: { code: string; discountCodeId: number; discountAmount: number; courseIds?: number[] }): void {
     this.bookingData.discount_code = result.code;
     this.bookingData.discount_code_id = result.discountCodeId;
-    this.bookingData.discount_code_value = Number(result.discountAmount || 0);
+    const allowedIds = Array.isArray(result?.courseIds)
+      ? result.courseIds.map((id: any) => Number(id)).filter((n: number) => !isNaN(n))
+      : null;
+    this.discountCodeCourseIds = allowedIds && allowedIds.length ? allowedIds : null;
+
+    const eligibleSubtotal = Array.isArray(this.activities)
+      ? this.activities.reduce((sum: number, activity: any) => {
+          const courseId = Number(activity?.course?.id);
+          const total = typeof activity?.total === 'number'
+            ? activity.total
+            : parseFloat(String(activity?.total || 0)) || 0;
+          if (!this.discountCodeCourseIds || this.discountCodeCourseIds.includes(courseId)) {
+            return sum + total;
+          }
+          return sum;
+        }, 0)
+      : 0;
+
+    const discountValue = Number(result.discountAmount || 0);
+    const cappedDiscount = this.discountCodeCourseIds ? Math.min(discountValue, eligibleSubtotal) : discountValue;
+    this.bookingData.discount_code_value = Number(cappedDiscount.toFixed(2));
+    (this.bookingData as any).discount_code_courses = this.discountCodeCourseIds;
 
     const baseBeforeCode = this.getBaseTotalBeforeDiscountCode();
     const newTotal = Math.max(0, baseBeforeCode - this.bookingData.discount_code_value);
