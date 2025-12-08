@@ -49,7 +49,7 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
               private router: Router, public courses: CoursesService, public TranslateService: TranslateService,
               @Optional() @Inject(MAT_DIALOG_DATA) public incData: any, private snackBar: MatSnackBar) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
-    this.settings = JSON.parse(this.user.schools[0].settings);
+    this.settings = this.parseSettings(this.user?.schools?.[0]?.settings);
     this.id = this.activatedRoute.snapshot.params.id;
   }
 
@@ -84,6 +84,23 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
       ...subgroup,
       _index: index ?? cache[key].length
     });
+  }
+
+  private parseSettings(raw: any): any {
+    if (!raw) {
+      return {};
+    }
+    if (typeof raw === 'object') {
+      return raw;
+    }
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return {};
+      }
+    }
+    return {};
   }
 
   private refreshPreviewSubgroupCache(): void {
