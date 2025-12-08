@@ -204,7 +204,7 @@
           <div>
             <span class="hour">{{ 'course_total' | translate }}</span>
             <span class="price">
-              <span class="discounted-price">{{ getActivityBaseAmount(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}</span>
+              <span class="discounted-price">{{ activity.courseBaseTotal || getActivityBaseAmount(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}</span>
             </span>
           </div>
         </div>
@@ -213,7 +213,7 @@
             <span class="hour" style="color: #1b5e20;">{{ 'discount' | translate }}</span>
             <span class="price">
               <span class="discounted-price" style="color: #1b5e20;">
-                -{{ getActivityDiscountAmount(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}
+                -{{ activity.courseDiscountTotal || getActivityDiscountAmount(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}
               </span>
             </span>
           </div>
@@ -245,6 +245,34 @@
     </div>
 
     <div class="section" style="margin-bottom: 0;border: none;">
+      <div class="dateRow">
+        <div>
+          <span class="hour" *ngIf="!bookingData.paid"
+                (click)="openDiscountCodeModal()" style="
+            color: #E91E63;
+             font-size: 14px;
+             font-family: DM Sans;
+             font-weight: 400;
+             line-height: 18px; cursor: pointer;
+             word-wrap: break-word;display: flex;
+             align-items: center;gap: 8px">
+            <mat-icon style="margin: 0 8px;">add</mat-icon>
+            {{ 'discount_code' | translate }}
+          </span>
+
+          <span style="width: 100%; float:left" *ngIf="bookingData.discount_code_value && bookingData.discount_code_value > 0">
+            			              <img class="icon24" style="float: left;color: red; cursor:pointer; display: inline-flex"
+                                     src="assets/icons/icon/delete.png" *ngIf="!bookingData.paid"
+                                     (click)="clearDiscountCode();">
+            <p style="float:left">{{'discount_code' |translate}} {{ bookingData.discount_code }}</p>
+            <p style="float:right">
+              -{{bookingData.discount_code_value | number:'0.2-2'}}
+              {{ getActivitiesCurrency() }}
+            </p>
+          </span>
+        </div>
+      </div>
+
       <div class="dateRow" *ngIf="bookingData.reduction != null">
         <div>
           <span class="hour" (click)="addReduction()"

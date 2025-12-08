@@ -39,10 +39,10 @@ export class AppComponent {
   user: any;
   locales: { locale: any, lan: string }[] =
     [
+      { locale: localeDe, lan: 'de' },
       { locale: localeEs, lan: 'es' },
       { locale: localeIt, lan: 'it-IT' },
       { locale: localeEnGb, lan: 'en-GB' },
-      { locale: localeDe, lan: 'de' },
       { locale: localeFr, lan: 'fr' },
     ]
 

@@ -5,6 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { AddReductionModalComponent } from '../add-reduction/add-reduction.component';
 import { AddDiscountBonusModalComponent } from '../add-discount-bonus/add-discount-bonus.component';
 import { BookingCreateData, BookingService } from '../../../../../../service/bookings.service';
+import { ApplyDiscountCodeComponent } from '../apply-discount-code/apply-discount-code.component';
 
 @Component({
   selector: 'booking-reservation-detail',
@@ -67,6 +68,9 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       client_main_id: this.client.id,
       user_id: 0,
       price_total: 0,
+      discount_code: null,
+      discount_code_id: null,
+      discount_code_value: 0,
       has_cancellation_insurance: false,
       has_boukii_care: false,
       has_reduction: false,
@@ -307,6 +311,10 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       ? Number(this.bookingData.price_reduction)
       : 0;
 
+    const discountCodeValue = this.bookingData?.discount_code_value
+      ? Number(this.bookingData.discount_code_value)
+      : 0;
+
     const boukiiCare = this.bookingData?.has_boukii_care
       ? Number(this.bookingData.price_boukii_care || 0)
       : 0;
@@ -315,7 +323,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       ? Number(this.bookingData.price_tva || 0)
       : 0;
 
-    const total = base + insurance - reduction + boukiiCare + tva;
+    const total = base + insurance - reduction - discountCodeValue + boukiiCare + tva;
     return Number((isNaN(total) ? 0 : total).toFixed(2));
   }
 
@@ -338,5 +346,59 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     const total = this.sumActivityTotal();
     this.bookingData.price_total = Number(total.toFixed(2));
     this.updateBookingData();
+  }
+
+  private getBaseTotalBeforeDiscountCode(): number {
+    const discountCodeValue = this.bookingData?.discount_code_value ? Number(this.bookingData.discount_code_value) : 0;
+    return this.getFinalTotal() + discountCodeValue;
+  }
+
+  openDiscountCodeModal(): void {
+    const courseIds = Array.isArray(this.activities)
+      ? Array.from(new Set(this.activities.map((a: any) => a?.course?.id).filter(Boolean)))
+      : [];
+    const sportIds = Array.isArray(this.activities)
+      ? Array.from(new Set(this.activities.map((a: any) => a?.course?.sport?.id).filter(Boolean)))
+      : [];
+    const degreeIds = Array.isArray(this.activities)
+      ? Array.from(new Set(this.activities.map((a: any) => a?.course?.degree_id || a?.course?.degree?.id).filter(Boolean)))
+      : [];
+
+    const dialogRef = this.dialog.open(ApplyDiscountCodeComponent, {
+      width: '500px',
+      data: {
+        school_id: this.school.id,
+        client_id: this.bookingData?.client_main_id || this.client?.id,
+        client_user_id: this.client?.user?.id,
+        amount: this.getBaseTotalBeforeDiscountCode(),
+        currency: this.getActivitiesCurrency(),
+        courseIds,
+        sportIds,
+        degreeIds,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        this.applyDiscountCode(result);
+      }
+    });
+  }
+
+  private applyDiscountCode(result: { code: string; discountCodeId: number; discountAmount: number }): void {
+    this.bookingData.discount_code = result.code;
+    this.bookingData.discount_code_id = result.discountCodeId;
+    this.bookingData.discount_code_value = Number(result.discountAmount || 0);
+
+    this.updateBookingData();
+    this.refreshDisplayTotals();
+  }
+
+  clearDiscountCode(): void {
+    this.bookingData.discount_code = null;
+    this.bookingData.discount_code_id = null;
+    this.bookingData.discount_code_value = 0;
+    this.updateBookingData();
+    this.refreshDisplayTotals();
   }
 }

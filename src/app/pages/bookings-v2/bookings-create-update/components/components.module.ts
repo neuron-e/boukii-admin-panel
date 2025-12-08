@@ -44,6 +44,7 @@ import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 import {MatProgressBarModule} from '@angular/material/progress-bar';
 import {MatFormFieldModule} from '@angular/material/form-field';
 import { ClientParticipantConflictDialogComponent } from './client-participant-conflict-dialog/client-participant-conflict-dialog.component';
+import { ApplyDiscountCodeComponent } from './apply-discount-code/apply-discount-code.component';
 
 @NgModule({
     imports: [
@@ -94,6 +95,7 @@ import { ClientParticipantConflictDialogComponent } from './client-participant-c
         AddDiscountBonusModalComponent,
         BookingReservationDetailComponent,
         ClientParticipantConflictDialogComponent,
+        ApplyDiscountCodeComponent,
     ],
     exports: [
         BookingFormStepper,
@@ -113,7 +115,8 @@ import { ClientParticipantConflictDialogComponent } from './client-participant-c
         BookingReservationDetailComponent,
         AddReductionModalComponent,
         AddDiscountBonusModalComponent,
-        BookingReservationDetailComponent
+        BookingReservationDetailComponent,
+        ApplyDiscountCodeComponent
     ],
 })
 export class BookingComponentsModule { }

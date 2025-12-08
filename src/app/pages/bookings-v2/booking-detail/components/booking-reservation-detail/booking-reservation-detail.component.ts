@@ -18,6 +18,7 @@ import { SchoolService } from 'src/service/school.service';
 import { MeetingPointService } from 'src/service/meeting-point.service';
 import { buildDiscountInfoList } from 'src/app/pages/bookings-v2/shared/discount-utils';
 import { EditMeetingPointModalComponent } from '../edit-meeting-point-modal/edit-meeting-point-modal.component';
+import { ApplyDiscountCodeComponent } from '../../../bookings-create-update/components/apply-discount-code/apply-discount-code.component';
 
 @Component({
   selector: 'booking-detail-reservation-detail',
@@ -305,16 +306,115 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   getFinalTotal(): number {
+    // Preferir total proveniente de backend (ya neto de descuentos)
+    const backendTotal = Number(this.bookingData?.price_total);
+    if (!isNaN(backendTotal)) {
+      return Number(backendTotal.toFixed(2));
+    }
+
     this.recalculateTva();
 
     const base = this.sumActivityTotal();
     const insurance = this.bookingData?.has_cancellation_insurance ? Number(this.bookingData.price_cancellation_insurance || 0) : 0;
     const reduction = this.bookingData?.price_reduction ? Number(this.bookingData.price_reduction) : 0;
+    const discountCodeValue = this.bookingData?.discount_code_value ? Number(this.bookingData.discount_code_value) : 0;
     const boukiiCare = this.bookingData?.has_boukii_care ? Number(this.bookingData.price_boukii_care || 0) : 0;
     const tva = this.bookingData?.has_tva ? Number(this.bookingData.price_tva || 0) : 0;
 
-    const total = base + insurance - reduction + boukiiCare + tva;
+    const total = base + insurance - reduction - discountCodeValue + boukiiCare + tva;
     return Number((isNaN(total) ? 0 : total).toFixed(2));
+  }
+
+  private getBaseTotalBeforeDiscountCode(): number {
+    const discountCodeValue = this.bookingData?.discount_code_value ? Number(this.bookingData.discount_code_value) : 0;
+    return this.getFinalTotal() + discountCodeValue;
+  }
+
+  openDiscountCodeModal(): void {
+    if (!this.bookingData || !this.school) {
+      return;
+    }
+
+    const courseIds = Array.isArray(this.activities)
+      ? Array.from(new Set(this.activities.map((a: any) => a?.course?.id).filter(Boolean)))
+      : [];
+    const sportIds = Array.isArray(this.activities)
+      ? Array.from(new Set(this.activities.map((a: any) => a?.course?.sport?.id).filter(Boolean)))
+      : [];
+    const degreeIds = Array.isArray(this.activities)
+      ? Array.from(new Set(this.activities.map((a: any) => a?.course?.degree_id || a?.course?.degree?.id).filter(Boolean)))
+      : [];
+
+    const dialogRef = this.dialog.open(ApplyDiscountCodeComponent, {
+      width: '500px',
+      data: {
+        school_id: this.school.id,
+        client_id: this.bookingData?.client_main_id || this.client?.id,
+        client_user_id: this.client?.user?.id,
+        amount: this.getBaseTotalBeforeDiscountCode(),
+        currency: this.getActivitiesCurrency(),
+        courseIds,
+        sportIds,
+        degreeIds,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        this.applyDiscountCode(result);
+      }
+    });
+  }
+
+  private applyDiscountCode(result: { code: string; discountCodeId: number; discountAmount: number }): void {
+    this.bookingData.discount_code = result.code;
+    this.bookingData.discount_code_id = result.discountCodeId;
+    this.bookingData.discount_code_value = Number(result.discountAmount || 0);
+
+    const baseBeforeCode = this.getBaseTotalBeforeDiscountCode();
+    const newTotal = Math.max(0, baseBeforeCode - this.bookingData.discount_code_value);
+    this.bookingData.price_total = Number(newTotal.toFixed(2));
+
+    this.applyComputedTotals();
+    this.persistDiscountCode();
+    this.updateBookingData();
+  }
+
+  clearDiscountCode(): void {
+    const baseBeforeCode = this.getBaseTotalBeforeDiscountCode();
+    this.bookingData.discount_code = null;
+    this.bookingData.discount_code_id = null;
+    this.bookingData.discount_code_value = 0;
+    this.bookingData.price_total = Number(baseBeforeCode.toFixed(2));
+
+    this.applyComputedTotals();
+    this.persistDiscountCode();
+    this.updateBookingData();
+  }
+
+  private persistDiscountCode(): void {
+    if (!this.bookingData?.id) {
+      return;
+    }
+
+    const payload: any = {
+      discount_code_id: this.bookingData.discount_code_id,
+      discount_code_value: this.bookingData.discount_code_value || 0,
+      price_total: this.bookingData.price_total,
+    };
+
+    if (this.bookingData.hasOwnProperty('pending_amount')) {
+      const paid = Number(this.bookingData.paid_total || 0);
+      const vouchersTotal = this.calculateTotalVoucherPrice();
+      const pending = Math.max(0, this.bookingData.price_total - paid - vouchersTotal);
+      payload.pending_amount = pending;
+      this.bookingData.pending_amount = pending;
+    }
+
+    this.crudService.update('/bookings', payload, this.bookingData.id).subscribe({
+      next: () => {},
+      error: (err) => console.error('Error updating discount code on booking', err),
+    });
   }
 
   getOutstandingTotal(): number {

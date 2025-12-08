@@ -815,8 +815,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       extrasTotal: Number(extrasTotal.toFixed(2)),
       currency: course.currency,
       discountInfo: discountInfo,
-      courseBaseTotal: Number(courseBaseTotal.toFixed(2)),
-      courseDiscountTotal: Number(discountAmount.toFixed(2))
+        courseBaseTotal: Number(courseBaseTotal.toFixed(2)),
+        courseDiscountTotal: Number(discountAmount.toFixed(2))
     };
   }
 
@@ -1334,6 +1334,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   private buildFinalPriceTotal(bookingData: any): number {
+    // baseRaw ya incluye precios netos por actividad (courseSubtotalAfterDiscount)
     const baseRaw = bookingData?.price_total ?? 0;
     const base = typeof baseRaw === 'number' ? baseRaw : parseFloat(String(baseRaw)) || 0;
 

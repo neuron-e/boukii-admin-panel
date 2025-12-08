@@ -10,6 +10,9 @@ export interface BookingCreateData {
   client_main_id: number;
   user_id: number;
   price_total: number;
+  discount_code?: string | null;
+  discount_code_id?: number | null;
+  discount_code_value?: number;
   has_cancellation_insurance: boolean;
   has_boukii_care: boolean;
   has_reduction: boolean;
@@ -427,10 +430,11 @@ export class BookingService {
       ? Number((data as any).price_cancellation_insurance || 0)
       : 0;
     const reduction = (data as any).price_reduction ? Number((data as any).price_reduction) : 0;
+    const discountCodeValue = (data as any).discount_code_value ? Number((data as any).discount_code_value) : 0;
     const boukiiCare = (data as any).has_boukii_care ? Number((data as any).price_boukii_care || 0) : 0;
     const tva = (data as any).has_tva ? Number((data as any).price_tva || 0) : 0;
 
-    const total = base + insurance - reduction + boukiiCare + tva;
+    const total = base + insurance - reduction - discountCodeValue + boukiiCare + tva;
     const safe = isNaN(total) ? 0 : total;
     return Number(safe.toFixed(2));
   }
