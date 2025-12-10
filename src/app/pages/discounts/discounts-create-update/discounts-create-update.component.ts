@@ -112,7 +112,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
 
   private lastCourseSearch = '';
   private lastClientSearch = '';
-  currencyCode = 'EUR';
+  currencyCode: string;
 
   @ViewChild('courseInput') courseInput: ElementRef<HTMLInputElement>;
   @ViewChild('clientInput') clientInput: ElementRef<HTMLInputElement>;
@@ -130,6 +130,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.mode = data?.mode || 'create';
     this.id = data?.id ?? null;
+    this.currencyCode = this.getDefaultCurrency();
 
     this.form = this.fb.group({
       code: [null, Validators.required],
@@ -204,16 +205,19 @@ export class DiscountsCreateUpdateComponent implements OnInit {
   private loadCurrency(): void {
     this.schoolService.getSchoolData().subscribe({
       next: (response: any) => {
-        const currency =
-          response?.data?.taxes?.currency ||
-          response?.data?.currency ||
-          response?.currency ||
-          this.user?.schools?.[0]?.taxes?.currency ||
-          this.user?.schools?.[0]?.currency;
+        const settings = this.parseSettingsPayload(response?.data?.settings ?? response?.settings);
+        const currency = this.resolveCurrencyCandidate(
+          response?.data?.taxes?.currency,
+          response?.data?.currency,
+          response?.currency,
+          settings?.taxes?.currency,
+          this.user?.schools?.[0]?.taxes?.currency,
+          this.user?.schools?.[0]?.currency
+        );
         this.currencyCode = currency || this.currencyCode;
       },
       error: () => {
-        this.currencyCode = this.user?.schools?.[0]?.currency || this.currencyCode;
+        this.currencyCode = this.getDefaultCurrency();
       }
     });
   }
@@ -594,5 +598,40 @@ export class DiscountsCreateUpdateComponent implements OnInit {
 
   navigateToList(): void {
     this.router.navigate(['/vouchers'], { queryParams: { tab: 'discounts' } });
+  }
+
+  private parseSettingsPayload(raw: any): any {
+    if (!raw) {
+      return null;
+    }
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+    if (typeof raw === 'object') {
+      return raw;
+    }
+    return null;
+  }
+
+  private resolveCurrencyCandidate(...candidates: Array<string | null | undefined>): string | null {
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  private getDefaultCurrency(): string {
+    return (
+      this.resolveCurrencyCandidate(
+        this.user?.schools?.[0]?.taxes?.currency,
+        this.user?.schools?.[0]?.currency
+      ) || 'EUR'
+    );
   }
 }

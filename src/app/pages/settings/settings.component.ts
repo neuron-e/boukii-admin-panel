@@ -1061,7 +1061,8 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1168,7 +1169,8 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1333,7 +1335,8 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1419,7 +1422,8 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1451,7 +1455,8 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },

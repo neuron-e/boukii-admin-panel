@@ -60,7 +60,7 @@ export class BonusesComponent implements OnInit {
   searchParams = '&is_gift=0';
 
   // Currency code from school settings
-  currencyCode: string = 'EUR';
+  currencyCode: string;
 
   // Gift vouchers data
   giftVouchers: any[] = [];
@@ -98,6 +98,7 @@ export class BonusesComponent implements OnInit {
     private schoolService: SchoolService
   ) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
+    this.currencyCode = this.getDefaultCurrency();
   }
 
   ngOnInit() {
@@ -115,17 +116,20 @@ export class BonusesComponent implements OnInit {
   private loadCurrencySymbol() {
     this.schoolService.getSchoolData().subscribe({
       next: (response: any) => {
-        const currency =
-          response?.data?.taxes?.currency ||
-          response?.data?.currency ||
-          response?.currency ||
-          this.user?.schools?.[0]?.taxes?.currency ||
-          this.user?.schools?.[0]?.currency;
+        const settings = this.parseSettingsPayload(response?.data?.settings ?? response?.settings);
+        const currency = this.resolveCurrencyCandidate(
+          response?.data?.taxes?.currency,
+          response?.data?.currency,
+          response?.currency,
+          settings?.taxes?.currency,
+          this.user?.schools?.[0]?.taxes?.currency,
+          this.user?.schools?.[0]?.currency
+        );
         this.currencyCode = currency || this.currencyCode;
       },
       error: (error) => {
         console.error('Error loading school settings:', error);
-        // Keep default EUR if error
+        this.currencyCode = this.getDefaultCurrency();
       }
     });
   }
@@ -554,5 +558,39 @@ export class BonusesComponent implements OnInit {
       );
     }
   }
-}
 
+  private parseSettingsPayload(raw: any): any {
+    if (!raw) {
+      return null;
+    }
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+    if (typeof raw === 'object') {
+      return raw;
+    }
+    return null;
+  }
+
+  private resolveCurrencyCandidate(...candidates: Array<string | null | undefined>): string | null {
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  private getDefaultCurrency(): string {
+    return (
+      this.resolveCurrencyCandidate(
+        this.user?.schools?.[0]?.taxes?.currency,
+        this.user?.schools?.[0]?.currency
+      ) || 'EUR'
+    );
+  }
+}
