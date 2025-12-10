@@ -98,10 +98,9 @@ export class CoursesComponent {
             //      if (element.id === this.detailData.station_id) this.detailData.station = element
             //    });
             //  })
-            // Load booking users for the detail view
-            this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
+            // Load booking users for the detail view - only active bookings (status = 1)
+            this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&status=1&with[]=client')
               .subscribe((bookingUser: any) => {
-                this.detailData.booking_users_active = bookingUser.data || [];
                 this.detailData.booking_users = bookingUser.data || [];
                 this.detailData.users = bookingUser.data || [];
                 this.courses.settcourseFormGroup(this.detailData)

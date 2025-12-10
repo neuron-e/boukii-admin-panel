@@ -166,6 +166,9 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
     this.crudService.get('/admin/courses/' + this.id,
       ['courseGroups.degree', 'courseGroups.courseDates.courseSubgroups.bookingUsers.client',
         'courseGroups.courseDates.courseSubgroups.bookingUsers.booking',
+        "booking_users_active.client",
+        "booking_users_active.course_sub_group",
+        "booking_users_active.monitor",
         'bookingUsers.client', 'bookingUsers.booking', 'sport', 'courseExtras'])
       .pipe(
         takeUntil(this.destroy$),
@@ -195,7 +198,7 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
           const hasEmbeddedUsers = Array.isArray(embeddedUsers) && embeddedUsers.length > 0;
           const bookingUsers$ = hasEmbeddedUsers
             ? of(embeddedUsers)
-            : this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + schoolId + '&course_id=' + this.detailData.id + '&with[]=client')
+            : this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + schoolId + '&course_id=' + this.detailData.id + '&status=1&with[]=client')
                 .pipe(
                   map((res: any) => res?.data || []),
                   catchError(() => of(embeddedUsers || []))
@@ -325,6 +328,13 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
         const users = (bookingUsers && bookingUsers.length > 0) ? bookingUsers : [];
         this.detailData.users = users;
 
+        console.log('[CourseDetail] Loaded data:', {
+          usersCount: users.length,
+          booking_users_active: this.detailData?.booking_users_active?.length || 0,
+          hasCourseFormGroup: !!this.courses.courseFormGroup,
+          courseDatesCount: courseDates.length
+        });
+
         if (isFIXCourse && this.detailData.users.length > 0) {
           const uniqueBookings = new Set();
           this.detailData.users.forEach((user: any) => {
@@ -337,6 +347,10 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
         this.detailData.booking_users = this.detailData.users;
         this.courses.settcourseFormGroup(this.detailData)
         this.initialFormSnapshot = this.cloneValue(this.courses.courseFormGroup.getRawValue());
+
+        console.log('[CourseDetail] After settcourseFormGroup:', {
+          formGroupBookingUsers: this.courses.courseFormGroup?.controls?.['booking_users']?.value?.length || 0
+        });
 
         if (this.courses.courseFormGroup && this.detailData.users.length > 0) {
           const patchData: any = {
@@ -536,6 +550,19 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
   private collectBookingUsersFromDetailData(courseDates: any[]): any[] {
     const result: any[] = [];
     try {
+      console.log('[CourseDetail] collectBookingUsersFromDetailData called with', {
+        courseDatesCount: courseDates.length,
+        hasBookingUsersActive: !!this.detailData?.booking_users_active,
+        bookingUsersActiveCount: this.detailData?.booking_users_active?.length || 0
+      });
+
+      // PRIORITY: Use booking_users_active if available (already filtered by status=1 from API)
+      if (this.detailData?.booking_users_active && Array.isArray(this.detailData.booking_users_active) && this.detailData.booking_users_active.length > 0) {
+        console.log('[CourseDetail] Using booking_users_active directly:', {
+          count: this.detailData.booking_users_active.length
+        });
+        return this.detailData.booking_users_active;
+      }
 
       for (const cd of courseDates) {
         const cdId = cd?.id ?? null;
@@ -544,9 +571,17 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
         for (const g of groups) {
           const subgroups = Array.isArray(g?.course_subgroups) ? g.course_subgroups : [];
           for (const sg of subgroups) {
-            const bookings = Array.isArray(sg?.booking_users) ? sg.booking_users : [];
+            // Use booking_users_active if available (already filtered by status=1), otherwise fall back to booking_users
+            const bookings = Array.isArray(sg?.booking_users_active) && sg.booking_users_active.length > 0
+              ? sg.booking_users_active
+              : (Array.isArray(sg?.booking_users) ? sg.booking_users : []);
 
             for (const bu of bookings) {
+              // Filter by status - only show active bookings (status = 1)
+              if (bu?.status !== 1) {
+                continue;
+              }
+
               const client = bu?.client || {};
               const clientId = bu?.client_id ?? client?.id ?? bu?.id;
               const mappedUser = {
@@ -567,8 +602,11 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
       }
 
       // Si no hemos encontrado nada en la estructura embebida, usar los usuarios globales
-      if (result.length === 0 && this.detailData?.users) {
-        const globalUsers = this.detailData.users;
+      if (result.length === 0) {
+        const rawUsers = this.detailData?.booking_users_active?.length > 0
+          ? this.detailData.booking_users_active
+          : (this.detailData?.users || []);
+        const globalUsers = rawUsers.filter((u: any) => u?.status === 1 || !u?.status); // booking_users_active already filtered
 
         // Enriquecer con course_date_id y course_subgroup_id basándonos en las fechas
         const enrichedUsers = globalUsers.map((user: any) => {
@@ -596,9 +634,16 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
             course_subgroup_id: foundSubgroup?.id ?? user?.course_subgroup_id ?? user?.course_sub_group_id ?? null
           };
         });
+        console.log('[CourseDetail] Using global users fallback:', {
+          globalUsersCount: globalUsers.length,
+          enrichedCount: enrichedUsers.length
+        });
         return enrichedUsers;
       }
 
+      console.log('[CourseDetail] Collected from embedded structure:', {
+        resultCount: result.length
+      });
       return result;
     } catch (e) {
       console.warn('collectBookingUsersFromDetailData error:', e);
