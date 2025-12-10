@@ -1347,8 +1347,8 @@
                       {{'status' | translate}}
                     </th>
                     <td *matCellDef="let element" mat-cell>
-                      <mat-slide-toggle [checked]="element.status"
-                                        [disabled]="true"></mat-slide-toggle>
+                    <mat-slide-toggle [checked]="element.status"
+                                      (change)="toggleExtraStatus(element, 'Forfait', $event.checked)"></mat-slide-toggle>
 
                     </td>
                   </ng-container>
@@ -1453,7 +1453,7 @@
                                     </th>
                                     <td *matCellDef="let element" mat-cell>
                                       <mat-slide-toggle [checked]="element.status"
-                                        [disabled]="true"></mat-slide-toggle>
+                                        (change)="toggleExtraStatus(element, 'Food', $event.checked)"></mat-slide-toggle>
 
                                     </td>
                                   </ng-container>
@@ -1558,7 +1558,7 @@
                                     </th>
                                     <td *matCellDef="let element" mat-cell>
                                       <mat-slide-toggle [checked]="element.status"
-                                        [disabled]="true"></mat-slide-toggle>
+                                        (change)="toggleExtraStatus(element, 'Transport', $event.checked)"></mat-slide-toggle>
 
                                     </td>
                                   </ng-container>
@@ -1974,8 +1974,5 @@
   <iframe [src]="safeUrl" width="100%" height="600px" style="border: none;" body>
   </iframe>
 </vex-flux-modal>
-
-
-
 
 

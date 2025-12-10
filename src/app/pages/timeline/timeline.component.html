@@ -1124,10 +1124,28 @@
             <mat-option *ngIf="monitor.id != taskDetail.monitor_id"
                         [value]="monitor"
                         [disabled]="isMonitorTemporarilyBlocked(monitor)">
-              <div class="flex items-center justify-between gap-2">
-                <span>{{ monitor.first_name }} {{ monitor.last_name }}</span>
+              <div class="flex items-center justify-between gap-2 monitor-select-option">
+                <div class="flex flex-column gap-1">
+                  <span>{{ monitor.first_name }} {{ monitor.last_name }}</span>
+                  <span class="text-caption"
+                        *ngIf="monitor.language1_id || monitor.language2_id || monitor.language3_id">
+                    {{ monitor.language1_id ? getLanguageById(monitor.language1_id) : '' }}
+                    <ng-container *ngIf="monitor.language2_id">
+                      &nbsp;&ndash;&nbsp;{{ getLanguageById(monitor.language2_id) }}
+                    </ng-container>
+                    <ng-container *ngIf="monitor.language3_id">
+                      &nbsp;&ndash;&nbsp;{{ getLanguageById(monitor.language3_id) }}
+                    </ng-container>
+                  </span>
+                  <span class="text-caption text-warn" *ngIf="monitor.__busyMessage">
+                    {{ monitor.__busyMessage }}
+                  </span>
+                  <span class="text-caption text-warn" *ngIf="monitor.__sportMismatchMessage">
+                    {{ monitor.__sportMismatchMessage }}
+                  </span>
+                </div>
                 <span class="text-caption text-warn" *ngIf="hasApiAvailability && !isMonitorFromApiList(monitor)">
-                  Requiere confirmación (nivel/idioma)
+                  {{ 'monitor_assignment.override_warning' | translate }}
                 </span>
               </div>
             </mat-option>

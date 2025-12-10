@@ -1278,20 +1278,55 @@ export class SettingsComponent implements OnInit {
 
   }
 
-  deleteExtra(index: number, type: string) {
-    if (type === 'Forfait') {
-
-      this.dataSourceForfait.data.splice(index, 1);
-      this.dateTableForfait.renderRows();
-    } else if (type === 'Food') {
-      this.dataSourceFood.data.splice(index, 1);
-      this.dateTableFood.renderRows();
-    } else if (type === 'Transport') {
-      this.dataSourceTransport.data.splice(index, 1);
-      this.dateTableTransport.renderRows();
+  deleteExtra(index: number, type: 'Forfait' | 'Food' | 'Transport') {
+    const source = this.getExtrasDataSource(type);
+    const currentData = Array.isArray(source.data) ? source.data : [];
+    if (index < 0 || index >= currentData.length) {
+      return;
     }
 
+    const updatedData = currentData.filter((_: any, idx: number) => idx !== index);
+    this.updateExtrasData(type, updatedData);
     this.saveExtra();
+  }
+
+  toggleExtraStatus(extra: any, type: 'Forfait' | 'Food' | 'Transport', checked: boolean) {
+    const source = this.getExtrasDataSource(type);
+    const data = [...(Array.isArray(source.data) ? source.data : [])];
+    const idx = data.findIndex((item: any) => item?.id === extra?.id);
+    if (idx === -1) {
+      return;
+    }
+
+    data[idx] = { ...data[idx], status: checked };
+    this.updateExtrasData(type, data);
+    this.saveExtra();
+  }
+
+  private getExtrasDataSource(type: 'Forfait' | 'Food' | 'Transport'): MatTableDataSource<any> {
+    if (type === 'Forfait') {
+      return this.dataSourceForfait;
+    }
+    if (type === 'Food') {
+      return this.dataSourceFood;
+    }
+    return this.dataSourceTransport;
+  }
+
+  private updateExtrasData(type: 'Forfait' | 'Food' | 'Transport', data: any[]): void {
+    const source = this.getExtrasDataSource(type);
+    source.data = data;
+    this.refreshExtrasTable(type);
+  }
+
+  private refreshExtrasTable(type: 'Forfait' | 'Food' | 'Transport') {
+    if (type === 'Forfait') {
+      this.dateTableForfait?.renderRows();
+    } else if (type === 'Food') {
+      this.dateTableFood?.renderRows();
+    } else {
+      this.dateTableTransport?.renderRows();
+    }
   }
 
   saveExtra() {

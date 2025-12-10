@@ -1234,7 +1234,9 @@
       "single": "Uniquement cette séance"
     },
     "scope_label": "Appliquer le moniteur à",
-    "start_date": "Date de début"
+    "start_date": "Date de début",
+    "override_sport": "Sport diff?rent du cours (confirmation requise)",
+    "override_warning": "N?cessite une confirmation (niveau/langue)"
   },
   "monitor_busy": "Le moniteur est occupé",
   "monitor_comments": "Observations du moniteur.",

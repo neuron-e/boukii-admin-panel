@@ -1234,7 +1234,9 @@
       "single": "Nur diesen Termin"
     },
     "scope_label": "Trainer zuweisen für",
-    "start_date": "Startdatum"
+    "start_date": "Startdatum",
+    "override_sport": "Andere Sportart als der Kurs (Best?tigung erforderlich)",
+    "override_warning": "Erfordert eine Best?tigung (Level/Sprache)"
   },
   "monitor_busy": "Der Monitor ist beschäftigt",
   "monitor_comments": "Überwachen Sie Kommentare",

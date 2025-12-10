@@ -66,6 +66,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
   monitorsForm: any[];
   private currentAssignmentSlots: MonitorAssignmentSlot[] = [];
   private currentAssignmentTargetSubgroupIds = new Set<number>();
+  private monitorSelectOptionsCache: any[] = [];
+  private monitorOptionsVersion = 0;
+  private monitorSelectOptionsCacheVersion = -1;
 
   loadingMonitors = true;
   loading = true;
@@ -1206,6 +1209,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     // Combine adjusted tasks with the rest
     this.plannerTasks = [...filteredPlannerTasks, ...Object.values(groupedByDate).flat()];
+    this.bumpMonitorOptionsVersion();
     this.loading = false;
   }
 
@@ -1485,10 +1489,33 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (!monitor || !monitor.id) {
       return true;
     }
-    if (!Array.isArray(monitor.sports)) {
-      return false;
+
+    const targetSportId = this.taskDetail.sport_id;
+
+    if (Array.isArray(monitor.sports) && monitor.sports.length) {
+      return monitor.sports.some((sport: any) => Number(sport?.id) === targetSportId);
     }
-    return monitor.sports.some((sport: any) => sport && sport.id === this.taskDetail.sport_id);
+
+    const sportDegreeSource = Array.isArray(monitor.monitorSportsDegrees)
+      ? monitor.monitorSportsDegrees
+      : Array.isArray(monitor.monitor_sports_degrees)
+        ? monitor.monitor_sports_degrees
+        : null;
+    if (sportDegreeSource?.length) {
+      return sportDegreeSource.some((entry: any) => Number(entry?.sport_id) === targetSportId);
+    }
+
+    if (this.isMonitorFromApiList(monitor)) {
+      // Backend already filtered by sport/degree for availability results.
+      return true;
+    }
+
+    const fallbackSportId = monitor?.sport_id ?? monitor?.sportId ?? monitor?.pivot?.sport_id;
+    if (fallbackSportId != null) {
+      return Number(fallbackSportId) === targetSportId;
+    }
+
+    return false;
   }
 
   private openMonitorAssignmentDialog(monitor: any): Observable<MonitorAssignmentDialogResult | undefined> {
@@ -3640,10 +3667,12 @@ export class TimelineComponent implements OnInit, OnDestroy {
         this.hasApiAvailability = Array.isArray(this.monitorsForm) && this.monitorsForm.length > 0;
         this.loadingMonitors = false;
         this.monitorSearchHint = this.buildMonitorSearchHint();
+        this.bumpMonitorOptionsVersion();
       }, () => {
         this.loadingMonitors = false;
         this.monitorSearchHint = '';
         this.hasApiAvailability = false;
+        this.bumpMonitorOptionsVersion();
       })
   }
 
@@ -3679,35 +3708,57 @@ export class TimelineComponent implements OnInit, OnDestroy {
    *   so users can still pick them with confirmation if needed.
    */
   getMonitorSelectOptions(): any[] {
+    if (this.monitorSelectOptionsCacheVersion === this.monitorOptionsVersion) {
+      return this.monitorSelectOptionsCache;
+    }
+
     const apiList = Array.isArray(this.monitorsForm) ? this.monitorsForm : [];
     const timelineList = Array.isArray(this.filteredMonitors) ? this.filteredMonitors : [];
     const combined = apiList.length ? [...apiList, ...timelineList] : [...timelineList];
 
     const seen = new Set<number>();
-    const options = combined.filter(monitor => {
+    const options = combined.reduce((acc: any[], monitor: any) => {
       if (!monitor || monitor.id == null) {
-        return false;
+        return acc;
       }
       if (seen.has(monitor.id)) {
-        return false;
+        return acc;
       }
       seen.add(monitor.id);
 
-      // Hide monitors busy for this task/time window
-      if (this.isMonitorBusyForCurrentTask(monitor)) {
-        return false;
+      const matchesSport = this.monitorMatchesCurrentSport(monitor);
+      if (!matchesSport && this.isMonitorFromApiList(monitor)) {
+        return acc;
       }
 
-      // Keep only matching sport; language/degree confirmation handled on selection
-      return this.monitorMatchesCurrentSport(monitor);
-    });
+      const option = { ...monitor };
+      if (!matchesSport) {
+        option.__sportMismatch = true;
+        option.__sportMismatchMessage = this.translateWithFallback(
+          'monitor_assignment.override_sport',
+          'Deporte distinto al curso (requiere confirmación)'
+        );
+      }
 
-    // Sort: API-available first, then override candidates
-    return options.sort((a, b) => {
+      const busy = this.isMonitorBusyForCurrentTask(option);
+      if (busy) {
+        option.__busy = true;
+        option.__busyMessage = this.translateWithFallback('monitor_assignment.conflict_default', 'Tiene un conflicto en este horario');
+      }
+
+      acc.push(option);
+      return acc;
+    }, []);
+
+    const sorted = options.sort((a, b) => {
       const aApi = this.isMonitorFromApiList(a) ? 0 : 1;
       const bApi = this.isMonitorFromApiList(b) ? 0 : 1;
       return aApi - bApi || this.getMonitorDisplayName(a).localeCompare(this.getMonitorDisplayName(b));
     });
+
+    this.monitorSelectOptionsCache = sorted;
+    this.monitorSelectOptionsCacheVersion = this.monitorOptionsVersion;
+    return sorted;
   }
 
   getMonitorSelectTotals(): { available: number; visible: number } {
@@ -3822,6 +3873,13 @@ export class TimelineComponent implements OnInit, OnDestroy {
       .forEach(t => addId(t.course_subgroup_id, t.course_subgroup || t));
 
     return Array.from(subgroupIds);
+  }
+
+  private bumpMonitorOptionsVersion(): void {
+    this.monitorOptionsVersion++;
+    if (this.monitorOptionsVersion > Number.MAX_SAFE_INTEGER - 1) {
+      this.monitorOptionsVersion = 0;
+    }
   }
 
   private resolveBookingUserId(client: any): number | null {

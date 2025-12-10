@@ -1217,7 +1217,9 @@
       "single": "Only this session"
     },
     "scope_label": "Apply monitor to",
-    "start_date": "Start date"
+    "start_date": "Start date",
+    "override_sport": "Different sport than the course (confirmation required)",
+    "override_warning": "Requires confirmation (level/language)"
   },
   "monitor_busy": "The monitor is busy",
   "monitor_comments": "Monitor Comments",

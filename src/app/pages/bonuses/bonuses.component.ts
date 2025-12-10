@@ -327,9 +327,6 @@ export class BonusesComponent implements OnInit {
   }
 
   deleteVoucher(voucher: any) {
-    if (this.selectedTab === this.TAB_DISCOUNTS) {
-      return;
-    }
 
     const confirmDelete = window.confirm(this.translateService.instant('delete_confirm') || 'Delete voucher?');
     if (!confirmDelete) {

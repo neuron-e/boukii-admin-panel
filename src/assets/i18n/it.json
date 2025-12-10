@@ -1219,7 +1219,9 @@
       "single": "Solo questa sessione"
     },
     "scope_label": "Assegna istruttore a",
-    "start_date": "Data inizio"
+    "start_date": "Data inizio",
+    "override_sport": "Sport diverso dal corso (richiede conferma)",
+    "override_warning": "Richiede conferma (livello/lingua)"
   },
   "monitor_busy": "Il monitor è occupato",
   "monitor_comments": "Monitorare i commenti",

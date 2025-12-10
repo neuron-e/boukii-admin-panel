@@ -34,7 +34,7 @@
     <!-- Table view for Purchase Vouchers and Discount Codes -->
     <vex-aio-table *ngIf="entity && selectedTab !== 2" [columns]="columns" [entity]="entity" [deleteEntity]="deleteEntity"
                    [title]="currentTitle"
-                   [route]="currentRoute" [createComponent]="createComponent" [canDelete]="false"
+                   [route]="currentRoute" [createComponent]="createComponent" [canDelete]="true"
                    [canDeactivate]="false" [sectionIcon]="icon"
                    [with]="currentWith" [search]="searchParams"
                    [currencyCode]="currencyCode"
@@ -152,7 +152,7 @@
           [title]="'gift_vouchers'"
           [route]="giftVouchersTableRoute"
           [createComponent]="giftVouchersCreateComponent"
-          [canDelete]="false"
+          [canDelete]="true"
           [canDeactivate]="false"
           [sectionIcon]="icon"
           [with]="giftVouchersTableWith"
