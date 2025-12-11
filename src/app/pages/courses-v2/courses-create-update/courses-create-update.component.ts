@@ -1608,8 +1608,9 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         level: levelData.level,
         color: levelData.color,
         icon: levelData.icon,
-        age_min: levelData.age_min,
-        age_max: levelData.age_max,
+        // Use age values from intervalConfig (intervalGroupsMap) if available, otherwise fallback to levelData
+        age_min: config.age_min ?? levelData.age_min,
+        age_max: config.age_max ?? levelData.age_max,
         max_participants: config.max_participants ?? levelData.max_participants ?? undefined,
         course_subgroups: subgroups.map(subgroup => ({ ...subgroup }))
       };
