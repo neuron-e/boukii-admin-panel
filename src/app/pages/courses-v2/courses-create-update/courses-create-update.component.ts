@@ -45,6 +45,8 @@ interface IntervalGroupState {
   levelId: number | string;
   active: boolean;
   max_participants?: number;
+  age_min?: number;
+  age_max?: number;
   subgroups: IntervalSubgroupState[];
 }
 
