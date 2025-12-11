@@ -472,9 +472,13 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             if (ageMax != null) group.age_max = ageMax;
             if (maxParticipants != null) {
               group.max_participants = maxParticipants;
+              // Don't overwrite subgroup max_participants if already set
+              // Each subgroup can have its own capacity
               const subgroups = group.course_subgroups || group.courseSubgroups || [];
               subgroups.forEach((sg: any) => {
-                sg.max_participants = maxParticipants;
+                if (sg.max_participants == null) {
+                  sg.max_participants = maxParticipants;
+                }
               });
             }
           }
@@ -490,9 +494,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             if (ageMax != null) levelState.age_max = ageMax;
             if (maxParticipants != null) {
               levelState.max_participants = maxParticipants;
+              // Don't overwrite subgroup max_participants if already set
               if (Array.isArray(levelState.subgroups)) {
                 levelState.subgroups.forEach((sg: any) => {
-                  sg.max_participants = maxParticipants;
+                  if (sg.max_participants == null) {
+                    sg.max_participants = maxParticipants;
+                  }
                 });
               }
             }
@@ -8683,8 +8690,9 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       // Limpiar caché para forzar recalcular
       this.clearSubgroupsCache();
 
-      // Call sync to ensure all related structures are updated
-      this.syncLevelAndSubgroupConstraints();
+      // NOTE: We don't call syncLevelAndSubgroupConstraints() here because it would
+      // overwrite the subgroup-specific max_participants we just set with the level's
+      // max_participants. Sync will be called on save in endCourse().
       this.cdr.detectChanges();
     }
   }
