@@ -202,12 +202,7 @@
         </div>
 
         <mat-radio-button [value]="3" style="display: block;">
-          {{"online_payment" | translate}}  <!-- Online Payment -->
-        </mat-radio-button>
-        <mat-radio-button *ngIf="showConfirmationWithoutPaymentOption"
-                          [value]="4"
-                          style="display: block;">
-          {{"payment_no_payment" | translate}}
+          {{'send_payment_link' | translate}}  <!-- Enviar enlace de pago -->
         </mat-radio-button>
       </mat-radio-group>
     </div>
@@ -227,7 +222,7 @@
               color="primary"
               mat-raised-button
               type="button">
-        {{ (paymentMethod === 3 ? 'end_reserve_pay' : paymentMethod === 4 ? 'mails.type4' : 'continue') | translate }}
+        {{ (paymentMethod === 3 ? 'send_payment_link' : 'continue') | translate }}
       </button>
     </ng-container>
 

@@ -667,18 +667,38 @@ export class TimelineComponent implements OnInit, OnDestroy {
     //Convert them into TASKS
 
     allBookings.forEach(booking => {
-      if (!booking.booking) {
-        // Construct the booking object
-        const courseDate = booking.course.course_dates.find(date => date.id === booking.course_date_id);
+      // Process if it's a CourseSubgroup (has course_group_id) or BookingUser without booking property
+      const isSubgroup = booking.course_group_id != null;
+      const isUnprocessedBooking = !booking.booking;
 
-        booking.booking = {
-          id: booking.id
-        };
+      if (isSubgroup || isUnprocessedBooking) {
+        // For subgroups, get course from course_group.course; for booking_users, from booking.course
+        const course = booking.course || booking.courseGroup?.course || booking.course_group?.course;
+        const courseDate = course?.course_dates?.find((date: any) => date.id === booking.course_date_id);
+
+        if (!booking.booking) {
+          booking.booking = {
+            id: booking.id
+          };
+        }
+
         booking.date = courseDate ? courseDate.date : null;
         booking.hour_start = courseDate ? courseDate.hour_start : null;
         booking.hour_end = courseDate ? courseDate.hour_end : null;
-        booking.bookings_number = booking.booking_users?.length;
-        booking.bookings_clients = booking.booking_users;
+
+        // Filter by status = 1 (active bookings only) to get correct count
+        // API returns booking_users (snake_case) for CourseSubgroup
+        const rawBookingUsers = booking.booking_users || booking.bookingUsers || [];
+        const activeBookingUsers = Array.isArray(rawBookingUsers)
+          ? rawBookingUsers.filter((user: any) => user?.status === 1)
+          : [];
+        booking.bookings_number = activeBookingUsers.length;
+        booking.bookings_clients = activeBookingUsers;
+
+        // Ensure course reference is available for later processing
+        if (!booking.course && course) {
+          booking.course = course;
+        }
       }
     });
 

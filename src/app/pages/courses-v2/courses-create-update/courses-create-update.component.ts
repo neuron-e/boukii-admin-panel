@@ -634,6 +634,8 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
 
     if (updated) {
+      // Call sync to ensure all related structures are updated
+      this.syncLevelAndSubgroupConstraints();
       this.cdr.detectChanges();
     }
   }
@@ -8673,6 +8675,9 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
       // Limpiar caché para forzar recalcular
       this.clearSubgroupsCache();
+
+      // Call sync to ensure all related structures are updated
+      this.syncLevelAndSubgroupConstraints();
       this.cdr.detectChanges();
     }
   }

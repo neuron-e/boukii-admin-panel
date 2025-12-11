@@ -328,13 +328,6 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
         const users = (bookingUsers && bookingUsers.length > 0) ? bookingUsers : [];
         this.detailData.users = users;
 
-        console.log('[CourseDetail] Loaded data:', {
-          usersCount: users.length,
-          booking_users_active: this.detailData?.booking_users_active?.length || 0,
-          hasCourseFormGroup: !!this.courses.courseFormGroup,
-          courseDatesCount: courseDates.length
-        });
-
         if (isFIXCourse && this.detailData.users.length > 0) {
           const uniqueBookings = new Set();
           this.detailData.users.forEach((user: any) => {
@@ -347,10 +340,6 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
         this.detailData.booking_users = this.detailData.users;
         this.courses.settcourseFormGroup(this.detailData)
         this.initialFormSnapshot = this.cloneValue(this.courses.courseFormGroup.getRawValue());
-
-        console.log('[CourseDetail] After settcourseFormGroup:', {
-          formGroupBookingUsers: this.courses.courseFormGroup?.controls?.['booking_users']?.value?.length || 0
-        });
 
         if (this.courses.courseFormGroup && this.detailData.users.length > 0) {
           const patchData: any = {
@@ -550,17 +539,8 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
   private collectBookingUsersFromDetailData(courseDates: any[]): any[] {
     const result: any[] = [];
     try {
-      console.log('[CourseDetail] collectBookingUsersFromDetailData called with', {
-        courseDatesCount: courseDates.length,
-        hasBookingUsersActive: !!this.detailData?.booking_users_active,
-        bookingUsersActiveCount: this.detailData?.booking_users_active?.length || 0
-      });
-
       // PRIORITY: Use booking_users_active if available (already filtered by status=1 from API)
       if (this.detailData?.booking_users_active && Array.isArray(this.detailData.booking_users_active) && this.detailData.booking_users_active.length > 0) {
-        console.log('[CourseDetail] Using booking_users_active directly:', {
-          count: this.detailData.booking_users_active.length
-        });
         return this.detailData.booking_users_active;
       }
 
@@ -634,16 +614,9 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
             course_subgroup_id: foundSubgroup?.id ?? user?.course_subgroup_id ?? user?.course_sub_group_id ?? null
           };
         });
-        console.log('[CourseDetail] Using global users fallback:', {
-          globalUsersCount: globalUsers.length,
-          enrichedCount: enrichedUsers.length
-        });
         return enrichedUsers;
       }
 
-      console.log('[CourseDetail] Collected from embedded structure:', {
-        resultCount: result.length
-      });
       return result;
     } catch (e) {
       console.warn('collectBookingUsersFromDetailData error:', e);

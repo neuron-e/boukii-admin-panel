@@ -68,13 +68,7 @@ export class BookingDetailV2Component implements OnInit {
   activitiesChanged$ = this.activitiesChangedSubject.asObservable();
 
   get showConfirmationWithoutPaymentOption(): boolean {
-    if (!this.bookingData) {
-      return true;
-    }
-    if (this.bookingData?.paid) {
-      return false;
-    }
-    return Number(this.bookingData?.payment_method_id) !== 5;
+    return false;
   }
 
   private buildDirectPaymentOptions(): Array<{ id: PaymentMethodId; label: string }> {
@@ -94,7 +88,11 @@ export class BookingDetailV2Component implements OnInit {
     }
 
     if (Number(id) === 3) {
-      return this.translateService.instant('payment_paylink');
+      return this.translateService.instant('send_payment_link');
+    }
+
+    if (Number(id) === 4) {
+      return this.translateService.instant('payment_card_external');
     }
 
     const method = this.paymentMethods.find(m => m.id === id);
@@ -108,11 +106,11 @@ export class BookingDetailV2Component implements OnInit {
   private getGatewayLabel(): string {
     const provider = (this.schoolService.getPaymentProvider() || '').toLowerCase();
     if (provider === 'payyo') {
-      return this.translateService.instant('payment_payyo');
+      return this.translateService.instant('payment_terminal_open', { provider: 'Payyo' });
     }
 
     const providerName = provider ? this.formatProviderName(provider) : 'Boukii Pay';
-    return this.translateService.instant('payment_gateway', { provider: providerName });
+    return this.translateService.instant('payment_terminal_open', { provider: providerName });
   }
 
   private formatProviderName(value: string): string {

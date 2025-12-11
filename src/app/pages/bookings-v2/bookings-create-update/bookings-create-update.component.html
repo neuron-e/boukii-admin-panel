@@ -231,10 +231,10 @@
         </div>
 
         <mat-radio-button [value]="3" style="display: block;">
-          {{"online_payment" | translate}}  <!-- Online Payment -->
+          {{'send_payment_link' | translate}}  <!-- Enviar enlace de pago -->
         </mat-radio-button>
-        <mat-radio-button [value]="4" style="display: block;">
-          {{"payment_no_payment" | translate}}  <!-- Sin Pago -->
+        <mat-radio-button *ngIf="!isEditMode" [value]="4" style="display: block;">
+          {{'confirm_without_payment_action' | translate}}  <!-- Sin Pago -->
         </mat-radio-button>
       </mat-radio-group>
     </div>
@@ -265,7 +265,7 @@
             (click)="goToNextStep()"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
-      {{"confirm_booking" | translate }}
+      {{"continue" | translate }}
     </button>
 
     <!-- Botón Finalizar Pago o Finalizar Reserva -->
@@ -273,7 +273,7 @@
             (click)="finalizeBooking()"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
-      {{ (paymentMethod === 3 || paymentMethod === 4 ? 'end_booking' : 'end_reserve_pay') | translate }}
+      {{ getPrimaryCtaKey() | translate }}
     </button>
 
     <!-- Botón Finalizar Reserva (Solo si Confirmación de Pago es Sí) -->
@@ -293,4 +293,3 @@
     </button>-->
   </div>
 </vex-flux-modal>
-

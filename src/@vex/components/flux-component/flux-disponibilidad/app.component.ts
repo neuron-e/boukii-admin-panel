@@ -135,14 +135,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
   monitorSearchTerm: string = '';
 
   private logFluxDebug(message: string, payload?: any): void {
-    if (!this.fluxDebugMode) {
-      return;
-    }
-    if (payload === undefined) {
-      console.log(message);
-    } else {
-      console.log(message, payload);
-    }
+    // Debug logging disabled
   }
 
   private getUserSubgroupId(user: any): number | null {
@@ -464,6 +457,12 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
         return;
       }
 
+      // CRITICAL: Filter by status = 1 (active bookings only)
+      // Reject cancelled/inactive bookings
+      if (user?.status !== 1) {
+        return;
+      }
+
       const userLevelId = this.normalizeId(user?.degree_id ?? user?.degreeId ?? user?.degree?.id);
       if (levelId && userLevelId && userLevelId !== levelId) {
         return;
@@ -637,11 +636,6 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     const globalBookingUsers = this.courseFormGroup?.controls?.['booking_users']?.value || [];
 
     globalBookingUsers.forEach((user: any, idx: number) => {
-      // Filter by status - only show active bookings (status = 1)
-      if (user?.status !== 1) {
-        return;
-      }
-
       // Filter by level/degree_id instead of subgroup_id
       // (subgroup IDs change over time, but degree_id is stable)
       const userDegreeId = this.normalizeId(user?.degree_id);
@@ -2000,15 +1994,6 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
         : dateInInterval;
 
       if (intervalMatches && aggregatedUsers.length) {
-        console.log('[FluxDisponibilidad] getStudentCount (aggregated)', {
-          date: dateItem?.date,
-          interval_id: this.interval_id,
-          aggregatedCount: aggregatedUsers.length,
-          max: subgroup?.max_participants ??
-            this.group?.course_subgroups?.[this.subgroup_index]?.max_participants ??
-            this.level?.max_participants ??
-            this.courseFormGroup?.controls?.['max_participants']?.value ?? 0
-        });
         const maxCapacity =
           subgroup?.max_participants ??
           this.group?.course_subgroups?.[this.subgroup_index]?.max_participants ??
@@ -2050,15 +2035,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
         this.courseFormGroup?.controls?.['max_participants']?.value ??
         0;
 
-      const fallbackResult = `${currentCount}/${maxCapacity || 0}`;
-      console.log('[FluxDisponibilidad] getStudentCount (fallback)', {
-        date: dateItem?.date,
-        interval_id: this.interval_id,
-        currentCount,
-        maxCapacity,
-        result: fallbackResult
-      });
-      return fallbackResult;
+      return `${currentCount}/${maxCapacity || 0}`;
     } catch (error) {
       return '0/0';
     }

@@ -54,6 +54,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   selectedIndexForm = null;
   selectedForm: FormGroup;
   payModal: boolean = false;
+  isEditMode: boolean = false;
   paymentMethod: number = 1; // Valor por defecto (directo)
   step: number = 1;  // Paso inicial
   selectedPaymentOptionId: PaymentMethodId | null = null;
@@ -87,7 +88,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     }
 
     if (id === 3) {
-      return this.translateService.instant('payment_paylink');
+      return this.translateService.instant('send_payment_link');
+    }
+
+    if (id === 4) {
+      return this.translateService.instant('payment_card_external');
     }
 
     const method = this.paymentMethods.find(m => m.id === id);
@@ -101,11 +106,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   private getGatewayLabel(): string {
     const provider = (this.schoolService.getPaymentProvider() || '').toLowerCase();
     if (provider === 'payyo') {
-      return this.translateService.instant('payment_payyo');
+      return this.translateService.instant('payment_terminal_open', { provider: 'Payyo' });
     }
 
     const providerName = provider ? this.formatProviderName(provider) : 'Boukii Pay';
-    return this.translateService.instant('payment_gateway', { provider: providerName });
+    return this.translateService.instant('payment_terminal_open', { provider: providerName });
   }
 
   private formatProviderName(value: string): string {
@@ -132,6 +137,37 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     return this.selectedPaymentOptionId ?? 1;
   }
 
+  private detectEditMode(): boolean {
+    if (this.externalData?.booking?.id) {
+      return true;
+    }
+
+    if (this.router?.url?.includes('/bookings/edit')) {
+      return true;
+    }
+
+    const existingData: any = this.bookingService.getBookingData();
+    return !!existingData?.id;
+  }
+
+  getPrimaryCtaKey(): string {
+    const methodId = this.determinePaymentMethodId();
+
+    if (methodId === 2) {
+      return 'end_reserve_pay';
+    }
+
+    if (methodId === 3) {
+      return 'send_payment_link';
+    }
+
+    if (methodId === 5) {
+      return 'confirm_without_payment_action';
+    }
+
+    return 'end_booking';
+  }
+
   constructor(
     public translateService: TranslateService,
     public dialog: MatDialog,
@@ -154,6 +190,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       this.selectedPaymentOptionId = this.paymentOptions[0].id;
       this.selectedPaymentOptionLabel = this.paymentOptions[0].label;
     }
+    this.isEditMode = this.detectEditMode();
 
     // MEJORA CRÃTICA: Inicializar sistema de persistencia
     this.initializePersistence();
@@ -1483,5 +1520,3 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     });
   }
 }
-
-
