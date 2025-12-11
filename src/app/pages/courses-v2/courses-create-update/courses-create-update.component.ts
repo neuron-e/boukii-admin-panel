@@ -6593,17 +6593,19 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const bounds = ageMap.get(levelId);
 
     if (bounds) {
-      if (bounds.age_min != null) {
+      // Only apply ages if the group doesn't already have them set
+      // This prevents overwriting interval-specific ages from buildCourseGroupsForInterval()
+      if (bounds.age_min != null && normalizedGroup.age_min == null) {
         normalizedGroup.age_min = bounds.age_min;
       }
-      if (bounds.age_max != null) {
+      if (bounds.age_max != null && normalizedGroup.age_max == null) {
         normalizedGroup.age_max = bounds.age_max;
       }
       clonedSubgroups.forEach(subgroup => {
-        if (bounds.age_min != null) {
+        if (bounds.age_min != null && subgroup.age_min == null) {
           subgroup.age_min = bounds.age_min;
         }
-        if (bounds.age_max != null) {
+        if (bounds.age_max != null && subgroup.age_max == null) {
           subgroup.age_max = bounds.age_max;
         }
       });
