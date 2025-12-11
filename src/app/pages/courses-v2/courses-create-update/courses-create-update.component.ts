@@ -643,8 +643,10 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
 
     if (updated) {
-      // Call sync to ensure all related structures are updated
-      this.syncLevelAndSubgroupConstraints();
+      // NOTE: We don't call syncLevelAndSubgroupConstraints() here because we've already
+      // manually updated levelGrop, course_dates, and intervalGroupsMap above.
+      // Calling sync would be redundant and might overwrite our changes.
+      // Sync will be called on save in endCourse().
       this.cdr.detectChanges();
     }
   }
