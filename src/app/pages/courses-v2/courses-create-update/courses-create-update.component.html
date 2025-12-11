@@ -1319,7 +1319,8 @@
                     name="max_pax"
                     style="width: 120px; flex: 0 0 auto;"
                     type="number"
-                    Suffix="paxes">
+                    Suffix="paxes"
+                    (click)="$event.stopPropagation()">
                   </app-form-input>
                   <img *ngIf="getAllUniqueSubgroupsForLevel(level).length>1 && (!uniqueSubgroup.booking_users || uniqueSubgroup.booking_users.length===0)"
                        (click)="mode==='create'?(useMultipleIntervals?removeIntervalLevelSubgroup(selectedIntervalIndexForGroups, level, uniqueSubgroup._index):addLevelSubgroup(level,uniqueSubgroup._index,false)):editModal=true;setEditFunction(useMultipleIntervals?'removeIntervalLevelSubgroup':'addLevelSubgroup',level,uniqueSubgroup._index,false)"
