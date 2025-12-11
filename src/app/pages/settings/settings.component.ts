@@ -728,8 +728,10 @@ export class SettingsComponent implements OnInit {
 
 
   onFullTabChange(event: any) {
-    // Lazy load emails when accessing emails tab (index depends on your tab structure)
-    if (!this.currentMails || this.currentMails.length === 0) {
+    const tabLabel = (event?.tab?.textLabel || '').toLowerCase();
+    const isMailsTab = tabLabel.includes('mail');
+
+    if (isMailsTab && (!this.currentMails || this.currentMails.length === 0)) {
       this.getEmails().subscribe((data: any) => {
         this.currentMails = data.data;
         this.setCurrentMailType();
@@ -737,7 +739,7 @@ export class SettingsComponent implements OnInit {
     }
 
     // Lazy load meeting points when accessing Meeting Points tab (3rd tab, index 2)
-    const isMeetingPointsTab = event?.index === 2 || (event?.tab?.textLabel && event.tab.textLabel.toLowerCase().includes('meeting'));
+    const isMeetingPointsTab = event?.index === 2 || tabLabel.includes('meeting');
     if (isMeetingPointsTab && (!this.meetingPoints || this.meetingPoints.length === 0)) {
       this.loadMeetingPoints();
     }

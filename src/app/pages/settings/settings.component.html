@@ -329,7 +329,7 @@
                   </div> -->
 
                 <div style="float: left; width: 100%;">
-                  <!-- añadir mat table de niveles -->
+                  <!-- a├▒adir mat table de niveles -->
                   <table #reductionTable [dataSource]="dataSourceLevels" id="table-level" mat-table
                          matSort style="border: 1px solid #e6e6e6">
 
@@ -574,12 +574,12 @@
                   <!-- Removed inner save; single save at tab header -->
                   <div [formGroup]="bookingForm" class="mt-4">
                     <mat-form-field appearance="outline" class="w-full">
-                      <mat-label>Minutos de antelación para privados</mat-label>
+                      <mat-label>Minutos de antelaci├│n para privados</mat-label>
                       <input matInput type="number" formControlName="private_min_lead_minutes" min="0">
-                      <mat-hint>Tiempo mínimo antes del inicio para permitir la reserva.</mat-hint>
+                      <mat-hint>Tiempo m├¡nimo antes del inicio para permitir la reserva.</mat-hint>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="w-full">
-                      <mat-label>Límite de overbooking para privados</mat-label>
+                      <mat-label>L├¡mite de overbooking para privados</mat-label>
                       <input matInput type="number" formControlName="private_overbooking_limit" min="0">
                       <mat-hint>{{ 'settings.booking.privates.overbooking_limit_hint' | translate }}</mat-hint>
                     </mat-form-field>
@@ -617,10 +617,10 @@
                   </div>
                   <div class="Small b12"
                        *ngIf="!PageForm.BannerPromocional.controls['desktopImg'].value">
-                    · {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
+                    ┬À {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
                     {{'image_recomendation'|translate}} 600x100px
                     <br>
-                    · {{'link_to_logo_url'|translate}}
+                    ┬À {{'link_to_logo_url'|translate}}
                   </div>
                   <div *ngIf="PageForm.BannerPromocional.controls['desktopImg'].value" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
 									border-style: dashed;
@@ -639,10 +639,10 @@
                   </div>
                   <div class="Small b12"
                        *ngIf="!PageForm.BannerPromocional.controls['mobileImg'].value">
-                    · {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
+                    ┬À {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
                     {{'image_recomendation'|translate}} 200x100px
                     <br>
-                    · {{'link_to_logo_url'|translate}}
+                    ┬À {{'link_to_logo_url'|translate}}
                   </div>
                   <div *ngIf="PageForm.BannerPromocional.controls['mobileImg'].value" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
 									border-style: dashed;
@@ -673,10 +673,10 @@
                     {{"sponsors"|translate}}
                   </div>
                   <div class="Small b12" *ngIf="(sponsorsFA?.length || 0)===0" style="width: 100%;">
-                    · {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
+                    ┬À {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
                     {{'image_recomendation'|translate}} 160x85px
                     <br>
-                    · {{'link_to_logo_url'|translate}}
+                    ┬À {{'link_to_logo_url'|translate}}
                   </div>
                   <div *ngFor="let ctrl of sponsorsFA.controls; trackBy: trackByIndex; index as i" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
 									border-style: dashed;
@@ -728,7 +728,7 @@
             <div style="padding: 20px;">
               <mat-tab-group [(selectedIndex)]="selectedTabIndex" (selectedIndexChange)="onTabLangsChange($event)">
                 <mat-tab *ngFor="let lang of Translate; let i = index; trackBy: trackLang" [label]="lang.Name">
-                  <!-- Solo renderizamos el contenido de la pestaña seleccionada o las que han sido visitadas -->
+                  <!-- Solo renderizamos el contenido de la pesta├▒a seleccionada o las que han sido visitadas -->
                   <ng-container *ngIf="loadedTabs[i]">
                     <div class="mt-4">
                       <h2 class="title m-0">{{ 'terms_conditions' | translate }}</h2>
@@ -827,7 +827,8 @@
               </vex-page-layout-content>
             </vex-page-layout>
           </mat-tab>
-          <!--			<mat-tab label="{{'settings.auths' | translate}}">
+          <!--
+          <mat-tab label="{{'settings.auths' | translate}}">
               <vex-page-layout>
                 <vex-page-layout-content class="-mt-6 fullwidth"
                   style="margin: 1% 0 0 0">
@@ -958,7 +959,8 @@
                   </div>
                 </vex-page-layout-content>
               </vex-page-layout>
-            </mat-tab>-->
+            </mat-tab>
+          -->
         </mat-tab-group>
       </mat-tab>
       <mat-tab label="{{'bookings'|translate}}">
@@ -1158,7 +1160,7 @@
                     </p>
                     <mat-checkbox [checked]="true">Ski</mat-checkbox>
                     <mat-checkbox>Snowboard</mat-checkbox>
-                    <mat-checkbox>Randonée</mat-checkbox>
+                    <mat-checkbox>Randon├®e</mat-checkbox>
                   </div>
                   <div style="float: left;width: 100%;padding: 1%">
                     <div style="float: left; width: 10%;">
@@ -1598,12 +1600,12 @@
           </mat-tab>
         </mat-tab-group>
       </mat-tab>
-      <mat-tab label="Mails">
+      <mat-tab label="Mails y nardos">
 
         <vex-page-layout>
           <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
             <div class="main-container" style="display: flex; justify-content: space-between;">
-              <!-- Sección del Formulario -->
+              <!-- Secci├│n del Formulario -->
               <div class="form-container" style="flex: 1; margin-right: 1%;">
                 <h1 style="font-size:24px">
                   {{'mailbox' |
@@ -1849,7 +1851,7 @@
                 </h1>
                 <div class="preview-content"
                      style="border: 1px solid #e6e6e6; padding: 1%; overflow-y: auto;">
-                  <!-- Aquí puedes mostrar el contenido del correo en vista previa -->
+                  <!-- Aqu├¡ puedes mostrar el contenido del correo en vista previa -->
                   <vex-confirm-mail [title]="getEmailContent().title" [body]="getEmailContent().body"
                                     [type]="mailTypeTrad">
                   </vex-confirm-mail>
