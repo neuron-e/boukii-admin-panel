@@ -104,7 +104,6 @@
                   <mat-icon class="small-16">schedule</mat-icon>
                 </button>
                 <img (click)="openTransferModal()"
-                     *ngIf="getSubgroupForDate(courseFormGroup.controls['course_dates'].value[selectDate])?.booking_users?.length"
                      src="assets/icons/icon/exc.png"
                      class="icon24"
                      style="cursor: pointer;">

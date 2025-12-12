@@ -662,6 +662,43 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     return this.expandedSubgroups.has(key);
   }
 
+  /**
+   * Get the age value (age_min or age_max) for a level in a specific interval as a number.
+   * Returns the interval-specific value if available, otherwise falls back to the level's global value.
+   */
+  getIntervalLevelAgeNumber(intervalIdx: number, level: any, field: 'age_min' | 'age_max'): number | null {
+    if (intervalIdx == null || !this.intervalGroupsMap || !this.intervals) {
+      return level?.[field] ?? null;
+    }
+
+    const levelId = level?.id ?? level?.degree_id;
+    if (levelId == null) {
+      return level?.[field] ?? null;
+    }
+
+    const intervalKey = this.resolveIntervalKey(this.intervals[intervalIdx], intervalIdx);
+    const intervalState = this.intervalGroupsMap[intervalKey];
+    if (!intervalState) {
+      return level?.[field] ?? null;
+    }
+
+    const levelState = intervalState[String(levelId)];
+    if (!levelState) {
+      return level?.[field] ?? null;
+    }
+
+    return levelState[field] ?? level?.[field] ?? null;
+  }
+
+  /**
+   * Get the age value (age_min or age_max) for a level in a specific interval as a string.
+   * For use with [value] binding which expects string.
+   */
+  getIntervalLevelAge(intervalIdx: number, level: any, field: 'age_min' | 'age_max'): string | null {
+    const val = this.getIntervalLevelAgeNumber(intervalIdx, level, field);
+    return val != null ? String(val) : null;
+  }
+
   private refreshCourseDetailCards(): void {
     if (!this.detailCardsInitialized || !this.detailCards?.length) {
       return;
@@ -5809,13 +5846,14 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             });
 
             if (matchingLevel) {
-              // Asignar los valores de age_min y age_max del levelGrop al grupo
+              // Only apply levelGrop ages if the group doesn't already have them
+              // This prevents overwriting interval-specific ages in FLEX courses with multiple intervals
               const parsedMin = parseInt(matchingLevel.age_min);
               const parsedMax = parseInt(matchingLevel.age_max);
-              if (!isNaN(parsedMin)) {
+              if (!isNaN(parsedMin) && transformedGroup.age_min == null) {
                 transformedGroup.age_min = parsedMin;
               }
-              if (!isNaN(parsedMax)) {
+              if (!isNaN(parsedMax) && transformedGroup.age_max == null) {
                 transformedGroup.age_max = parsedMax;
               }
             }
