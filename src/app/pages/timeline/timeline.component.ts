@@ -1852,6 +1852,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
     const subgroupId = task.course_subgroup_id;
     const bookingId = task.booking_id;
     const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
+    const isGroupCourse = baseCourseType === 1;
 
     return tasksSource.filter(candidate => {
       if (!candidate) return false;
@@ -1859,8 +1861,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
       // 1) mismo intervalo / subgrupo
       if (subgroupId && candidate.course_subgroup_id === subgroupId) return true;
 
-      // 2) mismo curso (todas las fechas del curso)
-      if (courseId && candidate.course_id === courseId) return true;
+      // 2) mismo curso (todas las fechas del curso) — solo para cursos grupales (type 1)
+      if (isGroupCourse && courseId && candidate.course_id === courseId) {
+        return true;
+      }
 
       // 3) misma sesión (fallback)
       if (bookingId && candidate.booking_id && candidate.booking_id === bookingId) return true;
