@@ -626,7 +626,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       if (booking.course.course_type === 2 || booking.course.course_type === 3) {
         usersToProcess = booking.bookings_clients;
       } else if (booking.course.course_type === 1) {
-        usersToProcess = booking.booking_users;
+        usersToProcess = booking.booking_users ?? booking.bookings_clients;
       }
 
       usersToProcess.forEach(userObj => {
