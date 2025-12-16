@@ -265,29 +265,36 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     });
 
     const canonicalUsersBySubgroup = new Map<string, any[]>();
+    const canonicalUsersByKey = new Map<string, any[]>();
     const resolveUsersForSubgroup = (dateId: string | null, subgroup: any): any[] => {
-      const subgroupId = normalizeId(subgroup?.id ?? subgroup?.course_subgroup_id ?? subgroup?.subgroup_id);
-      if (!subgroupId) {
+      // 1) Detectar "subgrupo nuevo" aunque se pierda __isNew en el sync:
+      const rawSubgroupId = subgroup?.id ?? subgroup?.course_subgroup_id ?? subgroup?.subgroup_id;
+      const subgroupId = normalizeId(rawSubgroupId);
+
+      const isNumericId = subgroupId != null && /^\d+$/.test(String(subgroupId));
+      if (subgroup?.__isNew || !isNumericId) {
+        // importantísimo: dejarlo limpio también en el objeto (por si la UI lo lee directo)
+        subgroup.booking_users = [];
+        subgroup.booking_users_active = [];
+        subgroup.booking_users_confirmed = [];
         return [];
       }
-      if (canonicalUsersBySubgroup.has(subgroupId)) {
-        return canonicalUsersBySubgroup.get(subgroupId)!;
-      }
-      const inlineUsers = extractBookingList(subgroup);
-      if (inlineUsers.length) {
-        const clones = cloneUsers(inlineUsers);
-        canonicalUsersBySubgroup.set(subgroupId, clones);
-        return clones;
-      }
+
       const fallbackDateId = dateId ?? normalizeId(subgroup?.course_date_id ?? subgroup?.courseDateId);
       const key = fallbackDateId ? buildKey(fallbackDateId, subgroupId) : null;
-      if (key && groupedUsers.has(key)) {
-        const clones = cloneUsers(groupedUsers.get(key)!);
-        canonicalUsersBySubgroup.set(subgroupId, clones);
-        return clones;
+
+      // 2) Si backend NO tiene bookingUsers para este (date, subgroup), NO heredar nada "inline"
+      const hasBackendUsers = !!(key && groupedUsers.has(key) && groupedUsers.get(key)!.length);
+
+      if (!hasBackendUsers) {
+        subgroup.booking_users = [];
+        subgroup.booking_users_active = [];
+        subgroup.booking_users_confirmed = [];
+        return [];
       }
-      canonicalUsersBySubgroup.set(subgroupId, []);
-      return [];
+
+      // 3) Ya que hay usuarios reales para ese key, los devolvemos desde groupedUsers
+      return cloneUsers(groupedUsers.get(key)!);
     };
     const assignUsersToSubgroup = (dateId: string | null, subgroup: any): any[] => {
       const users = resolveUsersForSubgroup(dateId, subgroup);
@@ -1261,7 +1268,15 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       levelId: state.levelId,
       active: state.active,
       max_participants: state.max_participants,
-      subgroups: (state.subgroups || []).map(subgroup => ({ ...subgroup }))
+      subgroups: (state.subgroups || []).map(subgroup => this.cloneSubgroupForCopy(subgroup))
+    };
+  }
+
+  private cloneSubgroupForCopy(subgroup: IntervalSubgroupState): IntervalSubgroupState {
+    return {
+      ...subgroup,
+      booking_users: [],
+      booking_users_active: []
     };
   }
 
@@ -1589,6 +1604,14 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       }
       if (subgroupConfig?.id !== undefined) {
         merged.id = subgroupConfig.id;
+      }
+
+      const isNew = subgroupConfig?.id == null; // nuevo: sin id numérico
+      if (isNew) {
+        merged.booking_users = [];
+        merged.booking_users_active = [];
+        // opcional si existe en tu modelo:
+        merged.booking_users_confirmed = [];
       }
 
       configuredSubgroups.push(merged);
@@ -2362,6 +2385,18 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const maxParticipants = level?.max_participants ?? state.max_participants ?? this.courses.courseFormGroup.controls['max_participants']?.value;
     const newSubgroup = this.createIntervalSubgroupState(levelId, maxParticipants);
 
+    delete (newSubgroup as any).id;
+
+// MUY IMPORTANTE: limpiar variantes de id que luego usa attachBookingUsersToCourseDates
+    delete (newSubgroup as any).course_subgroup_id;
+    delete (newSubgroup as any).subgroup_id;
+    delete (newSubgroup as any).courseSubgroupId;
+
+    (newSubgroup as any).__isNew = true;
+
+    newSubgroup.booking_users = [];
+    newSubgroup.booking_users_active = [];
+
     // Asegúrate de que el array existe antes de añadir
     if (!Array.isArray(state.subgroups)) {
       state.subgroups = [];
@@ -2372,6 +2407,25 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     // clearSubgroupsCache() se llama desde syncIntervalsToCourseFormGroup()
 
     return newSubgroup;
+  }
+
+  private sanitizeNewSubgroup(subgroup: any): any {
+    const sg = { ...subgroup };
+
+    // Importantísimo: evitar que “matchée” contra subgrupos existentes
+    delete sg.id;
+    delete sg.subgroup_id;
+    delete sg.course_subgroup_id;
+
+    // Asegurar arrays limpios
+    sg.booking_users = [];
+    sg.booking_users_active = [];
+
+    // Limpiar monitor también
+    sg.monitor = null;
+    sg.monitor_id = null;
+
+    return sg;
   }
 
   private addSubgroupToCourseDates(intervalIdx: number, level: any, subgroup: any): void {
@@ -3397,15 +3451,18 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           if (Array.isArray(subgroup.booking_users) && subgroup.booking_users.length > 0) {
             return subgroup;
           }
+          const sid = subgroup?.id;
+          const isNumericId = sid != null && String(sid).match(/^\d+$/);
+          if (isNumericId) {
+            // Otherwise, try to find booking_users in original course_dates
+            const originalSubgroup = this.findSubgroupInCourseDates(subgroup.id);
 
-          // Otherwise, try to find booking_users in original course_dates
-          const originalSubgroup = this.findSubgroupInCourseDates(subgroup.id);
-
-          if (originalSubgroup && Array.isArray(originalSubgroup.booking_users)) {
-            return {
-              ...subgroup,
-              booking_users: originalSubgroup.booking_users
-            };
+            if (originalSubgroup && Array.isArray(originalSubgroup.booking_users)) {
+              return {
+                ...subgroup,
+                booking_users: originalSubgroup.booking_users
+              };
+            }
           }
 
           // No booking_users found, return subgroup as is
@@ -6877,7 +6934,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       this.refreshPreviewSubgroupCache();
       this.refreshCourseDetailCards();
       this.logSubgroupState('syncIntervalsToCourseFormGroup');
-    this.logCourseDatesSnapshot('syncIntervalsToCourseFormGroup');
+      this.logCourseDatesSnapshot('syncIntervalsToCourseFormGroup');
 
     return true;
   }

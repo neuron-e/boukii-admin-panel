@@ -59,7 +59,7 @@
                 </h4>
                 <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--color-dark2); background: white; padding: 4px 8px; border-radius: 12px; border: 1px solid var(--color-grey2);">
                   <img src="assets/icons/icon/people.png" class="icon16">
-                  {{ getUniqueClientsCountForSubgroup(courseFormGroup.controls.booking_users.value, item.id) }} /
+                  {{ getUniqueClientsCountForSubgroupIndex(courseFormGroup.controls.booking_users.value, courseDates, item.id, i) }} /
                   {{ getSubgroupCapacity(courseDates, item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0)) }}
                 </span>
               </div>
@@ -91,7 +91,7 @@
             <ng-container *ngIf="getCourseDatesForSubgroupIndex(courseDates, item.id, i)?.length; else noMonitors">
               <!-- Iterar solo sobre las fechas que tienen este subgrupo específico -->
               <ng-container *ngFor="let course_date of getCourseDatesForSubgroupIndex(courseDates, item.id, i); let dateIndex = index">
-                <ng-container *ngIf="find(course_date.course_groups || [],'degree_id',item.id)?.course_subgroups?.[i] as subG">
+                <ng-container *ngIf="getSubgroupForCourseDateIndex(course_date, item.id, i) as subG">
 
                   <!-- Date Section -->
                   <div style="margin-bottom: 16px; border: 1px solid var(--color-grey2); border-radius: 6px; background: white;">
@@ -135,9 +135,8 @@
                         <img src="assets/icons/icon/people.png" class="icon16" style="opacity: 0.7;">
                         <span style="font-weight: 500; color: var(--color-dark2); font-size: 13px;">{{'students' | translate}}:</span>
                       </div>
-
                       <!-- Show all students for this subgroup -->
-                      <ng-container *ngFor="let user of getUsersForSpecificDate(courseFormGroup.controls.booking_users.value, item.id, course_date.id)">
+                      <ng-container *ngFor="let user of getUsersForCourseDateSubgroupIndex(courseFormGroup.controls.booking_users.value, item.id, course_date, i)">
                         <div style="padding: 8px 12px; margin-bottom: 4px; border: 1px solid var(--color-grey2); display: flex; align-items: center; background: var(--color-grey5); border-radius: 4px;">
                           <!-- Attendance Checkbox/Indicator -->
                           <mat-checkbox *ngIf="isDatePast(course_date.date)"
@@ -160,7 +159,7 @@
                       <!-- Empty slots -->
                       <ng-container *ngIf="checkbox">
                         <ng-container *ngFor="let emptySlot of numUsersArray(getSubgroupCapacity(courseDates, item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0)))">
-                          <div *ngIf="emptySlot >= getUniqueClientsCountForSubgroup(courseFormGroup.controls.booking_users.value, item.id)"
+                          <div *ngIf="emptySlot >= getUniqueClientsCountForSpecificDateSubgroup(courseFormGroup.controls.booking_users.value, item.id, course_date.id, subG?.id)"
                                style="padding: 8px 12px; margin-bottom: 4px; border: 1px dashed var(--color-grey3); display: flex; align-items: center; background: var(--color-grey4); border-radius: 4px; color: var(--color-grey1);">
                             <mat-icon style="font-size: 14px; width: 14px; height: 14px; margin-right: 8px; color: #C7D0D3;">
                               circle

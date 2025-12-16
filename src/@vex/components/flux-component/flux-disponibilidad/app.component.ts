@@ -244,12 +244,91 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
   private refreshCourseDatesCache(): void {
     const raw = this.courseFormGroup?.controls?.['course_dates']?.value;
     this.courseDates = Array.isArray(raw) ? raw : [];
+    this.applyBookingUsersToCourseDates();
     this.cachedUsersKey = null;
     this.cachedUsersForSelectedDate = [];
   }
 
   private getCourseDates(): any[] {
     return this.courseDates;
+  }
+
+  private applyBookingUsersToCourseDates(): void {
+    const courseDates = this.courseDates;
+
+    if (!courseDates.length) {
+      return;
+    }
+
+    const bookingMap = this.buildBookingUsersMap();
+
+    courseDates.forEach(date => {
+      const key = this.getCourseDateKey(date);
+      const users = key ? bookingMap.get(key) ?? [] : [];
+
+      if (users.length) {
+        const cloneActive = users.map(user => ({ ...user }));
+        date.booking_users = users.map(user => ({ ...user }));
+        date.booking_users_active = cloneActive;
+      } else {
+        date.booking_users = Array.isArray(date.booking_users) ? [...date.booking_users] : [];
+        date.booking_users_active = Array.isArray(date.booking_users_active) ? [...date.booking_users_active] : [];
+      }
+    });
+  }
+
+  private buildBookingUsersMap(): Map<string, any[]> {
+    const map = new Map<string, any[]>();
+    const bookingUsers = this.toArray(this.courseFormGroup?.controls?.['booking_users']?.value);
+
+    bookingUsers.forEach(user => {
+      const key = this.getBookingUserDateKey(user);
+      if (!key) {
+        return;
+      }
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(user);
+    });
+
+    return map;
+  }
+
+  private getBookingUserDateKey(user: any): string | null {
+    if (!user) {
+      return null;
+    }
+
+    const dateId = this.getUserCourseDateId(user);
+    if (dateId) {
+      return `id:${this.normalizeId(dateId)}`;
+    }
+
+    const normalized = this.normalizeCourseDateValue({ date: user?.date });
+    if (normalized) {
+      return `date:${normalized}`;
+    }
+
+    return null;
+  }
+
+  private getCourseDateKey(date: any): string | null {
+    if (!date) {
+      return null;
+    }
+
+    const id = this.normalizeId(date?.id ?? date?.course_date_id ?? date?.courseDateId);
+    if (id) {
+      return `id:${id}`;
+    }
+
+    const normalized = this.normalizeCourseDateValue(date);
+    if (normalized) {
+      return `date:${normalized}`;
+    }
+
+    return null;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -353,7 +432,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     // Mark for check to trigger change detection with OnPush
     this.cdr.markForCheck();
   }
-  booking_users: any
+  booking_users: any[] = [];
 
   private async loadAvailabilityForIndex(index: number, force: boolean = false): Promise<void> {
     if (!this.autoLoad && !force) {
@@ -392,6 +471,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     return null;
   }
 
+  private isRealSubgroup(subgroup: any): boolean {
+    return subgroup && !subgroup.__isNew;
+  }
+
   private collectUsersForSelectedDate(): any[] {
     const courseDates = this.getCourseDates();
     if (!Array.isArray(courseDates) || courseDates.length === 0) {
@@ -415,6 +498,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     const selectedSubgroup = this.getSubgroupForDate(selectedDate);
     const cachedSubgroup = this.getCachedSubgroupByIndex(this.subgroup_index);
     const fallbackSubgroup = this.group?.course_subgroups?.[this.subgroup_index];
+    const allSubgroupsAreExisting =
+      this.isRealSubgroup(selectedSubgroup) &&
+      this.isRealSubgroup(cachedSubgroup) &&
+      this.isRealSubgroup(fallbackSubgroup);
     const selectedSubgroupId = this.normalizeId(selectedSubgroup?.id ?? cachedSubgroup?.id ?? fallbackSubgroup?.id);
     const selectedDateId = this.normalizeId(selectedDate?.id);
     const selectedDateIntervalId = this.resolveIntervalId(selectedDate);
@@ -426,7 +513,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
       bookingUsersCount
     ].join('|');
 
-    if (this.cachedUsersKey === cacheKey) {
+/*    if (this.cachedUsersKey === cacheKey) {
       this.logFluxDebug('[FluxDisponibilidad] cache hit', {
         levelId,
         subgroupIndex: this.subgroup_index,
@@ -435,10 +522,20 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
         resultCount: this.cachedUsersForSelectedDate.length
       });
       return this.cachedUsersForSelectedDate;
-    }
+    }*/
 
     this.cachedUsersKey = cacheKey;
     this.cachedUsersForSelectedDate = [];
+    const currentSubgroup = selectedSubgroup ?? cachedSubgroup ?? fallbackSubgroup;
+    const currentSubgroupId = this.normalizeId(currentSubgroup?.id);
+
+// Si es nuevo o todavía no tiene id, SIEMPRE vacío (no puede “tener alumnos”)
+    if (currentSubgroup?.__isNew || !currentSubgroupId) {
+      this.cachedUsersKey = null;
+      this.cachedUsersForSelectedDate = [];
+      this.lastIntervalDateIds = new Set();
+      return this.cachedUsersForSelectedDate;
+    }
 
     const fallbackDateIdSet = selectedDateId ? new Set<string>([selectedDateId]) : null;
     const relevantDateIds = new Set<string>();
@@ -452,7 +549,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
       }
     });
 
-    const pushUser = (user: any, enforceDateMatch: boolean, validDateIds?: Set<string>, skipSubgroupFilter: boolean = false) => {
+    const pushUser = (user: any, enforceDateMatch: boolean, validDateIds?: Set<string>, skipSubgroupFilter: boolean = false, hasKey: boolean = false) => {
       if (!user) {
         return;
       }
@@ -471,11 +568,12 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
       // Skip subgroup filter for global booking_users (skipSubgroupFilter = true)
       // because their course_subgroup_id is stale
       if (!skipSubgroupFilter) {
-        const userSubgroupId = this.normalizeId(this.getUserSubgroupId(user));
-        if (subgroupIdSet.size > 0) {
-          if (!userSubgroupId || !subgroupIdSet.has(userSubgroupId)) {
-            return;
-          }
+        const userSgId = this.normalizeId(this.getUserSubgroupId(user));
+        const currentSg = selectedSubgroup;
+        const currentSgId = this.normalizeId(currentSg?.id);
+
+        if (userSgId && currentSgId && userSgId !== currentSgId) {
+          return;
         }
       }
 
@@ -495,6 +593,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
       if (clientId == null || seen.has(clientId)) {
         return;
       }
+      console.log('Added', user);
 
       seen.add(clientId);
       result.push(user);
@@ -515,16 +614,21 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
             subgroupId: enrichedSubgroupFromCache?.id,
             bookingUsersCount: this.toArray(enrichedSubgroupFromCache?.booking_users).length
           });
-          this.toArray(enrichedSubgroupFromCache.booking_users).forEach(user => pushUser(user, false));
-          this.toArray(enrichedSubgroupFromCache.booking_users_active).forEach(user => pushUser(user, false));
+          if(!enrichedSubgroupFromCache.__isNew) {
+            this.toArray(enrichedSubgroupFromCache.booking_users).forEach(user => pushUser(user, true));
+            this.toArray(enrichedSubgroupFromCache.booking_users_active).forEach(user => pushUser(user, true));
+          }
+
         }
       }
     }
 
     // PRIORITY 2: Use cachedSubgroup from _uniqueSubgroupsCache if no enriched cache found
     if (!enrichedSubgroupFromCache && cachedSubgroup) {
-      this.toArray(cachedSubgroup.booking_users).forEach(user => pushUser(user, false));
-      this.toArray(cachedSubgroup.booking_users_active).forEach(user => pushUser(user, false));
+      if(!cachedSubgroup.__isNew) {
+        this.toArray(cachedSubgroup.booking_users).forEach(user => pushUser(user, true));
+        this.toArray(cachedSubgroup.booking_users_active).forEach(user => pushUser(user, true));
+      }
     }
 
     if (!this.hasLoggedCourseDates) {
@@ -602,6 +706,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
       }
 
       const subgroup = this.getSubgroupForDate(date);
+      if (!subgroup || subgroup?.__isNew) return;
+
       const subgroupCandidates: any[] = [];
       if (subgroup) {
         subgroupCandidates.push(subgroup);
@@ -614,12 +720,12 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
         }
       }
       subgroupCandidates.forEach(candidate => {
-        this.toArray(candidate?.booking_users).forEach(user => pushUser(user, false));
-        this.toArray(candidate?.booking_users_active).forEach(user => pushUser(user, false));
+        this.toArray(candidate?.booking_users).forEach(user => pushUser(user, true));
+        this.toArray(candidate?.booking_users_active).forEach(user => pushUser(user, true));
       });
 
-      this.toArray(date?.booking_users_active).forEach(user => pushUser(user, false));
-      this.toArray(date?.booking_users).forEach(user => pushUser(user, false));
+      this.toArray(date?.booking_users_active).forEach(user => pushUser(user, true));
+      this.toArray(date?.booking_users).forEach(user => pushUser(user, true));
     };
 
     // PHASE 3 FIX: When an interval is active, aggregate students across all of its dates.
@@ -633,27 +739,31 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
 
     // CRITICAL FIX: Read from global booking_users since course_subgroups.booking_users are empty from API
     // This is how vex-course-detail-card shows students correctly
-    const globalBookingUsers = this.courseFormGroup?.controls?.['booking_users']?.value || [];
+    if (allSubgroupsAreExisting) {
+      const selectedSg = selectedSubgroup ?? cachedSubgroup ?? fallbackSubgroup;
+      const selectedSgId = this.normalizeId(selectedSg?.id);
 
-    globalBookingUsers.forEach((user: any, idx: number) => {
-      // Filter by level/degree_id instead of subgroup_id
-      // (subgroup IDs change over time, but degree_id is stable)
-      const userDegreeId = this.normalizeId(user?.degree_id);
-      if (levelId && userDegreeId && userDegreeId !== levelId) {
-        return;
-      }
 
-      // Filter by the user's date field (not course_date_id which is stale)
-      // Only show users whose booking date matches the selected date
-      const userDateStr = user?.date ? String(user.date).split('T')[0] : null;
-      const selectedDateStr = selectedDate?.date ? String(selectedDate.date).split('T')[0] : null;
+      const globalBookingUsers = this.courseFormGroup?.controls?.['booking_users']?.value || [];
 
-      if (userDateStr && selectedDateStr && userDateStr !== selectedDateStr) {
-        return;
-      }
 
-      pushUser(user, false, undefined, true); // skipSubgroupFilter = true for global users
-    });
+      globalBookingUsers.forEach((user: any, idx: number) => {
+        const userDegreeId = this.normalizeId(user?.degree_id);
+        if (levelId && userDegreeId && userDegreeId !== levelId) return;
+
+
+        const userDateStr = user?.date ? String(user.date).split('T')[0] : null;
+        const selectedDateStr = selectedDate?.date ? String(selectedDate.date).split('T')[0] : null;
+        if (userDateStr && selectedDateStr && userDateStr !== selectedDateStr) return;
+
+
+        const userSgId = this.getUserSubgroupId(user);
+        if (userSgId) return;
+
+
+        pushUser(user, false, undefined, true);
+      });
+    }
 
     this.cachedUsersForSelectedDate = result;
     this.lastIntervalDateIds = new Set(relevantDateIds);
@@ -814,6 +924,8 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
       if (!subgroup) {
         return;
       }
+      if (subgroup?.__isNew) return;
+
       const dateId = date?.id ?? null;
       const subgroupDateId = subgroup?.course_date_id ?? subgroup?.courseDateId ?? null;
       if (dateId && subgroupDateId && subgroupDateId !== dateId) {

@@ -116,6 +116,196 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
     return [];
   }
 
+  private getUserSubgroupId(user: any): number | null {
+    return (user?.course_subgroup_id ??
+      user?.course_sub_group_id ??
+      user?.course_sub_group?.id ??
+      user?.courseSubGroupId ??
+      user?.courseSubGroup?.id ??
+      null) as number | null;
+  }
+
+  private getUserCourseDateId(user: any): number | null {
+    return (user?.course_date_id ??
+      user?.courseDateId ??
+      user?.course_date?.id ??
+      user?.courseDate?.id ??
+      null) as number | null;
+  }
+
+  private normId(v: any): number | null {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private userCourseDateId(u: any): number | null {
+    return this.normId(u?.course_date_id ?? u?.courseDateId ?? u?.course_date?.id ?? u?.courseDate?.id);
+  }
+
+  private userSubgroupId(u: any): number | null {
+    return this.normId(
+      u?.course_subgroup_id ??
+      u?.course_sub_group_id ??
+      u?.course_sub_group?.id ??
+      u?.courseSubGroupId ??
+      u?.courseSubGroup?.id
+    );
+  }
+
+  private userDegreeId(u: any): number | null {
+    return this.normId(u?.degree_id ?? u?.degreeId);
+  }
+
+  private getSubgroupsForCourseDateDegree(courseDate: any, degreeId: number): any[] {
+    const deg = this.normId(degreeId);
+    if (!courseDate || deg == null) return [];
+
+    // ✅ NEW structure: courseDate.course_subgroups
+    const dateSubs = (courseDate.course_subgroups || courseDate.courseSubgroups || [])
+      .filter((sg: any) => this.normId(sg?.degree_id ?? sg?.degreeId) === deg);
+
+    if (dateSubs.length) {
+      return [...dateSubs].sort((a, b) =>
+        String(a?.subgroup_dates_id ?? a?.id ?? '').localeCompare(
+          String(b?.subgroup_dates_id ?? b?.id ?? ''),
+          undefined,
+          { numeric: true }
+        )
+      );
+    }
+
+    // fallback old structure: course_groups -> course_subgroups
+    const groups = courseDate.course_groups || courseDate.courseGroups || [];
+    const group = groups.find((g: any) => this.normId(g?.degree_id ?? g?.degreeId) === deg);
+    const subs = (group?.course_subgroups || group?.courseSubgroups || []) as any[];
+
+    return [...subs].sort((a, b) =>
+      String(a?.subgroup_dates_id ?? a?.id ?? '').localeCompare(
+        String(b?.subgroup_dates_id ?? b?.id ?? ''),
+        undefined,
+        { numeric: true }
+      )
+    );
+  }
+
+  getSubgroupForCourseDateIndex(courseDate: any, degreeId: number, index: number): any | null {
+    const subs = this.getSubgroupsForCourseDateDegree(courseDate, degreeId);
+    return subs[index] ?? null;
+  }
+
+  getUsersForCourseDateSubgroupIndex(bookingUsers: any, degreeId: number, courseDate: any, index: number): any[] {
+    const deg = this.normId(degreeId);
+    const cdId = this.normId(courseDate?.id);
+    const subG = this.getSubgroupForCourseDateIndex(courseDate, degreeId, index);
+    const sgId = this.normId(subG?.id);
+
+    if (deg == null || cdId == null || sgId == null) return [];
+
+    const targetDateStr = courseDate?.date ? new Date(courseDate.date).toDateString() : null;
+
+    return this.asArray(bookingUsers).filter((u: any) => {
+      if (u?.status === 2) return false;
+      if (this.normId(u?.degree_id ?? u?.degreeId) !== deg) return false;
+
+      const uCd = this.normId(u?.course_date_id ?? u?.courseDateId);
+      if (uCd != null) {
+        if (uCd !== cdId) return false;
+      } else if (targetDateStr && u?.date) {
+        if (new Date(u.date).toDateString() !== targetDateStr) return false;
+      } else {
+        return false;
+      }
+
+      const uSg = this.normId(
+        u?.course_subgroup_id ?? u?.course_sub_group_id ?? u?.course_sub_group?.id ?? u?.courseSubGroupId ?? u?.courseSubGroup?.id
+      );
+      return uSg === sgId;
+    });
+  }
+
+  getUsersForSpecificDateInSubgroup(
+    bookingUsers: any,
+    degreeId: number,
+    courseDateId: number,
+    subgroupId: number | null | undefined
+  ): any[] {
+    try {
+      const deg = this.normId(degreeId);
+      const cdId = this.normId(courseDateId);
+      const sgId = this.normId(subgroupId);
+
+      if (deg == null || cdId == null) return [];
+
+      return this.asArray(bookingUsers).filter((u: any) => {
+        if (u?.status === 2) return false; // cancelled
+        if (this.userDegreeId(u) !== deg) return false;
+        if (this.userCourseDateId(u) !== cdId) return false;
+        if (sgId != null && this.userSubgroupId(u) !== sgId) return false;
+        return true;
+      });
+    } catch (e) {
+      console.warn('getUsersForSpecificDateInSubgroup failed:', e);
+      return [];
+    }
+  }
+
+// ✅ (para empty slots)
+  getUniqueClientsCountForSpecificDateSubgroup(
+    bookingUsers: any,
+    degreeId: number,
+    courseDateId: number,
+    subgroupId: number | null | undefined
+  ): number {
+    const users = this.getUsersForSpecificDateInSubgroup(bookingUsers, degreeId, courseDateId, subgroupId);
+    const set = new Set<number | string>();
+    for (const u of users) {
+      const id = u?.client_id ?? u?.client?.id ?? u?.id;
+      if (id != null) set.add(id);
+    }
+    return set.size;
+  }
+
+/*  getUsersForSpecificDateInSubgroup(
+    bookingUsers: any,
+    degreeId: number,
+    courseDateId: number,
+    subgroupIndex: number,
+    subgroupId?: number | null
+  ): any[] {
+    const users = this.asArray(bookingUsers);
+
+    const courseDates = (this.courseDates?.length ? this.courseDates : this.getCourseDates());
+    const targetDate = courseDates.find((cd: any) => Number(cd?.id) === Number(courseDateId));
+    const targetDateStr = targetDate?.date ? new Date(targetDate.date).toDateString() : null;
+
+    const idsFromIndex = this.getSubgroupIdsForIndex(courseDates, degreeId, subgroupIndex);
+    const subgroupIds = new Set<number>(
+      [subgroupId, ...idsFromIndex]
+        .filter((v: any) => v != null)
+        .map((v: any) => Number(v))
+        .filter((v: any) => !Number.isNaN(v))
+    );
+
+    return users.filter((user: any) => {
+      const userDegreeId = user?.degree_id ?? user?.degreeId;
+      if (userDegreeId !== degreeId) return false;
+      if (user?.status === 2) return false;
+
+      const userSubgroupId = this.getUserSubgroupId(user);
+      if (subgroupIds.size && (userSubgroupId == null || !subgroupIds.has(Number(userSubgroupId)))) return false;
+
+      const userCourseDateId = this.getUserCourseDateId(user);
+      if (userCourseDateId != null && Number(userCourseDateId) === Number(courseDateId)) return true;
+
+      // fallback por fecha real si hiciera falta
+      if (targetDateStr && user?.date) {
+        return new Date(user.date).toDateString() === targetDateStr;
+      }
+
+      return false;
+    });
+  }*/
+
   private extractIntervalsFromSettings(): any[] {
     try {
       const settingsControl = this.courseFormGroup?.controls?.['settings'];
@@ -539,9 +729,12 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
    * Returns string like "1/6" (occupied/total)
    */
   getCapacityIndicatorForDate(bookingUsers: any, degreeId: number, subgroupIndex: number, courseDateId: number, totalCapacity: number): string {
-    const usersInDate = this.getUsersForSpecificDate(bookingUsers, degreeId, courseDateId);
+    const usersInDate = this.getUsersForSpecificDateInSubgroup(bookingUsers, degreeId, courseDateId, subgroupIndex);
     const occupied = usersInDate.length;
     return `${occupied}/${totalCapacity}`;
+  }
+  getUniqueClientsCountForSubgroupIndex(bookingUsers: any, courseDates: any[], degreeId: number, index: number): number {
+    return this.getUsersForSubgroupIndexUnique(bookingUsers, courseDates, degreeId, index).length;
   }
   // Ensure we always iterate arrays in templates
   asArray<T = any>(val: any): T[] {
@@ -706,24 +899,24 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
   }
   // Enhanced method to get users for a specific subgroup index
   getUsersForSubgroupIndexEnhanced(bookingUsers: any, courseDates: any[], degreeId: number, index: number): any[] {
-    
+
     const collected: any[] = [];
     const uniqueClientIds = new Set<string | number>();
-    
+
     // Get from embedded structure in course dates
     if (Array.isArray(courseDates)) {
       for (const cd of courseDates) {
         const groups = cd?.course_groups || cd?.courseGroups || [];
-        
+
         for (const group of groups) {
           const groupDegreeId = group?.degree_id ?? group?.degreeId;
           if (groupDegreeId === degreeId) {
             const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
             const targetSubgroup = subgroups[index];
-            
+
             if (targetSubgroup) {
               const bookings = targetSubgroup?.booking_users || targetSubgroup?.bookingUsers || [];
-              
+
               for (const booking of bookings) {
                 const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
                 if (clientId != null && !uniqueClientIds.has(clientId)) {
@@ -795,22 +988,22 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
   }
   // Enhanced method to count booking users for a degree
   countBookingUsersForDegree(bookingUsers: any, courseDates: any[], degreeId: number): number {
-    
+
     const uniques = new Set<string | number>();
-    
+
     // First, try to get from embedded structure in course dates
     if (Array.isArray(courseDates)) {
       for (const cd of courseDates) {
         const groups = cd?.course_groups || cd?.courseGroups || [];
-        
+
         for (const group of groups) {
           const groupDegreeId = group?.degree_id ?? group?.degreeId;
           if (groupDegreeId === degreeId) {
             const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
-            
+
             for (const subgroup of subgroups) {
               const bookings = subgroup?.booking_users || subgroup?.bookingUsers || [];
-              
+
               for (const booking of bookings) {
                 const clientId = booking?.client_id ?? booking?.client?.id ?? booking?.id;
                 if (clientId != null) {
