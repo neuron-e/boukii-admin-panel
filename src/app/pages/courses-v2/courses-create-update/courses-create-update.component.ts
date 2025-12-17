@@ -2600,6 +2600,24 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.cdr.detectChanges();
   }
   removeIntervalLevelSubgroup(intervalIdx: number, level: any, subgroupIdx: number): void {
+    if (this.hasActiveBookingUsersForSubgroup(level, subgroupIdx)) {
+      this.snackBar.open(
+        'No se puede eliminar este subgrupo porque tiene reservas activas asociadas',
+        'Cerrar',
+        { duration: 5000, panelClass: ['error-snackbar'] }
+      );
+      return;
+    }
+
+    if (this.hasAnyBookingUsersForSubgroup(level, subgroupIdx)) {
+      this.snackBar.open(
+        'No se puede eliminar este subgrupo porque tiene reservas registradas; elimina los bookings primero',
+        'Cerrar',
+        { duration: 5000, panelClass: ['error-snackbar'] }
+      );
+      return;
+    }
+
     const state = this.ensureIntervalGroupState(intervalIdx, level);
     if (!state || !Array.isArray(state.subgroups)) {
       return;
@@ -2673,6 +2691,24 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    * Modal: mostrar siempre (si no hay intervalos, no hace nada).
    */
   openIntervalSelectorForRemoveSubgroup(level: any, subgroupIdx: number): void {
+    if (this.hasActiveBookingUsersForSubgroup(level, subgroupIdx)) {
+      this.snackBar.open(
+        'No se puede eliminar este subgrupo porque tiene reservas activas asociadas',
+        'Cerrar',
+        { duration: 5000, panelClass: ['error-snackbar'] }
+      );
+      return;
+    }
+
+    if (this.hasAnyBookingUsersForSubgroup(level, subgroupIdx)) {
+      this.snackBar.open(
+        'No se puede eliminar este subgrupo porque tiene reservas registradas; elimina los bookings primero',
+        'Cerrar',
+        { duration: 5000, panelClass: ['error-snackbar'] }
+      );
+      return;
+    }
+
     const intervalsWithSubgroup = this.getSubgroupIntervals(level, subgroupIdx);
     const hasIntervals = Array.isArray(intervalsWithSubgroup) && intervalsWithSubgroup.length > 0;
     const courseType = this.courses?.courseFormGroup?.controls?.['course_type']?.value;
@@ -3282,13 +3318,18 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    * Elimina un nivel de todos los intervalos (solo si no tiene reservas)
    */
   removeLevelFromIntervals(level: any): void {
-    // Verificar si hay reservas para este nivel
-    const bookingUsers = this.courses.courseFormGroup.controls['booking_users']?.value || [];
-    const hasBookings = bookingUsers.some((user: any) => user.degree_id === (level?.id ?? level?.degree_id));
-
-    if (hasBookings) {
+    if (this.hasActiveBookingUsersForLevel(level)) {
       this.snackBar.open(
-        'No se puede eliminar este nivel porque tiene reservas asociadas',
+        'No se puede eliminar este nivel porque tiene reservas activas asociadas',
+        'Cerrar',
+        { duration: 5000, panelClass: ['error-snackbar'] }
+      );
+      return;
+    }
+
+    if (this.hasAnyBookingUsersForLevel(level)) {
+      this.snackBar.open(
+        'No se puede eliminar este nivel porque tiene reservas registradas; elimina los bookings primero',
         'Cerrar',
         { duration: 5000, panelClass: ['error-snackbar'] }
       );
@@ -3328,32 +3369,166 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.cdr.detectChanges();
   }
 
-  /**
-   * Elimina un subgrupo de un nivel en TODOS los intervalos (solo si no tiene reservas)
-   */
-  removeSubgroupFromLevel(level: any, subgroupIndex: number): void {
-    // Verificar si hay reservas para este subgrupo
-    const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
-    let hasBookings = false;
+  private hasActiveBookingUsersForSubgroup(level: any, subgroupIndex: number): boolean {
+    const users = this.getBookingUsersForSubgroup(level, subgroupIndex);
+    return users.some(user => this.isBookingUserActive(user));
+  }
 
-    courseDates.forEach((date: any) => {
-      const courseGroups = date.course_groups || [];
-      courseGroups.forEach((group: any) => {
-        if (group.degree_id === (level?.id ?? level?.degree_id)) {
-          const subgroups = group.course_subgroups || [];
-          if (subgroups[subgroupIndex]) {
-            const bookingUsers = subgroups[subgroupIndex].booking_users || [];
-            if (bookingUsers.length > 0) {
-              hasBookings = true;
-            }
-          }
+  private hasAnyBookingUsersForSubgroup(level: any, subgroupIndex: number): boolean {
+    return this.getBookingUsersForSubgroup(level, subgroupIndex).length > 0;
+  }
+
+  private hasActiveBookingUsersForLevel(level: any): boolean {
+    const users = this.getBookingUsersForLevel(level);
+    return users.some(user => this.isBookingUserActive(user));
+  }
+
+  private hasAnyBookingUsersForLevel(level: any): boolean {
+    return this.getBookingUsersForLevel(level).length > 0;
+  }
+
+  private getBookingUsersForSubgroup(level: any, subgroupIndex: number): any[] {
+    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
+    if (levelId == null) {
+      return [];
+    }
+
+    const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
+    const collected: any[] = [];
+
+    courseDates.forEach((cd: any) => {
+      const groups = Array.isArray(cd?.course_groups) ? cd.course_groups : cd?.courseGroups || [];
+
+      const targetGroup = groups.find((group: any) => (group?.degree_id ?? group?.degreeId) === levelId);
+      if (targetGroup) {
+        const groupSubgroups = Array.isArray(targetGroup.course_subgroups)
+          ? targetGroup.course_subgroups
+          : targetGroup.courseSubgroups || [];
+        const subgroup = groupSubgroups[subgroupIndex];
+        if (subgroup) {
+          collected.push(...this.extractBookingUsersFromSubgroup(subgroup));
+        }
+      }
+
+      const fallbackSubgroups = Array.isArray(cd?.course_subgroups)
+        ? cd.course_subgroups
+        : cd?.courseSubgroups || [];
+      const fallbackSubgroup = fallbackSubgroups[subgroupIndex];
+      if (fallbackSubgroup && (fallbackSubgroup?.degree_id ?? fallbackSubgroup?.degreeId) === levelId) {
+        collected.push(...this.extractBookingUsersFromSubgroup(fallbackSubgroup));
+      }
+    });
+
+    return collected;
+  }
+
+  private getBookingUsersForLevel(level: any): any[] {
+    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
+    if (levelId == null) {
+      return [];
+    }
+
+    const courseDates = this.courses.courseFormGroup.controls['course_dates']?.value || [];
+    const collected: any[] = [];
+
+    courseDates.forEach((cd: any) => {
+      const groups = Array.isArray(cd?.course_groups) ? cd.course_groups : cd?.courseGroups || [];
+      const targetGroup = groups.find((group: any) => (group?.degree_id ?? group?.degreeId) === levelId);
+      if (targetGroup) {
+        const subgroups = Array.isArray(targetGroup.course_subgroups)
+          ? targetGroup.course_subgroups
+          : targetGroup.courseSubgroups || [];
+        subgroups.forEach((subgroup: any) => {
+          collected.push(...this.extractBookingUsersFromSubgroup(subgroup));
+        });
+      }
+
+      const fallbackSubgroups = Array.isArray(cd?.course_subgroups)
+        ? cd.course_subgroups
+        : cd?.courseSubgroups || [];
+      fallbackSubgroups.forEach((subgroup: any) => {
+        if ((subgroup?.degree_id ?? subgroup?.degreeId) === levelId) {
+          collected.push(...this.extractBookingUsersFromSubgroup(subgroup));
         }
       });
     });
 
-    if (hasBookings) {
+    return collected;
+  }
+
+  private extractBookingUsersFromSubgroup(subgroup: any): any[] {
+    if (!subgroup) {
+      return [];
+    }
+
+    if (Array.isArray(subgroup.booking_users_active) && subgroup.booking_users_active.length > 0) {
+      return subgroup.booking_users_active;
+    }
+
+    if (Array.isArray(subgroup.bookingUsersActive) && subgroup.bookingUsersActive.length > 0) {
+      return subgroup.bookingUsersActive;
+    }
+
+    if (Array.isArray(subgroup.booking_users) && subgroup.booking_users.length > 0) {
+      return subgroup.booking_users;
+    }
+
+    if (Array.isArray(subgroup.bookingUsers) && subgroup.bookingUsers.length > 0) {
+      return subgroup.bookingUsers;
+    }
+
+    return [];
+  }
+
+  private isBookingUserActive(user: any): boolean {
+    if (!user) {
+      return false;
+    }
+
+    const isActive = (value: any): boolean => value === 1 || value === '1';
+
+    if (isActive(user.status) || isActive(user.booking?.status) || isActive(user.booking_status)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private orderSubgroupsByBookingPresence(subgroups: any[]): any[] {
+    if (!Array.isArray(subgroups)) {
+      return [];
+    }
+
+    const hasBookingUsers = (sg: any) => this.extractBookingUsersFromSubgroup(sg).length > 0;
+    const withBookings = subgroups.filter(sg => hasBookingUsers(sg));
+    const withoutBookings = subgroups.filter(sg => !hasBookingUsers(sg));
+    const ordered = [...withBookings, ...withoutBookings];
+
+    ordered.forEach((subgroup, index) => {
+      if (subgroup) {
+        subgroup._index = index;
+      }
+    });
+
+    return ordered;
+  }
+
+  /**
+   * Elimina un subgrupo de un nivel en TODOS los intervalos (solo si no tiene reservas)
+   */
+  removeSubgroupFromLevel(level: any, subgroupIndex: number): void {
+    if (this.hasActiveBookingUsersForSubgroup(level, subgroupIndex)) {
       this.snackBar.open(
-        'No se puede eliminar este subgrupo porque tiene reservas asociadas',
+        'No se puede eliminar este subgrupo porque tiene reservas activas asociadas',
+        'Cerrar',
+        { duration: 5000, panelClass: ['error-snackbar'] }
+      );
+      return;
+    }
+
+    if (this.hasAnyBookingUsersForSubgroup(level, subgroupIndex)) {
+      this.snackBar.open(
+        'No se puede eliminar este subgrupo porque tiene reservas registradas; elimina los bookings primero',
         'Cerrar',
         { duration: 5000, panelClass: ['error-snackbar'] }
       );
@@ -3436,7 +3611,8 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         _index: subgroup._index ?? index
       }));
 
-      this._uniqueSubgroupsCache.set(cacheKey, normalized);
+      const ordered = this.orderSubgroupsByBookingPresence(normalized);
+      this._uniqueSubgroupsCache.set(cacheKey, ordered);
     });
   }
 
@@ -3507,9 +3683,10 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           return subgroup;
         });
 
+        const orderedForCache = this.orderSubgroupsByBookingPresence(enrichedSubgroups);
         // Guardar en caché para evitar recalcular en cada llamada
-        this._uniqueSubgroupsCache.set(cacheKey, enrichedSubgroups);
-        return [...enrichedSubgroups];  // Nueva referencia para OnPush
+        this._uniqueSubgroupsCache.set(cacheKey, orderedForCache);
+        return [...orderedForCache];  // Nueva referencia para OnPush
       }
     }
 
@@ -3649,10 +3826,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       }
     }
 
-    // Guardar en caché
-    this._uniqueSubgroupsCache.set(cacheKey, uniqueSubgroups);
+    const orderedUniqueSubgroups = this.orderSubgroupsByBookingPresence(uniqueSubgroups);
 
-    return uniqueSubgroups;
+    // Guardar en caché
+    this._uniqueSubgroupsCache.set(cacheKey, orderedUniqueSubgroups);
+
+    return orderedUniqueSubgroups;
   }
 
   /**

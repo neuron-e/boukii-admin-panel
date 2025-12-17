@@ -58,6 +58,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private loadingDialogRef?: MatDialogRef<MonitorAssignmentLoadingDialogComponent>;
+  private keydownHandler?: (event: KeyboardEvent) => void;
 
   hoursRange: string[];
   hoursRangeMinusLast: string[];
@@ -246,11 +247,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.showGrouped = false;
     this.showDetail = false;
     //ESC to close moveMonitor
-    document.addEventListener('keydown', this.handleKeydownEvent.bind(this));
-    this.destroy$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      document.removeEventListener('keydown', this.handleKeydownEvent.bind(this));
-    });
-    //ESC to close moveMonitor
+    this.keydownHandler = this.handleKeydownEvent.bind(this);
+    document.addEventListener('keydown', this.keydownHandler);
+
 
     this.activeSchool = await this.getUser();
     await this.getLanguages();
@@ -258,7 +257,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     await this.getSchoolSports();
     await this.getDegrees();
     this.crudService.list('/seasons', 1, 10000, 'asc', 'id', '&school_id=' + this.user.schools[0].id + '&is_active=1')
-      .subscribe((season) => {
+      .pipe(takeUntil(this.destroy$)).subscribe((season) => {
         let hour_start = '08:00';
         let hour_end = '18:00';
         if (season.data.length > 0) {
@@ -431,7 +430,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   searchBookings(firstDate: string, lastDate: string) {
-    this.crudService.get('/admin/getPlanner?date_start=' + firstDate + '&date_end=' + lastDate + '&school_id=' + this.activeSchool + '&perPage=' + 99999).subscribe(
+    this.crudService.get('/admin/getPlanner?date_start=' + firstDate + '&date_end=' + lastDate + '&school_id=' + this.activeSchool + '&perPage=' + 99999).pipe(takeUntil(this.destroy$)).subscribe(
       (data: any) => {
         this.processData(data.data);
       },
@@ -1373,7 +1372,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
         data: { message: this.translateService.instant('move_task'), title: this.translateService.instant('confirm_move') }
       });
 
-      dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
+      dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((userConfirmed: boolean) => {
         if (userConfirmed) {
 
           const data = this.buildMonitorAvailabilityPayload(this.taskDetail);
@@ -1719,10 +1718,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
       data: { message: this.translateService.instant('accept_task'), title: this.translateService.instant('confirm_accept') }
     });
 
-    dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((userConfirmed: boolean) => {
       if (userConfirmed) {
         this.crudService.update('/booking-users', { accepted: true }, this.taskDetail.id)
-          .subscribe(() => {
+          .pipe(takeUntil(this.destroy$)).subscribe(() => {
             dialogRef.close(true)
             this.editedMonitor = null;
             this.showEditMonitor = false;
@@ -3136,7 +3135,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((result) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result) => {
       if (result) {
 
       }
@@ -3209,7 +3208,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((result) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result) => {
       if (result) {
 
         if (result.end_date && moment(result.end_date).isAfter(result.start_date)) {
@@ -3257,7 +3256,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
             default: false, user_nwd_subtype_id: result.user_nwd_subtype_id, color: result.color, monitor_id: dateInfo.monitor_id, start_date: result.start_date, end_date: result.end_date, start_time: result.full_day ? null : `${result.start_time}:00`, end_time: result.full_day ? null : `${result.end_time}:00`, full_day: result.full_day, station_id: result.station_id, school_id: result.school_id, description: result.description
           }
           this.crudService.create('/monitor-nwds', data)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
               //this.getData();
               this.loadBookings(this.currentDate);
@@ -3285,7 +3284,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           if (result.user_nwd_subtype_id !== 0) {
 
             this.crudService.create('/monitor-nwds', result)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
               this.getData();
               this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
@@ -3295,10 +3294,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
           const updateEdit = this.events[isOverlap[0].overlapedId].id;
           this.crudService.update('/monitor-nwds', isOverlap[0].dates[0], updateEdit)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
               isOverlap[0].dates[1].start_time = data.data.end_time;
               this.crudService.create('/monitor-nwds', isOverlap[0].dates[1])
-              .subscribe((data) => {
+              .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
                 this.getData();
                 this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
@@ -3321,7 +3320,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       data: { message: this.translateService.instant('create_general_blockage'), title: this.translateService.instant('general_blockage') }
     });
 
-    dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((userConfirmed: boolean) => {
       if (userConfirmed) {
         this.createBlockGeneral();
       }
@@ -3338,7 +3337,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((result) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result) => {
       if (result) {
 
         //ONLY 1 DAY
@@ -3393,7 +3392,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           if (result.user_nwd_subtype_id !== 0) {
 
             this.crudService.create('/monitor-nwds', result)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
               this.getData();
               this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
@@ -3403,10 +3402,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
           const updateEdit = this.events[isOverlap[0].overlapedId].id;
           this.crudService.update('/monitor-nwds', isOverlap[0].dates[0], updateEdit)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
               isOverlap[0].dates[1].start_time = data.data.end_time;
               this.crudService.create('/monitor-nwds', isOverlap[0].dates[1])
-              .subscribe((data) => {
+              .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
                 this.getData();
                 this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
@@ -3590,7 +3589,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     // Function update first block -> CALL LATER
     const updateFirstBlock = () => {
-      this.crudService.update('/monitor-nwds', firstBlockData, this.blockDetail.block_id).subscribe(
+      this.crudService.update('/monitor-nwds', firstBlockData, this.blockDetail.block_id).pipe(takeUntil(this.destroy$)).subscribe(
         response => {
           if (this.divideDay) {
             createSecondBlock();
@@ -3606,7 +3605,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     const createSecondBlock = () => {
       secondBlockData = { ...commonData, start_date: this.blockDetail.start_date, end_date: this.blockDetail.end_date, start_time: `${this.endTimeDivision}:00`, end_time: `${this.endTimeDay}:00`, full_day: false };
-      this.crudService.post('/monitor-nwds', secondBlockData).subscribe(
+      this.crudService.post('/monitor-nwds', secondBlockData).pipe(takeUntil(this.destroy$)).subscribe(
         secondResponse => {
           finalizeUpdate();
         },
@@ -3650,7 +3649,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   deleteEditedBlock() {
     const isConfirmed = confirm('Êtes-vous sûr de vouloir supprimer le blocage?');
     if (isConfirmed) {
-      this.crudService.delete('/monitor-nwds', this.blockDetail.block_id).subscribe(
+      this.crudService.delete('/monitor-nwds', this.blockDetail.block_id).pipe(takeUntil(this.destroy$)).subscribe(
         response => {
           this.hideEditBlock();
           this.hideBlock();
@@ -3686,7 +3685,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     const data = this.buildMonitorAvailabilityPayload(this.taskDetail);
 
     this.crudService.post('/admin/monitors/available', data)
-      .subscribe((response) => {
+      .pipe(takeUntil(this.destroy$)).subscribe((response) => {
         this.monitorsForm = response.data;
         this.hasApiAvailability = Array.isArray(this.monitorsForm) && this.monitorsForm.length > 0;
         this.loadingMonitors = false;
@@ -4015,7 +4014,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((data: any) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((data: any) => {
       if (data) {
         this.snackbar.open(this.translateService.instant('snackbar.booking.create'), 'OK', { duration: 3000 });
       }
@@ -4032,7 +4031,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       data: this.taskDetail
     });
 
-    dialogRef.afterClosed().subscribe((data: any) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((data: any) => {
       if (data) {
         this.hideDetail();
         this.hideGrouped();
@@ -4064,7 +4063,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((data: any) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((data: any) => {
       if (data) {
         dialogRef.close();
         this.hideDetail();
@@ -4114,6 +4113,14 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
   }
   ngOnDestroy(): void {
+    if (this.keydownHandler) {
+      document.removeEventListener('keydown', this.keydownHandler);
+      this.keydownHandler = undefined;
+    }
+    this.currentAssignmentSlots = [];
+    this.currentAssignmentTargetSubgroupIds.clear();
+    this.monitorSelectOptionsCache = [];
+    this.monitorSelectOptionsCacheVersion = -1;
     this.destroy$.next();
     this.destroy$.complete();
   }
