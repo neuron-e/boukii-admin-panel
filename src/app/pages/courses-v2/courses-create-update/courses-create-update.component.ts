@@ -103,6 +103,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   monitors: any = [];
   schoolData: any = [];
   extras: any = []
+  selectedExtrasForForm: any = []
 
   mode: 'create' | 'update' = 'create';
   loading: boolean = true;
@@ -667,6 +668,99 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const levelKey = level.id || JSON.stringify(level);
     const key = `${levelKey}_${subgroupIndex}`;
     return this.expandedSubgroups.has(key);
+  }
+
+  /**
+   * Update age_min or age_max for a specific level in a specific interval.
+   * This allows per-interval age configuration in flexible collective courses.
+   */
+  onIntervalLevelAgeChange(intervalIdx: number, level: any, field: 'age_min' | 'age_max', rawValue: any): void {
+    const parsed = this.parseNumber(rawValue);
+    if (parsed == null) {
+      return;
+    }
+
+    const levelId = level?.id ?? level?.degree_id;
+    if (levelId == null) {
+      return;
+    }
+
+    if (!this.intervals || intervalIdx == null || intervalIdx >= this.intervals.length) {
+      return;
+    }
+
+    const intervalKey = this.resolveIntervalKey(this.intervals[intervalIdx], intervalIdx);
+    if (!intervalKey) {
+      return;
+    }
+
+    // Ensure intervalGroupsMap and interval state exist
+    if (!this.intervalGroupsMap) {
+      this.intervalGroupsMap = {};
+    }
+    if (!this.intervalGroupsMap[intervalKey]) {
+      this.intervalGroupsMap[intervalKey] = {};
+    }
+
+    const intervalState = this.intervalGroupsMap[intervalKey];
+    const levelKey = String(levelId);
+
+    // Ensure level state exists in this interval
+    if (!intervalState[levelKey]) {
+      intervalState[levelKey] = {
+        levelId: levelId,
+        active: true,
+        subgroups: [],
+        age_min: level.age_min,
+        age_max: level.age_max
+      };
+    }
+
+    const levelState = intervalState[levelKey];
+
+    // Update the age field with validation
+    if (field === 'age_min') {
+      levelState.age_min = parsed;
+      // Adjust age_max if needed
+      if (levelState.age_max != null && parsed > levelState.age_max) {
+        levelState.age_max = parsed;
+      }
+    } else {
+      levelState.age_max = parsed;
+      // Adjust age_min if needed
+      if (levelState.age_min != null && parsed < levelState.age_min) {
+        levelState.age_min = parsed;
+      }
+    }
+
+    // Update course_dates for this specific interval
+    const courseDatesControl = this.courses.courseFormGroup.get('course_dates');
+    const courseDates = Array.isArray(courseDatesControl?.value) ? [...courseDatesControl.value] : [];
+
+    let updated = false;
+    courseDates.forEach((cd: any) => {
+      // Only update course_dates that belong to this interval
+      const cdIntervalKey = this.getIntervalKeyForDate(cd);
+      if (cdIntervalKey === intervalKey) {
+        const courseGroups = cd?.course_groups || cd?.courseGroups || [];
+        courseGroups.forEach((group: any) => {
+          if ((group?.degree_id ?? group?.degreeId) === levelId) {
+            group.age_min = levelState.age_min;
+            group.age_max = levelState.age_max;
+            updated = true;
+          }
+        });
+      }
+    });
+
+    if (courseDatesControl && updated) {
+      courseDatesControl.setValue(courseDates, { emitEvent: false });
+      courseDatesControl.markAsDirty();
+    }
+
+    if (updated) {
+      this.cdr.detectChanges();
+    }
   }
 
   /**
@@ -4127,7 +4221,8 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         this.courses.settcourseFormGroup(this.detailData);
         this.syncMeetingPointSelection();
         this.syncWeeklyPatternFromSettings();
-        this.courses.courseFormGroup.patchValue({ extras: this.detailData.course_extras || [] });
+        // Usar los extras seleccionados que se guardaron en mergeCourseExtras()
+        this.courses.courseFormGroup.patchValue({ extras: this.selectedExtrasForForm || [] });
 
         // Detectar intervalos automáticamente desde course_dates
         const courseDates = this.detailData.course_dates || [];
@@ -4310,7 +4405,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       console.error("Error loading extras from localStorage:", error);
     }
 
-    // Formatear extras de configuraci+¦n
+    // Formatear extras de configuración
     const formattedSettingsExtras = settingsExtras.map(extra => ({
       id: extra.id.toString(),
       name: extra.name,
@@ -4318,35 +4413,52 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       price: parseFloat(extra.price) || 0,
       tva: extra.tva || 0,
       status: extra.status || false,
-      active: false,
     }));
 
-    // Formatear extras del curso
-    const formattedCourseExtras = (this.detailData.course_extras || []).map(extra => ({
-      id: extra.id.toString(),
-      name: extra.name,
-      product: extra.name,
-      price: parseFloat(extra.price) || 0,
-      tva: 0,
-      status: true,
-      active: true,
-    }));
+    // Crear un helper para comparar extras (maneja campos invertidos por datos legacy)
+    const createExtraKeys = (name: string, productOrDesc: string | undefined) => {
+      const keys = [];
+      if (productOrDesc) {
+        keys.push(`${name}|${productOrDesc}`);      // Formato normal
+        keys.push(`${productOrDesc}|${name}`);       // Formato invertido (legacy)
+      }
+      keys.push(`${name}|`);                         // Solo name (sin product)
+      return keys;
+    };
 
-    // Unir sin duplicados usando un Map para garantizar unicidad por ID
+    // Crear un Set con todas las claves posibles de extras seleccionados (course_extras)
+    const selectedExtraKeys = new Set<string>();
+    (this.detailData.course_extras || []).forEach(extra => {
+      const keys = createExtraKeys(extra.name, extra.description);
+      keys.forEach(k => selectedExtraKeys.add(k));
+    });
+
+    // Unir settings extras sin duplicados (usar name como clave principal)
     const extrasMap = new Map();
 
-    // Primero agregar extras de settings
     formattedSettingsExtras.forEach(extra => {
-      extrasMap.set(extra.id, extra);
+      // Usar solo el name como clave para evitar duplicados
+      const primaryKey = extra.name;
+
+      // Si ya existe este extra, mantener el que tenga product definido
+      if (extrasMap.has(primaryKey)) {
+        const existing = extrasMap.get(primaryKey);
+        // Sobrescribir solo si el nuevo tiene product y el existente no
+        if (extra.product && !existing.product) {
+          extrasMap.set(primaryKey, extra);
+        }
+      } else {
+        extrasMap.set(primaryKey, extra);
+      }
     });
 
-    // Luego agregar/sobrescribir con extras del curso (tienen prioridad)
-    formattedCourseExtras.forEach(extra => {
-      extrasMap.set(extra.id, extra);
-    });
-
-    // Convertir Map a array
     this.extras = Array.from(extrasMap.values());
+
+    // Guardar los extras seleccionados para usarlos después
+    this.selectedExtrasForForm = this.extras.filter(extra => {
+      const possibleKeys = createExtraKeys(extra.name, extra.product);
+      return possibleKeys.some(k => selectedExtraKeys.has(k));
+    });
   }
 
   private initializeExtrasForm() {
@@ -4388,6 +4500,39 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    */
   isTemporaryExtra(extraId: any): boolean {
     return String(extraId).startsWith('aFOR-');
+  }
+
+  /**
+   * Elimina un extra temporal del array y del FormControl si está seleccionado
+   */
+  deleteTemporaryExtra(index: number, item: any) {
+    const matchesExtra = (a: any, b: any) => {
+      return (a.name === b.name && a.product === b.product) ||
+             (a.name === b.product && a.product === b.name) ||
+             (a.name === b.name && !a.product && !b.product);
+    };
+
+    // Eliminar del array de extras
+    this.extras.splice(index, 1);
+
+    // Eliminar del FormControl si está seleccionado
+    if (this.courses.courseFormGroup.controls['course_type'].value === 3) {
+      // Para cursos tipo 3, eliminar de todos los grupos
+      const groups = this.courses.courseFormGroup.controls['settings']?.value?.groups;
+      if (groups) {
+        groups.forEach((group: any) => {
+          if (group.extras) {
+            group.extras = group.extras.filter((a: any) => !matchesExtra(a, item));
+          }
+        });
+      }
+    } else {
+      // Para otros tipos de curso
+      const extras = this.courses.courseFormGroup.controls['extras']?.value || [];
+      this.courses.courseFormGroup.patchValue({
+        extras: extras.filter((a: any) => !matchesExtra(a, item))
+      });
+    }
   }
 
   resetExtraForm() {
@@ -4502,12 +4647,17 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       });
     }
 
-    // Obtener el estado actual de levelGrop para preservar selecciones
+    // Obtener el estado actual de levelGrop para preservar selecciones y valores
     const currentLevelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
     const currentStateMap = new Map<number, any>();
     currentLevelGrop.forEach((level: any) => {
       if (level?.id) {
-        currentStateMap.set((level?.id ?? level?.degree_id), { active: level.active, max_participants: level.max_participants });
+        currentStateMap.set((level?.id ?? level?.degree_id), {
+          active: level.active,
+          max_participants: level.max_participants,
+          age_min: level.age_min,
+          age_max: level.age_max
+        });
       }
     });
 
@@ -4528,41 +4678,151 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         ...level,
         active: isActive,
         max_participants: currentState?.max_participants ?? level.max_participants,
+        // Preservar age_min/age_max del currentState si existen (valores del curso cargado)
+        age_min: currentState?.age_min ?? level.age_min,
+        age_max: currentState?.age_max ?? level.age_max,
       };
     });
 
     // FIX: Actualizar datos desde course_dates SIEMPRE (no solo en primera carga)
-    if (courseDatesFromForm.length > 0) {
+    // Tomar valores del PRIMER grupo encontrado (no sobreescribir con grupos subsecuentes)
+    console.log('[getDegrees] courseDatesFromForm:', courseDatesFromForm);
+    console.log('[getDegrees] courseDatesFromForm.length:', courseDatesFromForm.length);
+
+    const firstDetailGroups = this.getFirstCourseDateGroupsFromDetail();
+    const levelIdsWithDetailAges = new Set<number | string>();
+
+    if (firstDetailGroups.length) {
       levelGrop.forEach((level: any) => {
-        courseDatesFromForm.forEach((cs: any) => {
-          if (cs.course_groups) {
-            const groupsArray = Array.isArray(cs.course_groups)
-              ? cs.course_groups
-              : Object.values(cs.course_groups);
+        const levelId = level?.id ?? level?.degree_id;
+        if (levelId == null) {
+          return;
+        }
 
-            groupsArray.forEach((group: any) => {
-              if (group && group.degree_id === (level?.id ?? level?.degree_id)) {
-                level.old = true;
-                // FIX: Copy ages FROM saved group TO level (not the other way around!)
-                if (group.age_min != null) {
-                  level.age_min = group.age_min;
-                }
-                if (group.age_max != null) {
-                  level.age_max = group.age_max;
-                }
+        const matchingGroup = firstDetailGroups.find((group: any) => (group?.degree_id ?? group?.id ?? group?.degreeId) === levelId);
+        if (!matchingGroup) {
+          return;
+        }
 
-                if (group.course_subgroups && Array.isArray(group.course_subgroups) && group.course_subgroups.length > 0) {
-                  level.max_participants = group.course_subgroups[0].max_participants;
-                  level.course_subgroups = group.course_subgroups;
-                }
+        const resolvedAgeMin = this.getSavedAgeFromGroup(matchingGroup, 'age_min');
+        const resolvedAgeMax = this.getSavedAgeFromGroup(matchingGroup, 'age_max');
+        if (resolvedAgeMin == null && resolvedAgeMax == null) {
+          return;
+        }
 
-                level.visible = false;
-              }
-            });
-          }
-        });
+        if (resolvedAgeMin != null) {
+          level.age_min = resolvedAgeMin;
+        }
+        if (resolvedAgeMax != null) {
+          level.age_max = resolvedAgeMax;
+        }
+
+        this.applySavedGroupToLevel(level, matchingGroup);
+        levelIdsWithDetailAges.add(levelId);
       });
     }
+
+    if (courseDatesFromForm.length > 0) {
+      levelGrop.forEach((level: any) => {
+        const levelId = level?.id ?? level?.degree_id;
+        if (levelId == null) {
+          return;
+        }
+
+        if (levelIdsWithDetailAges.has(levelId)) {
+          return;
+        }
+
+        let fallbackCandidate: {
+          group: any;
+          resolvedAgeMin: number | null;
+          resolvedAgeMax: number | null;
+        } | null = null;
+
+        let matchedAges = false;
+
+        outerLoop:
+        for (const cs of courseDatesFromForm) {
+          console.log(`[getDegrees] Checking courseDate for level ${levelId}:`, cs);
+          console.log(`[getDegrees] cs.course_groups:`, cs.course_groups);
+
+          const groupsArray = cs.course_groups
+            ? (Array.isArray(cs.course_groups) ? cs.course_groups : Object.values(cs.course_groups))
+            : [];
+
+          console.log(`[getDegrees] groupsArray for level ${levelId}:`, groupsArray);
+
+          for (const group of groupsArray) {
+            console.log(`[getDegrees] Checking group degree_id=${group?.degree_id ?? group?.id ?? group?.degreeId} against level id=${levelId}`);
+
+            if (group && (group.degree_id ?? group.id ?? group.degreeId) === levelId) {
+              console.log(`[getDegrees] MATCH! group:`, group);
+              console.log(`[getDegrees] group.age_min=${group.age_min}, group.age_max=${group.age_max}`);
+              console.log(`[getDegrees] group keys:`, Object.keys(group));
+
+              const resolvedAgeMin =
+                this.getSavedAgeFromGroup(group, 'age_min') ??
+                this.getSavedAgeFromCourseDate(cs, group.degree_id ?? (levelId), 'age_min');
+              const resolvedAgeMax =
+                this.getSavedAgeFromGroup(group, 'age_max') ??
+                this.getSavedAgeFromCourseDate(cs, group.degree_id ?? (levelId), 'age_max');
+
+              const hasAges = resolvedAgeMin != null || resolvedAgeMax != null;
+
+              if (!fallbackCandidate) {
+                fallbackCandidate = { group, resolvedAgeMin, resolvedAgeMax };
+              }
+
+              if (hasAges) {
+                if (resolvedAgeMin != null) {
+                  level.age_min = resolvedAgeMin;
+                  console.log(`[getDegrees] Setting level ${levelId} age_min to ${resolvedAgeMin} from group`);
+                } else {
+                  console.log(`[getDegrees] resolved age_min is null/undefined, not setting`);
+                }
+
+                if (resolvedAgeMax != null) {
+                  level.age_max = resolvedAgeMax;
+                  console.log(`[getDegrees] Setting level ${levelId} age_max to ${resolvedAgeMax} from group`);
+                } else {
+                  console.log(`[getDegrees] resolved age_max is null/undefined, not setting`);
+                }
+
+                this.applySavedGroupToLevel(level, group);
+                matchedAges = true;
+                break outerLoop;
+              }
+            }
+          }
+        }
+
+        if (!matchedAges && fallbackCandidate) {
+          console.log(`[getDegrees] Applying fallback group for level ${levelId} after no saved ages were found`);
+          if (fallbackCandidate.resolvedAgeMin != null) {
+            level.age_min = fallbackCandidate.resolvedAgeMin;
+            console.log(`[getDegrees] Setting level ${levelId} age_min to ${fallbackCandidate.resolvedAgeMin} from fallback group`);
+          } else {
+            console.log(`[getDegrees] resolved age_min is null/undefined, not setting`);
+          }
+
+          if (fallbackCandidate.resolvedAgeMax != null) {
+            level.age_max = fallbackCandidate.resolvedAgeMax;
+            console.log(`[getDegrees] Setting level ${levelId} age_max to ${fallbackCandidate.resolvedAgeMax} from fallback group`);
+          } else {
+            console.log(`[getDegrees] resolved age_max is null/undefined, not setting`);
+          }
+
+          this.applySavedGroupToLevel(level, fallbackCandidate.group);
+        }
+      });
+    }
+
+    console.log('[getDegrees] Final levelGrop:', levelGrop.map((l: any) => ({
+      id: l.id,
+      name: l.level,
+      age_min: l.age_min,
+      age_max: l.age_max
+    })));
 
     // Ordenar: activos primero
     levelGrop.sort((a: any) => (a.active ? -1 : 1));
@@ -4582,6 +4842,77 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     // FORZAR detección de cambios después de cargar niveles
     this.cdr.detectChanges();
   });
+
+  private getSavedAgeFromGroup(group: any, field: 'age_min' | 'age_max'): number | null {
+    if (!group) {
+      return null;
+    }
+
+    if (group[field] != null) {
+      return this.parseNumber(group[field]) ?? group[field];
+    }
+
+    const nested = Array.isArray(group.course_subgroups)
+      ? group.course_subgroups
+      : Array.isArray(group.subgroups)
+        ? group.subgroups
+        : [];
+
+    for (const subgroup of nested) {
+      if (subgroup && subgroup[field] != null) {
+        return this.parseNumber(subgroup[field]) ?? subgroup[field];
+      }
+    }
+
+    return null;
+  }
+
+  private getSavedAgeFromCourseDate(courseDate: any, levelId: number | null | undefined, field: 'age_min' | 'age_max'): number | null {
+    if (!courseDate || levelId == null) {
+      return null;
+    }
+
+    const normalizedSubgroups = Array.isArray(courseDate.course_subgroups)
+      ? courseDate.course_subgroups
+      : Array.isArray(courseDate.subgroups)
+        ? courseDate.subgroups
+        : [];
+
+    for (const subgroup of normalizedSubgroups) {
+      if ((subgroup?.degree_id ?? subgroup?.degreeId) == levelId && subgroup[field] != null) {
+        return this.parseNumber(subgroup[field]) ?? subgroup[field];
+      }
+    }
+
+    return null;
+  }
+
+  private applySavedGroupToLevel(level: any, group: any): void {
+    level.old = true;
+    if (group.course_subgroups && Array.isArray(group.course_subgroups) && group.course_subgroups.length > 0) {
+      level.max_participants = group.course_subgroups[0].max_participants;
+      level.course_subgroups = group.course_subgroups;
+    }
+    level.visible = false;
+  }
+
+  private getFirstCourseDateGroupsFromDetail(): any[] {
+    const firstDate = Array.isArray(this.detailData?.course_dates) ? this.detailData.course_dates[0] : null;
+    if (!firstDate) {
+      return [];
+    }
+
+    const groups = firstDate.course_groups ?? firstDate.groups;
+    if (!groups) {
+      return [];
+    }
+
+    if (Array.isArray(groups)) {
+      return groups;
+    }
+
+    return Object.values(groups);
+  }
 
   private getTranslationsValue(): any {
     const control = this.courses?.courseFormGroup?.controls?.['translations'];
@@ -5500,15 +5831,66 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.cdr.detectChanges();  // FIX A.10: Forzar detección inmediata
   }
 
+  isExtraSelected(item: any, groupIndex: number): boolean {
+    const matchesExtra = (a: any, b: any) => {
+      // Comparar de múltiples formas para manejar datos legacy invertidos
+      return (a.name === b.name && a.product === b.product) ||
+             (a.name === b.product && a.product === b.name) ||
+             (a.name === b.name && !a.product && !b.product);
+    };
+
+    if (this.courses.courseFormGroup.controls['course_type'].value === 3) {
+      const groups = this.courses.courseFormGroup.controls['settings']?.value?.groups;
+      if (!groups || !groups[groupIndex] || !groups[groupIndex].extras) {
+        return false;
+      }
+      return groups[groupIndex].extras.some((a: any) => matchesExtra(a, item));
+    } else {
+      const extras = this.courses.courseFormGroup.controls['extras']?.value || [];
+      return extras.some((a: any) => matchesExtra(a, item));
+    }
+  }
+
   selectExtra = (event: any, item: any, i: number) => {
+    const matchesExtra = (a: any, b: any) => {
+      return (a.name === b.name && a.product === b.product) ||
+             (a.name === b.product && a.product === b.name) ||
+             (a.name === b.name && !a.product && !b.product);
+    };
+
     if (this.courses.courseFormGroup.controls['course_type'].value === 3) {
       this.courses.courseFormGroup.controls['settings'].value.groups = JSON.parse(JSON.stringify(this.courses.courseFormGroup.controls['settings'].value.groups))
-      if (event.checked || !this.courses.courseFormGroup.controls['settings'].value.groups[i].extras.find((a: any) => a.id === item.id)) this.courses.courseFormGroup.controls['settings'].value.groups[i].extras.push(item)
-      else this.courses.courseFormGroup.controls['settings'].value.groups[i].extras = this.courses.courseFormGroup.controls['settings'].value.groups[i].extras.filter((a: any) => a.id !== item.id)
+
+      if (event.checked) {
+        // Agregar el extra solo si no existe ya
+        const exists = this.courses.courseFormGroup.controls['settings'].value.groups[i].extras.find(
+          (a: any) => matchesExtra(a, item)
+        );
+        if (!exists) {
+          this.courses.courseFormGroup.controls['settings'].value.groups[i].extras.push(item)
+        }
+      } else {
+        // Eliminar el extra
+        this.courses.courseFormGroup.controls['settings'].value.groups[i].extras =
+          this.courses.courseFormGroup.controls['settings'].value.groups[i].extras.filter(
+            (a: any) => !matchesExtra(a, item)
+          )
+      }
     } else {
-      const extras = this.courses.courseFormGroup.controls['extras'].value
-      if (event.checked || !extras.find((a: any) => a.id === item.id)) this.courses.courseFormGroup.patchValue({ extras: [...extras, item] })
-      else this.courses.courseFormGroup.patchValue({ extras: extras.filter((a: any) => a.id !== item.id) })
+      const extras = this.courses.courseFormGroup.controls['extras'].value || []
+
+      if (event.checked) {
+        // Agregar el extra solo si no existe ya
+        const exists = extras.find((a: any) => matchesExtra(a, item));
+        if (!exists) {
+          this.courses.courseFormGroup.patchValue({ extras: [...extras, item] })
+        }
+      } else {
+        // Eliminar el extra
+        this.courses.courseFormGroup.patchValue({
+          extras: extras.filter((a: any) => !matchesExtra(a, item))
+        })
+      }
     }
   }
 
@@ -5903,14 +6285,15 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             });
 
             if (matchingLevel) {
-              // Only apply levelGrop ages if the group doesn't already have them
-              // This prevents overwriting interval-specific ages in FLEX courses with multiple intervals
+              // ALWAYS apply levelGrop ages to overwrite any existing values
+              // This ensures that when a user changes age_min/age_max in the levels,
+              // the changes are reflected in all groups on save
               const parsedMin = parseInt(matchingLevel.age_min);
               const parsedMax = parseInt(matchingLevel.age_max);
-              if (!isNaN(parsedMin) && transformedGroup.age_min == null) {
+              if (!isNaN(parsedMin)) {
                 transformedGroup.age_min = parsedMin;
               }
-              if (!isNaN(parsedMax) && transformedGroup.age_max == null) {
+              if (!isNaN(parsedMax)) {
                 transformedGroup.age_max = parsedMax;
               }
             }
@@ -6697,19 +7080,20 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const bounds = ageMap.get(levelId);
 
     if (bounds) {
-      // Only apply ages if the group doesn't already have them set
-      // This prevents overwriting interval-specific ages from buildCourseGroupsForInterval()
-      if (bounds.age_min != null && normalizedGroup.age_min == null) {
+      // ALWAYS apply ages from levelGrop to overwrite any existing values
+      // This ensures that when a user changes age_min/age_max in the levels,
+      // the changes are reflected in all groups/subgroups on save
+      if (bounds.age_min != null) {
         normalizedGroup.age_min = bounds.age_min;
       }
-      if (bounds.age_max != null && normalizedGroup.age_max == null) {
+      if (bounds.age_max != null) {
         normalizedGroup.age_max = bounds.age_max;
       }
       clonedSubgroups.forEach(subgroup => {
-        if (bounds.age_min != null && subgroup.age_min == null) {
+        if (bounds.age_min != null) {
           subgroup.age_min = bounds.age_min;
         }
-        if (bounds.age_max != null && subgroup.age_max == null) {
+        if (bounds.age_max != null) {
           subgroup.age_max = bounds.age_max;
         }
       });
@@ -8734,7 +9118,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   }
 
   // FIX E.1: Actualizar max_participants de un subgrupo específico en todas las fechas
-  updateSubgroupMaxParticipants(level: any, subgroupIndex: number, newValue: number): void {
+  updateSubgroupMaxParticipants(level: any, subgroupIndex: number, newValue: number, uniqueSubgroup?: any): void {
     const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
     if (levelId == null || subgroupIndex == null) {
       return;
@@ -8743,6 +9127,25 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const maxParticipants = parseInt(String(newValue), 10);
     if (isNaN(maxParticipants) || maxParticipants < 1) {
       return;
+    }
+
+    if (uniqueSubgroup) {
+      uniqueSubgroup.max_participants = maxParticipants;
+    }
+
+    level.max_participants = maxParticipants;
+    const levelControl = this.courses.courseFormGroup.get('levelGrop');
+    if (levelControl) {
+      const currentLevels = Array.isArray(levelControl.value) ? [...levelControl.value] : [];
+      const levelIndex = currentLevels.findIndex((l: any) => (l?.id ?? l?.degree_id) === levelId);
+      if (levelIndex !== -1) {
+        currentLevels[levelIndex] = {
+          ...currentLevels[levelIndex],
+          max_participants: maxParticipants
+        };
+        levelControl.setValue(currentLevels, { emitEvent: false });
+        levelControl.markAsDirty();
+      }
     }
 
     // Actualizar en course_dates
@@ -8761,6 +9164,13 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           subgroups[subgroupIndex].max_participants = maxParticipants;
           updated = true;
         }
+      }
+
+      const dateLevelSubgroups = (cd?.course_subgroups || cd?.courseSubgroups || [])
+        .filter((sg: any) => (sg?.degree_id ?? sg?.degreeId) === levelId);
+      if (dateLevelSubgroups[subgroupIndex]) {
+        dateLevelSubgroups[subgroupIndex].max_participants = maxParticipants;
+        updated = true;
       }
     });
 

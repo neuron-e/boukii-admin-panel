@@ -16,8 +16,8 @@ export class ComponenteInputComponent implements OnInit {
   @Input() required: boolean = false
   @Input() Suffix: string = ""
   @Input() Prefix: string = ""
-  @Input() max: number = Infinity
-  @Input() min: number = 0
+  @Input() max: number = 99
+  @Input() min: number = 1
   @Input() margin: number = 10
   @Input() readonly: boolean = false
 

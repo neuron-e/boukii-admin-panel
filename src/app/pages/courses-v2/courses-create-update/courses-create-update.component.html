@@ -724,7 +724,7 @@
                       <app-form-input
                         [required]="true"
                         [value]="uniqueSubgroup.max_participants || level.max_participants"
-                        (do)="updateSubgroupMaxParticipants(level, uniqueSubgroup._index, $event.target.value);"
+                        (do)="updateSubgroupMaxParticipants(level, uniqueSubgroup._index, $event.target.value, uniqueSubgroup);"
                         name="max_pax"
                         style="width: 120px; flex: 0 0 auto;"
                         type="number"
@@ -1120,15 +1120,14 @@
                   {{level.annotation}} {{level.level}}
                 </div>
 
-                <!-- Editable fields for age and max participants -->
-                <!-- Ages are configured globally for the level and apply to ALL intervals -->
+                <!-- Editable fields for age (applies to ALL intervals) -->
                 <app-form-input
                   [required]="true"
                   [value]="level.age_min"
                   [max]="level.age_max"
                   (do)="onLevelAgeChange(level, 'age_min', $event.target.value);"
                   name="min_age"
-                  style="width: 95px;"
+                  style="width: calc(33.33% - 10px - 16px); min-width: 140px;"
                   type="number"
                   Suffix="años"
                   (click)="$event.stopPropagation()">
@@ -1140,7 +1139,7 @@
                   [min]="level.age_min"
                   (do)="onLevelAgeChange(level, 'age_max', $event.target.value);"
                   name="max_age"
-                  style="width: 95px;"
+                  style="width: calc(33.33% - 10px - 16px); min-width: 140px;"
                   type="number"
                   Suffix="años"
                   (click)="$event.stopPropagation()">
@@ -1162,7 +1161,7 @@
 
               <!-- Subgrupos del nivel (rendered only when level is expanded) -->
               <ng-container *ngIf="isLevelExpanded(level) && getAllUniqueSubgroupsForLevel(level).length > 0">
-                <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
+                <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j; trackBy: trackSubgroup">
                   <!-- COLLAPSIBLE Subgroup Header with Toggle Button -->
                   <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px; margin-bottom: 10px; cursor: pointer;"
                        (click)="toggleSubgroup(level, uniqueSubgroup._index)">
@@ -1175,9 +1174,9 @@
                     <app-form-input
                       [required]="true"
                       [value]="uniqueSubgroup.max_participants || level.max_participants"
-                      (do)="updateSubgroupMaxParticipants(level, uniqueSubgroup._index, $event.target.value); $event.stopPropagation();"
+                      (do)="updateSubgroupMaxParticipants(level, uniqueSubgroup._index, $event.target.value, uniqueSubgroup); $event.stopPropagation();"
                       name="max_pax"
-                      style="width: 120px; flex: 0 0 auto;"
+                      style="width: 190px; min-width: 160px; flex: 0 0 auto;"
                       type="number"
                       Suffix="paxes"
                       (click)="$event.stopPropagation()">
@@ -1235,23 +1234,6 @@
               </ng-container>
             </ng-container>
           </ng-container>
-
-          <!-- Mostrar niveles INACTIVOS disponibles para agregar (al final) -->
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #dee2e6;">
-            <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []); index as i; trackBy: trackLevel">
-              <div *ngIf="!level.active"
-                   style="display: flex; gap: 16px; align-items: center;">
-                <mat-checkbox [disabled]="false"
-                              [style.backgroundColor]="level.color+'33'"
-                              [style.color]="level.color"
-                              [style.border]="'1px solid '+level.color"
-                              (change)="selectLevel({target:{checked:true}},i)"
-                              style="height: 46px; border-radius: 3px; min-width: 225px;font-size: 12px;align-content: space-evenly;">
-                  {{level.annotation}} {{level.level}}
-                </mat-checkbox>
-              </div>
-            </ng-container>
-          </div>
         </div>
 
         <!-- Vista simplificada de grupos y niveles (cuando NO está activado el flag por intervalos) -->
@@ -1285,12 +1267,12 @@
             </div>
             <div *ngIf="level.active && (!useMultipleIntervals || (intervalGroups[selectedIntervalIndexForGroups] && intervalGroups[selectedIntervalIndexForGroups][level.id]))" style="display: flex;gap: 16px;">
               <app-form-input [required]="true" [value]="level.age_min" [max]="level.age_max"
-                              (do)="onLevelAgeChange(level, 'age_min', $event.target.value);" style="width: calc(33.33% - 10px - 16px);"
+                              (do)="onLevelAgeChange(level, 'age_min', $event.target.value);" style="width: calc(33.33% - 10px - 16px); min-width: 140px;"
                               name="min_age" type="number" Suffix="years">
               </app-form-input>
               <app-form-input [required]="true" [value]="level.age_max" [min]="level.age_min"
                               (do)="onLevelAgeChange(level, 'age_max', $event.target.value);" name="max_age"
-                              style="width: calc(33.33% - 10px - 16px);" type="number" Suffix="years">
+                              style="width: calc(33.33% - 10px - 16px); min-width: 140px;" type="number" Suffix="years">
               </app-form-input>
               <mat-icon (click)="onInlineAddSubgroup(level, $event)" color="primary" style="color: white;
 										height: 30px;
@@ -1306,19 +1288,19 @@
             </div>
             <!-- Mostrar TODOS los subgrupos únicos del nivel (tanto para múltiples intervalos como para sin intervalos) -->
             <ng-container *ngIf="level.active && getAllUniqueSubgroupsForLevel(level).length > 0">
-              <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j">
+              <ng-container *ngFor="let uniqueSubgroup of getAllUniqueSubgroupsForLevel(level); index as j; trackBy: trackSubgroup">
                 <div style="background-color: var(--color-grey4); display: flex;width: 100%; height: 46px;justify-content: space-between;align-items: center; border-radius: 4px;padding: 10px;gap: 10px;">
                   <span style="flex: 0 0 auto;">{{level.annotation}} {{level.level}} {{("00"+(uniqueSubgroup._index+1)).slice(-2)}}</span>
-                  <app-form-input
-                    [required]="true"
-                    [value]="uniqueSubgroup.max_participants || level.max_participants"
-                    (do)="updateSubgroupMaxParticipants(level, uniqueSubgroup._index, $event.target.value);"
-                    name="max_pax"
-                    style="width: 120px; flex: 0 0 auto;"
-                    type="number"
-                    Suffix="paxes"
-                    (click)="$event.stopPropagation()">
-                  </app-form-input>
+                   <app-form-input
+                     [required]="true"
+                     [value]="uniqueSubgroup.max_participants || level.max_participants"
+                     (do)="updateSubgroupMaxParticipants(level, uniqueSubgroup._index, $event.target.value, uniqueSubgroup);"
+                     name="max_pax"
+                     style="width: 190px; min-width: 160px; flex: 0 0 auto;"
+                     type="number"
+                     Suffix="paxes"
+                     (click)="$event.stopPropagation()">
+                   </app-form-input>
                   <img *ngIf="getAllUniqueSubgroupsForLevel(level).length>1 && (!uniqueSubgroup.booking_users || uniqueSubgroup.booking_users.length===0)"
                        (click)="mode==='create'?(useMultipleIntervals?removeIntervalLevelSubgroup(selectedIntervalIndexForGroups, level, uniqueSubgroup._index):addLevelSubgroup(level,uniqueSubgroup._index,false)):editModal=true;setEditFunction(useMultipleIntervals?'removeIntervalLevelSubgroup':'addLevelSubgroup',level,uniqueSubgroup._index,false)"
                        src="assets/icons/icon/delete.png" alt class="icon20"
@@ -1448,7 +1430,7 @@
           <div *ngFor="let item of extras; index as j"
                style="width: calc(50% - 8px); height: 64px; padding: 12px; border-radius: 3px; border: 1px var(--color-dark1) solid; justify-content: flex-start; align-items: center; gap: 10px; display: inline-flex">
             <mat-checkbox [value]="item.id"
-                          [checked]="find(this.courses.courseFormGroup.controls['course_type'].value===3?courses.courseFormGroup.controls['settings'].value.groups[i].extras:courses.courseFormGroup.controls['extras'].value,'id',item.id)"
+                          [checked]="isExtraSelected(item, i)"
                           (change)="selectExtra($event,item,i)">
             </mat-checkbox>
             <div
@@ -1468,7 +1450,7 @@
               number:'0.2-2'}}&nbsp;{{courses.courseFormGroup.controls['currency'].value}}/{{'day' |
               translate}}
             </div>
-            <mat-icon *ngIf="isTemporaryExtra(item.id)" (click)="extras.splice(j,1)"
+            <mat-icon *ngIf="isTemporaryExtra(item.id)" (click)="deleteTemporaryExtra(j, item)"
                       style="cursor: pointer;float: inline-end;">
               delete
             </mat-icon>

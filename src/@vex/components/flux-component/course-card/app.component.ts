@@ -135,20 +135,25 @@ export class CourseDetailCardComponent implements OnChanges {
       return new Map();
     }
 
-    // Verificar si las fechas tienen interval_id
-    const hasIntervalId = courseDates.some(date => date.hasOwnProperty('interval_id'));
+    // Verificar si las fechas tienen interval_id (filtrar nulls/undefined primero)
+    const hasIntervalId = courseDates.some(date => date && date.hasOwnProperty('interval_id'));
 
     if (!hasIntervalId) {
-      // Si no tienen interval_id, devolver todos en un solo grupo
+      // Si no tienen interval_id, devolver todos en un solo grupo (filtrar nulls)
       const map = new Map<number, any[]>();
-      map.set(0, [...courseDates]);
+      map.set(0, courseDates.filter(date => date != null));
       return map;
     }
 
-    // Agrupar las fechas por interval_id
+    // Agrupar las fechas por interval_id (filtrar nulls/undefined)
     const groupedDates = new Map<number, any[]>();
 
     courseDates.forEach(date => {
+      // Saltar fechas null o undefined
+      if (!date) {
+        return;
+      }
+
       const intervalId = date.interval_id || 0;
 
       if (!groupedDates.has(intervalId)) {
@@ -184,7 +189,7 @@ export class CourseDetailCardComponent implements OnChanges {
 
     groupedDates.forEach((dates, intervalId) => {
       // Si todas las fechas del intervalo tienen el mismo nombre, usarlo
-      if (dates.length > 0 && dates[0].interval_name) {
+      if (dates.length > 0 && dates[0] && dates[0].interval_name) {
         intervalNames.set(intervalId, dates[0].interval_name);
       } else {
         // De lo contrario, generar un nombre en base a las fechas
@@ -234,12 +239,19 @@ export class CourseDetailCardComponent implements OnChanges {
       return '';
     }
 
-    if (dates.length === 1) {
-      return this.formatDate(dates[0].date);
+    // Filtrar elementos nulos
+    const validDates = dates.filter(d => d != null && d.date);
+
+    if (validDates.length === 0) {
+      return '';
+    }
+
+    if (validDates.length === 1) {
+      return this.formatDate(validDates[0].date);
     }
 
     // Ordenar por fecha
-    const sortedDates = [...dates].sort((a, b) => {
+    const sortedDates = [...validDates].sort((a, b) => {
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
 

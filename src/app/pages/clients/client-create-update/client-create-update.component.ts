@@ -548,8 +548,8 @@ export class ClientCreateUpdateComponent implements OnInit {
       return [...levels];
     }
     return levels.filter(level => {
-      const min = level.age_min ?? -Infinity;
-      const max = level.age_max ?? Infinity;
+      const min = level.age_min ?? 1;
+      const max = level.age_max ?? 99;
       return age >= min && age <= max;
     });
   }
