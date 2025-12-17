@@ -547,7 +547,7 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
           (sg?.degree_id ?? sg?.degreeId) === degreeId
         );
         if (dateLevelSubgroups[i]) {
-          uniqueSubgroups.push(dateLevelSubgroups[i]);
+          uniqueSubgroups.push({ ...dateLevelSubgroups[i] });
           break;
         }
 
@@ -555,13 +555,44 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
         const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
         const subgroup = this.subgroupsOf(group || {})[i];
         if (subgroup) {
-          uniqueSubgroups.push(subgroup);
+          uniqueSubgroups.push({ ...subgroup });
           break;
         }
       }
     }
 
-    return uniqueSubgroups;
+    return this.orderSubgroupsByBookingPresence(uniqueSubgroups);
+  }
+  
+  private extractBookingUsersFromSubgroup(subgroup: any): any[] {
+    if (!subgroup) {
+      return [];
+    }
+
+    const activeBookings = this.asArray(subgroup.booking_users_active || subgroup.bookingUsersActive);
+    if (activeBookings.length) {
+      return activeBookings;
+    }
+
+    return this.asArray(subgroup.booking_users || subgroup.bookingUsers);
+  }
+
+  private orderSubgroupsByBookingPresence(subgroups: any[]): any[] {
+    if (!Array.isArray(subgroups)) {
+      return [];
+    }
+
+    const withBookings = subgroups.filter(sg => this.extractBookingUsersFromSubgroup(sg).length > 0);
+    const withoutBookings = subgroups.filter(sg => this.extractBookingUsersFromSubgroup(sg).length === 0);
+    const ordered = [...withBookings, ...withoutBookings];
+
+    ordered.forEach((subgroup, index) => {
+      if (subgroup) {
+        subgroup._index = index;
+      }
+    });
+
+    return ordered;
   }
 
   /**
@@ -699,14 +730,24 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
   getUsersForSubgroupIndexAll(bookingUsers: any, courseDates: any[], degreeId: number, index: number): any[] {
     try {
       const users = this.asArray(bookingUsers);
+      const subgroupIds = this.getSubgroupIdsForIndex(courseDates, degreeId, index);
+      if (!subgroupIds.length) {
+        return [];
+      }
 
-      // Filtrar por degree_id
-      const matchingUsers = users.filter((user: any) => {
-        const userDegreeId = user?.degree_id ?? user?.degreeId;
-        return userDegreeId === degreeId;
+      const allowedIds = new Set(subgroupIds.map(id => String(id)));
+
+      return users.filter((user: any) => {
+        const userDegreeId = this.userDegreeId(user);
+        if (userDegreeId !== degreeId) {
+          return false;
+        }
+        const userSubgroupId = this.userSubgroupId(user);
+        if (userSubgroupId == null) {
+          return false;
+        }
+        return allowedIds.has(String(userSubgroupId));
       });
-
-      return matchingUsers;
     } catch (e) {
       console.warn("getUsersForSubgroupIndexAll failed:", e);
       return [];

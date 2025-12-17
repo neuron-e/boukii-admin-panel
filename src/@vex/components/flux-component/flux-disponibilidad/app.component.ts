@@ -2096,7 +2096,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
         return '-';
       }
 
-      const aggregatedUsers = this.collectUsersForSelectedDate();
+      const subgroupIdKey = this.normalizeId(subgroup.id);
+      const aggregatedUsers = this.collectUsersForSelectedDate().filter(user =>
+        subgroupIdKey && this.normalizeId(this.getUserSubgroupId(user)) === subgroupIdKey
+      );
       const normalizedDateId = this.normalizeId(dateItem?.id);
       const dateInInterval = normalizedDateId ? this.lastIntervalDateIds.has(normalizedDateId) : false;
       const intervalMatches = this.interval_id != null
