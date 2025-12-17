@@ -63,8 +63,9 @@ export class BookingsV2Component implements OnInit, OnChanges {
 
   createComponent = BookingsCreateUpdateV2Component;
   icon = '../../../assets/img/icons/reservas.svg';
-  entity = '/bookings';
+  entity = '/admin/bookings/table';
   deleteEntity = '/bookings';
+  detailEntity = '/bookings';
   columns: TableColumn<any>[] = [
     { label: 'Id', property: 'id', type: 'id', visible: true, cssClasses: ['font-medium'] },
     { label: 'type', property: 'sport', type: 'booking_users_image', visible: true },
@@ -127,7 +128,7 @@ export class BookingsV2Component implements OnInit, OnChanges {
           'bookingUsers.bookingUserExtras.courseExtra'
         ];
 
-        const res: any = await this.crudService.get(`${this.entity}/${event.item.id}`, relations).toPromise();
+        const res: any = await this.crudService.get(`${this.detailEntity}/${event.item.id}`, relations).toPromise();
         this.detailData = res?.data || event.item;
         const displayTotal = this.resolveDisplayTotal(this.detailData);
         if (displayTotal) {

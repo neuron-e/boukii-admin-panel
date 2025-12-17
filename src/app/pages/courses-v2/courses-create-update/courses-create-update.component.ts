@@ -135,7 +135,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   private detailCardsChanges?: Subscription;
   private courseDatesChanges?: Subscription;
   private courseSyncLogId = 0;
-  debugMode = true;
+  debugMode = false;
   studentDebugMode = false;
   // Track which interval tab is active for each subgroup to avoid rendering all 12 interval tabs
   selectedIntervalIndexBySubgroup = new Map<string, number>();
@@ -393,7 +393,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     }
     const summary = this.collectSubgroupSummary();
     this.courseSyncLogId += 1;
-    this.debugLog('subgroup-sync', { stage, courseSyncLogId: this.courseSyncLogId, summary });
+    // this.debugLog('subgroup-sync', { stage, courseSyncLogId: this.courseSyncLogId, summary });
   }
 
   private logCourseDatesSnapshot(stage: string): void {
@@ -409,7 +409,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       }));
       return { index: index + 1, date: cd?.date, summary };
     });
-    this.debugLog('course-dates-snapshot', { stage, snapshot });
+    // this.debugLog('course-dates-snapshot', { stage, snapshot });
   }
 
   private logStudentDebug(event: string, payload: any): void {
@@ -990,80 +990,24 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   private intervalSubgroupKeySeed = 0;
   // Slot map to keep subgroup_dates_id stable across dates/intervals per level/subgroup index
   private subgroupDatesIdSlotMap = new Map<string, string>();
-  // Buffer de logs de depuración para exportar/inspeccionar
-  private debugLogs: Array<{ ts: string, event: string, payload?: any }> = [];
-  // Debug log buffer (persisted in window/localStorage for post-run inspection)
+
+  // SISTEMA DE DEBUG LOGS DESHABILITADO PARA REDUCIR CONSUMO DE MEMORIA
+  // Buffer de logs consumía ~500MB-1GB en memoria + localStorage
+  // Métodos convertidos a NO-OP para prevenir errores runtime (8 llamadas + window refs)
+
   private debugLog(event: string, payload?: any): void {
-    try {
-      if (typeof window === 'undefined') {
-        return;
-      }
-      const entry = { ts: new Date().toISOString(), event, payload };
-      this.debugLogs.push(entry);
-      // Enlazar a window para inspección
-      const win = window as any;
-      win.__COURSE_DEBUG_LOGS = win.__COURSE_DEBUG_LOGS || [];
-      win.__COURSE_DEBUG_LOGS.push(entry);
-      const max = 200;
-      if (win.__COURSE_DEBUG_LOGS.length > max) {
-        win.__COURSE_DEBUG_LOGS.splice(0, win.__COURSE_DEBUG_LOGS.length - max);
-      }
-      try {
-        window.localStorage?.setItem('COURSE_DEBUG_LOGS', JSON.stringify(win.__COURSE_DEBUG_LOGS));
-      } catch { /* ignore storage failures */ }
-    } catch {
-      // swallow logging errors
-    }
+    // NO-OP: Disabled to save memory (~500MB-1GB). Previously logged events to buffer.
+    return;
   }
 
-  /**
-   * Exporta los logs de depuración a un fichero descargable (JSON).
-   * Disponible también vía window.__exportCourseDebugLogs().
-   */
   private exportDebugLogsToFile(): void {
-    try {
-      const win = window as any;
-      const logs = win.__COURSE_DEBUG_LOGS || this.debugLogs || [];
-      const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `course-debug-logs-${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.warn('No se pudieron exportar los logs de depuración', e);
-    }
+    // NO-OP: Disabled to save memory. Previously exported logs to JSON file.
+    return;
   }
 
   private pushDebugLogsToBackend(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const win = window as any;
-    const logs = win.__COURSE_DEBUG_LOGS || this.debugLogs || [];
-    if (!Array.isArray(logs) || logs.length === 0) {
-      this.debugLog('pushDebugLogsToBackend:empty');
-      return;
-    }
-
-    const payload = {
-      logs,
-      meta: {
-        courseId: this.id || this.courses.courseFormGroup?.get('id')?.value || null,
-        url: win.location?.href || null
-      }
-    };
-
-    this.debugLog('pushDebugLogsToBackend:attempt', { count: logs.length });
-    this.crudService.create('/admin/frontend/logs', payload)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => this.debugLog('pushDebugLogsToBackend:success', { count: logs.length }),
-        error: (err) => console.warn('pushDebugLogsToBackend failed', err)
-      });
+    // NO-OP: Disabled to save memory. Previously sent logs to backend API.
+    return;
   }
 
   get canConfigureIntervalGroups(): boolean {
@@ -2735,16 +2679,16 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     const isFlexible = this.courses?.courseFormGroup?.controls?.['is_flexible']?.value;
     const forceSimple = courseType === 1 && !isFlexible;
 
-    this.debugLog('removeSubgroup:entry', {
-      levelId: level?.id ?? level?.degree_id,
-      subgroupIdx,
-      hasIntervals,
-      configureLevelsByInterval: this.configureLevelsByInterval,
-      useMultipleIntervals: this.useMultipleIntervals,
-      courseType,
-      isFlexible,
-      forceSimple
-    });
+    // this.debugLog('removeSubgroup:entry', {
+    //   levelId: level?.id ?? level?.degree_id,
+    //   subgroupIdx,
+    //   hasIntervals,
+    //   configureLevelsByInterval: this.configureLevelsByInterval,
+    //   useMultipleIntervals: this.useMultipleIntervals,
+    //   courseType,
+    //   isFlexible,
+    //   forceSimple
+    // });
     this.pushDebugLogsToBackend();
 
     // Sin intervalos: eliminar directamente en modo simple
@@ -4686,8 +4630,6 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     // FIX: Actualizar datos desde course_dates SIEMPRE (no solo en primera carga)
     // Tomar valores del PRIMER grupo encontrado (no sobreescribir con grupos subsecuentes)
-    console.log('[getDegrees] courseDatesFromForm:', courseDatesFromForm);
-    console.log('[getDegrees] courseDatesFromForm.length:', courseDatesFromForm.length);
 
     const firstDetailGroups = this.getFirstCourseDateGroupsFromDetail();
     const levelIdsWithDetailAges = new Set<number | string>();
@@ -4743,22 +4685,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
         outerLoop:
         for (const cs of courseDatesFromForm) {
-          console.log(`[getDegrees] Checking courseDate for level ${levelId}:`, cs);
-          console.log(`[getDegrees] cs.course_groups:`, cs.course_groups);
-
           const groupsArray = cs.course_groups
             ? (Array.isArray(cs.course_groups) ? cs.course_groups : Object.values(cs.course_groups))
             : [];
 
-          console.log(`[getDegrees] groupsArray for level ${levelId}:`, groupsArray);
-
           for (const group of groupsArray) {
-            console.log(`[getDegrees] Checking group degree_id=${group?.degree_id ?? group?.id ?? group?.degreeId} against level id=${levelId}`);
-
             if (group && (group.degree_id ?? group.id ?? group.degreeId) === levelId) {
-              console.log(`[getDegrees] MATCH! group:`, group);
-              console.log(`[getDegrees] group.age_min=${group.age_min}, group.age_max=${group.age_max}`);
-              console.log(`[getDegrees] group keys:`, Object.keys(group));
 
               const resolvedAgeMin =
                 this.getSavedAgeFromGroup(group, 'age_min') ??
@@ -4776,16 +4708,10 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
               if (hasAges) {
                 if (resolvedAgeMin != null) {
                   level.age_min = resolvedAgeMin;
-                  console.log(`[getDegrees] Setting level ${levelId} age_min to ${resolvedAgeMin} from group`);
-                } else {
-                  console.log(`[getDegrees] resolved age_min is null/undefined, not setting`);
                 }
 
                 if (resolvedAgeMax != null) {
                   level.age_max = resolvedAgeMax;
-                  console.log(`[getDegrees] Setting level ${levelId} age_max to ${resolvedAgeMax} from group`);
-                } else {
-                  console.log(`[getDegrees] resolved age_max is null/undefined, not setting`);
                 }
 
                 this.applySavedGroupToLevel(level, group);
@@ -4797,32 +4723,18 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         }
 
         if (!matchedAges && fallbackCandidate) {
-          console.log(`[getDegrees] Applying fallback group for level ${levelId} after no saved ages were found`);
           if (fallbackCandidate.resolvedAgeMin != null) {
             level.age_min = fallbackCandidate.resolvedAgeMin;
-            console.log(`[getDegrees] Setting level ${levelId} age_min to ${fallbackCandidate.resolvedAgeMin} from fallback group`);
-          } else {
-            console.log(`[getDegrees] resolved age_min is null/undefined, not setting`);
           }
 
           if (fallbackCandidate.resolvedAgeMax != null) {
             level.age_max = fallbackCandidate.resolvedAgeMax;
-            console.log(`[getDegrees] Setting level ${levelId} age_max to ${fallbackCandidate.resolvedAgeMax} from fallback group`);
-          } else {
-            console.log(`[getDegrees] resolved age_max is null/undefined, not setting`);
           }
 
           this.applySavedGroupToLevel(level, fallbackCandidate.group);
         }
       });
     }
-
-    console.log('[getDegrees] Final levelGrop:', levelGrop.map((l: any) => ({
-      id: l.id,
-      name: l.level,
-      age_min: l.age_min,
-      age_max: l.age_max
-    })));
 
     // Ordenar: activos primero
     levelGrop.sort((a: any) => (a.active ? -1 : 1));
@@ -5653,16 +5565,16 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       }
     }
 
-    this.debugLog('addLevelSubgroup:entry', {
-      levelId,
-      j,
-      add,
-      configureLevelsByInterval: this.configureLevelsByInterval,
-      useMultipleIntervals: this.useMultipleIntervals,
-      courseType,
-      isFlexible,
-      forceSimple
-    });
+    // this.debugLog('addLevelSubgroup:entry', {
+    //   levelId,
+    //   j,
+    //   add,
+    //   configureLevelsByInterval: this.configureLevelsByInterval,
+    //   useMultipleIntervals: this.useMultipleIntervals,
+    //   courseType,
+    //   isFlexible,
+    //   forceSimple
+    // });
     this.pushDebugLogsToBackend();
     if (!levelId) {
       return;
@@ -5689,12 +5601,12 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       return;
     }
 
-    this.debugLog('addLevelSubgroup:start', {
-      levelId: level?.id ?? level?.degree_id,
-      add,
-      j,
-      courseDatesLen: this.courses.courseFormGroup.controls['course_dates']?.value?.length || 0
-    });
+    // this.debugLog('addLevelSubgroup:start', {
+    //   levelId: level?.id ?? level?.degree_id,
+    //   add,
+    //   j,
+    //   courseDatesLen: this.courses.courseFormGroup.controls['course_dates']?.value?.length || 0
+    // });
 
     const course_dates = this.courses.courseFormGroup.controls['course_dates'].value.map((course: any) => {
       const intervalKey = this.getIntervalKeyForDate(course) || 'default';
@@ -5824,7 +5736,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       event.stopPropagation();
     }
     const count = this.getAllUniqueSubgroupsForLevel(level)?.length || 0;
-    this.debugLog('inlineAddSubgroup:click', { levelId: level?.id ?? level?.degree_id, currentCount: count, hasIntervals: this.useMultipleIntervals, configureLevelsByInterval: this.configureLevelsByInterval });
+    // this.debugLog('inlineAddSubgroup:click', { levelId: level?.id ?? level?.degree_id, currentCount: count, hasIntervals: this.useMultipleIntervals, configureLevelsByInterval: this.configureLevelsByInterval });
     this.pushDebugLogsToBackend();
     this.addLevelSubgroup(level, count, true);
     this.refreshPreviewSubgroupCache();
@@ -6171,13 +6083,13 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           }))
         }))
       }));
-      this.debugLog('payload:course_dates', { course_dates: summary });
+      // this.debugLog('payload:course_dates', { course_dates: summary });
       this.pushDebugLogsToBackend();
     } catch (e) {
       console.warn('Failed to log payload summary', e);
     }
 
-    this.debugLog('endCourse:pushLogs');
+    // this.debugLog('endCourse:pushLogs');
     this.pushDebugLogsToBackend();
 
     const courseFormGroup = this.courses.courseFormGroup.getRawValue()
@@ -6331,7 +6243,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             }))
           }))
         }));
-        this.debugLog('update:submit', { course_id: courseFormGroup.id ?? this.id ?? null, course_dates: compactDates });
+        // this.debugLog('update:submit', { course_id: courseFormGroup.id ?? this.id ?? null, course_dates: compactDates });
         this.pushDebugLogsToBackend();
       } catch (e) {
         console.warn('Failed to log update submit payload', e);
@@ -6401,7 +6313,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           .pipe(
             catchError((error:any) => {
               console.error("Error al actualizar el curso:", error);
-              this.debugLog('update:error', { course_id: courseFormGroup.id ?? this.id ?? null, message: error?.message, status: error?.status });
+              // this.debugLog('update:error', { course_id: courseFormGroup.id ?? this.id ?? null, message: error?.message, status: error?.status });
               this.pushDebugLogsToBackend();
               this.showErrorMessage("Hubo un problema al actualizar el curso. Int+®ntalo de nuevo.");
               return throwError(() => error);
@@ -6416,7 +6328,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           .pipe(takeUntil(this.destroy$))
           .subscribe((data) => {
           if (data.success) {
-            this.debugLog('update:success', { course_id: data?.data?.id ?? this.id ?? null, message: data?.message });
+            // this.debugLog('update:success', { course_id: data?.data?.id ?? this.id ?? null, message: data?.message });
             this.pushDebugLogsToBackend();
             // FIX B.3: Mostrar toast de confirmación
             this.snackBar.open(this.translateService.instant('course_updated_successfully'), this.translateService.instant('close'), {
@@ -6425,7 +6337,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             });
             this.router.navigate(["/courses/detail/" + data.data.id]);
           } else {
-            this.debugLog('update:response-not-success', { course_id: this.id ?? courseFormGroup.id ?? null, message: data?.message });
+            // this.debugLog('update:response-not-success', { course_id: this.id ?? courseFormGroup.id ?? null, message: data?.message });
             this.pushDebugLogsToBackend();
             this.showErrorMessage(data.message || "No se pudo actualizar el curso.");
           }
@@ -6868,7 +6780,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         }
         // Persist in slot map for later dates (override duplicates to enforce per-slot uniqueness)
         this.subgroupDatesIdSlotMap.set(slotKey, subgroupId);
-        this.debugLog('ensureSubgroupDatesIdsForGroups:subgroupId', { intervalKey, levelId, slotKey, subgroupId });
+        // this.debugLog('ensureSubgroupDatesIdsForGroups:subgroupId', { intervalKey, levelId, slotKey, subgroupId });
         return {
           ...sg,
           subgroup_dates_id: subgroupId
