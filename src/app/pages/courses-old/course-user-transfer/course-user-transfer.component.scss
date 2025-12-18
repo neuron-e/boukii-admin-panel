@@ -1,57 +1,166 @@
-.container {
+.transfer-form {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0;
 }
 
-.column {
-  /* each column takes up 50% of the container width */
-  padding: 16px;
+.transfer-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding-top: 16px;
 }
 
-.left-column {
-  flex: 0 0 40%;
-  /* styles for the left column */
+.transfer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.right-column {
-  flex: 0 0 60%;
-  /* styles for the right column */
-}
-
-.students-list mat-checkbox {
-  display: block; /* make checkboxes appear in a column */
-}
-
-.action-buttons button {
-  margin-right: 8px;
-}
-
-.list-group {
-  width: 100%;
-  padding: 0;
+.students-column h3,
+.subgroups-column h3 {
   margin: 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.list-item {
+.select-all-checkbox {
+  margin-left: 0;
+  font-weight: 500;
+}
+
+.students-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.student-checkbox {
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid var(--color-grey2);
+  background: var(--color-grey0);
+}
+
+.student-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.student-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-grey5);
+  flex-shrink: 0;
+}
+
+.student-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.student-details {
+  flex: 1;
+}
+
+.student-name {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.student-meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-grey1);
+}
+
+.subgroup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subgroup-card {
+  width: 100%;
+  border: 1px solid var(--color-grey2);
+  border-radius: 12px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px;
+  background: white;
 }
 
-.item-count {
-  margin-left: auto;
+.subgroup-card.mat-radio-checked {
+  border-color: var(--color-primary);
+  background: rgba(17, 82, 212, 0.08);
 }
 
-.confirm-button {
+.subgroup-card__header {
   display: flex;
-  justify-content: right;
-  padding: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
 }
 
-button.mat-raised-button {
-  background-color: #ec407a; /* Pink color for the button */
-  color: white;
+.subgroup-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
 }
 
-/* You might need to adjust the color codes to match your exact design */
+.subgroup-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-grey2);
+}
+
+.capacity-pill {
+  font-weight: 600;
+  color: var(--color-dark2);
+}
+
+.current-tag {
+  font-size: 11px;
+  background: var(--color-grey4);
+  color: var(--color-dark2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+
+.transfer-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.transfer-actions {
+  margin-top: 16px;
+  padding-bottom: 0;
+}
+
+.empty-hint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--color-grey1);
+}
+
+@media (max-width: 960px) {
+  .transfer-content {
+    grid-template-columns: 1fr;
+  }
+}

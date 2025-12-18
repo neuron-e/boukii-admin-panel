@@ -8268,6 +8268,9 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     subgroup.monitor_modified = true;
     this.courses.courseFormGroup.patchValue({ course_dates })
   }
+  onFluxTransfer(): void {
+    this.loadCourseData();
+  }
   async deleteCourseDate(i: number) {
     const courseDates = this.courses.courseFormGroup.controls['course_dates'].value;
     const courseDate = courseDates[i];

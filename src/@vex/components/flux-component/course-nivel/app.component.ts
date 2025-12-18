@@ -18,6 +18,7 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
   @Input() hideTimingButton: boolean = false;
   @Input() expandByDefault: boolean = false; // Expand all levels by default (for sidebar view)
   @Input() subgroupCache: Record<string, any[]> = {};
+  @Input() simplifiedView: boolean = false;
   @Output() changeMonitor = new EventEmitter<any>()
   @Output() viewTimes = new EventEmitter<{ subGroup: any, groupLevel: any, selectedDate?: any }>()
 
@@ -136,6 +137,14 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
   private normId(v: any): number | null {
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
+  }
+
+  private normalizeId(value: any): string | null {
+    if (value === undefined || value === null) {
+      return null;
+    }
+    const normalized = String(value).trim();
+    return normalized === '' ? null : normalized;
   }
 
   private userCourseDateId(u: any): number | null {
@@ -515,14 +524,48 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
   getAllUniqueSubgroupsForDegree(courseDates: any[], degreeId: number): any[] {
     if (!Array.isArray(courseDates)) return [];
 
+    const computed = this.computeUniqueSubgroupsFromDates(courseDates, degreeId);
     const cached = this.getCachedSubgroupsForDegree(degreeId);
-    if (cached && cached.length > 0) {
-      return cached;
+    if (!cached || !cached.length) {
+      return computed;
     }
 
-    // Try both structures: cd.course_subgroups (new) and course_groups.course_subgroups (old)
+    const computedMap = new Map<string, any>();
+    computed.forEach((subgroup) => {
+      const key = this.normalizeId(subgroup?.id);
+      if (key) {
+        computedMap.set(key, subgroup);
+      }
+    });
+
+    const merged: any[] = [];
+    cached.forEach((cacheEntry, idx) => {
+      const key = this.normalizeId(cacheEntry?.id);
+      const actual = key ? computedMap.get(key) : null;
+      const base = actual ?? cacheEntry;
+      const mergedEntry = {
+        ...base,
+        ...(cacheEntry ?? {}),
+        _index: idx
+      };
+      merged.push(mergedEntry);
+    });
+
+    computed.forEach((subgroup) => {
+      const key = this.normalizeId(subgroup?.id);
+      const alreadyPresent = merged.some(
+        (entry) => this.normalizeId(entry?.id) === key && key !== null
+      );
+      if (!alreadyPresent) {
+        merged.push(subgroup);
+      }
+    });
+
+    return merged;
+  }
+
+  private computeUniqueSubgroupsFromDates(courseDates: any[], degreeId: number): any[] {
     const maxSubgroupsCount = Math.max(...courseDates.map(cd => {
-      // Try new structure first: course_subgroups at date level
       const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
       const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
         (sg?.degree_id ?? sg?.degreeId) === degreeId
@@ -530,18 +573,13 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
       if (dateLevelSubgroups.length > 0) {
         return dateLevelSubgroups.length;
       }
-
-      // Fallback to old structure: course_subgroups inside course_groups
       const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
       return this.subgroupsOf(group || {}).length;
     }), 0);
 
-    // Crear un array con el número máximo de subgrupos encontrados
     const uniqueSubgroups: any[] = [];
     for (let i = 0; i < maxSubgroupsCount; i++) {
-      // Buscar el primer subgrupo en este índice que tenga datos
       for (const cd of courseDates) {
-        // Try new structure first
         const dateSubgroups = cd?.course_subgroups || cd?.courseSubgroups || [];
         const dateLevelSubgroups = dateSubgroups.filter((sg: any) =>
           (sg?.degree_id ?? sg?.degreeId) === degreeId
@@ -550,8 +588,6 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
           uniqueSubgroups.push({ ...dateLevelSubgroups[i] });
           break;
         }
-
-        // Fallback to old structure
         const group = this.groupsOf(cd).find((g: any) => this.degreeIdOf(g) === degreeId);
         const subgroup = this.subgroupsOf(group || {})[i];
         if (subgroup) {
@@ -763,6 +799,63 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
       if (sg?.max_participants != null) return sg.max_participants;
     }
     return fallback ?? 0;
+  }
+
+  getSubgroupDateIds(levelId: number, subgroupIndex: number): number[] {
+    if (levelId == null) return [];
+    const dates = this.getCourseDatesForSubgroupIndex(this.courseDates, levelId, subgroupIndex);
+    return dates
+      .map(date => this.normId(date?.id))
+      .filter((id): id is number => id != null)
+      .map(id => Number(id))
+      .filter(id => !Number.isNaN(id));
+  }
+
+  getUserInSubGroup(subgroup: any): number {
+    const subgroupId = this.normId(subgroup?.id);
+    if (subgroupId == null) {
+      return 0;
+    }
+
+    const bookingUsers = this.asArray(this.courseFormGroup?.controls?.['booking_users']?.value);
+    const uniqueClientIds = new Set<number | string>();
+
+    for (const user of bookingUsers) {
+      if (!user) continue;
+      if (Number(user?.status) === 2) continue;
+
+      const userSubgroupId = this.normId(
+        user?.course_subgroup_id ??
+        user?.course_sub_group_id ??
+        user?.course_sub_group?.id ??
+        user?.courseSubGroupId ??
+        user?.courseSubGroup?.id
+      );
+
+      if (userSubgroupId !== subgroupId) {
+        continue;
+      }
+
+      const clientId = user?.client_id ?? user?.client?.id ?? user?.id;
+      if (clientId != null) {
+        uniqueClientIds.add(clientId);
+      }
+    }
+
+    return uniqueClientIds.size;
+  }
+
+  isDefaultSubgroup(subgroup: any): boolean {
+    if (!subgroup) {
+      return false;
+    }
+    const targetId = this.normId(subgroup?.id);
+    const currentId = this.normId(
+      this.selectedSubgroup?.id ??
+      this.selectedSubgroup?.course_subgroup_id ??
+      this.selectedSubgroup?.courseSubgroupId
+    );
+    return targetId != null && currentId != null && targetId === currentId;
   }
 
   /**

@@ -15,6 +15,8 @@ import { MonitorAssignmentLoadingDialogComponent } from 'src/app/shared/dialogs/
 import { MonitorAssignmentSyncService, MonitorAssignmentSyncEvent } from 'src/app/shared/services/monitor-assignment-sync.service';
 import { MonitorAssignmentHelperService, MonitorAssignmentSlot } from 'src/app/shared/services/monitor-assignment-helper.service';
 import { AvailabilitySharedCacheService, AvailabilityPayload } from 'src/app/shared/services/availability-shared-cache.service';
+import moment from 'moment';
+import { CourseUserTransferTimelineComponent } from 'src/app/pages/timeline/course-user-transfer-timeline/course-user-transfer-timeline.component';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -24,7 +26,6 @@ import { Subscription } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges {
-  cambiarModal: boolean = false
   @Input() mode: 'create' | 'update' = "create"
   @Input() courseFormGroup!: UntypedFormGroup
   @Input() level!: any
@@ -61,6 +62,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
 
   @Output() monitorSelect = new EventEmitter<any>()
   @Output() viewTimes = new EventEmitter<any>()
+  @Output() transferPerformed = new EventEmitter<void>()
 
   modified: any[] = []
   modified2: any[] = []
@@ -1350,61 +1352,66 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
   ngOnDestroy(): void {
     this.syncSub?.unsubscribe();
   }
-  changeMonitor(event: any) {
-    const subIndex = event.date[0].course_subgroups.findIndex((a: any) => a.id === event.subgroup.id)
-    for (const [index, date] of event.date.entries()) {
-      if (date.course_subgroups[subIndex]?.id) {
-        for (const selectedUser of this.selectUser) {
-          const userToModify = this.courseFormGroup.controls['booking_users'].value.filter((user: any) => user.client.id === selectedUser.client.id && user.course_date_id === date.id);
-          if (userToModify.length > 0) {
-            for (const user of userToModify) {
-              const data = {
-                initialSubgroupId: user.course_subgroup_id,
-                targetSubgroupId: date.course_subgroups[subIndex].id,
-                clientIds: this.selectUser.map((a: any) => a.client_id),
-                moveAllDays: true
-              }
-              this.crudService.post('/clients/transfer', data).subscribe(() => {
-                user.course_group_id = date.course_subgroups[subIndex].course_group_id;
-                user.course_subgroup_id = date.course_subgroups[subIndex].id;
-                user.degree_id = date.course_subgroups[subIndex].degree_id;
-                user.monitor_id = date.course_subgroups[subIndex].monitor_id;
-                const course_groupsIndex = this.courseFormGroup.controls['course_dates'].value[index].course_groups.findIndex((a: any) => a.id === user.course_group_id)
-                const course_subgroupsIndex = this.courseFormGroup.controls['course_dates'].value[index].course_groups[course_groupsIndex].course_subgroups.findIndex((a: any) => a.id === user.course_subgroup_id)
-                this.courseFormGroup.controls['course_dates'].value[index].course_groups[course_groupsIndex].course_subgroups[course_subgroupsIndex].booking_users.push(user)
-              })
-            }
-          }
-        }
-      } else {
-        this.snackbar.open(
-          this.translateService.instant("user_transfer_not_allowed"), "OK",
-          //{ duration: 2000 }
-        );
-      }
+  openTransferDialog(): void {
+    const courseId = this.courseFormGroup?.controls['id']?.value ?? null;
+    const courseDates = this.getCourseDates();
+    if (!courseId || !courseDates.length) {
+      return;
     }
-    this.invalidateDatesCache();
-    this.cambiarModal = false
+
+    const safeIndex = Math.min(Math.max(this.selectDate, 0), courseDates.length - 1);
+    const selectedDate = courseDates[safeIndex];
+    const cachedSubgroup = this.getCachedSubgroupByIndex(this.subgroup_index);
+    const fallbackSubgroup = cachedSubgroup ?? this.group?.course_subgroups?.[this.subgroup_index];
+    const currentSubgroup = this.getSubgroupForDate(selectedDate) ?? fallbackSubgroup;
+    const normalizedSubgroupId = this.normalizeId(currentSubgroup?.id ?? fallbackSubgroup?.id ?? null);
+    if (!normalizedSubgroupId) {
+      return;
+    }
+
+    const initialSubgroupId = Number(normalizedSubgroupId);
+    if (!Number.isFinite(initialSubgroupId)) {
+      return;
+    }
+
+    const currentStudents = this.getFilteredBookingUsers();
+    const rawLevelGroup = this.courseFormGroup?.controls?.['levelGrop']?.value || [];
+    const levelGroupList = Array.isArray(rawLevelGroup) ? rawLevelGroup : [];
+    const degrees = levelGroupList.length > 0 ? levelGroupList : [this.level].filter(level => !!level);
+
+    const dialogRef = this.dialog.open(CourseUserTransferTimelineComponent, {
+      width: '920px',
+      maxHeight: '80vh',
+      panelClass: 'course-user-transfer-dialog',
+      backdropClass: 'course-user-transfer-backdrop',
+      disableClose: true,
+      data: {
+        id: courseId,
+        degree: this.level,
+        degrees,
+        subgroup: initialSubgroupId,
+        subgroupNumber: (this.subgroup_index ?? 0) + 1,
+        currentDate: moment(selectedDate?.date),
+        currentStudents
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        this.selectUser = [];
+        this.modified2 = [];
+        this.invalidateDatesCache();
+        this.loadAvailabilityForIndex(this.selectDate, true);
+        this.notifyTransferSync();
+        this.transferPerformed.emit();
+      }
+    });
   }
 
   onCheckboxChange(event: any, item: any): void {
     if (event.checked) this.selectUser.push(item);
     else this.selectUser = this.selectUser.filter((selectedItem: any) => selectedItem !== item);
     this.modified2[item.id] = true
-  }
-
-  openTransferModal(){
-    // Obtener el subgrupo de la fecha seleccionada actual
-    const courseDates = this.getCourseDates();
-    const selectedDate = courseDates[this.selectDate];
-    this.selectedSubgroup = this.getSubgroupForDate(selectedDate);
-
-    // Fallback al método anterior si no encontramos el subgrupo
-    if (!this.selectedSubgroup) {
-      this.selectedSubgroup = this.group?.course_subgroups?.[this.subgroup_index];
-    }
-
-    this.cambiarModal = true;
   }
 
   Date = (v: string): Date => new Date(v)
@@ -2185,6 +2192,57 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     return null;
   }
 
+  private findSubgroupInDate(date: any, subgroupId: string | null): any | null {
+    if (!date || !subgroupId) {
+      return null;
+    }
+
+    const dateLevelSubgroups = this.toArray(date?.course_subgroups || date?.courseSubgroups);
+    const directMatch = dateLevelSubgroups.find((sg: any) => this.normalizeId(sg?.id) === subgroupId);
+    if (directMatch) {
+      return directMatch;
+    }
+
+    const groups = this.toArray(date?.course_groups || date?.courseGroups);
+    for (const group of groups) {
+      const groupSubgroups = this.toArray(group?.course_subgroups || group?.courseSubgroups);
+      const match = groupSubgroups.find((sg: any) => this.normalizeId(sg?.id) === subgroupId);
+      if (match) {
+        if (!match.course_group_id) {
+          match.course_group_id = group?.id ?? match.course_group_id;
+        }
+        if (!match.degree_id) {
+          match.degree_id = match.degree_id ?? group?.degree_id ?? group?.degreeId;
+        }
+        return match;
+      }
+    }
+
+    return null;
+  }
+
+  private findSubgroupById(subgroupId: string | null): any | null {
+    if (!subgroupId) {
+      return null;
+    }
+
+    const courseDates = this.getCourseDates();
+    for (const date of courseDates) {
+      const found = this.findSubgroupInDate(date, subgroupId);
+      if (found) {
+        return found;
+      }
+    }
+
+    const fallback = this.toArray(this.group?.course_subgroups || this.group?.courseSubgroups)
+      .find((sg: any) => this.normalizeId(sg?.id) === subgroupId);
+    if (fallback) {
+      return fallback;
+    }
+
+    return null;
+  }
+
   private getSubgroupIdsAcrossDates(): Set<number> {
     const ids = new Set<number>();
     const courseDates = this.getCourseDates();
@@ -2210,6 +2268,15 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     } catch (error) {
       console.warn('Unable to refresh availability after external update', error);
     }
+  }
+
+  private notifyTransferSync(): void {
+    const courseId = this.courseFormGroup?.controls?.['id']?.value ?? null;
+    this.assignmentSync.broadcastChange({
+      sourceId: this.componentInstanceId,
+      courseId,
+      slotKeys: [`transfer-${courseId ?? 'unknown'}`]
+    });
   }
 
   // TrackBy functions for *ngFor optimization

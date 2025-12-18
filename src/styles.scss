@@ -948,3 +948,17 @@ vex-flux-modal[ng-reflect-title*="payment"] {
 .mobile-dialog .cdk-overlay-pane {
   z-index: 1350 !important;
 }
+
+.cdk-overlay-pane.course-user-transfer-dialog {
+  z-index: 2200 !important;
+}
+.cdk-overlay-pane.course-user-transfer-dialog .mat-dialog-container {
+  width: min(95vw, 900px);
+  max-height: 92vh;
+  padding: 0;
+  overflow: hidden;
+}
+.cdk-overlay-pane.course-user-transfer-dialog .mat-dialog-content.container {
+  max-height: 70vh;
+  overflow: auto;
+}

@@ -743,30 +743,32 @@
                         <!-- Lazy load tab content: only render flux-disponibilidad when this tab is active -->
                         <ng-container *ngIf="getSelectedIntervalIndexForSubgroup(level, uniqueSubgroup._index) === intervalIdx">
                          <vex-flux-disponibilidad
-                            [courseFormGroup]="courses.courseFormGroup"
-                            [level]="level"
-                            [group]="getGroupForLevel(level)"
-                            [subgroup_index]="uniqueSubgroup._index"
-                            [interval_id]="interval.id"
-                            [subgroupCache]="previewSubgroupCache"
-                            (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
-                            (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                         [courseFormGroup]="courses.courseFormGroup"
+                         [level]="level"
+                         [group]="getGroupForLevel(level)"
+                         [subgroup_index]="uniqueSubgroup._index"
+                         [interval_id]="interval.id"
+                         [subgroupCache]="previewSubgroupCache"
+                         (transferPerformed)="onFluxTransfer()"
+                         (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
+                         (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
                           </vex-flux-disponibilidad>
                         </ng-container>
                       </mat-tab>
                     </mat-tab-group>
 
                     <!-- Si solo hay un intervalo o ninguno para este subgrupo, mostrar directo -->
-                     <vex-flux-disponibilidad
-                       *ngIf="getSubgroupIntervals(level, uniqueSubgroup._index).length <= 1"
-                       [courseFormGroup]="courses.courseFormGroup"
-                       [level]="level"
-                       [group]="getGroupForLevel(level)"
-                       [subgroup_index]="uniqueSubgroup._index"
-                       [interval_id]="getSubgroupIntervals(level, uniqueSubgroup._index)[0]?.id"
-                       [subgroupCache]="previewSubgroupCache"
-                       (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
-                       (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
+                       <vex-flux-disponibilidad
+                         *ngIf="getSubgroupIntervals(level, uniqueSubgroup._index).length <= 1"
+                         [courseFormGroup]="courses.courseFormGroup"
+                         [level]="level"
+                         [group]="getGroupForLevel(level)"
+                         [subgroup_index]="uniqueSubgroup._index"
+                         [interval_id]="getSubgroupIntervals(level, uniqueSubgroup._index)[0]?.id"
+                         [subgroupCache]="previewSubgroupCache"
+                         (transferPerformed)="onFluxTransfer()"
+                         (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
+                         (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
                      </vex-flux-disponibilidad>
                   </ng-container>
                 </ng-container>
@@ -1208,6 +1210,7 @@
                               [subgroup_index]="uniqueSubgroup._index"
                               [interval_id]="interval.id"
                               [subgroupCache]="previewSubgroupCache"
+                              (transferPerformed)="onFluxTransfer()"
                               (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
                               (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
                             </vex-flux-disponibilidad>
@@ -1225,6 +1228,7 @@
                         [subgroup_index]="uniqueSubgroup._index"
                         [interval_id]="getSubgroupIntervals(level, uniqueSubgroup._index)[0]?.id"
                         [subgroupCache]="previewSubgroupCache"
+                        (transferPerformed)="onFluxTransfer()"
                         (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
                         (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
                       </vex-flux-disponibilidad>
@@ -1314,6 +1318,7 @@
                     [level]="level"
                     [group]="getGroupForLevel(level)"
                     [subgroup_index]="uniqueSubgroup._index"
+                    (transferPerformed)="onFluxTransfer()"
                     (monitorSelect)="monitorSelect($event,level,uniqueSubgroup._index)"
                     (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)">
                   </vex-flux-disponibilidad>

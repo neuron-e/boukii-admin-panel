@@ -277,17 +277,15 @@ export class CourseDetailModalComponent implements OnInit {
 
   openUserTransfer(group, subgroup, subgroupNumber) {
     const dialogRef = this.dialog.open(CourseUserTransferComponent, {
-      width: '800px',
-      height: '800px',
-      maxWidth: '100vw',  // Asegurarse de que no haya un ancho máximo
-      panelClass: 'full-screen-dialog',  // Si necesitas estilos adicionales
+      width: '820px',
+      height: '820px',
+      maxWidth: '95vw',
+      panelClass: 'course-user-transfer-dialog',
+      backdropClass: 'course-user-transfer-backdrop',
       data: {group: group, subgroup: subgroup, colorKeys: this.colorKeys, groupedByColor: this.groupedByColor, id: this.id, subgroupNumber: subgroupNumber, currentDate: this.subGroupSelectedItemDate}
     });
 
-    dialogRef.afterClosed().subscribe((data: any) => {
-      if (data) {
-
-      }
+    dialogRef.afterClosed().subscribe(() => {
       this.reset();
       this.getData();
     });

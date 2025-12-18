@@ -20,6 +20,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { ConfirmModalModule } from 'src/app/pages/monitors/monitor-detail/confirm-dialog/confirm-dialog.component.module';
 import { MonitorAssignmentDialogModule } from 'src/app/pages/timeline/monitor-assignment-dialog/monitor-assignment-dialog.module';
 import { MonitorPartialAvailabilityDialogModule } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-partial-availability-dialog.module';
+import { CourseUserTransferTimelineModalModule } from 'src/app/pages/timeline/course-user-transfer-timeline/course-user-transfer-timeline.module';
 
 @NgModule({
   declarations: [FluxDisponibilidadComponent],
@@ -34,6 +35,7 @@ import { MonitorPartialAvailabilityDialogModule } from 'src/app/shared/dialogs/m
     MatInputModule, FluxModalModule, MatCheckboxModule, CoursesDetailCardNivelModule, MatButtonModule,
     MatTooltipModule, ComponenteSelectModule,
     MatDialogModule,
+    CourseUserTransferTimelineModalModule,
     ConfirmModalModule,
     MonitorAssignmentDialogModule,
     MonitorPartialAvailabilityDialogModule

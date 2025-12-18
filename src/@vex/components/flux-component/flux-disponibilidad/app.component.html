@@ -103,7 +103,7 @@
                   [matTooltip]="hasStudents() ? ('timing.view_times' | translate) : ('no_user_reserved' | translate)">
                   <mat-icon class="small-16">schedule</mat-icon>
                 </button>
-                <img (click)="openTransferModal()"
+                <img (click)="openTransferDialog()"
                      src="assets/icons/icon/exc.png"
                      class="icon24"
                      style="cursor: pointer;">
@@ -194,62 +194,3 @@
 			</tr>
 		</tbody>
 	</table>
-</div>
-<vex-flux-modal *ngIf="cambiarModal" (Close)="cambiarModal=false" title="Cambiar nivel alumno">
-	<div body style="display: flex;flex-wrap: nowrap; max-height: 70vh; overflow: hidden;">
-		<div style="width: 50%; display: flex; overflow-y: auto; max-height: 70vh; padding-right: 8px;">
-			<div style="display: flex;
-            flex-direction: column;
-            gap: 16px; width: 100%;">
-				<div class="flexicon">
-					<img src="assets/icons/icon/alumno.png" class="icon24">
-					{{"students" | translate}}
-				</div>
-				<mat-checkbox *ngFor="let item of selectedSubgroup?.booking_users; let i = index" [checked]="selectUser.includes(item)"
-					(change)="onCheckboxChange($event, item)" style="display: flex;">
-					<div style="display: flex; gap: 20px;">
-						<div>
-							<img [src]="item.client.image" style="height: 40px;height: 40px;">
-						</div>
-						<div>
-							<div class="flexicon" style="font-size: 12px;font-weight: 600;">
-								{{item.client.first_name}} {{item.client.last_name}}
-							</div>
-							<span style="font-size: 12px;">
-								{{getLanguage(item.client.language1_id)}}
-								· {{getCountry(item.client.country)}} ·
-								{{calculateAge(item.client.birth_date)}} {{'years' | translate }}
-							</span>
-						</div>
-					</div>
-				</mat-checkbox>
-				<div *ngIf="selectedSubgroup?.booking_users?.length===0" style="text-align-last: start;">
-					<div class="flexicon" style="font-size: 12px;font-weight: 600;">
-						{{"no_user_reserved" | translate}}
-					</div>
-				</div>
-			</div>
-		</div>
-		<div style="width: 50%; overflow-y: auto; max-height: 70vh; padding-left: 8px;">
-			<div class="flexicon" style="margin-bottom: 16px;">
-				<img src="assets/icons/icon/alumno.png" class="icon24">
-				{{'level' | translate}}
-			</div>
-			<vex-course-detail-nivel [checkbox]="true" [courseFormGroup]="courseFormGroup"  [selectedSubgroup]="selectedSubgroup"
-				(changeMonitor)="changeMonitor($event)"></vex-course-detail-nivel>
-		</div>
-	</div>
-	<div footer style="display: flex;width: 100%;padding: 20px 20px 0;">
-		<button (click)="cambiarModal=false"
-			style="margin-top: 0px !important;height: 38px; width: 128px;margin-left: auto;" mat-button type="button">
-			{{'cancel' | translate }}
-		</button>
-		<!-- <button (click)="cambiarModal=false"
-			style="margin-top: 0px !important;height: 38px; width: 128px;margin-left: 20px;"
-			color="primary"
-			mat-raised-button
-			type="button">
-			{{'save' | translate }}
-		</button> -->
-	</div>
-</vex-flux-modal>

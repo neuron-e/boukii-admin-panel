@@ -23,6 +23,7 @@ import { CourseUserTransferComponent } from './course-user-transfer.component';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {MatExpansionModule} from '@angular/material/expansion';
 import { TranslateModule } from '@ngx-translate/core';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 @NgModule({
   imports: [
@@ -50,6 +51,7 @@ import { TranslateModule } from '@ngx-translate/core';
     MatSlideToggleModule,
     MatCheckboxModule,
     MatExpansionModule,
+    MatProgressSpinnerModule,
     TranslateModule
   ],
   declarations: [CourseUserTransferComponent],
