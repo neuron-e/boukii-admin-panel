@@ -100,7 +100,8 @@ export class CoursesComponent {
             //  })
             // Load booking users for the detail view - only active bookings (status = 1)
             this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&status=1&with[]=client')
-              .subscribe((bookingUser: any) => {
+            .subscribe((bookingUser: any) => {
+                this.detailData.booking_users_active = bookingUser.data || [];
                 this.detailData.booking_users = bookingUser.data || [];
                 this.detailData.users = bookingUser.data || [];
                 this.courses.settcourseFormGroup(this.detailData)
@@ -138,7 +139,7 @@ export class CoursesComponent {
               });
 
               // Now load booking users
-              this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&with[]=client')
+              this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&status=1&with[]=client')
                 .subscribe((bookingUser) => {
                   this.detailData.booking_users_active = bookingUser.data || [];
                   this.detailData.booking_users = bookingUser.data || [];
@@ -190,11 +191,20 @@ export class CoursesComponent {
     }
   }
 
+  private getActiveBookingUsersFromDetail(): any[] {
+    if (!this.detailData) {
+      return [];
+    }
+
+    const source = Array.isArray(this.detailData.booking_users_active) && this.detailData.booking_users_active.length
+      ? this.detailData.booking_users_active
+      : Array.isArray(this.detailData.booking_users) ? this.detailData.booking_users : [];
+
+    return source.filter((booking) => booking?.status === 1 || booking?.status == null);
+  }
+
   getStudents(levelId: any) {
-    let ret = 0;
-    this.detailData.booking_users.forEach(element => {
-      if (element.degree_id === levelId) ret = ret + 1;
-    }); return ret;
+    return this.getActiveBookingUsersFromDetail().filter(element => element.degree_id === levelId).length;
   }
 
   getMaxStudents(levelId: any) {
@@ -240,7 +250,11 @@ export class CoursesComponent {
     this.selectedLevel = level;
     const item = this.detailData.course_dates[0].course_groups.find((g) => g.degree_id === level.id);
     if (item) this.selectedGroup = item.course_subgroups;
-    this.selectedGroup.forEach(element => this.crudService.list('/booking-users', 1, 10000, 'asc', 'id', '&course_subgroup_id=' + element.id).subscribe((data) => element.totalUsers = data.data.length));
+    this.selectedGroup.forEach(element => this.crudService.list('/booking-users', 1, 10000, 'asc', 'id', '&course_subgroup_id=' + element.id + '&status=1')
+      .subscribe((data) => {
+        const bookings = Array.isArray(data.data) ? data.data : [];
+        element.totalUsers = bookings.filter(b => b?.status === 1 || b?.status == null).length;
+      }));
   }
 
   hexToRgb(hex: string) {
