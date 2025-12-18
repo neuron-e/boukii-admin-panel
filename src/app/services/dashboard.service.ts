@@ -66,14 +66,14 @@ export class DashboardService {
       // Cursos privados sin monitor
       sinMonitor: this.crudService.list('/booking-users', 1, 1000, 'desc', 'id',
         `&school_id=${schoolId}&date=${dateStr}&monitor_id=null&course_type=2`).pipe(
-        map((response: any) => response?.data?.data?.length || 0),
+        map((response: any) => response?.data?.length || 0),
         catchError(() => of(0))
       ),
 
       // Pagos pendientes
       pagosPendientes: this.crudService.list('/bookings', 1, 1000, 'desc', 'id',
         `&school_id=${schoolId}&paid=false&status=1`).pipe(
-        map((response: any) => response?.data?.data?.length || 0),
+        map((response: any) => response?.data?.length || 0),
         catchError(() => of(0))
       ),
 
@@ -156,7 +156,7 @@ export class DashboardService {
       `&school_id=${schoolId}&date=${dateStr}`, '', null, '',
       ['client', 'course', 'monitor']).pipe(
       map((response: any) => {
-        const bookings = response?.data?.data || [];
+        const bookings = response?.data || [];
 
         const activities: BookingActivity[] = bookings.map((booking: any) => ({
           id: booking.id,
@@ -198,7 +198,7 @@ export class DashboardService {
       // Obtener reservas reales para cada día
       const dayBookings = this.crudService.list('/booking-users', 1, 1000, 'desc', 'id',
         `&school_id=${schoolId}&date=${dateStr}`).pipe(
-        map((response: any) => response?.data?.data?.length || 0),
+        map((response: any) => response?.data?.length || 0),
         catchError(() => of(0))
       );
 
@@ -238,7 +238,7 @@ export class DashboardService {
     return forkJoin({
       reservas: this.crudService.list('/booking-users', 1, 1000, 'desc', 'id',
         `&school_id=${schoolId}&date=${dateStr}`).pipe(
-        map((response: any) => response?.data?.data?.length || 0),
+        map((response: any) => response?.data?.length || 0),
         catchError(() => of(0))
       ),
       ingresos: this.getRevenueForPeriod(dateStr, dateStr, schoolId)
@@ -257,7 +257,7 @@ export class DashboardService {
     return this.crudService.list('/bookings', 1, 1000, 'desc', 'id',
       `&school_id=${schoolId}&date_start=${startDate}&date_end=${endDate}&paid=true`).pipe(
       map((response: any) => {
-        const bookings = response?.data?.data || [];
+        const bookings = response?.data || [];
         return bookings.reduce((total: number, booking: any) => total + (parseFloat(booking.price_total) || 0), 0);
       }),
       catchError(() => of(0))
@@ -269,7 +269,7 @@ export class DashboardService {
       `&school_id=${schoolId}&date_start=${date}&course_type=${courseType}`,
       '', null, '', ['courseDates.courseSubgroups']).pipe(
       map((response: any) => {
-        const courses = response?.data?.data || [];
+        const courses = response?.data || [];
         let totalOcupados = 0;
         let totalDisponibles = 0;
 

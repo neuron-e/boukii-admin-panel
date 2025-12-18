@@ -77,9 +77,14 @@ export class ApiCrudService extends ApiService {
       relationsParams = relations.map((relation: any) => `&with[]=${relation}`).join('');
     }
 
+    const filterSegment = filter
+      ? (filter.startsWith('&') ? filter : `&${filter}`)
+      : '';
+
     // Construir la URL completa
     const url = this.baseUrl + model + '?perPage=' + perPage + '&page=' + numPage + '&order=' + order
-      + '&orderColumn=' + orderColumn + '&search=' + search + '&exclude=' + exclude + relationsParams;
+      + '&orderColumn=' + orderColumn + '&search=' + search + '&exclude=' + exclude
+      + filterSegment + relationsParams;
 
     return this.http.get<ApiResponse>(url,
       { headers: this.getHeaders() });
