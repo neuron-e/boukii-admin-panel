@@ -327,8 +327,14 @@ export class AppComponent {
             children: [
               {
                 type: "link",
-                label: "menu.payment_gateway",
+                label: "menu.admin_boukiipay",
                 route: gatewayRoute,
+              },
+              {
+                type: "link",
+                label: "menu.virtual_tpv",
+                route: "/tpv-virtual",
+                routerLinkActiveOptions: { exact: true },
               },
               {
                 type: "link",

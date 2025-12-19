@@ -1193,8 +1193,9 @@
   "menu.discount_codes": "Rabattcodes",
   "menu.home": "Start",
   "menu.monitors": "Monitore",
-  "menu.payment_gateway": "Web-Gateway",
-  "menu.payment_terminal": "Zahlungsterminal",
+  "menu.admin_boukiipay": "BoukiiPay-Admin",
+  "menu.virtual_tpv": "Virtuelles TPV",
+  "menu.payment_terminal": "Zahlungslink",
   "menu.people": "Clients und Monitore",
   "menu.settings": "Management",
   "menu.stats": "Statistiken",
@@ -1438,7 +1439,18 @@
     "scan_qr": "Oder scannen Sie den QR-Code:",
     "subtitle": "Akzeptieren Sie Zahlungen über das virtuelle POS oder erstellen Sie individuelle Zahlungslinks",
     "title": "Zahlungsterminal",
-    "vpos_description": "Öffnen Sie das virtuelle Kassensystem-Terminal, um Zahlungen direkt zu akzeptieren"
+    "vpos_description": "Öffnen Sie das virtuelle Kassensystem-Terminal, um Zahlungen direkt zu akzeptieren",
+    "client_lookup": "Find a client (optional)",
+    "client_lookup_placeholder": "Name, surname or email",
+    "client_lookup_clear": "Clear client selection"
+  },
+  "tpv_virtual": {
+    "title": "Virtual TPV",
+    "subtitle": "Open the virtual point-of-sale terminal to accept payments directly.",
+    "description": "Use this shortcut to launch the TPV interface for manual checkouts.",
+    "open_button": "Open Virtual TPV",
+    "opened": "Virtual TPV opened in a new tab",
+    "error": "Unable to open the virtual TPV"
   },
   "payment_trends": "Zahlungstrends",
   "payment_type_comparison": "Vergleich der Zahlungsarten",

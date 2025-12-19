@@ -234,6 +234,40 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     return match ? { ...match } : null;
   }
 
+  private getSubgroupIdentity(subgroup: any): string | null {
+    if (!subgroup) {
+      return null;
+    }
+    const key = typeof subgroup.key === 'string' ? subgroup.key.trim() : '';
+    if (key) {
+      return key;
+    }
+    const subgroupDatesId = subgroup.subgroup_dates_id ?? subgroup.subgroupDatesId;
+    if (subgroupDatesId != null && String(subgroupDatesId).trim()) {
+      return `sgd-${String(subgroupDatesId).trim()}`;
+    }
+    const candidateId = subgroup.id ?? subgroup.course_subgroup_id ?? subgroup.subgroup_id;
+    if (candidateId != null && String(candidateId).trim()) {
+      return `sg-${String(candidateId).trim()}`;
+    }
+    return null;
+  }
+
+  private getTargetSubgroupIdentity(): string | null {
+    const cached = this.getCachedSubgroupByIndex(this.subgroup_index);
+    const fallback = this.group?.course_subgroups?.[this.subgroup_index]
+      ?? this.group?.courseSubgroups?.[this.subgroup_index]
+      ?? null;
+    return this.getSubgroupIdentity(cached ?? fallback);
+  }
+
+  private findSubgroupByIdentity(subgroups: any[], targetKey: string | null): any | null {
+    if (!targetKey || !Array.isArray(subgroups)) {
+      return null;
+    }
+    return subgroups.find((sg: any) => this.getSubgroupIdentity(sg) === targetKey) ?? null;
+  }
+
   private extractIntervals(): any[] {
     const settings = this.getSettingsObject();
     if (settings) {
@@ -2166,6 +2200,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
   getSubgroupForDate(date: any): any | null {
     if (!date || !this.level?.id) return null;
     const degreeId = this.normalizeId(this.level.id);
+    const targetKey = this.getTargetSubgroupIdentity();
 
     const dateId = date?.id ?? null;
     const dateLevelSubgroups = this.toArray(date?.course_subgroups || date?.courseSubgroups)
@@ -2174,6 +2209,12 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
         const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
         return !dateId || !sgDateId || sgDateId === dateId;
       });
+    if (targetKey) {
+      const match = this.findSubgroupByIdentity(dateLevelSubgroups, targetKey);
+      if (match) {
+        return match;
+      }
+    }
     if (dateLevelSubgroups.length > this.subgroup_index) {
       return dateLevelSubgroups[this.subgroup_index];
     }
@@ -2185,6 +2226,12 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
         const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
         return !dateId || !sgDateId || sgDateId === dateId;
       });
+    if (targetKey) {
+      const match = this.findSubgroupByIdentity(groupSubgroups, targetKey);
+      if (match) {
+        return match;
+      }
+    }
     if (groupSubgroups.length > this.subgroup_index) {
       return groupSubgroups[this.subgroup_index];
     }

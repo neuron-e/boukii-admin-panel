@@ -88,6 +88,11 @@ const childrenRoutes: VexRoutes = [
         canActivate: [AuthGuard],
       },
       {
+        path: 'tpv-virtual',
+        loadChildren: () => import('./pages/tpv-virtual/tpv-virtual.module').then(m => m.TpvVirtualModule),
+        canActivate: [AuthGuard],
+      },
+      {
         path: 'mail',
         loadChildren: () => import('./pages/mail/mail.module').then(m => m.MailModule),
         canActivate: [AuthGuard],

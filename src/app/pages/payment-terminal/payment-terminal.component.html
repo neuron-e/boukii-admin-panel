@@ -1,4 +1,4 @@
-<div class="terminal-container">
+﻿<div class="terminal-container">
   <div class="header">
     <h1 class="title">
       <mat-icon class="title-icon">point_of_sale</mat-icon>
@@ -13,24 +13,37 @@
         <mat-card-title>{{ 'payment_terminal.payment_options' | translate }}</mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <!-- VPOS Quick Access -->
-        <div class="vpos-section">
-          <p class="vpos-description">{{ 'payment_terminal.vpos_description' | translate }}</p>
-          <button mat-raised-button
-                  color="accent"
-                  type="button"
-                  (click)="openVPOS()"
-                  class="vpos-btn">
-            <mat-icon>point_of_sale</mat-icon>
-            {{ 'payment_terminal.open_vpos' | translate }}
-          </button>
-        </div>
-
-        <div class="divider">
-          <span>{{ 'payment_terminal.or_create_link' | translate }}</span>
-        </div>
-
         <form [formGroup]="paymentForm" (ngSubmit)="generatePaymentLink()">
+
+          <div class="form-row client-select">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>{{ 'payment_terminal.client_lookup' | translate }}</mat-label>
+              <input matInput
+                     type="text"
+                     [formControl]="clientSearchControl"
+                     [matAutocomplete]="clientAutocomplete"
+                     [placeholder]="'payment_terminal.client_lookup_placeholder' | translate">
+              <mat-autocomplete #clientAutocomplete="matAutocomplete"
+                                [displayWith]="displayClientName">
+                <mat-option *ngFor="let client of clientOptions" [value]="client">
+                  {{ getClientLabel(client) }}
+                </mat-option>
+              </mat-autocomplete>
+              <mat-progress-spinner *ngIf="clientLoading"
+                                    matSuffix
+                                    diameter="20"
+                                    mode="indeterminate"></mat-progress-spinner>
+              <button *ngIf="selectedClient"
+                      mat-icon-button
+                      matSuffix
+                      type="button"
+                      (click)="clearSelectedClient()"
+                      [attr.aria-label]="'payment_terminal.client_lookup_clear' | translate">
+                <mat-icon>close</mat-icon>
+              </button>
+            </mat-form-field>
+          </div>
+
           <div class="form-row">
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>{{ 'payment_terminal.amount' | translate }}</mat-label>
