@@ -101,6 +101,11 @@ export class DashboardService {
     const weekStart = date.clone().startOf('week').format('YYYY-MM-DD');
     const monthStart = date.clone().startOf('month').format('YYYY-MM-DD');
 
+    const activeSchool = Array.isArray(this.user?.schools)
+      ? this.user.schools.find((school: any) => school?.active === true) || this.user.schools[0]
+      : null;
+    const schoolCurrency = activeSchool?.currency || 'EUR';
+
     return forkJoin({
       hoy: this.getRevenueForPeriod(today, today, schoolId),
       semana: this.getRevenueForPeriod(weekStart, today, schoolId),
@@ -112,7 +117,7 @@ export class DashboardService {
         ingresosMes: revenue.mes,
         tendencia: this.calculateTrend(revenue.hoy, revenue.semana),
         comparacionPeriodoAnterior: 0, // TODO: Implementar comparación
-        moneda: this.user.schools?.[0]?.currency || 'EUR'
+        moneda: schoolCurrency
       }))
     );
   }

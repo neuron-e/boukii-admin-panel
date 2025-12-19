@@ -260,7 +260,10 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
   }
 
   formatCurrency(amount: number): string {
-    const currency = this.user.schools?.[0]?.currency || 'EUR';
+    const activeSchool = Array.isArray(this.user?.schools)
+      ? this.user.schools.find((school: any) => school?.active === true) || this.user.schools[0]
+      : null;
+    const currency = this.revenue?.moneda || activeSchool?.currency || this.user?.schools?.[0]?.currency || 'EUR';
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: currency
