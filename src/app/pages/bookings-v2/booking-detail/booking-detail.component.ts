@@ -4,7 +4,7 @@ import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { BookingService } from '../../../../service/bookings.service';
 import { ApiCrudService } from '../../../../service/crud.service';
 import {ActivatedRoute, Router} from '@angular/router';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject, Subject, finalize } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { BookingDialogComponent } from '../bookings-create-update/components/booking-dialog/booking-dialog.component';
 import {
@@ -42,6 +42,7 @@ export class BookingDetailV2Component implements OnInit {
   selectedPaymentOptionId: PaymentMethodId | null = null;
   selectedPaymentOptionLabel: string = '';
   isPaid = false;
+  isLoading = false;
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
   // Prefer basket.price_total when available
@@ -282,35 +283,37 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   getBooking() {
+    this.isLoading = true;
     this.crudService
-      .get("/bookings/" + this.id, [
-        "user",
-        "clientMain.clientSports.degree",
-        "clientMain.clientSports.sport",
-        "vouchersLogs.voucher",
-        "bookingUsers.course.courseDates.courseGroups.courseSubgroups",
-        "bookingUsers.course.courseExtras",
-        "bookingUsers.bookingUserExtras.courseExtra",
-        "bookingUsers.client.clientSports.degree",
-        "bookingUsers.client.clientSports.sport",
-        "bookingUsers.courseDate",
-        "bookingUsers.monitor.monitorSportsDegrees",
-        "bookingUsers.degree",
-        "payments",
-        "bookingLogs"
-      ])
-        .subscribe((data) => {
-        this.bookingData$.next(data.data);
-        this.bookingData = data.data;
-        const displayTotal = this.resolveDisplayTotal(this.bookingData);
-        if (displayTotal) {
-          this.bookingData.price_total = displayTotal;
+      .get(`/admin/bookings/${this.id}/preview`)
+      .pipe(finalize(() => this.isLoading = false))
+      .subscribe({
+        next: (data) => this.applyBookingData(data?.data),
+        error: (error) => {
+          console.error(error);
+          this.snackBar.open(
+            this.translateService.instant('snackbar.error'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
         }
-        // Asegurar estructura de actividades agrupadas y totales calculados
-        this.groupedActivities = this.groupBookingUsersByGroupId(data.data);
-        this.mainClient = data.data.client_main;
-        this.syncPaymentSelectionFromBooking(data.data);
       });
+  }
+
+  private applyBookingData(booking: any): void {
+    if (!booking) {
+      return;
+    }
+
+    this.bookingData$.next(booking);
+    this.bookingData = booking;
+    const displayTotal = this.resolveDisplayTotal(this.bookingData);
+    if (displayTotal) {
+      this.bookingData.price_total = displayTotal;
+    }
+    this.groupedActivities = this.groupBookingUsersByGroupId(booking);
+    this.mainClient = booking.client_main;
+    this.syncPaymentSelectionFromBooking(booking);
   }
 
   closeModal() {
@@ -1125,6 +1128,7 @@ export class BookingDetailV2Component implements OnInit {
    * MEJORA: Separar la lógica de actualización de actividad
    */
   processActivityUpdate(data: any, index: any): void {
+    this.isLoading = true;
     this.crudService.post('/admin/bookings/update',
       {
         dates: data.course_dates,
@@ -1132,13 +1136,28 @@ export class BookingDetailV2Component implements OnInit {
         group_id: this.groupedActivities[index].dates[0].booking_users[0].group_id,
         booking_id: this.id
       })
-      .subscribe((response) => {
-        this.getBooking();
-        this.snackBar.open(
-          this.translateService.instant('snackbar.booking_detail.update'),
-          this.getCloseActionLabel(),
-          { duration: 3000 }
-        );
+      .pipe(finalize(() => this.isLoading = false))
+      .subscribe({
+        next: (response) => {
+          if (response?.data) {
+            this.applyBookingData(response.data);
+          } else {
+            this.getBooking();
+          }
+          this.snackBar.open(
+            this.translateService.instant('snackbar.booking_detail.update'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        },
+        error: (error) => {
+          console.error(error);
+          this.snackBar.open(
+            this.translateService.instant('snackbar.error'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        }
       });
   }
 

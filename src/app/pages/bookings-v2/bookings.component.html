@@ -29,7 +29,11 @@
 
   <vex-page-layout-content *ngIf="showDetail"
                            class="fullwidth col-right">
-    <mat-card>
+    <mat-card class="booking-preview-card">
+      <div class="booking-preview-loading" *ngIf="detailLoading">
+        <mat-progress-spinner diameter="36" mode="indeterminate"></mat-progress-spinner>
+        <div class="loading-text">{{ 'loading' | translate }}</div>
+      </div>
       <mat-card-header style="display:block">
         <div style="width: 100%;">
 					<span style="display: inline-block;width: 80%; text-align: left;">

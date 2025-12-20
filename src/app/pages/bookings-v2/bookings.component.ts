@@ -20,6 +20,7 @@ export class BookingsV2Component implements OnInit, OnChanges {
   @Input() filterCourseId: number = 0
   showDetail: boolean = false;
   detailData: any;
+  detailLoading = false;
   imageAvatar = '../../../assets/img/avatar.png';
 
   // New properties for flex course handling
@@ -115,20 +116,12 @@ export class BookingsV2Component implements OnInit, OnChanges {
     if (event.showDetail || (!event.showDetail && this.detailData !== null && this.detailData.id !== event.item.id)) {
       this.bonus = [];
       this.showDetail = true;
+      this.detailLoading = true;
 
       try {
-        const relations = [
-          'user',
-          'bookingUsers.course.sport',
-          'bookingUsers.monitor.monitorSportsDegrees.monitorSportAuthorizedDegrees.degree',
-          'bookingUsers.client.clientSports.degree',
-          'bookingUsers.courseSubGroup.degree',
-          'clientMain.clientSports.degree',
-          'vouchersLogs.voucher',
-          'bookingUsers.bookingUserExtras.courseExtra'
-        ];
-
-        const res: any = await this.crudService.get(`${this.detailEntity}/${event.item.id}`, relations).toPromise();
+        const res: any = await this.crudService
+          .get(`/admin/bookings/${event.item.id}/preview`)
+          .toPromise();
         this.detailData = res?.data || event.item;
         const displayTotal = this.resolveDisplayTotal(this.detailData);
         if (displayTotal) {
@@ -171,8 +164,12 @@ export class BookingsV2Component implements OnInit, OnChanges {
         this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
         this.getUniqueBookingUsers(this.detailData.bookingusers);
       }
+      this.detailLoading = false;
     } else {
       this.showDetail = event.showDetail;
+      if (!this.showDetail) {
+        this.detailLoading = false;
+      }
     }
   }
 

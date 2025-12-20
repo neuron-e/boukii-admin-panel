@@ -8,6 +8,10 @@
     ]"
                    class="booking-breadcrumb"></vex-breadcrumbs>
 </div>
+<div class="booking-loading-overlay" *ngIf="isLoading">
+  <mat-progress-spinner diameter="48" mode="indeterminate"></mat-progress-spinner>
+  <div class="loading-text">{{ 'loading' | translate }}</div>
+</div>
 <div class="bookingDetailContainer">
   <button (click)="openDetailBookingDialog()"
           style="margin-bottom: 0;"
