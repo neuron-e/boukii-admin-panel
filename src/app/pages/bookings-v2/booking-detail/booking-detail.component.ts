@@ -279,7 +279,10 @@ export class BookingDetailV2Component implements OnInit {
     const user = JSON.parse(localStorage.getItem("boukiiUser"))
     this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order',
       '&school_id=' + user.schools[0].id + '&active=1')
-      .subscribe((data) => this.allLevels = data.data)
+      .subscribe((data) => {
+        this.allLevels = data.data;
+        this.hydrateGroupedActivitiesLevels();
+      })
   }
 
   getBooking() {
@@ -312,8 +315,57 @@ export class BookingDetailV2Component implements OnInit {
       this.bookingData.price_total = displayTotal;
     }
     this.groupedActivities = this.groupBookingUsersByGroupId(booking);
+    this.hydrateGroupedActivitiesLevels();
     this.mainClient = booking.client_main;
     this.syncPaymentSelectionFromBooking(booking);
+  }
+
+  private hydrateGroupedActivitiesLevels(): void {
+    if (!Array.isArray(this.groupedActivities) || this.groupedActivities.length === 0) {
+      return;
+    }
+    if (!Array.isArray(this.allLevels) || this.allLevels.length === 0) {
+      return;
+    }
+
+    const normalizeText = (value: any): string => {
+      return (value ?? '').toString().trim();
+    };
+
+    const buildDegreeLabel = (degree: any): string => {
+      if (!degree) return '';
+      const league = normalizeText(degree?.league);
+      const name = normalizeText(degree?.name);
+      return `${league} ${name}`.trim();
+    };
+
+    const formatSubgroupLabel = (degreeLabel: string, groupId: any): string => {
+      const numericId = Number(groupId);
+      const suffix = Number.isFinite(numericId)
+        ? String(numericId).padStart(2, '0')
+        : normalizeText(groupId);
+      if (!suffix) return degreeLabel;
+      const base = normalizeText(degreeLabel);
+      if (!base) return suffix;
+      return `${base} ${suffix}`.trim();
+    };
+
+    this.groupedActivities = this.groupedActivities.map(activity => {
+      if (!activity) return activity;
+      const degreeId = activity.degreeId ?? activity.sportLevel?.id ?? null;
+      const resolved = degreeId != null
+        ? this.allLevels.find((level: any) => String(level?.id) === String(degreeId)) || null
+        : activity.sportLevel;
+      const degreeLabel = buildDegreeLabel(resolved);
+      const subgroupLabel = formatSubgroupLabel(degreeLabel, activity.groupId ?? activity.subgroupLabel);
+      return {
+        ...activity,
+        sportLevel: resolved ?? activity.sportLevel,
+        subgroupLabel: subgroupLabel || activity.subgroupLabel
+      };
+    });
+
+    this.cdr.detectChanges();
   }
 
   closeModal() {
@@ -321,6 +373,45 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   groupBookingUsersByGroupId(booking: any) {
+
+    const normalizeText = (value: any): string => {
+      return (value ?? '').toString().trim();
+    };
+
+    const buildDegreeLabel = (degree: any): string => {
+      if (!degree) return '';
+      const league = normalizeText(degree?.league);
+      const name = normalizeText(degree?.name);
+      const combined = `${league} ${name}`.trim();
+      return combined;
+    };
+
+    const resolveDegreeLevel = (user: any): any => {
+      if (user?.degree) {
+        return user.degree;
+      }
+      const degreeId = user?.degree_id ?? user?.degreeId ?? user?.degree?.id;
+      if (degreeId != null && Array.isArray(this.allLevels)) {
+        return this.allLevels.find((level: any) => String(level?.id) === String(degreeId)) || null;
+      }
+      return null;
+    };
+
+    const resolveDegreeLabel = (user: any): string => {
+      const level = resolveDegreeLevel(user);
+      return buildDegreeLabel(level);
+    };
+
+    const formatSubgroupLabel = (degreeLabel: string, groupId: any): string => {
+      const numericId = Number(groupId);
+      const suffix = Number.isFinite(numericId)
+        ? String(numericId).padStart(2, '0')
+        : normalizeText(groupId);
+      if (!suffix) return degreeLabel;
+      const base = normalizeText(degreeLabel);
+      if (!base) return suffix;
+      return `${base} ${suffix}`.trim();
+    };
 
     const parseTimeToMinutes = (time: string): number | null => {
       if (!time) {
@@ -440,10 +531,15 @@ export class BookingDetailV2Component implements OnInit {
       const courseType = user.course.course_type;
 
       if (!acc[groupId]) {
+        const resolvedLevel = resolveDegreeLevel(user);
+        const degreeLabel = buildDegreeLabel(resolvedLevel);
         acc[groupId] = {
           sport: user.course.sport,
           course: user.course,
-          sportLevel: user.degree,
+          sportLevel: resolvedLevel,
+          subgroupLabel: formatSubgroupLabel(degreeLabel, groupId),
+          groupId: groupId,
+          degreeId: user?.degree_id ?? user?.degreeId ?? user?.degree?.id ?? resolvedLevel?.id ?? null,
           dates: [],
           monitors: [],
           utilizers: [],

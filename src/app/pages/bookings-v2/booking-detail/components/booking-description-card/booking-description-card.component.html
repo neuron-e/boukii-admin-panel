@@ -24,10 +24,10 @@
       border-radius: 5px;
       text-align: center;
       font-size: 10px;
-      width: 3rem;
+      min-width: 3rem;
       overflow: inherit;
     ">
-          {{ sportLevel?.league }}
+          {{ subgroupLabel || ((sportLevel?.league || '') + ' ' + (sportLevel?.name || sportLevel?.annotation || '')).trim() }}
         </div>
       </div>
     </ng-container>

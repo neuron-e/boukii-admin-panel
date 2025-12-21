@@ -54,6 +54,7 @@ export class BookingDescriptionCard implements OnChanges {
   @Input() sportLevel: any;
   @Input() allLevels: any;
   @Input() course: any;
+  @Input() subgroupLabel: string | null = null;
   @Input()
   set dates(value: any[]) {
     this._dates = value || [];

@@ -361,7 +361,7 @@ export class BookingService {
             const matchingGroup = courseGroups.find(group => group?.degree_id === item?.sportLevel?.id);
 
             if (matchingGroup) {
-              bookingUser.group = matchingGroup.id;
+              bookingUser.course_group_id = matchingGroup.id;  // FIX: Usar nombre correcto
               bookingUser.group_name = matchingGroup.name;
 
               const courseSubgroups = Array.isArray(matchingGroup?.course_subgroups)
@@ -378,7 +378,7 @@ export class BookingService {
               });
 
               if (availableSubgroup) {
-                bookingUser.subgroup = availableSubgroup.id;
+                bookingUser.course_subgroup_id = availableSubgroup.id;  // FIX: Usar nombre correcto
                 bookingUser.subgroup_name = availableSubgroup.name;
               }
             }
