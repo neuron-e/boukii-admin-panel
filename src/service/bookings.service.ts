@@ -218,10 +218,23 @@ export class BookingService {
       return Number.isFinite(parsed) ? parsed : null;
     };
 
+    const computedPendingRaw = (data as any).computed_pending_amount;
+    const computedPending = parseNumber(computedPendingRaw);
+    if (computedPending !== null) {
+      return computedPending > 0 ? Number(computedPending.toFixed(2)) : 0;
+    }
+
     const pendingAmountRaw = (data as any).pending_amount;
     const pendingAmount = parseNumber(pendingAmountRaw);
     if (pendingAmount !== null) {
       return pendingAmount > 0 ? Number(pendingAmount.toFixed(2)) : 0;
+    }
+
+    const computedTotal = parseNumber((data as any).computed_total);
+    const computedPaid = parseNumber((data as any).computed_paid_total);
+    if (computedTotal !== null && computedPaid !== null) {
+      const pendingComputed = computedTotal - computedPaid;
+      return pendingComputed > 0 ? Number(pendingComputed.toFixed(2)) : 0;
     }
 
     const finalTotal = parseNumber((data as any).price_total) ?? 0;
@@ -710,5 +723,8 @@ export class BookingService {
     return Math.random().toString(36).substring(2, 15);
   }
 }
+
+
+
 
 

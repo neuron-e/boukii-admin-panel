@@ -48,7 +48,7 @@ export interface MonitorAssignmentDialogResult {
 })
 export class MonitorAssignmentDialogComponent implements OnDestroy {
   readonly dateOptions: MonitorAssignmentDialogDateOption[];
-  readonly intervalDateValues: string[];
+  intervalDateValues: string[];
   readonly hasIntervals: boolean;
   readonly allowAll: boolean;
   readonly multiScopeAllowed: boolean;
@@ -253,6 +253,14 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
           this.targetSubgroupIds = items
             .map(item => item.subgroupId)
             .filter((id): id is number => id != null);
+          if (this.scope === 'interval') {
+            const intervalDates = this.collectIntervalDatesFromItems(items);
+            if (intervalDates.length) {
+              this.intervalDateValues = intervalDates;
+              this.startDate = intervalDates[0];
+              this.endDate = intervalDates[intervalDates.length - 1];
+            }
+          }
         } else {
           this.allSummaryItems = [];
         }
@@ -286,10 +294,12 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
       payload.course_id = this.previewContext.course_id;
     }
 
-    if (this.previewContext.subgroup_id != null) {
-      payload.subgroup_id = this.previewContext.subgroup_id;
+    if (this.scope === 'interval' || this.scope === 'single') {
+      if (this.previewContext.subgroup_id != null) {
+        payload.subgroup_id = this.previewContext.subgroup_id;
+      }
     }
-    if (this.previewContext.subgroup_ids?.length) {
+    if (this.scope === 'single' && this.previewContext.subgroup_ids?.length) {
       payload.subgroup_ids = this.previewContext.subgroup_ids;
     }
 
@@ -444,6 +454,8 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
         if (startIdx !== -1) pushItem(this.dateOptions[startIdx]);
         break;
       case 'interval':
+        this.resolveIntervalDateOptions().forEach(pushItem);
+        break;
       case 'all':
         this.dateOptions.forEach(pushItem);
         break;
@@ -462,6 +474,21 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
     }
 
     this.summaryItems = inScopeDates;
+  }
+
+  private resolveIntervalDateOptions(): MonitorAssignmentDialogDateOption[] {
+    if (!this.intervalDateValues.length) {
+      return this.dateOptions;
+    }
+    const optionMap = new Map(this.dateOptions.map(option => [option.value, option]));
+    return this.intervalDateValues.map(value => optionMap.get(value) ?? { value, label: value });
+  }
+
+  private collectIntervalDatesFromItems(items: MonitorAssignmentDialogSummaryItem[]): string[] {
+    const dates = items
+      .map(item => item.value)
+      .filter((value): value is string => !!value);
+    return Array.from(new Set(dates)).sort((a, b) => a.localeCompare(b));
   }
 
   private isTargetedSubgroup(subgroupId: number | null): boolean {

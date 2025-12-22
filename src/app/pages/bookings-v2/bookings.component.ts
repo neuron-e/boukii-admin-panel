@@ -42,6 +42,7 @@ export class BookingsV2Component implements OnInit, OnChanges {
   // Use basket.price_total when available to display accurate totals
   private resolveDisplayTotal(booking: any): number {
     if (!booking) return 0;
+    const computedTotal = booking.computed_total !== undefined ? Number(booking.computed_total) : NaN;
     const basketRaw = booking.basket;
     let basket: any = null;
     if (basketRaw) {
@@ -53,6 +54,9 @@ export class BookingsV2Component implements OnInit, OnChanges {
     }
     const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
     const originalTotal = booking.price_total !== undefined ? Number(booking.price_total) : NaN;
+    if (!isNaN(computedTotal)) {
+      return computedTotal;
+    }
     if (!isNaN(basketTotal)) {
       return basketTotal;
     }

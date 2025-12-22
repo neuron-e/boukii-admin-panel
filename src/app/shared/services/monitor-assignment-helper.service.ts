@@ -91,8 +91,8 @@ export class MonitorAssignmentHelperService {
 
     const currentMonitorLabel = this.translateService.instant('monitor_assignment.partial.current_monitor');
     const conflictLabel = this.translateService.instant('monitor_assignment.partial.conflict_reason');
-    const currentMonitorPrefix = currentMonitorLabel !== 'monitor_assignment.partial.current_monitor' ? currentMonitorLabel : 'Actual: ';
-    const conflictPrefix = conflictLabel !== 'monitor_assignment.partial.conflict_reason' ? conflictLabel : 'Ocupado en';
+    const currentMonitorPrefix = currentMonitorLabel !== 'monitor_assignment.partial.current_monitor' ? currentMonitorLabel : 'Current: ';
+    const conflictPrefix = conflictLabel !== 'monitor_assignment.partial.conflict_reason' ? conflictLabel : 'Busy on';
 
     const formatAvailable = (slot: MonitorAssignmentSlot): string => {
       const base = slot.label ?? slot.date;
