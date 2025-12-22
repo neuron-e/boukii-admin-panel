@@ -203,21 +203,39 @@ export class BookingService {
   calculatePendingPrice(): number {
     const data = this.getBookingData();
     if (!data) {
-      console.warn('🔍 calculatePendingPrice: No booking data found');
+      console.warn('calculatePendingPrice: No booking data found');
       return 0;
     }
 
-    const finalTotal = this.computeFrontendTotal(data);
+    const parseNumber = (value: any): number | null => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+      if (value === null || value === undefined) {
+        return null;
+      }
+      const parsed = parseFloat(String(value));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const pendingAmountRaw = (data as any).pending_amount;
+    const pendingAmount = parseNumber(pendingAmountRaw);
+    if (pendingAmount !== null) {
+      return pendingAmount > 0 ? Number(pendingAmount.toFixed(2)) : 0;
+    }
+
+    const finalTotal = parseNumber((data as any).price_total) ?? 0;
+    const paidTotal = parseNumber((data as any).paid_total) ?? 0;
 
     const vouchers = Array.isArray((data as any).vouchers) ? (data as any).vouchers : [];
     const totalVouchers = vouchers.reduce((acc: number, item: any) => {
       const value = item?.bonus?.reducePrice;
-      const parsed = typeof value === 'number' ? value : parseFloat(value ?? '0');
-      return acc + (isNaN(parsed) ? 0 : parsed);
+      const parsed = parseNumber(value);
+      return acc + (parsed ?? 0);
     }, 0);
 
-    const pending = finalTotal - totalVouchers;
-    return pending > 0 ? pending : 0;
+    const pending = finalTotal - paidTotal - totalVouchers;
+    return pending > 0 ? Number(pending.toFixed(2)) : 0;
   }
 
   calculateActivityPrice(activity: any): number {
@@ -692,3 +710,5 @@ export class BookingService {
     return Math.random().toString(36).substring(2, 15);
   }
 }
+
+
