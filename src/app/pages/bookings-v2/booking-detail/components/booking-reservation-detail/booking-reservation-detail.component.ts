@@ -440,10 +440,13 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   getOutstandingTotal(): number {
-    const total = this.getFinalTotal();
-    const vouchers = this.calculateTotalVoucherPrice();
-    const outstanding = total - vouchers;
-    return Number((outstanding < 0 ? 0 : outstanding).toFixed(2));
+    if (!this.bookingData) {
+      return 0;
+    }
+
+    this.bookingService.setBookingData(this.bookingData);
+    const pending = this.bookingService.calculatePendingPrice();
+    return Number((pending < 0 ? 0 : pending).toFixed(2));
   }
 
   calculateTotalVoucherPrice(): number {
@@ -452,6 +455,16 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       return vouchers.reduce((acc, item) => acc + parseFloat(item?.bonus?.reducePrice ?? '0'), 0);
     }
     return 0;
+  }
+
+  getPaidAmount(): number {
+    const paidTotal = Number(this.bookingData?.paid_total ?? 0);
+    const vouchers = Math.abs(this.calculateTotalVoucherPrice());
+    const totalPaid = paidTotal + vouchers;
+    if (isNaN(totalPaid)) {
+      return 0;
+    }
+    return Number(totalPaid.toFixed(2));
   }
 
   private applyComputedTotals(): void {

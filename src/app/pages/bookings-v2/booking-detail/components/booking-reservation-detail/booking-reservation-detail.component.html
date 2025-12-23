@@ -84,7 +84,7 @@
 									</span>
 									<span *ngIf="bookingData.status === 1 && !bookingData.paid && bookingData.payment_method_id == 3"
                         style="color:#FA9917;background-color: #F7E399;">
-										{{'link_send' | translate | uppercase }}
+										{{(bookingData?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
 									</span>
 								</span>
     </div>
@@ -355,12 +355,12 @@
         {{ getActivitiesCurrency() }}
       </span>
     </ng-container>
-    <ng-container >
-      <span *ngIf="!bookingData.paid && displayTotal - calculateTotalVoucherPrice() > 0">{{ "to_pay" | translate }}</span>
+    <ng-container>
+      <span *ngIf="!bookingData.paid && displayOutstanding > 0">{{ "to_pay" | translate }}</span>
     </ng-container>
-    <ng-container *ngIf="!bookingData.paid && displayTotal - calculateTotalVoucherPrice() > 0">
-      <span class="totalPrice" *ngIf="displayTotal - calculateTotalVoucherPrice() != 0">
-        {{ displayTotal - calculateTotalVoucherPrice()  | number:'0.2-2' }}
+    <ng-container *ngIf="!bookingData.paid && displayOutstanding > 0">
+      <span class="totalPrice" *ngIf="displayOutstanding != 0">
+        {{ displayOutstanding  | number:'0.2-2' }}
         {{ getActivitiesCurrency() }}
       </span>
     </ng-container>
@@ -379,21 +379,19 @@
       <div class="dateRow" style="border-bottom: 1px solid #dee6ea; padding-bottom: 10px">
         <div>
           <span class="date" style="color:#2fca45"
-                *ngIf="bookingData.paid || bookingData.price_total
-                - calculateTotalVoucherPrice() <= 0">{{ "ispaid" | translate }}</span>
+                *ngIf="bookingData.paid || displayOutstanding <= 0">{{ "ispaid" | translate }}</span>
           <span class="date" style="color:#FB9B1B"
-                *ngIf="!bookingData.paid && bookingData.price_total
-                - calculateTotalVoucherPrice() > 0">{{ "pending_payment" | translate | uppercase }}</span>
+                *ngIf="!bookingData.paid && displayOutstanding > 0">{{ "pending_payment" | translate | uppercase }}</span>
           <span class="price">
             <span class="discounted-price" style="color:#2fca45"
-                  *ngIf="bookingData.paid || bookingData.price_total - calculateTotalVoucherPrice() <= 0">
-              {{ parseFloat(bookingData.paid_total) + Math.abs(calculateTotalVoucherPrice())  | number:'0.2-2' }}
+                  *ngIf="bookingData.paid || displayOutstanding <= 0">
+              {{ getPaidAmount()  | number:'0.2-2' }}
               {{ getActivitiesCurrency() }}
             </span>
 
             <span class="discounted-price" style="color:#FB9B1B"
-                  *ngIf="!bookingData.paid && bookingData.price_total - calculateTotalVoucherPrice() > 0">
-              {{ parseFloat( bookingData.price_total) - Math.abs(calculateTotalVoucherPrice())  | number:'0.2-2'}}
+                  *ngIf="!bookingData.paid && displayOutstanding > 0">
+              {{ displayOutstanding | number:'0.2-2'}}
               {{ getActivitiesCurrency() }}
             </span>
           </span>
@@ -402,7 +400,7 @@
 
       <div class="dateRow">
         <div>
-          <span class="hour" *ngIf="this.calculateTotalVoucherPrice() < bookingData.price_total && !bookingData.paid"
+          <span class="hour" *ngIf="displayOutstanding > 0 && !bookingData.paid"
                 (click)="addBonus()" style="
           color: #E91E63;
            font-size: 14px;

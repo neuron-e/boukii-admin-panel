@@ -27,19 +27,19 @@
     <div *ngIf="!isLoading">
       <div class="calendarWrapper">
         <div *ngIf="!showTwoMonths" class="one-month">
-          <mat-calendar [startAt]="selectedDate" [minDate]="minDate" [(selected)]="selectedDate"
+          <mat-calendar [startAt]="selectedDate" [(selected)]="selectedDate"
                         [dateClass]="dateClass()" (monthSelected)="getCourses(sportLevel)"
                         (selectedChange)="handleDateChange($event)"></mat-calendar>
         </div>
 
         <div *ngIf="showTwoMonths" class="two-months">
           <div class="no-arrows no-next">
-            <mat-calendar [startAt]="selectedDate" [minDate]="minDate" [(selected)]="selectedDate"
+            <mat-calendar [startAt]="selectedDate" [(selected)]="selectedDate"
                           [dateClass]="dateClass()" (monthSelected)="getCourses(sportLevel)"
                           (selectedChange)="handleDateChange($event)" [headerComponent]="CustomHeader"></mat-calendar>
           </div>
           <div class="no-arrows no-previous">
-            <mat-calendar #secondCalendar [startAt]="nextMonthDate" [minDate]="minDate" [(selected)]="selectedDate"
+            <mat-calendar #secondCalendar [startAt]="nextMonthDate" [(selected)]="selectedDate"
                           [dateClass]="dateClass()" (monthSelected)="getCourses(sportLevel)"
                           (selectedChange)="handleDateChange($event)" [headerComponent]="CustomHeader"></mat-calendar>
           </div>
@@ -110,7 +110,7 @@
                   </div>
                   <div *ngFor="let courseDate of item.course_dates">
                     <div class="courseDate"
-                         *ngIf="utilsService.isFutureDate(courseDate) && String(courseDate.interval_id) === String(interval.id)"
+                         *ngIf="shouldShowCourseDate(courseDate) && String(courseDate.interval_id) === String(interval.id)"
                          style="margin-left: 8px;">
                       <img src="assets/img/icons/calendar-1.svg" />
                       <span class="courseDate_day">
@@ -125,7 +125,7 @@
               <!-- Si no tiene intervalos, mostrar normal -->
               <ng-container *ngIf="!hasIntervals(item)">
                 <ng-container *ngFor="let courseDate of item.course_dates">
-                  <div class="courseDate" *ngIf="utilsService.isFutureDate(courseDate)">
+                  <div class="courseDate" *ngIf="shouldShowCourseDate(courseDate)">
                     <img src="assets/img/icons/calendar-1.svg" />
                     <span class="courseDate_day">
                       {{ courseDate.date | date:'dd-MM-yyyy' }}
@@ -237,3 +237,5 @@
     </div>
   </form>
 </ng-template>
+
+

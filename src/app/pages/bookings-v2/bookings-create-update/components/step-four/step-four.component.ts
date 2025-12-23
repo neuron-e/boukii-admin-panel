@@ -11,6 +11,8 @@ import {
   MatCalendar,
   MatCalendarCellCssClasses,
 } from "@angular/material/datepicker";
+import { MatDialog } from "@angular/material/dialog";
+import { TranslateService } from "@ngx-translate/core";
 import moment from "moment";
 import { ApiCrudService } from "src/service/crud.service";
 import { CustomHeader } from "../calendar/custom-header/custom-header.component";
@@ -19,7 +21,8 @@ import {UtilsService} from '../../../../../../service/utils.service';
 import { PerformanceCacheService } from 'src/app/services/performance-cache.service';
 import { VisualFeedbackService } from 'src/app/services/visual-feedback.service';
 import { AnalyticsService } from 'src/app/services/analytics.service';
-import { Observable, Subject, of } from 'rxjs';
+import { ConfirmModalComponent } from "src/app/pages/monitors/monitor-detail/confirm-dialog/confirm-dialog.component";
+import { Observable, Subject, of, firstValueFrom } from 'rxjs';
 import { map, shareReplay, debounceTime, distinctUntilChanged, switchMap, takeUntil, catchError } from 'rxjs/operators';
 
 @Component({
@@ -81,7 +84,9 @@ export class StepFourComponent implements OnDestroy {
     protected utilsService: UtilsService,
     private performanceCache: PerformanceCacheService,
     private feedback: VisualFeedbackService,
-    private analytics: AnalyticsService
+    private analytics: AnalyticsService,
+    private dialog: MatDialog,
+    private translateService: TranslateService
   ) {
 
 
@@ -604,6 +609,7 @@ export class StepFourComponent implements OnDestroy {
   filterCoursesCollective() {
     const degreeId = this.sportLevel?.id;
     const neededSlots = (this.utilizers?.length ?? 1);
+    const allowPastDates = this.isSelectedDateInPast();
 
     const hasCapacityForLevel = (dateInfo: any): boolean => {
       const groups = Array.isArray(dateInfo?.course_groups) ? dateInfo.course_groups : [];
@@ -652,7 +658,16 @@ export class StepFourComponent implements OnDestroy {
       });
   }
 
-  handleDateChange(event: any) {
+  async handleDateChange(event: any) {
+    const previousDate = this.selectedDate;
+    const canProceed = await this.confirmPastDateIfNeeded(event);
+    if (!canProceed) {
+      const fallback = previousDate || this.minDate || new Date();
+      this.selectedDate = fallback;
+      this.selectedDateMoment = moment(this.selectedDate);
+      this.stepForm.get("date").patchValue(this.selectedDateMoment, { emitEvent: false });
+      return;
+    }
     // MEJORA CRÍTICA: Track cambio de fecha en calendario
     this.analytics.trackEvent({
       category: 'booking',
@@ -688,6 +703,9 @@ export class StepFourComponent implements OnDestroy {
         }
       })
     );
+    if (this.isSelectedDateInPast()) {
+      this.getCourses(this.sportLevel);
+    }
     this.queueAvailabilityPreview(event);
   }
 
@@ -920,7 +938,7 @@ export class StepFourComponent implements OnDestroy {
     return course.settings.intervals.filter(interval => {
       const hasFutureDates = course.course_dates?.some(courseDate =>
         String(courseDate.interval_id) === String(interval.id) &&
-        this.utilsService.isFutureDate(courseDate)
+        this.shouldShowCourseDate(courseDate)
       );
       return hasFutureDates;
     });
@@ -1068,6 +1086,48 @@ export class StepFourComponent implements OnDestroy {
     );
   }
 
+  shouldShowCourseDate(courseDate: any): boolean {
+    if (this.isSelectedDateInPast()) {
+      return true;
+    }
+    return this.utilsService.isFutureDate(courseDate);
+  }
+
+  private isSelectedDateInPast(): boolean {
+    if (!this.selectedDate) {
+      return false;
+    }
+    return moment(this.selectedDate).isBefore(moment(), 'day');
+  }
+
+  private async confirmPastDateIfNeeded(date: Date): Promise<boolean> {
+    if (!date || !moment(date).isBefore(moment(), 'day')) {
+      return true;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      data: {
+        title: this.translateWithFallback('monitor_assignment.past_warning_title', 'Past date'),
+        message: this.translateWithFallback(
+          'monitor_assignment.past_warning_message',
+          'Selected date is before today. Continue?'
+        ),
+        confirmButtonText: this.translateWithFallback('continue', 'Continue'),
+        cancelButtonText: this.translateWithFallback('cancel', 'Cancel')
+      }
+    });
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
+  private translateWithFallback(key: string, fallback: string): string {
+    const translated = this.translateService.instant(key);
+    if (!translated || translated === key) {
+      return fallback;
+    }
+    return translated;
+  }
   private handleAvailabilityError(error: any, sportLevel: any, cacheKey?: string): void {
     this.feedback.setLoading('courses', false);
     this.isLoading = false;
@@ -1175,3 +1235,14 @@ type AvailabilityPreviewStreamResult =
   | { status: 'skip' }
   | { status: 'success'; data: AvailabilityPreviewResponse | null }
   | { status: 'error' };
+
+
+
+
+
+
+
+
+
+
+

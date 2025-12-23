@@ -45,9 +45,14 @@ export class BookingDetailV2Component implements OnInit {
   isLoading = false;
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
-  // Prefer basket.price_total when available
+  // Prefer stored price_total; fallback to computed/basket when missing
   private resolveDisplayTotal(booking: any): number {
     if (!booking) return 0;
+    const originalRaw = booking.price_total;
+    if (originalRaw !== null && originalRaw !== undefined && originalRaw !== '') {
+      const originalTotal = Number(originalRaw);
+      if (!isNaN(originalTotal)) return originalTotal;
+    }
     const computedTotal = booking.computed_total !== undefined ? Number(booking.computed_total) : NaN;
     const basketRaw = booking.basket;
     let basket: any = null;
@@ -59,10 +64,8 @@ export class BookingDetailV2Component implements OnInit {
       }
     }
     const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
-    const originalTotal = booking.price_total !== undefined ? Number(booking.price_total) : NaN;
     if (!isNaN(computedTotal)) return computedTotal;
     if (!isNaN(basketTotal)) return basketTotal;
-    if (!isNaN(originalTotal)) return originalTotal;
     return 0;
   }
 
@@ -312,8 +315,12 @@ export class BookingDetailV2Component implements OnInit {
 
     this.bookingData$.next(booking);
     this.bookingData = booking;
+    this.bookingService.setBookingData(this.bookingData);
     const displayTotal = this.resolveDisplayTotal(this.bookingData);
-    if (displayTotal) {
+    const hasStoredTotal = this.bookingData?.price_total !== null
+      && this.bookingData?.price_total !== undefined
+      && this.bookingData?.price_total !== '';
+    if (!hasStoredTotal) {
       this.bookingData.price_total = displayTotal;
     }
     this.groupedActivities = this.groupBookingUsersByGroupId(booking);
@@ -1100,6 +1107,14 @@ export class BookingDetailV2Component implements OnInit {
       const num = typeof value === 'number' ? value : parseFloat(value ?? '0');
       return total + (isNaN(num) ? 0 : num);
     }, 0);
+  }
+
+  getPendingAmount(): number {
+    if (!this.bookingData) {
+      return 0;
+    }
+    this.bookingService.setBookingData(this.bookingData);
+    return this.bookingService.calculatePendingPrice();
   }
 
 

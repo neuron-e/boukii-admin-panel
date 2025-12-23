@@ -6,6 +6,7 @@ import {
   getApplicableDiscounts,
   resolveIntervalName
 } from 'src/app/pages/bookings-v2/shared/discount-utils';
+import {TranslateService} from '@ngx-translate/core';
 
 /**
  * Configuración para controlar qué datos incluir en el formateo
@@ -128,7 +129,7 @@ export interface FormattedActivityData {
 })
 export class BookingDataService {
 
-  constructor() { }
+  constructor(private translateService: TranslateService) { }
 
   /**
    * Formatea los datos de una actividad de forma consistente
@@ -282,7 +283,7 @@ export class BookingDataService {
         if (!groupsMap.has(key)) {
           const intervalName = date.interval_name ||
             (date.interval_id ? resolveIntervalName(course, String(date.interval_id)) : null) ||
-            'interval_date_range';
+            this.translateService.instant('interval_date_range');
 
           groupsMap.set(key, {
             key,

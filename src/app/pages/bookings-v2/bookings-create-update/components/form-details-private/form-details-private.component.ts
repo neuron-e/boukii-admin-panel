@@ -127,7 +127,7 @@ export class FormDetailsPrivateComponent implements OnInit {
   }
 
   inUseDatesFilter = (d: Date): boolean => {
-    return this.utilService.inUseDatesFilter(d, this.myHolidayDates, this.course);
+    return this.utilService.inUseDatesFilter(d, this.myHolidayDates, this.course, true);
   }
   addCourseDate(initialData: any = null) {
     const utilizerArray = this.fb.array(
@@ -369,6 +369,8 @@ export class FormDetailsPrivateComponent implements OnInit {
     });
 
     courseDateGroup.get('date').valueChanges.subscribe(() => {
+      const dateValue = courseDateGroup.get('date').value;
+      this.warnPastDateIfNeeded(dateValue);
       if(courseDateGroup.get('duration').value && courseDateGroup.get('startHour').value) {
         this.checkAval(courseDateGroup).then((isAvailable) => {
           if (isAvailable) {
@@ -504,6 +506,22 @@ export class FormDetailsPrivateComponent implements OnInit {
     return total;
   }
 
+  private warnPastDateIfNeeded(dateValue: any): void {
+    if (!dateValue) {
+      return;
+    }
+    const isPast = moment(dateValue).isBefore(moment(), 'day');
+    if (!isPast) {
+      return;
+    }
+
+    const translated = this.translateService.instant('monitor_assignment.past_warning_message');
+    const message = translated && translated !== 'monitor_assignment.past_warning_message'
+      ? translated
+      : 'Selected date is before today.';
+
+    this.snackbar.open(message, this.translateService.instant('close'), { duration: 4000 });
+  }
   getMonitorsAvailable(dateGroup) {
     const index = this.courseDates.controls.indexOf(dateGroup);
 
@@ -539,3 +557,6 @@ export class FormDetailsPrivateComponent implements OnInit {
 
 
 }
+
+
+

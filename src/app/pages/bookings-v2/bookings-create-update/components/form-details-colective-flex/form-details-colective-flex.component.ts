@@ -106,12 +106,13 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
         const currentTime = moment();
         const isToday = dateMoment.isSame(currentTime, 'day');
         const isInFuture = dateMoment.isAfter(currentTime, 'day');
+        const isPastDay = dateMoment.isBefore(currentTime, 'day');
         const hourStartMoment = moment(date.hour_start, 'HH:mm');
         const isValidToday = isToday && hourStartMoment.isAfter(currentTime);
         const monitor = this.findMonitor(date);
         const hasCapacity = !!monitor;
 
-        if (isInFuture || isValidToday) {
+        if (isInFuture || isValidToday || isPastDay) {
           const initialSelected = this.initialData?.[index]?.selected || false;
           const initialExtras = this.initialData?.[index]?.extras || [];
           const dateGroup = this.createCourseDateGroup(date, initialSelected, initialExtras);
@@ -324,6 +325,14 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
     const extrasControl = courseDateGroup.get('extras');
 
     if (isChecked) {
+      const dateValue = courseDateGroup.get('date')?.value;
+      if (dateValue && moment(dateValue).isBefore(moment(), 'day')) {
+        const translated = this.translateService.instant('monitor_assignment.past_warning_message');
+        const message = translated && translated !== 'monitor_assignment.past_warning_message'
+          ? translated
+          : 'Selected date is before today.';
+        this.snackbar.open(message, this.translateService.instant('close'), { duration: 4000 });
+      }
 
       // Llamamos a checkAval para verificar la disponibilidad de la fecha seleccionada
       this.checkAval(index).then((isAvailable) => {
@@ -876,6 +885,8 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
   }
 
 }
+
+
 
 
 

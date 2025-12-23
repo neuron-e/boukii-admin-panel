@@ -39,9 +39,16 @@ export class BookingsV2Component implements OnInit, OnChanges {
   bookingLog: any = [];
   bookingUsersUnique = [];
   allLevels: any;
-  // Use basket.price_total when available to display accurate totals
+  // Prefer stored price_total; fallback to computed/basket when missing
   private resolveDisplayTotal(booking: any): number {
     if (!booking) return 0;
+    const originalRaw = booking.price_total;
+    if (originalRaw !== null && originalRaw !== undefined && originalRaw !== '') {
+      const originalTotal = Number(originalRaw);
+      if (!isNaN(originalTotal)) {
+        return originalTotal;
+      }
+    }
     const computedTotal = booking.computed_total !== undefined ? Number(booking.computed_total) : NaN;
     const basketRaw = booking.basket;
     let basket: any = null;
@@ -53,16 +60,8 @@ export class BookingsV2Component implements OnInit, OnChanges {
       }
     }
     const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
-    const originalTotal = booking.price_total !== undefined ? Number(booking.price_total) : NaN;
-    if (!isNaN(computedTotal)) {
-      return computedTotal;
-    }
-    if (!isNaN(basketTotal)) {
-      return basketTotal;
-    }
-    if (!isNaN(originalTotal)) {
-      return originalTotal;
-    }
+    if (!isNaN(computedTotal)) return computedTotal;
+    if (!isNaN(basketTotal)) return basketTotal;
     return 0;
   }
 
@@ -128,7 +127,10 @@ export class BookingsV2Component implements OnInit, OnChanges {
           .toPromise();
         this.detailData = res?.data || event.item;
         const displayTotal = this.resolveDisplayTotal(this.detailData);
-        if (displayTotal) {
+        const hasStoredTotal = this.detailData?.price_total !== null
+          && this.detailData?.price_total !== undefined
+          && this.detailData?.price_total !== '';
+        if (!hasStoredTotal) {
           this.detailData.price_total = displayTotal;
         }
 
@@ -162,7 +164,10 @@ export class BookingsV2Component implements OnInit, OnChanges {
         // Fallback mínimo si la carga de detalle falla
         this.detailData = event.item;
         const displayTotal = this.resolveDisplayTotal(this.detailData);
-        if (displayTotal) {
+        const hasStoredTotal = this.detailData?.price_total !== null
+          && this.detailData?.price_total !== undefined
+          && this.detailData?.price_total !== '';
+        if (!hasStoredTotal) {
           this.detailData.price_total = displayTotal;
         }
         this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
@@ -712,7 +717,10 @@ export class BookingsV2Component implements OnInit, OnChanges {
     if (Array.isArray(data)) {
       data.forEach(booking => {
         const displayTotal = this.resolveDisplayTotal(booking);
-        if (displayTotal) {
+        const hasStoredTotal = booking?.price_total !== null
+          && booking?.price_total !== undefined
+          && booking?.price_total !== '';
+        if (!hasStoredTotal) {
           booking.price_total = displayTotal;
         }
       });

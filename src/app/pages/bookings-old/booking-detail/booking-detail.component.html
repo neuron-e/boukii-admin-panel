@@ -750,7 +750,7 @@
 									<span
 										*ngIf="booking.status === 1 && !booking.paid && booking.payment_method_id == 3"
 										style="color:#FA9917;background-color: #F7E399;">
-										{{'link_send' | translate | uppercase }}
+										{{(booking?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
 									</span>
 								</span>
 							</div>

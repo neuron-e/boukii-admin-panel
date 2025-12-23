@@ -76,12 +76,12 @@
         {{ groupedActivities[0]?.course?.currency }}
       </span>
   </ng-container>
-  <ng-container >
-    <span *ngIf="!bookingData?.paid && bookingData?.price_total - calculateTotalVoucherPrice() > 0">{{ "to_pay" | translate }}</span>
+  <ng-container>
+    <span *ngIf="!bookingData?.paid && getPendingAmount() > 0">{{ "to_pay" | translate }}</span>
   </ng-container>
-  <ng-container *ngIf="!bookingData?.paid && bookingData?.price_total - calculateTotalVoucherPrice() > 0">
-      <span class="totalPrice" *ngIf="bookingData?.price_total - calculateTotalVoucherPrice() != 0">
-        {{ bookingData?.price_total - calculateTotalVoucherPrice()  | number:'0.2-2' }}
+  <ng-container *ngIf="!bookingData?.paid && getPendingAmount() > 0">
+      <span class="totalPrice" *ngIf="getPendingAmount() != 0">
+        {{ getPendingAmount()  | number:'0.2-2' }}
         {{ groupedActivities[0]?.course?.currency}}
       </span>
   </ng-container>

@@ -1147,7 +1147,7 @@
 						</span>
 						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 3"
                   style="color:#FA9917;background-color: #F7E399;">
-							{{'link_send' | translate | uppercase }}
+							{{(detailData?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
 						</span>
 					</span>
                   </div>
