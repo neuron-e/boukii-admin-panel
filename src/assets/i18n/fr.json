@@ -1143,6 +1143,7 @@
   "limit_available_dates": "Limiter les Dates Disponibles",
   "limit_explanation": "Limite optionnellement le nombre de dates disponibles qui peuvent être sélectionnées",
   "link_send": "Lien envoyé",
+  "link_expired": "Lien expiré",
   "link_to_logo_url": "Lien vers l'URL du logo",
   "list": "Liste",
   "loading_analytics": "Chargement des analyses",
@@ -1241,7 +1242,7 @@
     "scope_label": "Appliquer le moniteur à",
     "start_date": "Date de début",
     "override_sport": "Sport différent du cours (confirmation requise)",
-      "override_warning": "Nécessite une confirmation (niveau/langue)"
+    "override_warning": "Nécessite une confirmation (niveau/langue)"
   },
   "monitor_busy": "Le moniteur est occupé",
   "monitor_comments": "Observations du moniteur.",
@@ -2019,5 +2020,6 @@
   "yearly_analysis": "Analyse Annuelle",
   "years": "Ans",
   "yes": "Oui",
-  "yes_delete": "Oui, supprimer"
+  "yes_delete": "Oui, supprimer",
+  "mail_booking_create_sent": "Email de confirmation de réservation envoyé"
 }

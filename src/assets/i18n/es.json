@@ -1140,6 +1140,7 @@
   "limit_available_dates": "Limitar Fechas Disponibles",
   "limit_explanation": "Opcionalmente limita el número de fechas disponibles que se pueden seleccionar",
   "link_send": "Link enviado",
+  "link_expired": "Link expirado",
   "link_to_logo_url": "Enlace a URL logo",
   "list": "Listado",
   "loading_analytics": "Cargando analíticas",
@@ -1989,5 +1990,6 @@
   "yearly_analysis": "Análisis Anual",
   "years": "Años",
   "yes": "Sí",
-  "yes_delete": "Sí, eliminar"
+  "yes_delete": "Sí, eliminar",
+  "mail_booking_create_sent": "Correo de confirmación de reserva enviado"
 }

@@ -1143,6 +1143,7 @@
   "limit_available_dates": "Verfügbare Daten begrenzen",
   "limit_explanation": "Begrenzt optional die Anzahl der verfügbaren Daten, die ausgewählt werden können",
   "link_send": "Link gesendet",
+  "link_expired": "Link abgelaufen",
   "link_to_logo_url": "Link zur Logo-URL",
   "list": "Aufführen",
   "loading_analytics": "Analysen werden geladen",
@@ -1241,7 +1242,7 @@
     "scope_label": "Trainer zuweisen für",
     "start_date": "Startdatum",
     "override_sport": "Andere Sportart als der Kurs (Bestätigung erforderlich)",
-      "override_warning": "Erfordert eine Bestätigung (Level/Sprache)"
+    "override_warning": "Erfordert eine Bestätigung (Level/Sprache)"
   },
   "monitor_busy": "Der Monitor ist beschäftigt",
   "monitor_comments": "Überwachen Sie Kommentare",
@@ -2019,5 +2020,6 @@
   "yearly_analysis": "Jahresanalyse",
   "years": "Jahre",
   "yes": "Ja",
-  "yes_delete": "Ja, löschen"
+  "yes_delete": "Ja, löschen",
+  "mail_booking_create_sent": "Buchungsbestätigung gesendet"
 }

@@ -1128,6 +1128,7 @@
   "limit_available_dates": "Limit Available Dates",
   "limit_explanation": "Optionally limit the number of available dates that can be selected",
   "link_send": "Link sent",
+  "link_expired": "Link expired",
   "link_to_logo_url": "Link to logo URL",
   "list": "List",
   "loading_analytics": "Loading analytics",
@@ -1985,5 +1986,6 @@
   "yearly_analysis": "Yearly Analysis",
   "years": "Years",
   "yes": "Yes",
-  "yes_delete": "Yes, delete"
+  "yes_delete": "Yes, delete",
+  "mail_booking_create_sent": "Booking confirmation email sent"
 }
