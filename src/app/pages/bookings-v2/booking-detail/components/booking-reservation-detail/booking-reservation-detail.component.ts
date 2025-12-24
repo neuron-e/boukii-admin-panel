@@ -234,10 +234,10 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     // El backend (BookingPriceCalculatorService) es el UNICO responsable de calcular precios.
     // Frontend SOLO visualiza, NUNCA recalcula.
     // Ver: ops/decisions/ADR-0001-pricing-centralization.md
-    
+
     // ELIMINADO (2025-11-14): this.bookingData.price_total = this.calculateTotal();
     // Razon: Causaba discrepancias entre frontend/backend y errores en pasarela de pago (ej: reserva 5608)
-    
+
     this.bookingService.setBookingData(this.bookingData);
   }
 
@@ -440,13 +440,17 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   getOutstandingTotal(): number {
-    if (!this.bookingData) {
+   /* if (!this.bookingData) {
       return 0;
     }
 
     this.bookingService.setBookingData(this.bookingData);
     const pending = this.bookingService.calculatePendingPrice();
-    return Number((pending < 0 ? 0 : pending).toFixed(2));
+    return Number((pending < 0 ? 0 : pending).toFixed(2));*/
+    const total = this.getFinalTotal();
+    const vouchers = this.calculateTotalVoucherPrice();
+    const outstanding = total - vouchers;
+    return Number((outstanding < 0 ? 0 : outstanding).toFixed(2));
   }
 
   calculateTotalVoucherPrice(): number {
