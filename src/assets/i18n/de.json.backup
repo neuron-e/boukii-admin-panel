@@ -1242,7 +1242,7 @@
     "scope_label": "Trainer zuweisen für",
     "start_date": "Startdatum",
     "override_sport": "Andere Sportart als der Kurs (Bestätigung erforderlich)",
-      "override_warning": "Erfordert eine Bestätigung (Level/Sprache)"
+    "override_warning": "Erfordert eine Bestätigung (Level/Sprache)"
   },
   "monitor_busy": "Der Monitor ist beschäftigt",
   "monitor_comments": "Überwachen Sie Kommentare",
@@ -2021,5 +2021,5 @@
   "years": "Jahre",
   "yes": "Ja",
   "yes_delete": "Ja, löschen",
-  "mail_booking_create_sent": "Buchungsbest�tigung gesendet"
+  "mail_booking_create_sent": "Buchungsbestätigung gesendet"
 }

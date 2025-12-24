@@ -137,12 +137,24 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     return this.selectedPaymentOptionId ?? 1;
   }
 
+  private ensureCreateRouteState(): void {
+    const currentUrl = this.router?.url ?? '';
+    if (currentUrl.includes('/bookings/create')) {
+      this.bookingService.resetBookingData();
+    }
+  }
+
   private detectEditMode(): boolean {
+    const currentUrl = this.router?.url ?? '';
+    if (currentUrl.includes('/bookings/create')) {
+      return false;
+    }
+
     if (this.externalData?.booking?.id) {
       return true;
     }
 
-    if (this.router?.url?.includes('/bookings/edit')) {
+    if (currentUrl.includes('/bookings/edit')) {
       return true;
     }
 
@@ -190,6 +202,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       this.selectedPaymentOptionId = this.paymentOptions[0].id;
       this.selectedPaymentOptionLabel = this.paymentOptions[0].label;
     }
+    this.ensureCreateRouteState();
     this.isEditMode = this.detectEditMode();
 
     // MEJORA CRÃTICA: Inicializar sistema de persistencia

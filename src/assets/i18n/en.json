@@ -1987,5 +1987,9 @@
   "years": "Years",
   "yes": "Yes",
   "yes_delete": "Yes, delete",
-  "mail_booking_create_sent": "Booking confirmation email sent"
+  "mail_booking_create_sent": "Booking confirmation email sent",
+  "payment_method_updated": "Payment method updated",
+  "send_pay_link": "Send payment link",
+  "updated_by_admin": "Updated by admin",
+  "confirm_booking_message": "Confirm booking message"
 }

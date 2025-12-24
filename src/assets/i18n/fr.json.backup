@@ -1242,7 +1242,7 @@
     "scope_label": "Appliquer le moniteur à",
     "start_date": "Date de début",
     "override_sport": "Sport différent du cours (confirmation requise)",
-      "override_warning": "Nécessite une confirmation (niveau/langue)"
+    "override_warning": "Nécessite une confirmation (niveau/langue)"
   },
   "monitor_busy": "Le moniteur est occupé",
   "monitor_comments": "Observations du moniteur.",
@@ -2021,5 +2021,5 @@
   "years": "Ans",
   "yes": "Oui",
   "yes_delete": "Oui, supprimer",
-  "mail_booking_create_sent": "Email de confirmation de r�servation envoy�"
+  "mail_booking_create_sent": "Email de confirmation de réservation envoyé"
 }

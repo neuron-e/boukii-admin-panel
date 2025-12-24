@@ -2021,5 +2021,9 @@
   "years": "Ans",
   "yes": "Oui",
   "yes_delete": "Oui, supprimer",
-  "mail_booking_create_sent": "Email de confirmation de réservation envoyé"
+  "mail_booking_create_sent": "Email de confirmation de réservation envoyé",
+  "payment_method_updated": "Méthode de paiement mise à jour",
+  "send_pay_link": "Envoyer le lien de paiement",
+  "updated_by_admin": "Mis à jour par l'administrateur",
+  "confirm_booking_message": "Message de confirmation de réservation"
 }

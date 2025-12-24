@@ -2021,5 +2021,9 @@
   "years": "Jahre",
   "yes": "Ja",
   "yes_delete": "Ja, löschen",
-  "mail_booking_create_sent": "Buchungsbestätigung gesendet"
+  "mail_booking_create_sent": "Buchungsbestätigung gesendet",
+  "payment_method_updated": "Zahlungsmethode aktualisiert",
+  "send_pay_link": "Zahlungslink senden",
+  "updated_by_admin": "Von Administrator aktualisiert",
+  "confirm_booking_message": "Buchungsbestätigungsnachricht"
 }

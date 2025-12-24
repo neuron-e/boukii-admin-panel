@@ -248,11 +248,6 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   handlePayClick(): void {
-    if (this.bookingService.calculatePendingPrice() === 0) {
-      this.finalizeBooking();
-      return;
-    }
-
     this.preparePaymentModalState();
     this.payModal = true;
   }

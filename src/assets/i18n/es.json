@@ -1991,5 +1991,9 @@
   "years": "Años",
   "yes": "Sí",
   "yes_delete": "Sí, eliminar",
-  "mail_booking_create_sent": "Correo de confirmación de reserva enviado"
+  "mail_booking_create_sent": "Correo de confirmación de reserva enviado",
+  "payment_method_updated": "Método de pago actualizado",
+  "send_pay_link": "Enviar enlace de pago",
+  "updated_by_admin": "Actualizado por administrador",
+  "confirm_booking_message": "Mensaje de confirmación de reserva"
 }
