@@ -22,6 +22,7 @@ export class BonusesComponent implements OnInit {
   private readonly TAB_PURCHASE = 0;
   private readonly TAB_DISCOUNTS = 1;
   private readonly TAB_GIFT = 2;
+  private readonly TAB_GIFT_PURCHASED = 3;
 
   private readonly voucherColumns: TableColumn<any>[] = [
     { label: 'code', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
@@ -62,19 +63,27 @@ export class BonusesComponent implements OnInit {
   // Currency code from school settings
   currencyCode: string;
 
-  // Gift vouchers data
+  // Gift vouchers created in admin (vouchers with is_gift=1) data
   giftVouchers: any[] = [];
-  giftVouchersViewMode: 'cards' | 'table' = 'cards'; // Toggle between card and table view
+  giftVouchersViewMode: 'cards' | 'table' = 'cards';
   private readonly giftVouchersCardsPerPage = 50;
 
   @ViewChild('giftVouchersTableRef') giftVouchersTable?: AioTableComponent;
 
-  // Gift vouchers table configuration
+  // Gift vouchers purchased (from gift_vouchers table) data
+  giftVouchersPurchased: any[] = [];
+  giftVouchersPurchasedViewMode: 'cards' | 'table' = 'cards';
+  private readonly giftVouchersPurchasedCardsPerPage = 50;
+
+  @ViewChild('giftVouchersPurchasedTableRef') giftVouchersPurchasedTable?: AioTableComponent;
+
+  // Gift vouchers table configuration (vouchers with is_gift=1)
   giftVouchersTableColumns: TableColumn<any>[] = [
     { label: 'code', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
+    { label: 'amount', property: 'quantity', type: 'currency', visible: true },
+    { label: 'voucher.assigned_client', property: 'client', type: 'client', visible: true },
     { label: 'voucher.buyer', property: 'buyer_name', type: 'text', visible: true },
     { label: 'recipient', property: 'recipient_name', type: 'text', visible: true },
-    { label: 'amount', property: 'quantity', type: 'currency', visible: true },
     { label: 'uses', property: 'uses_count', type: 'text', visible: true },
     { label: 'status', property: 'payed', type: 'badge', visible: true },
     { label: 'voucher.creation_date', property: 'created_at', type: 'date', visible: true },
@@ -86,6 +95,24 @@ export class BonusesComponent implements OnInit {
   giftVouchersCreateComponent: any = BonusesCreateUpdateComponent;
   giftVouchersTableWith: any = ['client', 'vouchersLogs'];
   giftVouchersTableSearch = '&is_gift=1';
+
+  // Gift vouchers purchased table configuration (gift_vouchers table)
+  giftVouchersPurchasedTableColumns: TableColumn<any>[] = [
+    { label: 'code', property: 'code', type: 'text_copyable', visible: true, cssClasses: ['font-medium'] },
+    { label: 'voucher.buyer', property: 'buyer_name', type: 'text', visible: true },
+    { label: 'recipient', property: 'recipient_name', type: 'text', visible: true },
+    { label: 'amount', property: 'amount', type: 'currency', visible: true },
+    { label: 'status', property: 'status', type: 'badge', visible: true },
+    { label: 'is_paid', property: 'is_paid', type: 'badge', visible: true },
+    { label: 'voucher.creation_date', property: 'created_at', type: 'date', visible: true },
+    { label: 'actions', property: 'actions', type: 'button', visible: true }
+  ];
+  giftVouchersPurchasedTableEntity = '/gift-vouchers';
+  giftVouchersPurchasedTableDeleteEntity = '/gift-vouchers';
+  giftVouchersPurchasedTableRoute = 'gift-vouchers';
+  giftVouchersPurchasedCreateComponent: any = null; // No creation from admin for purchased vouchers
+  giftVouchersPurchasedTableWith: any = ['school', 'purchasedBy', 'redeemedBy', 'voucher'];
+  giftVouchersPurchasedTableSearch = '';
 
   constructor(
     private dialog: MatDialog,
@@ -151,16 +178,13 @@ export class BonusesComponent implements OnInit {
       this.currentTitle = 'discount_codes';
       this.searchParams = '';
     } else if (tabIndex === this.TAB_GIFT) {
-      // Gift vouchers - load data for card view
-      this.columns = this.voucherColumns;
-      this.createComponent = BonusesCreateUpdateComponent;
-      this.entity = '/vouchers';
-      this.deleteEntity = '/vouchers';
-      this.currentRoute = 'vouchers';
-      this.currentWith = ['client', 'vouchersLogs'];
-      this.searchParams = '&is_gift=1';
+      // Gift vouchers created from admin (vouchers with is_gift=1)
       this.currentTitle = 'gift_vouchers';
       this.loadGiftVouchers();
+    } else if (tabIndex === this.TAB_GIFT_PURCHASED) {
+      // Gift vouchers purchased by clients (from gift_vouchers table)
+      this.currentTitle = 'gift_vouchers_purchased';
+      this.loadGiftVouchersPurchased();
     } else {
       // Purchase vouchers
       this.columns = this.voucherColumns;
@@ -226,7 +250,7 @@ export class BonusesComponent implements OnInit {
     });
   }
 
-  // Gift vouchers card view methods
+  // Gift vouchers (vouchers with is_gift=1) card view methods
   loadGiftVouchers(page = 1) {
     const schoolId = this.user?.schools?.[0]?.id;
     let searchQuery = '&is_gift=1';
@@ -265,79 +289,22 @@ export class BonusesComponent implements OnInit {
     });
   }
 
-  createGiftVoucher() {
-    const dialogRef = this.dialog.open(BonusesCreateUpdateComponent, {
-      width: '800px',
-      height: '90vh',
-      data: { mode: 'create', isGift: true }
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (result) {
-        this.loadGiftVouchers();
-        this.snackbar.open(
-          this.translateService.instant('gift_voucher.created_success'),
-          'OK',
-          { duration: 3000 }
-        );
-      }
-    });
-  }
-
-  viewVoucher(voucher: any) {
-    const dialogRef = this.dialog.open(BonusesCreateUpdateComponent, {
-      width: '800px',
-      height: '90vh',
-      data: {
-        mode: 'update',
-        id: voucher?.id,
-        voucher,
-        readOnly: true,
-        viewMode: true
-      }
-    });
-  }
-
-  editVoucher(voucher: any) {
-    const dialogRef = this.dialog.open(BonusesCreateUpdateComponent, {
-      width: '800px',
-      height: '90vh',
-      data: {
-        mode: 'update',
-        id: voucher?.id,
-        voucher
-      }
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (result) {
-        this.loadGiftVouchers();
-        this.snackbar.open(
-          this.translateService.instant('voucher.updated_success'),
-          'OK',
-          { duration: 3000 }
-        );
-      }
-    });
-  }
-
-  copyCode(code: string) {
-    this.clipboard.copy(code);
+  viewGiftVoucher(voucher: any) {
+    // Open edit dialog for gift vouchers from admin
     this.snackbar.open(
-      this.translateService.instant('voucher.copy_success'),
+      this.translateService.instant('gift_voucher.view'),
       'OK',
-      { duration: 2000 }
+      { duration: 3000 }
     );
   }
 
-  deleteVoucher(voucher: any) {
-
-    const confirmDelete = window.confirm(this.translateService.instant('delete_confirm') || 'Delete voucher?');
+  deleteGiftVoucher(voucher: any) {
+    const confirmDelete = window.confirm(this.translateService.instant('delete_confirm') || 'Delete gift voucher?');
     if (!confirmDelete) {
       return;
     }
 
-    this.crudService.delete(this.deleteEntity, voucher.id).subscribe({
+    this.crudService.delete('/vouchers', voucher.id).subscribe({
       next: () => {
         this.snackbar.open(
           this.translateService.instant('voucher.deleted_success'),
@@ -347,7 +314,7 @@ export class BonusesComponent implements OnInit {
         this.loadGiftVouchers();
       },
       error: (error) => {
-        console.error('Error deleting voucher:', error);
+        console.error('Error deleting gift voucher:', error);
         this.snackbar.open(
           this.translateService.instant('voucher.error_delete'),
           'OK',
@@ -373,72 +340,23 @@ export class BonusesComponent implements OnInit {
       return voucher;
     }
 
-    const client = voucher.client;
-    const buyerName =
-      voucher.buyer_name ??
-      voucher.sender_name ??
-      voucher.buyer?.name ??
-      voucher.buyerName ??
-      '';
-
-    const clientName = client
-      ? `${client.first_name ?? ''} ${client.last_name ?? ''}`.trim()
-      : '';
-
-    const recipientName =
-      voucher.recipient_name ??
-      voucher.recipientName ??
-      clientName;
-
-    const quantity =
-      voucher.quantity ??
-      voucher.amount ??
-      voucher.value ??
-      0;
-
-    let payedValue = voucher.payed;
-    if (typeof payedValue !== 'boolean') {
-      if (payedValue === 1 || payedValue === '1') {
-        payedValue = true;
-      } else if (payedValue === 0 || payedValue === '0') {
-        payedValue = false;
-      } else {
-        const status = (voucher.status || '').toString().toLowerCase();
-        if (status === 'used' || status === 'redeemed' || status === 'paid') {
-          payedValue = true;
-        } else if (status === 'pending' || status === 'active') {
-          payedValue = false;
-        } else if (typeof voucher.remaining_balance === 'number') {
-          payedValue = voucher.remaining_balance <= 0;
-        } else {
-          payedValue = Boolean(payedValue);
-        }
-      }
-    }
-
-    const createdAt =
-      voucher.created_at ??
-      voucher.createdAt ??
-      voucher.created_at_formatted ??
-      voucher.created_at_iso ??
-      voucher.created;
-
-    const notes = voucher.notes ?? voucher.description ?? voucher.message ?? '';
-    const logs = voucher.vouchers_logs ?? voucher.vouchersLogs ?? [];
-    const usesCount = voucher.uses_count ?? (Array.isArray(logs) ? logs.length : 0);
-    const remainingBalance = voucher.remaining_balance ?? voucher.remainingBalance ?? voucher.quantity;
+    const buyerName = voucher.buyer_name ?? '';
+    const recipientName = voucher.recipient_name ?? '';
+    const amount = voucher.quantity ?? 0;
+    const balance = voucher.remaining_balance ?? 0;
+    const isPaid = voucher.payed ?? false;
+    const createdAt = voucher.created_at;
 
     return {
       ...voucher,
       buyer_name: buyerName,
       recipient_name: recipientName,
-      quantity,
-      payed: payedValue,
-      created_at: createdAt,
-      notes,
-      logs,
-      uses_count: usesCount,
-      remaining_balance: remainingBalance
+      amount,
+      balance,
+      is_paid: isPaid,
+      personal_message: voucher.personal_message ?? null,
+      status: balance <= 0 ? 'used' : (isPaid ? 'active' : 'pending'),
+      created_at: createdAt
     };
   }
 
@@ -449,6 +367,133 @@ export class BonusesComponent implements OnInit {
       setTimeout(() => this.refreshGiftVouchersTable(), 0);
     } else {
       this.loadGiftVouchers();
+    }
+  }
+
+  // Gift vouchers purchased (from gift_vouchers table) card view methods
+  loadGiftVouchersPurchased(page = 1) {
+    const schoolId = this.user?.schools?.[0]?.id;
+    let searchQuery = '';
+
+    if (schoolId) {
+      searchQuery += `&school_id=${schoolId}`;
+    }
+
+    this.crudService.list(
+      '/gift-vouchers',
+      page,
+      this.giftVouchersPurchasedCardsPerPage,
+      'desc',
+      'id',
+      searchQuery,
+      '',
+      null,
+      '',
+      ['school', 'purchasedBy', 'redeemedBy', 'voucher']
+    ).subscribe({
+      next: (response: any) => {
+        const rawData = response?.data;
+        const rawVouchers = Array.isArray(rawData)
+          ? rawData
+          : Array.isArray(rawData?.data)
+            ? rawData.data
+            : [];
+        this.giftVouchersPurchased = rawVouchers.map((voucher: any) => this.normalizeGiftVoucherPurchased(voucher));
+        this.refreshGiftVouchersPurchasedTable();
+      },
+      error: (error) => {
+        console.error('Error loading purchased gift vouchers:', error);
+        this.giftVouchersPurchased = [];
+        this.refreshGiftVouchersPurchasedTable();
+      }
+    });
+  }
+
+  viewGiftVoucherPurchased(voucher: any) {
+    // Show read-only view for purchased gift vouchers
+    this.snackbar.open(
+      this.translateService.instant('gift_voucher_purchased.view_only'),
+      'OK',
+      { duration: 3000 }
+    );
+  }
+
+  copyCode(code: string) {
+    this.clipboard.copy(code);
+    this.snackbar.open(
+      this.translateService.instant('voucher.copy_success'),
+      'OK',
+      { duration: 2000 }
+    );
+  }
+
+  deleteGiftVoucherPurchased(voucher: any) {
+    const confirmDelete = window.confirm(this.translateService.instant('delete_confirm') || 'Delete gift voucher?');
+    if (!confirmDelete) {
+      return;
+    }
+
+    this.crudService.delete('/gift-vouchers', voucher.id).subscribe({
+      next: () => {
+        this.snackbar.open(
+          this.translateService.instant('voucher.deleted_success'),
+          'OK',
+          { duration: 3000 }
+        );
+        this.loadGiftVouchersPurchased();
+      },
+      error: (error) => {
+        console.error('Error deleting gift voucher:', error);
+        this.snackbar.open(
+          this.translateService.instant('voucher.error_delete'),
+          'OK',
+          { duration: 3000 }
+        );
+      }
+    });
+  }
+
+  private refreshGiftVouchersPurchasedTable(): void {
+    if (!this.giftVouchersPurchasedTable) {
+      return;
+    }
+
+    const pageIndex = this.giftVouchersPurchasedTable.pageIndex || 1;
+    const pageSize = this.giftVouchersPurchasedTable.pageSize || 10;
+
+    this.giftVouchersPurchasedTable.getData(pageIndex, pageSize);
+  }
+
+  private normalizeGiftVoucherPurchased(voucher: any): any {
+    if (!voucher) {
+      return voucher;
+    }
+
+    const buyerName = voucher.buyer_name ?? voucher.sender_name ?? '';
+    const recipientName = voucher.recipient_name ?? '';
+    const amount = voucher.amount ?? 0;
+    const isPaid = voucher.is_paid ?? false;
+    const status = voucher.status ?? 'pending';
+    const createdAt = voucher.created_at;
+
+    return {
+      ...voucher,
+      buyer_name: buyerName,
+      recipient_name: recipientName,
+      amount,
+      is_paid: isPaid,
+      status,
+      created_at: createdAt
+    };
+  }
+
+  toggleGiftVouchersPurchasedView() {
+    this.giftVouchersPurchasedViewMode = this.giftVouchersPurchasedViewMode === 'cards' ? 'table' : 'cards';
+
+    if (this.giftVouchersPurchasedViewMode === 'table') {
+      setTimeout(() => this.refreshGiftVouchersPurchasedTable(), 0);
+    } else {
+      this.loadGiftVouchersPurchased();
     }
   }
 
