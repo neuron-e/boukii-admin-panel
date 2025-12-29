@@ -173,7 +173,7 @@
           <span class="hour"> {{ activity.course.name }} </span>
           <span class="price" [ngClass]="{ 'line-through': activity.status == 2 }">
             <span class="discounted-price">
-              {{ activity.total | number:'0.2-2' }}
+              {{ activity.courseBaseTotal || getActivityBaseAmount(activity) | number:'0.2-2' }}
               {{ getActivitiesCurrency() }}
             </span>
           </span>
@@ -200,24 +200,6 @@
             </div>
           </div>
         </ng-container>
-        <div class="dateRow" style="margin-left: 30px; border-top: 1px dashed #dee6ea; padding-top: 8px;">
-          <div>
-            <span class="hour">{{ 'course_total' | translate }}</span>
-            <span class="price">
-              <span class="discounted-price">{{ activity.courseBaseTotal || getActivityBaseAmount(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}</span>
-            </span>
-          </div>
-        </div>
-        <div class="dateRow" style="margin-left: 30px;" *ngIf="getActivityDiscountAmount(activity) > 0">
-          <div>
-            <span class="hour" style="color: #1b5e20;">{{ 'discount' | translate }}</span>
-            <span class="price">
-              <span class="discounted-price" style="color: #1b5e20;">
-                -{{ activity.courseDiscountTotal || getActivityDiscountAmount(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}
-              </span>
-            </span>
-          </div>
-        </div>
         <div class="dateRow" style="margin-left: 30px;">
           <div>
             <span class="hour" style="font-weight: 600;">{{ 'subtotal' | translate }}</span>
@@ -226,6 +208,8 @@
             </span>
           </div>
         </div>
+        <div *ngIf="i < activities.length - 1"
+             style="margin-left: 30px; border-top: 1px solid #dee6ea; margin-top: 8px; padding-top: 8px;"></div>
       </div>
     </div>
     <div class="section">

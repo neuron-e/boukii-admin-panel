@@ -51,30 +51,37 @@ export class MonitorAssignmentHelperService {
     const available: MonitorAssignmentSlot[] = [];
     const blocked: MonitorAssignmentSlot[] = [];
 
-    for (const slot of slots) {
-      if (!slot.date || !slot.startTime) {
-        blocked.push(slot);
-        continue;
-      }
+    const batchSize = 10;
+    for (let i = 0; i < slots.length; i += batchSize) {
+      const batch = slots.slice(i, i + batchSize);
+      const results = await Promise.all(
+        batch.map(async (slot) => {
+          if (!slot.date || !slot.startTime) {
+            return { slot, available: false };
+          }
 
-      try {
-        // Check if THIS specific monitor is available (simpler and more direct)
-        const payload = {
-          date: slot.date,
-          hour_start: slot.startTime,
-          hour_end: slot.endTime || slot.startTime
-        };
-        const response: any = await firstValueFrom(
-          this.crudService.post(`/admin/monitors/available/${monitorId}`, payload)
-        );
-        // Direct check: if response.data.available is true, monitor is available
-        if (response?.data?.available === true) {
-          available.push(slot);
+          try {
+            const payload = {
+              date: slot.date,
+              hour_start: slot.startTime,
+              hour_end: slot.endTime || slot.startTime
+            };
+            const response: any = await firstValueFrom(
+              this.crudService.post(`/admin/monitors/available/${monitorId}`, payload)
+            );
+            return { slot, available: response?.data?.available === true };
+          } catch {
+            return { slot, available: false };
+          }
+        })
+      );
+
+      for (const result of results) {
+        if (result.available) {
+          available.push(result.slot);
         } else {
-          blocked.push(slot);
+          blocked.push(result.slot);
         }
-      } catch {
-        blocked.push(slot);
       }
     }
 

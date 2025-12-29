@@ -1695,7 +1695,7 @@ export class MonitorDetailComponent {
         }
 
         const dateTotalAndIndex = booking.course.course_type === 2 ? { date_total: 0, date_index: 0 } : {
-          date_total: booking.course.course_dates.length,
+          date_total: (booking.course.course_dates_total ?? booking.course.course_dates.length),
           date_index: this.getPositionDate(booking.course.course_dates, booking.course_date_id)
         };
 

@@ -203,6 +203,8 @@
 }
 .hours-row {
   display: flex;
+  overflow-x: hidden; /* Evita doble scrollbar */
+  scroll-behavior: smooth; /* Transicion suave */
 }
 .hour {
   color: var(--is-light-theme, #121212) var(--is-dark-theme, #dee6ea);

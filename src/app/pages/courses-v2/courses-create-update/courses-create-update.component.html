@@ -1103,6 +1103,14 @@
              class="level"
              style="display: flex;flex-direction: column;padding: 20px; border-radius: 8px; gap: 10px;">
 
+          <!-- FIX: Botón para agregar nuevos niveles -->
+          <div style="margin-bottom: 16px;">
+            <button mat-raised-button color="primary" (click)="openAddGroupDialog()">
+              <mat-icon>add</mat-icon>
+              Agregar Grupo
+            </button>
+          </div>
+
           <!-- Mostrar niveles ACTIVOS con sus detalles -->
           <ng-container *ngFor="let level of (courses.courseFormGroup.controls['levelGrop'].value || []);index as i; trackBy: trackLevel">
             <ng-container *ngIf="level.active">

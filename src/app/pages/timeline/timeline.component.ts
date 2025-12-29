@@ -1,4 +1,4 @@
-import {Component, HostListener, OnDestroy, OnInit} from '@angular/core';
+import {Component, AfterViewInit, HostListener, OnDestroy, OnInit} from '@angular/core';
 import {
   addDays,
   addMonths,
@@ -54,11 +54,13 @@ moment.locale('fr');
   templateUrl: './timeline.component.html',
   styleUrls: ['./timeline.component.scss']
 })
-export class TimelineComponent implements OnInit, OnDestroy {
+export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private destroy$ = new Subject<void>();
   private loadingDialogRef?: MatDialogRef<MonitorAssignmentLoadingDialogComponent>;
   private keydownHandler?: (event: KeyboardEvent) => void;
+  // FIX: Sincronizar scroll horizontal
+  private hoursScrollElement?: HTMLDivElement;
 
   hoursRange: string[];
   hoursRangeMinusLast: string[];
@@ -195,6 +197,28 @@ export class TimelineComponent implements OnInit, OnDestroy {
         map(value => typeof value === 'string' ? value : value.first_name),
         map(name => name ? this._filterMonitor(name) : this.allMonitors.slice())
       );
+  }
+
+  /**
+   * FIX: Inicializa referencias para sincronizacion de scroll
+   */
+  ngAfterViewInit(): void {
+    const hoursScrollElements = document.querySelectorAll('.hours-scroll');
+    if (hoursScrollElements.length > 0) {
+      this.hoursScrollElement = hoursScrollElements[0] as HTMLDivElement;
+    }
+  }
+
+  /**
+   * FIX: Sincroniza el scroll del header de horas con el grid
+   */
+  syncHoursScroll(event: Event): void {
+    const scrollLeft = (event.target as HTMLDivElement).scrollLeft;
+
+    const hoursRows = document.querySelectorAll('.hours-row');
+    hoursRows.forEach((row: Element) => {
+      (row as HTMLDivElement).scrollLeft = scrollLeft;
+    });
   }
 
   displayFn(user: any): string {

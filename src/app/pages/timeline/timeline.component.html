@@ -239,7 +239,7 @@
                    *ngFor="let day of weekDays;let dayIndex = index">{{ day |
                 translate }} {{ getDayOfWeek(dayIndex) }}</div>
             </div>
-            <div class="hours-scroll">
+            <div class="hours-scroll" (scroll)="syncHoursScroll($event)">
               <div class="grid-container">
               <!-- aplicar sombreado -->
               <div class="grid-row"
@@ -505,7 +505,7 @@
               <div class="hours-row">
                 <div class="day" *ngFor="let day of weekDays">{{ day }}</div>
               </div>
-              <div class="hours-scroll">
+              <div class="hours-scroll" (scroll)="syncHoursScroll($event)">
                 <div class="grid-container">
               <ng-container
                 *ngFor="let monitor of filteredMonitors; let monitorIndex = index">
