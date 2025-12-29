@@ -33,6 +33,7 @@ interface IntervalSubgroupState {
   id?: number | string;
   degree_id?: number | string;
   max_participants?: number;
+  subgroup_dates_id?: string;
   active: boolean;
   monitor?: any;
   monitor_id?: number;
@@ -108,6 +109,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   mode: 'create' | 'update' = 'create';
   loading: boolean = true;
   saving: boolean = false;
+  subgroupBatchLoading: boolean = false;
   translatingLangs: Set<string> = new Set<string>();
   bulkTranslationInProgress = false;
   baseTranslationDirty = false;
@@ -654,6 +656,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       // Calling sync would be redundant and might overwrite our changes.
       // Sync will be called on save in endCourse().
       this.cdr.detectChanges();
+      this.persistGroupAges(levelId, level.age_min ?? null, level.age_max ?? null);
     }
   }
 
@@ -757,6 +760,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
 
     if (updated) {
       this.cdr.detectChanges();
+      this.persistGroupAgesForInterval(intervalIdx, levelId, levelState.age_min ?? null, levelState.age_max ?? null);
     }
   }
 
@@ -3142,6 +3146,10 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   }
 
   addIntervalLevelSubgroup(intervalIdx: number, level: any): void {
+    if (this.shouldPersistLevelsIndividually()) {
+      this.persistSubgroupCreationForInterval(intervalIdx, level);
+      return;
+    }
     const state = this.ensureIntervalGroupState(intervalIdx, level);
     if (state) {
       state.active = true;
@@ -3158,6 +3166,11 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.cdr.detectChanges();
   }
   removeIntervalLevelSubgroup(intervalIdx: number, level: any, subgroupIdx: number): void {
+    if (this.shouldPersistLevelsIndividually()) {
+      this.persistSubgroupDeletionForInterval(intervalIdx, level, subgroupIdx);
+      return;
+    }
+
     if (this.hasActiveBookingUsersForSubgroup(level, subgroupIdx)) {
       this.snackBar.open(
         'No se puede eliminar este subgrupo porque tiene reservas activas asociadas',
@@ -3261,26 +3274,119 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
   }
 
   /**
+   * Abre modal para a¤adir subgrupo
+   */
+  openIntervalSelectorForAddSubgroup(level: any): void {
+    const intervalsWithData = Array.isArray(this.intervals) ? this.intervals : [];
+    const courseType = this.courses?.courseFormGroup?.controls?.['course_type']?.value;
+    const isFlexible = this.courses?.courseFormGroup?.controls?.['is_flexible']?.value;
+    const forceSimple = courseType === 1 && !isFlexible;
+    const useIntervalConfig = !forceSimple && (this.configureLevelsByInterval || (this.useMultipleIntervals && intervalsWithData.length > 0));
+
+    // Sin intervalos disponibles, forzar alta directa de subgrupo
+    if (!intervalsWithData || intervalsWithData.length === 0 || !useIntervalConfig) {
+      const currentSubgroups = this.getAllUniqueSubgroupsForLevel(level) || [];
+      const nextIndex = currentSubgroups.length;
+      this.addLevelSubgroup(level, nextIndex, true);
+      this.clearGroupCache();
+      this.clearSubgroupsCache();
+      this.refreshPreviewSubgroupCache();
+      this.cdr.detectChanges();
+      return;
+    }
+
+    // Asegurar al menos un intervalo en modo multi-intervalo
+    if (intervalsWithData.length === 0 && this.useMultipleIntervals) {
+      this.intervals = [this.createDefaultInterval()];
+    }
+
+    const courseDates = this.courses.courseFormGroup.get('course_dates')?.value || [];
+    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
+
+    // Usar microtask para evitar loops de change detection (funciona para 1 o m£ltiples)
+    Promise.resolve().then(() => {
+      const dialogRef = this.dialog.open(IntervalSelectorModalComponent, {
+        width: '450px',
+        data: {
+          intervals: intervalsWithData,
+          level: level,
+          action: 'add-subgroup',
+          subgroupIndex: this.getAllUniqueSubgroupsForLevel(level).length,
+          courseDates: courseDates,
+          levelId: levelId
+        }
+      });
+
+      dialogRef.afterClosed().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((result: any) => {
+        if (!result) {
+          return;
+        }
+
+        const selectedIntervalIndices = result.selectAll
+          ? this.intervals.map((_, idx) => idx)
+          : (result.selectedIndices || [])
+            .map((value: number) => this.resolveIntervalIndexFromValue(value))
+            .filter((idx: number) => idx >= 0);
+
+        if (this.shouldPersistLevelsIndividually()) {
+          this.persistSubgroupCreationBatch(selectedIntervalIndices, level);
+          return;
+        }
+
+        const createdEntries: Array<{ idx: number, subgroup: IntervalSubgroupState }> = [];
+
+        // Aplicar en lote sin sincronizar en cada inserci¢n
+        selectedIntervalIndices.forEach((intervalIdx: number) => {
+          const sg = this.addIntervalLevelSubgroupWithoutSync(intervalIdx, level);
+          if (sg) {
+            createdEntries.push({ idx: intervalIdx, subgroup: sg });
+          }
+        });
+
+        // Invalidar el template cacheado para forzar regeneraci¢n desde cero (como en addLevelToIntervalsConfig)
+        this.invalidateIntervalGroupTemplate();
+
+        // Sincronizar una sola vez para evitar r fagas (MISMO ORDEN QUE addLevelToIntervalsConfig)
+        this.syncIntervalGroupsArray();
+        this.syncIntervalsToCourseFormGroup();
+        this.clearGroupCache();
+
+        // CRÖTICO: Forzar actualizaci¢n de levelGrop para que el template reconozca los cambios
+        // Esto es lo que hace addLevelToIntervalsConfig pero faltaba aqu¡
+        const levelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
+        this.courses.courseFormGroup.patchValue({ levelGrop });
+
+        // NO llamar clearSubgroupsCache aqu¡ - syncIntervalsToCourseFormGroup ya lo hace
+        this.cdr.detectChanges();
+      });
+    });
+  }
+
+  /**
    * Abre modal para seleccionar intervalos antes de eliminar subgrupo.
    * Modal: mostrar siempre (si no hay intervalos, no hace nada).
    */
   openIntervalSelectorForRemoveSubgroup(level: any, subgroupIdx: number): void {
-    if (this.hasActiveBookingUsersForSubgroup(level, subgroupIdx)) {
-      this.snackBar.open(
-        'No se puede eliminar este subgrupo porque tiene reservas activas asociadas',
-        'Cerrar',
-        { duration: 5000, panelClass: ['error-snackbar'] }
-      );
-      return;
-    }
+    if (!this.shouldPersistLevelsIndividually()) {
+      if (this.hasActiveBookingUsersForSubgroup(level, subgroupIdx)) {
+        this.snackBar.open(
+          'No se puede eliminar este subgrupo porque tiene reservas activas asociadas',
+          'Cerrar',
+          { duration: 5000, panelClass: ['error-snackbar'] }
+        );
+        return;
+      }
 
-    if (this.hasAnyBookingUsersForSubgroup(level, subgroupIdx)) {
-      this.snackBar.open(
-        'No se puede eliminar este subgrupo porque tiene reservas registradas; elimina los bookings primero',
-        'Cerrar',
-        { duration: 5000, panelClass: ['error-snackbar'] }
-      );
-      return;
+      if (this.hasAnyBookingUsersForSubgroup(level, subgroupIdx)) {
+        this.snackBar.open(
+          'No se puede eliminar este subgrupo porque tiene reservas registradas; elimina los bookings primero',
+          'Cerrar',
+          { duration: 5000, panelClass: ['error-snackbar'] }
+        );
+        return;
+      }
     }
 
     const intervalsWithSubgroup = this.getSubgroupIntervals(level, subgroupIdx);
@@ -3333,130 +3439,45 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       dialogRef.afterClosed().pipe(
         takeUntil(this.destroy$)
       ).subscribe((result: any) => {
-        if (!result) return;
-
-        const selectedIndices: number[] = result.selectAll
-          ? intervalsWithSubgroup.map((_, idx) => idx)
-          : result.selectedIndices || [];
-
-        selectedIndices.forEach((idx: number) => {
-          const selectedInterval = intervalsWithSubgroup[idx];
-          const intervalIdx = this.intervals.findIndex((i: any) => i.id === selectedInterval.id);
-          if (intervalIdx >= 0) {
-            this.removeIntervalLevelSubgroup(intervalIdx, level, subgroupIdx);
-          }
-        });
-      });
-    });
-  }
-
-  /**
-   * Maneja el click de eliminar subgrupo en UPDATE mode
-   */
-  onSubgroupDeleteClick(level: any, uniqueSubgroup: any): void {
-    const confirmed = confirm(`¿Eliminar el subgrupo ${("00" + (uniqueSubgroup._index + 1)).slice(-2)} de ${level.annotation} ${level.level}?`);
-    if (confirmed) {
-      this.removeIntervalLevelSubgroup(0, level, uniqueSubgroup._index);
-    }
-  }
-
-  /**
-   * Abre modal para añadir subgrupo
-   */
-  openIntervalSelectorForAddSubgroup(level: any): void {
-    const intervalsWithData = Array.isArray(this.intervals) ? this.intervals : [];
-    const useIntervalConfig = this.configureLevelsByInterval || (this.useMultipleIntervals && intervalsWithData.length > 0);
-
-    // Sin intervalos disponibles, forzar alta directa de subgrupo
-    if (!intervalsWithData || intervalsWithData.length === 0) {
-      const currentSubgroups = this.getAllUniqueSubgroupsForLevel(level) || [];
-      const nextIndex = currentSubgroups.length;
-      this.addLevelSubgroup(level, nextIndex, true);
-      this.clearGroupCache();
-      this.clearSubgroupsCache();
-      this.cdr.detectChanges();
-      return;
-    }
-
-    // Caso simple (sin intervalos configurables): añadir directamente al formulario
-    if (!useIntervalConfig) {
-      const currentSubgroups = this.getAllUniqueSubgroupsForLevel(level) || [];
-      const nextIndex = currentSubgroups.length;
-      this.addLevelSubgroup(level, nextIndex, true);
-      this.clearGroupCache();
-      this.clearSubgroupsCache();
-      this._uniqueSubgroupsCache.clear();
-      this.refreshPreviewSubgroupCache();
-      this.cdr.detectChanges();
-      return;
-    }
-
-    // Asegurar al menos un intervalo en modo multi-intervalo
-    if (intervalsWithData.length === 0 && this.useMultipleIntervals) {
-      this.intervals = [this.createDefaultInterval()];
-    }
-
-    const courseDates = this.courses.courseFormGroup.get('course_dates')?.value || [];
-    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
-
-    // Usar microtask para evitar loops de change detection (funciona para 1 o múltiples)
-    Promise.resolve().then(() => {
-      const dialogRef = this.dialog.open(IntervalSelectorModalComponent, {
-        width: '450px',
-        data: {
-          intervals: intervalsWithData,
-          level: level,
-          action: 'add-subgroup',
-          subgroupIndex: this.getAllUniqueSubgroupsForLevel(level).length,
-          courseDates: courseDates,
-          levelId: levelId
-        }
-      });
-
-      dialogRef.afterClosed().pipe(
-        takeUntil(this.destroy$)
-      ).subscribe((result: any) => {
         if (!result) {
+          return;
+        }
+
+        const selectedIntervalIndices = result.selectAll
+          ? this.intervals.map((_, idx) => idx)
+          : (result.selectedIndices || [])
+            .map((value: number) => this.resolveIntervalIndexFromValue(value))
+            .filter((idx: number) => idx >= 0);
+
+        if (this.shouldPersistLevelsIndividually()) {
+          this.persistSubgroupDeletionBatch(selectedIntervalIndices, level, subgroupIdx);
           return;
         }
 
         const createdEntries: Array<{ idx: number, subgroup: IntervalSubgroupState }> = [];
 
-        // Aplicar en lote sin sincronizar en cada inserción
-        if (result.selectAll) {
-          this.intervals.forEach((_, idx) => {
-            const sg = this.addIntervalLevelSubgroupWithoutSync(idx, level);
-            if (sg) {
-              createdEntries.push({ idx, subgroup: sg });
-            }
-          });
-        } else {
-          result.selectedIndices.forEach((value: number) => {
-            const intervalIdx = this.resolveIntervalIndexFromValue(value);
-            if (intervalIdx < 0) {
-              return;
-            }
-            const sg = this.addIntervalLevelSubgroupWithoutSync(intervalIdx, level);
-            if (sg) {
-              createdEntries.push({ idx: intervalIdx, subgroup: sg });
-            }
-          });
-        }
+        // Aplicar en lote sin sincronizar en cada inserci?n
+        selectedIntervalIndices.forEach((intervalIdx: number) => {
+          const sg = this.addIntervalLevelSubgroupWithoutSync(intervalIdx, level);
+          if (sg) {
+            createdEntries.push({ idx: intervalIdx, subgroup: sg });
+          }
+        });
 
-        // Invalidar el template cacheado para forzar regeneración desde cero (como en addLevelToIntervalsConfig)
+        // Invalidar el template cacheado para forzar regeneraci?n desde cero (como en addLevelToIntervalsConfig)
         this.invalidateIntervalGroupTemplate();
 
-        // Sincronizar una sola vez para evitar ráfagas (MISMO ORDEN QUE addLevelToIntervalsConfig)
+        // Sincronizar una sola vez para evitar r?fagas (MISMO ORDEN QUE addLevelToIntervalsConfig)
         this.syncIntervalGroupsArray();
         this.syncIntervalsToCourseFormGroup();
         this.clearGroupCache();
 
-        // CRÍTICO: Forzar actualización de levelGrop para que el template reconozca los cambios
-        // Esto es lo que hace addLevelToIntervalsConfig pero faltaba aquí
+        // CR?TICO: Forzar actualizaci?n de levelGrop para que el template reconozca los cambios
+        // Esto es lo que hace addLevelToIntervalsConfig pero faltaba aqu?
         const levelGrop = this.courses.courseFormGroup.controls['levelGrop']?.value || [];
         this.courses.courseFormGroup.patchValue({ levelGrop });
 
-        // NO llamar clearSubgroupsCache aquí - syncIntervalsToCourseFormGroup ya lo hace
+        // NO llamar clearSubgroupsCache aqu? - syncIntervalsToCourseFormGroup ya lo hace
         this.cdr.detectChanges();
       });
     });
@@ -3642,6 +3663,10 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    * Agrega un nivel a los grupos (maneja tanto modo normal como por intervalos)
    */
   private addLevelToGroups(levelIndex: number): void {
+    if (this.shouldPersistLevelsIndividually()) {
+      this.selectLevel(true, levelIndex);
+      return;
+    }
     // Si estamos configurando por intervalos, usamos lógica diferente
     if (this.configureLevelsByInterval) {
       this.addLevelToIntervalsConfig(levelIndex);
@@ -3690,6 +3715,19 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    * Elimina grupo de todos los intervalos
    */
   private deleteGroupForAllIntervals(level: any): void {
+    if (this.shouldPersistLevelsIndividually()) {
+      const levelId = level?.id ?? level?.degree_id;
+      const payload = this.collectGroupDeletePayload(levelId);
+      if (!payload.ids.length && !payload.items.length) {
+        return;
+      }
+      this.setSubgroupBatchLoading(true);
+      this.bulkDeleteCourseGroups(payload.ids, payload.items).finally(() => {
+        this.setSubgroupBatchLoading(false);
+        this.loadCourseData();
+      });
+      return;
+    }
     const courseDatesControl = this.courses.courseFormGroup.controls['course_dates'];
     const currentCourseDates = courseDatesControl.value || [];
     const levelId = level?.id ?? level?.degree_id;
@@ -3737,6 +3775,19 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    * Elimina un grupo de un intervalo específico
    */
   private deleteGroupFromInterval(intervalIdx: number, level: any): void {
+    if (this.shouldPersistLevelsIndividually()) {
+      const levelId = level?.id ?? level?.degree_id;
+      const payload = this.collectGroupDeletePayload(levelId, intervalIdx);
+      if (!payload.ids.length && !payload.items.length) {
+        return;
+      }
+      this.setSubgroupBatchLoading(true);
+      this.bulkDeleteCourseGroups(payload.ids, payload.items).finally(() => {
+        this.setSubgroupBatchLoading(false);
+        this.loadCourseData();
+      });
+      return;
+    }
     const courseDatesControl = this.courses.courseFormGroup.controls['course_dates'];
     const currentCourseDates = courseDatesControl.value || [];
     const levelId = level?.id ?? level?.degree_id;
@@ -3985,8 +4036,6 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
           );
           if (subgroup) {
             collected.push(...this.extractBookingUsersFromSubgroup(subgroup));
-          } else if (groupSubgroups[subgroupIndex]) {
-            collected.push(...this.extractBookingUsersFromSubgroup(groupSubgroups[subgroupIndex]));
           }
         } else {
           const subgroup = groupSubgroups[subgroupIndex];
@@ -4006,11 +4055,6 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         );
         if (fallbackSubgroup) {
           collected.push(...this.extractBookingUsersFromSubgroup(fallbackSubgroup));
-        } else {
-          const fallbackByIndex = fallbackSubgroups[subgroupIndex];
-          if (fallbackByIndex && (fallbackByIndex?.degree_id ?? fallbackByIndex?.degreeId) === levelId) {
-            collected.push(...this.extractBookingUsersFromSubgroup(fallbackByIndex));
-          }
         }
       } else {
         const fallbackSubgroup = fallbackSubgroups[subgroupIndex];
@@ -4115,26 +4159,34 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
    * Elimina un subgrupo de un nivel en TODOS los intervalos (solo si no tiene reservas)
    */
   removeSubgroupFromLevel(level: any, subgroupIndex: number): void {
-    if (this.hasActiveBookingUsersForSubgroup(level, subgroupIndex)) {
-      this.snackBar.open(
-        'No se puede eliminar este subgrupo porque tiene reservas activas asociadas',
-        'Cerrar',
-        { duration: 5000, panelClass: ['error-snackbar'] }
-      );
-      return;
-    }
+    const useApi = this.shouldPersistLevelsIndividually();
+    if (!useApi) {
+      if (this.hasActiveBookingUsersForSubgroup(level, subgroupIndex)) {
+        this.snackBar.open(
+          'No se puede eliminar este subgrupo porque tiene reservas activas asociadas',
+          'Cerrar',
+          { duration: 5000, panelClass: ['error-snackbar'] }
+        );
+        return;
+      }
 
-    if (this.hasAnyBookingUsersForSubgroup(level, subgroupIndex)) {
-      this.snackBar.open(
-        'No se puede eliminar este subgrupo porque tiene reservas registradas; elimina los bookings primero',
-        'Cerrar',
-        { duration: 5000, panelClass: ['error-snackbar'] }
-      );
-      return;
+      if (this.hasAnyBookingUsersForSubgroup(level, subgroupIndex)) {
+        this.snackBar.open(
+          'No se puede eliminar este subgrupo porque tiene reservas registradas; elimina los bookings primero',
+          'Cerrar',
+          { duration: 5000, panelClass: ['error-snackbar'] }
+        );
+        return;
+      }
     }
 
     // Confirmar eliminación
     if (!confirm(`¿Está seguro de que desea eliminar el subgrupo ${level.annotation} ${level.level} ${("00"+(subgroupIndex+1)).slice(-2)}?`)) {
+      return;
+    }
+
+    if (useApi) {
+      this.persistSubgroupDeletion(level, subgroupIndex);
       return;
     }
 
@@ -6168,7 +6220,15 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       this.Confirm(1);
       return;
     }
+    if (this.isCollectiveLevelsStep()) {
+      this.router.navigate(['/courses/detail/' + this.id]);
+      return;
+    }
     this.openEditConfirmation();
+  }
+
+  private isCollectiveLevelsStep(): boolean {
+    return this.shouldPersistLevelsIndividually() && this.ModalFlux === 3;
   }
 
   private openEditConfirmation(): void {
@@ -6262,7 +6322,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             data: {
               intervals: this.intervals,
               level: levelGrop[i],
-              action: 'add-subgroup'
+              action: 'remove-subgroup'
             }
           });
 
@@ -6281,6 +6341,11 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
             const selectedIndices: number[] = result.selectAll
               ? this.intervals.map((_, idx) => idx)
               : result.selectedIndices || [];
+
+            if (this.shouldPersistLevelsIndividually()) {
+              this.persistGroupActivation(levelGrop[i], selectedIndices);
+              return;
+            }
 
             // Crear estado SOLO para los intervalos seleccionados
             // NO crear estados para los intervalos no seleccionados
@@ -6306,6 +6371,10 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         });
         return; // Salir aquí, la sincronización ocurre dentro del modal
       } else {
+        if (this.shouldPersistLevelsIndividually()) {
+          this.persistGroupActivation(levelGrop[i], null);
+          return;
+        }
         // Si NO se configuran por intervalos, modificar course_dates directamente
         for (const course of course_dates) {
           if (this.mode === "create") {
@@ -6347,6 +6416,859 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
     this.clearGroupCache();
   }
 
+  private shouldPersistLevelsIndividually(): boolean {
+    const courseType = this.courses?.courseFormGroup?.controls?.['course_type']?.value;
+    const courseId = this.getCourseIdForLevels();
+    return Number(courseType) === 1 && !!courseId && this.mode !== 'create';
+  }
+
+  private getCourseIdForLevels(): number | string | null {
+    return this.id ?? this.courses?.courseFormGroup?.controls?.['id']?.value ?? null;
+  }
+
+  private applyCourseDatesUpdate(courseDates: any[]): void {
+    const courseDatesControl = this.courses.courseFormGroup.get('course_dates');
+    if (!courseDatesControl) {
+      return;
+    }
+    courseDatesControl.setValue([...courseDates], { emitEvent: false });
+    courseDatesControl.markAsDirty();
+  }
+
+  private async persistGroupActivation(level: any, intervalIndices: number[] | null = null): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const courseId = this.getCourseIdForLevels();
+    const levelId = Number(level?.id ?? level?.degree_id);
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!courseId || !levelId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    let targetDates = courseDates;
+    if (Array.isArray(intervalIndices) && intervalIndices.length > 0) {
+      const selected = new Set(intervalIndices.map(idx => String(idx)));
+      targetDates = courseDates.filter((cd: any) => {
+        const intervalValue = cd?.course_interval_id ?? cd?.interval_id ?? null;
+        const intervalIdx = intervalValue != null ? this.resolveIntervalIndexFromValue(intervalValue) : -1;
+        return selected.has(String(intervalIdx));
+      });
+    }
+
+    if (!targetDates.length) {
+      return;
+    }
+
+    this.setSubgroupBatchLoading(true);
+    try {
+      const groupIdsByDate = new Map<number | string, number>();
+      const groupItems: any[] = [];
+
+      targetDates.forEach((courseDate: any) => {
+        const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        if (group?.id) {
+          groupIdsByDate.set(courseDate.id, group.id);
+          return;
+        }
+        groupItems.push(this.buildCourseGroupPayload(group, {
+          course_id: courseId,
+          course_date_id: courseDate?.id,
+          degree_id: levelId,
+          age_min: level?.age_min ?? null,
+          age_max: level?.age_max ?? null,
+          teachers_min: level?.teachers_min ?? 1,
+          teachers_max: level?.teachers_max ?? level?.teachers_min ?? 1,
+          auto: true
+        }));
+      });
+
+      if (groupItems.length) {
+        const groupResponse = await firstValueFrom(this.crudService.post('/course-groups/multiple-create', { items: groupItems }));
+        if (groupResponse?.success === false) {
+          this.showErrorMessage(groupResponse?.message || 'No se pudo crear el grupo.');
+          return;
+        }
+        if (Array.isArray(groupResponse?.data)) {
+          groupResponse.data.forEach((created: any) => {
+            if (created?.id && created?.course_date_id != null) {
+              groupIdsByDate.set(created.course_date_id, created.id);
+            }
+          });
+        }
+      }
+
+      const maxParticipants = level?.max_participants ?? this.courses.courseFormGroup.controls['max_participants']?.value ?? null;
+      const subgroupItems: any[] = [];
+
+      targetDates.forEach((courseDate: any) => {
+        const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        const existingSubgroups = group?.course_subgroups || group?.courseSubgroups || [];
+        if (Array.isArray(existingSubgroups) && existingSubgroups.length > 0) {
+          return;
+        }
+        const groupId = group?.id ?? groupIdsByDate.get(courseDate.id);
+        if (!groupId) {
+          return;
+        }
+        subgroupItems.push(this.buildCourseSubgroupPayload(null, {
+          course_id: courseId,
+          course_date_id: courseDate?.id,
+          degree_id: levelId,
+          course_group_id: groupId,
+          max_participants: maxParticipants,
+          monitor_id: null
+        }));
+      });
+
+      if (subgroupItems.length) {
+        await firstValueFrom(this.crudService.post('/course-subgroups/multiple-create', { items: subgroupItems }));
+      }
+
+      this.loadCourseData();
+    } catch (error) {
+      console.error('Error creating course group/subgroup', error);
+      this.showErrorMessage('Hubo un problema al crear el grupo. Inténtalo de nuevo.');
+    } finally {
+      this.setSubgroupBatchLoading(false);
+    }
+  }
+
+  private buildCourseGroupPayload(group: any, overrides: any = {}): any {
+    const teachersMin = group?.teachers_min ?? group?.teacher_min_degree ?? overrides.teachers_min ?? 1;
+    const teachersMax = group?.teachers_max ?? group?.teacher_min_degree ?? overrides.teachers_max ?? teachersMin;
+    const autoValue = typeof group?.auto === 'boolean' ? group.auto : (overrides.auto ?? true);
+
+    return {
+      course_id: group?.course_id ?? overrides.course_id,
+      course_date_id: group?.course_date_id ?? overrides.course_date_id,
+      degree_id: group?.degree_id ?? overrides.degree_id,
+      age_min: overrides.age_min ?? group?.age_min ?? null,
+      age_max: overrides.age_max ?? group?.age_max ?? null,
+      recommended_age: group?.recommended_age ?? overrides.recommended_age ?? null,
+      teachers_min: teachersMin,
+      teachers_max: teachersMax,
+      observations: group?.observations ?? overrides.observations ?? null,
+      teacher_min_degree: group?.teacher_min_degree ?? overrides.teacher_min_degree ?? null,
+      auto: autoValue
+    };
+  }
+
+  private buildCourseSubgroupPayload(subgroup: any, overrides: any = {}): any {
+    return {
+      course_id: subgroup?.course_id ?? overrides.course_id,
+      course_date_id: subgroup?.course_date_id ?? overrides.course_date_id,
+      degree_id: subgroup?.degree_id ?? overrides.degree_id,
+      course_group_id: subgroup?.course_group_id ?? overrides.course_group_id,
+      monitor_id: subgroup?.monitor_id ?? overrides.monitor_id ?? null,
+      max_participants: overrides.max_participants ?? subgroup?.max_participants ?? null,
+      subgroup_dates_id: subgroup?.subgroup_dates_id ?? overrides.subgroup_dates_id
+    };
+  }
+
+  private setSubgroupBatchLoading(isLoading: boolean): void {
+    this.subgroupBatchLoading = isLoading;
+    this.cdr.markForCheck();
+    Promise.resolve().then(() => {
+      try {
+        this.cdr.detectChanges();
+      } catch {
+        // ignore view update errors during async cycles
+      }
+    });
+  }
+
+  private resolveCourseGroupId(group: any): number | string | null {
+    return group?.id
+      ?? group?.course_group_id
+      ?? group?.courseGroupId
+      ?? group?.course_group?.id
+      ?? null;
+  }
+
+  private appendSubgroupToIntervalState(intervalIdx: number, level: any, subgroup: any): void {
+    if (!this.configureLevelsByInterval && !this.useMultipleIntervals) {
+      return;
+    }
+    const state = this.ensureIntervalGroupState(intervalIdx, level);
+    if (!state) {
+      return;
+    }
+    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
+    const targetKey = this.ensureSubgroupKey(subgroup, levelId) ?? subgroup?.subgroup_dates_id ?? subgroup?.id;
+    if (targetKey != null && Array.isArray(state.subgroups)) {
+      const exists = state.subgroups.some(entry => {
+        const entryKey = this.ensureSubgroupKey(entry, levelId)
+          ?? (entry as any)?.subgroup_dates_id
+          ?? entry?.id;
+        return entryKey != null && String(entryKey) === String(targetKey);
+      });
+      if (exists) {
+        return;
+      }
+    }
+    state.subgroups = Array.isArray(state.subgroups) ? state.subgroups : [];
+    state.subgroups.push({
+      id: subgroup?.id,
+      degree_id: subgroup?.degree_id ?? levelId,
+      max_participants: subgroup?.max_participants ?? state.max_participants ?? level?.max_participants,
+      subgroup_dates_id: subgroup?.subgroup_dates_id,
+      monitor_id: subgroup?.monitor_id ?? null,
+      active: true,
+      key: subgroup?.subgroup_dates_id ?? `cfg-${levelId}-${Date.now()}-${this.intervalSubgroupKeySeed++}`,
+      booking_users: [],
+      booking_users_active: []
+    });
+  }
+
+  private removeSubgroupFromIntervalState(intervalIdx: number, level: any, targetKey?: string | null, subgroupIndex?: number): void {
+    if (!this.configureLevelsByInterval && !this.useMultipleIntervals) {
+      return;
+    }
+    const state = this.ensureIntervalGroupState(intervalIdx, level);
+    if (!state || !Array.isArray(state.subgroups)) {
+      return;
+    }
+    const levelId = level?.id ?? level?.degree_id ?? level?.degreeId;
+    const resolvedIndex = targetKey
+      ? state.subgroups.findIndex(entry => this.ensureSubgroupKey(entry, levelId) === targetKey)
+      : (subgroupIndex ?? -1);
+    if (resolvedIndex < 0 || resolvedIndex >= state.subgroups.length) {
+      return;
+    }
+    state.subgroups = state.subgroups.filter((_, idx) => idx !== resolvedIndex);
+  }
+
+  private async persistGroupAges(levelId: any, ageMin: number | null, ageMax: number | null): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const courseId = this.getCourseIdForLevels();
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!courseId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const updates = courseDates
+      .map(cd => {
+        const group = (cd?.course_groups || cd?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        if (!group?.id) {
+          return null;
+        }
+        const payload = this.buildCourseGroupPayload(group, {
+          course_id: courseId,
+          course_date_id: cd?.id,
+          degree_id: levelId,
+          age_min: ageMin,
+          age_max: ageMax
+        });
+        return firstValueFrom(this.crudService.update('/course-groups', payload, group.id));
+      })
+      .filter(Boolean) as Promise<any>[];
+
+    if (!updates.length) {
+      return;
+    }
+
+    try {
+      await Promise.all(updates);
+    } catch (error) {
+      console.error('Error updating course group ages', error);
+      this.showErrorMessage('Hubo un problema al actualizar los niveles. Refresca la p\u00e1gina e int\u00e9ntalo de nuevo.');
+    }
+  }
+
+  private async persistSubgroupMaxParticipants(levelId: any, subgroupIndex: number, maxParticipants: number): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const courseId = this.getCourseIdForLevels();
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!courseId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const uniqueSubgroups = this.getAllUniqueSubgroupsForLevel({ id: levelId, degree_id: levelId });
+    const targetSubgroup = uniqueSubgroups?.[subgroupIndex];
+    const targetDatesId = targetSubgroup?.subgroup_dates_id ?? null;
+
+    const updates: Promise<any>[] = [];
+
+    courseDates.forEach((cd: any) => {
+      const group = (cd?.course_groups || cd?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+      if (!group) {
+        return;
+      }
+      const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+      let subgroup = null;
+      if (targetDatesId) {
+        subgroup = subgroups.find((sg: any) => sg?.subgroup_dates_id === targetDatesId);
+      }
+      if (!subgroup) {
+        subgroup = subgroups[subgroupIndex];
+      }
+      if (!subgroup?.id) {
+        return;
+      }
+      const payload = this.buildCourseSubgroupPayload(subgroup, {
+        course_id: courseId,
+        course_date_id: cd?.id,
+        degree_id: levelId,
+        course_group_id: group?.id,
+        max_participants: maxParticipants
+      });
+      updates.push(firstValueFrom(this.crudService.update('/course-subgroups', payload, subgroup.id)));
+    });
+
+    if (!updates.length) {
+      return;
+    }
+
+    try {
+      await Promise.all(updates);
+    } catch (error) {
+      console.error('Error updating subgroup max participants', error);
+      this.showErrorMessage('Hubo un problema al actualizar los subgrupos. Refresca la p\u00e1gina e int\u00e9ntalo de nuevo.');
+    }
+  }
+
+  private async persistSubgroupCreation(level: any): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const courseId = this.getCourseIdForLevels();
+    const levelId = Number(level?.id ?? level?.degree_id);
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!courseId || !levelId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const maxParticipants = level?.max_participants ?? this.courses.courseFormGroup.controls['max_participants']?.value ?? null;
+
+    const items = courseDates.map((courseDate: any) => {
+      const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+      const groupId = this.resolveCourseGroupId(group);
+      if (!groupId) {
+        return null;
+      }
+      return this.buildCourseSubgroupPayload(null, {
+        course_id: courseId,
+        course_date_id: courseDate?.id,
+        degree_id: levelId,
+        course_group_id: groupId,
+        max_participants: maxParticipants,
+        monitor_id: null
+      });
+    }).filter(Boolean);
+
+    if (items.length !== courseDates.length) {
+      this.showErrorMessage('No se pudo crear el subgrupo porque faltan grupos del nivel.');
+      return;
+    }
+
+    this.setSubgroupBatchLoading(true);
+    this.cdr.detectChanges();
+    try {
+      const response = await firstValueFrom(this.crudService.post('/course-subgroups/multiple-create', { items }));
+      if (response?.success === false) {
+        this.showErrorMessage(response?.message || 'No se pudo crear el subgrupo.');
+        return;
+      }
+      this.loadCourseData();
+      return;
+    } catch (error: any) {
+      if (error?.status === 200) {
+        this.loadCourseData();
+        return;
+      }
+      console.error('Error creating subgroups', error);
+      this.showErrorMessage('Hubo un problema al crear el subgrupo. Int\u00e9ntalo de nuevo.');
+    } finally {
+      this.setSubgroupBatchLoading(false);
+    this.cdr.detectChanges();
+    }
+  }
+
+  private async persistSubgroupDeletion(level: any, subgroupIndex: number): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const levelId = Number(level?.id ?? level?.degree_id);
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!levelId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const uniqueSubgroups = this.getAllUniqueSubgroupsForLevel(level);
+    const targetSubgroup = uniqueSubgroups?.[subgroupIndex];
+    const targetDatesId = targetSubgroup?.subgroup_dates_id ?? null;
+
+    const deleteIds: number[] = [];
+
+    courseDates.forEach((courseDate: any) => {
+      const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+      if (!group) {
+        return;
+      }
+      const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+      let subgroup = null;
+      if (targetDatesId) {
+        subgroup = subgroups.find((sg: any) => sg?.subgroup_dates_id === targetDatesId);
+      }
+      if (!subgroup) {
+        subgroup = subgroups[subgroupIndex];
+      }
+      if (subgroup?.id) {
+        deleteIds.push(subgroup.id);
+        group.course_subgroups = subgroups.filter((sg: any) => sg?.id !== subgroup.id);
+        if (Array.isArray(courseDate.course_subgroups)) {
+          courseDate.course_subgroups = courseDate.course_subgroups.filter((sg: any) => sg?.id !== subgroup.id);
+        }
+      } else {
+        group.course_subgroups = subgroups.filter((_: any, index: number) => index !== subgroupIndex);
+      }
+    });
+
+    this.setSubgroupBatchLoading(true);
+    this.cdr.detectChanges();
+    try {
+      if (deleteIds.length) {
+        const deleted = await this.bulkDeleteCourseSubgroups(deleteIds);
+        if (!deleted) {
+          return;
+        }
+      }
+    } finally {
+      this.setSubgroupBatchLoading(false);
+    this.cdr.detectChanges();
+    }
+
+    this.applyCourseDatesUpdate(courseDates);
+    this.clearGroupCache();
+    this.clearSubgroupsCache();
+    this.refreshPreviewSubgroupCache();
+    this.cdr.detectChanges();
+  }
+
+  private getCourseDatesForIntervalFromList(intervalIdx: number, courseDates: any[]): any[] {
+    const interval = this.intervals?.[intervalIdx];
+    const intervalId = this.normalizeIntervalIdentifier(
+      interval?.id ?? interval?.interval_id ?? interval?.tempId ?? interval?.key ?? intervalIdx
+    );
+    return (courseDates || []).filter((cd: any) => {
+      const cdIntervalId = this.normalizeIntervalIdentifier(
+        cd?.interval_id ?? cd?.intervalId ?? cd?.course_interval_id ?? cd?.courseIntervalId ?? intervalIdx
+      );
+      return cdIntervalId === intervalId;
+    });
+  }
+
+  private async persistSubgroupCreationForInterval(intervalIdx: number, level: any, skipLoading = false): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const courseId = this.getCourseIdForLevels();
+    const levelId = Number(level?.id ?? level?.degree_id);
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!courseId || !levelId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const intervalDates = this.getCourseDatesForIntervalFromList(intervalIdx, courseDates);
+    if (!intervalDates.length) {
+      return;
+    }
+
+    const maxParticipants = level?.max_participants ?? this.courses.courseFormGroup.controls['max_participants']?.value ?? null;
+    const items = intervalDates.map((courseDate: any) => {
+      const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+      const groupId = this.resolveCourseGroupId(group);
+      if (!groupId) {
+        return null;
+      }
+      return this.buildCourseSubgroupPayload(null, {
+        course_id: courseId,
+        course_date_id: courseDate?.id,
+        degree_id: levelId,
+        course_group_id: groupId,
+        max_participants: maxParticipants,
+        monitor_id: null
+      });
+    }).filter(Boolean);
+
+    if (items.length !== intervalDates.length) {
+      this.showErrorMessage('No se pudo crear el subgrupo porque faltan grupos del nivel.');
+      return;
+    }
+
+    if (!skipLoading) {
+      this.setSubgroupBatchLoading(true);
+    this.cdr.detectChanges();
+    }
+    try {
+      const response = await firstValueFrom(this.crudService.post('/course-subgroups/multiple-create', { items }));
+      if (response?.success === false) {
+        this.showErrorMessage(response?.message || 'No se pudo crear el subgrupo.');
+        return;
+      }
+      this.loadCourseData();
+      return;
+    } catch (error: any) {
+      if (error?.status === 200) {
+        this.loadCourseData();
+        return;
+      }
+      console.error('Error creating interval subgroups', error);
+      this.showErrorMessage('Hubo un problema al crear el subgrupo. Int\u00e9ntalo de nuevo.');
+    } finally {
+      if (!skipLoading) {
+        this.setSubgroupBatchLoading(false);
+    this.cdr.detectChanges();
+      }
+    }
+  }
+
+  private async persistSubgroupDeletionForInterval(intervalIdx: number, level: any, subgroupIndex: number, skipLoading = false): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const levelId = Number(level?.id ?? level?.degree_id);
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!levelId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const intervalDates = this.getCourseDatesForIntervalFromList(intervalIdx, courseDates);
+    if (!intervalDates.length) {
+      return;
+    }
+
+    let targetDatesId: string | null = null;
+    for (const courseDate of intervalDates) {
+      const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+      const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+      const candidate = subgroups[subgroupIndex];
+      if (candidate?.subgroup_dates_id) {
+        targetDatesId = candidate.subgroup_dates_id;
+        break;
+      }
+    }
+
+    const deleteIds: number[] = [];
+
+    intervalDates.forEach((courseDate: any) => {
+      const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+      if (!group) {
+        return;
+      }
+      const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+      let subgroup = null;
+      if (targetDatesId) {
+        subgroup = subgroups.find((sg: any) => sg?.subgroup_dates_id === targetDatesId);
+      }
+      if (!subgroup) {
+        subgroup = subgroups[subgroupIndex];
+      }
+      if (subgroup?.id) {
+        deleteIds.push(subgroup.id);
+        group.course_subgroups = subgroups.filter((sg: any) => sg?.id !== subgroup.id);
+        courseDate.course_subgroups = (courseDate.course_subgroups || []).filter((sg: any) => sg?.id !== subgroup.id);
+      } else {
+        group.course_subgroups = subgroups.filter((_: any, index: number) => index !== subgroupIndex);
+      }
+    });
+
+    if (!skipLoading) {
+      this.setSubgroupBatchLoading(true);
+    this.cdr.detectChanges();
+    }
+    try {
+      if (deleteIds.length) {
+        const deleted = await this.bulkDeleteCourseSubgroups(deleteIds);
+        if (!deleted) {
+          return;
+        }
+      }
+    } finally {
+      if (!skipLoading) {
+        this.setSubgroupBatchLoading(false);
+    this.cdr.detectChanges();
+      }
+    }
+
+    this.applyCourseDatesUpdate(courseDates);
+    this.clearGroupCache();
+    this.clearSubgroupsCache();
+    this.refreshPreviewSubgroupCache();
+    this.cdr.detectChanges();
+  }
+
+  private async persistGroupAgesForInterval(intervalIdx: number, levelId: any, ageMin: number | null, ageMax: number | null): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const courseId = this.getCourseIdForLevels();
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!courseId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const intervalDates = this.getCourseDatesForIntervalFromList(intervalIdx, courseDates);
+    if (!intervalDates.length) {
+      return;
+    }
+
+    const updates = intervalDates
+      .map(cd => {
+        const group = (cd?.course_groups || cd?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        if (!group?.id) {
+          return null;
+        }
+        const payload = this.buildCourseGroupPayload(group, {
+          course_id: courseId,
+          course_date_id: cd?.id,
+          degree_id: levelId,
+          age_min: ageMin,
+          age_max: ageMax
+        });
+        return firstValueFrom(this.crudService.update('/course-groups', payload, group.id));
+      })
+      .filter(Boolean) as Promise<any>[];
+
+    if (!updates.length) {
+      return;
+    }
+
+    try {
+      await Promise.all(updates);
+    } catch (error) {
+      console.error('Error updating interval course group ages', error);
+      this.showErrorMessage('Hubo un problema al actualizar los niveles. Refresca la p\u00e1gina e int\u00e9ntalo de nuevo.');
+    }
+  }
+
+  private async bulkDeleteCourseSubgroups(ids: number[]): Promise<boolean> {
+    if (!ids.length) {
+      return true;
+    }
+    try {
+      const response = await firstValueFrom(this.crudService.post('/course-subgroups/multiple-delete', { ids }));
+      if (!response?.success) {
+        this.showErrorMessage(response?.message || 'No se pudo eliminar el subgrupo.');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error deleting course subgroups', error);
+      const message = (error as any)?.error?.message || 'No se pudo eliminar el subgrupo. Refresca la p\u00e1gina e int\u00e9ntalo de nuevo.';
+      this.showErrorMessage(message);
+      return false;
+    }
+  }
+
+  private async bulkDeleteCourseGroups(ids: number[], items: Array<{ course_date_id: number | string; degree_id: number | string }> = []): Promise<boolean> {
+    if (!ids.length && !items.length) {
+      return true;
+    }
+    try {
+      const payload: any = ids.length ? { ids } : { items };
+      const response = await firstValueFrom(this.crudService.post('/course-groups/multiple-delete', payload));
+      if (!response?.success) {
+        this.showErrorMessage(response?.message || 'No se pudo eliminar el grupo.');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error deleting course groups', error);
+      const message = (error as any)?.error?.message || 'No se pudo eliminar el grupo. Refresca la página e inténtalo de nuevo.';
+      this.showErrorMessage(message);
+      return false;
+    }
+  }
+
+  private collectGroupDeletePayload(levelId: number | string, intervalIdx?: number): { ids: number[]; items: Array<{ course_date_id: number | string; degree_id: number | string }> } {
+    const courseDates = this.courses.courseFormGroup.get('course_dates')?.value || [];
+    const ids = new Set<number>();
+    const items: Array<{ course_date_id: number | string; degree_id: number | string }> = [];
+
+    courseDates.forEach((courseDate: any) => {
+      if (intervalIdx != null && intervalIdx >= 0) {
+        const intervalValue = courseDate?.course_interval_id ?? courseDate?.interval_id ?? null;
+        const resolvedIdx = intervalValue != null ? this.resolveIntervalIndexFromValue(intervalValue) : -1;
+        if (resolvedIdx !== intervalIdx) {
+          return;
+        }
+      }
+      const groups = Array.isArray(courseDate?.course_groups || courseDate?.courseGroups)
+        ? (courseDate?.course_groups || courseDate?.courseGroups)
+        : [];
+      const group = groups.find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+      if (group) {
+        const groupId = group?.id;
+        const hasRealId = groupId != null && String(groupId) !== String(levelId) && (group?.course_date_id || group?.course_id || group?.created_at);
+        if (hasRealId) {
+          ids.add(groupId);
+          return;
+        }
+        const subgroups = Array.isArray(group?.course_subgroups) ? group.course_subgroups : [];
+        const subgroupGroupIds = subgroups
+          .map((sg: any) => sg?.course_group_id)
+          .filter((id: any) => id != null);
+        subgroupGroupIds.forEach((id: number) => ids.add(id));
+        if (subgroupGroupIds.length > 0) {
+          return;
+        }
+      }
+      if (courseDate?.id != null) {
+        items.push({ course_date_id: courseDate.id, degree_id: levelId as any });
+      }
+    });
+
+    return { ids: Array.from(ids), items };
+  }
+
+  private async persistSubgroupCreationBatch(intervalIndices: number[], level: any): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const courseId = this.getCourseIdForLevels();
+    const levelId = Number(level?.id ?? level?.degree_id);
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!courseId || !levelId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const maxParticipants = level?.max_participants ?? this.courses.courseFormGroup.controls['max_participants']?.value ?? null;
+    const items: any[] = [];
+    const seenCourseDates = new Set<number | string>();
+    const intervalIndexByCourseDateId = new Map<number | string, number>();
+
+    intervalIndices.forEach((intervalIdx: number) => {
+      const intervalDates = this.getCourseDatesForIntervalFromList(intervalIdx, courseDates);
+      intervalDates.forEach((courseDate: any) => {
+        if (courseDate?.id == null || seenCourseDates.has(courseDate.id)) {
+          return;
+        }
+        const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        const groupId = this.resolveCourseGroupId(group);
+        if (!groupId) {
+          return;
+        }
+        seenCourseDates.add(courseDate.id);
+        intervalIndexByCourseDateId.set(courseDate.id, intervalIdx);
+        items.push(this.buildCourseSubgroupPayload(null, {
+          course_id: courseId,
+          course_date_id: courseDate?.id,
+          degree_id: levelId,
+          course_group_id: groupId,
+          max_participants: maxParticipants,
+          monitor_id: null
+        }));
+      });
+    });
+
+    if (!items.length) {
+      this.showErrorMessage('No se pudo crear el subgrupo porque faltan grupos del nivel.');
+      return;
+    }
+
+    this.setSubgroupBatchLoading(true);
+    try {
+      const response = await firstValueFrom(this.crudService.post('/course-subgroups/multiple-create', { items }));
+      if (response?.success === false) {
+        this.showErrorMessage(response?.message || 'No se pudo crear el subgrupo.');
+        return;
+      }
+      this.loadCourseData();
+      return;
+    } catch (error: any) {
+      if (error?.status === 200) {
+        this.loadCourseData();
+        return;
+      }
+      console.error('Error creating interval subgroups', error);
+      this.showErrorMessage('Hubo un problema al crear el subgrupo. Inténtalo de nuevo.');
+    } finally {
+      this.setSubgroupBatchLoading(false);
+    }
+  }
+
+  private async persistSubgroupDeletionBatch(intervalIndices: number[], level: any, subgroupIndex: number): Promise<void> {
+    if (!this.shouldPersistLevelsIndividually()) {
+      return;
+    }
+    const levelId = Number(level?.id ?? level?.degree_id);
+    const courseDates = this.cloneCourseDates(this.courses.courseFormGroup.get('course_dates')?.value || []);
+    if (!levelId || !Array.isArray(courseDates) || courseDates.length === 0) {
+      return;
+    }
+
+    const deleteIds = new Set<number>();
+    const intervalTargets = new Map<number, string | null>();
+
+    intervalIndices.forEach((intervalIdx: number) => {
+      const intervalDates = this.getCourseDatesForIntervalFromList(intervalIdx, courseDates);
+      if (!intervalDates.length) {
+        return;
+      }
+      let targetDatesId: string | null = null;
+      for (const courseDate of intervalDates) {
+        const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+        const candidate = subgroups[subgroupIndex];
+        if (candidate?.subgroup_dates_id) {
+          targetDatesId = candidate.subgroup_dates_id;
+          break;
+        }
+      }
+      intervalTargets.set(intervalIdx, targetDatesId);
+
+      intervalDates.forEach((courseDate: any) => {
+        const group = (courseDate?.course_groups || courseDate?.courseGroups || []).find((g: any) => (g?.degree_id ?? g?.degreeId) === levelId);
+        if (!group) {
+          return;
+        }
+        const subgroups = group?.course_subgroups || group?.courseSubgroups || [];
+        let subgroup = null;
+        if (targetDatesId) {
+          subgroup = subgroups.find((sg: any) => sg?.subgroup_dates_id === targetDatesId);
+        }
+        if (!subgroup) {
+          subgroup = subgroups[subgroupIndex];
+        }
+        if (subgroup?.id) {
+          deleteIds.add(subgroup.id);
+          group.course_subgroups = subgroups.filter((sg: any) => sg?.id !== subgroup.id);
+          courseDate.course_subgroups = (courseDate.course_subgroups || []).filter((sg: any) => sg?.id !== subgroup.id);
+        } else {
+          group.course_subgroups = subgroups.filter((_: any, index: number) => index !== subgroupIndex);
+        }
+      });
+    });
+
+    this.setSubgroupBatchLoading(true);
+    try {
+      if (deleteIds.size) {
+        const deleted = await this.bulkDeleteCourseSubgroups(Array.from(deleteIds));
+        if (!deleted) {
+          return;
+        }
+      }
+    } finally {
+      this.setSubgroupBatchLoading(false);
+    }
+
+    intervalTargets.forEach((targetDatesId, intervalIdx) => {
+      this.removeSubgroupFromIntervalState(intervalIdx, level, targetDatesId, subgroupIndex);
+    });
+
+    this.applyCourseDatesUpdate(courseDates);
+    this.clearGroupCache();
+    this.clearSubgroupsCache();
+    this.refreshPreviewSubgroupCache();
+    this.cdr.detectChanges();
+  }
+
   addLevelSubgroup = (level: any, j: number, add: boolean) => {
     // Si estamos en modo por intervalos o múltiples intervalos, delegar siempre en la lógica de intervalos
     const courseType = this.courses?.courseFormGroup?.controls?.['course_type']?.value;
@@ -6378,15 +7300,9 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       return;
     }
 
-    if (forceSimple) {
-      this.configureLevelsByInterval = false;
-      this.useMultipleIntervals = false;
-      if (!Array.isArray(this.intervals)) {
-        this.intervals = [];
-      }
-    }
+    const useIntervalConfig = !forceSimple && (this.configureLevelsByInterval || this.useMultipleIntervals);
 
-    if (!forceSimple && (this.configureLevelsByInterval || this.useMultipleIntervals)) {
+    if (useIntervalConfig) {
       if (!Array.isArray(this.intervals) || this.intervals.length === 0) {
         this.intervals = [this.createDefaultInterval()];
       }
@@ -6397,6 +7313,23 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
         this.removeIntervalLevelSubgroup(targetIdx, level, j);
       }
       return;
+    }
+
+    if (this.shouldPersistLevelsIndividually()) {
+      if (add) {
+        this.persistSubgroupCreation(level);
+      } else {
+        this.persistSubgroupDeletion(level, j);
+      }
+      return;
+    }
+
+    if (forceSimple) {
+      this.configureLevelsByInterval = false;
+      this.useMultipleIntervals = false;
+      if (!Array.isArray(this.intervals)) {
+        this.intervals = [];
+      }
     }
 
     // this.debugLog('addLevelSubgroup:start', {
@@ -9960,6 +10893,7 @@ export class CoursesCreateUpdateComponent implements OnInit, OnDestroy, AfterVie
       // overwrite the subgroup-specific max_participants we just set with the level's
       // max_participants. Sync will be called on save in endCourse().
       this.cdr.detectChanges();
+      this.persistSubgroupMaxParticipants(levelId, subgroupIndex, maxParticipants);
     }
   }
 }
