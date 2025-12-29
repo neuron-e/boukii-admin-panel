@@ -33,8 +33,15 @@ export class UtilsService {
   }
 
   getHighestAuthorizedDegree(monitor, sport_id: number, school_id: number): any | null {
+    const monitorSports = Array.isArray(monitor?.monitor_sports_degrees)
+      ? monitor.monitor_sports_degrees
+      : [];
+    if (monitorSports.length === 0) {
+      return null;
+    }
+
     // Encuentra los deportes asociados al monitor
-    const degrees = monitor.monitor_sports_degrees
+    const degrees = monitorSports
       .filter(degree =>
         degree.sport_id === sport_id &&
         degree.school_id === school_id

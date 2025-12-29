@@ -13,6 +13,7 @@ import {BookingService} from '../../../../../../service/bookings.service';
 import {ApiCrudService} from '../../../../../../service/crud.service';
 import {Router} from '@angular/router';
 import {MatSnackBar} from '@angular/material/snack-bar';
+import { finalize } from 'rxjs';
 import {
   AppliedDiscountInfo,
   applyFlexibleDiscount,
@@ -76,10 +77,12 @@ export class BookingDescriptionCard implements OnChanges {
   @Input() isDetail = false;
   @Input() status = 1;
   @Input() index: number = 1;
+  @Input() bookingId: number | null = null;
   uniqueMonitors: any[] = []; // Monitores únicos
   private _dates: any[] = [];
   discountInfoList: AppliedDiscountInfo[] = [];
   intervalGroups: IntervalGroup[] = [];
+  private loadingEditData = false;
 
   // Datos formateados desde el servicio (fuente única de verdad)
   formattedData: FormattedActivityData | null = null;
@@ -90,7 +93,8 @@ export class BookingDescriptionCard implements OnChanges {
     protected langService: LangService,
     protected utilsService: UtilsService,
     public dialog: MatDialog,
-    private bookingDataService: BookingDataService
+    private bookingDataService: BookingDataService,
+    private crudService: ApiCrudService
   ) {
     this.extractUniqueMonitors();
   }
@@ -329,9 +333,50 @@ export class BookingDescriptionCard implements OnChanges {
     return dateExtra.map((extra) => extra?.price).join(", ");
   }
 
-  sendEditForm(dates: any, course: any, utilizers: any = []) {
+  async sendEditForm(dates: any, course: any, utilizers: any = []) {
+    const resolvedCourse = await this.resolveEditCourse(course);
     // Usar el componente unificado para todos los tipos de curso
-    this.openUnifiedDatesEditForm(dates, course, utilizers);
+    this.openUnifiedDatesEditForm(dates, resolvedCourse, utilizers);
+  }
+
+  private needsEditCourseData(course: any): boolean {
+    if (!course) {
+      return false;
+    }
+
+    const dates = Array.isArray(course.course_dates) ? course.course_dates : [];
+    if (dates.length === 0) {
+      return true;
+    }
+
+    return !dates.some((date: any) => Array.isArray(date.course_groups));
+  }
+
+  private resolveEditCourse(course: any): Promise<any> {
+    if (!this.bookingId || !course?.id || !this.needsEditCourseData(course)) {
+      return Promise.resolve(course);
+    }
+
+    if (this.loadingEditData) {
+      return Promise.resolve(course);
+    }
+
+    this.loadingEditData = true;
+    return new Promise((resolve) => {
+      this.crudService
+        .get(`/admin/bookings/${this.bookingId}/preview?include_edit=1`)
+        .pipe(finalize(() => (this.loadingEditData = false)))
+        .subscribe({
+          next: (response: any) => {
+            const booking = response?.data;
+            const match = Array.isArray(booking?.booking_users)
+              ? booking.booking_users.find((user: any) => user?.course_id === course.id && user?.course)
+              : null;
+            resolve(match?.course || course);
+          },
+          error: () => resolve(course)
+        });
+    });
   }
 
   private openUnifiedDatesEditForm(dates: any, course: any, utilizers: any = []) {

@@ -102,7 +102,8 @@
             </div>
           </div>
         </div>
-        <vex-aio-table *ngIf="detailData && detailData?.course_type == 1" [columns]="columnsSalesCollective"
+        <vex-aio-table *ngIf="detailData"
+                       [columns]="detailData?.course_type == 1 ? columnsSalesCollective : columnsSalesPrivate"
                        [entity]="'/admin/courses/'+this.detailData?.id + '/sells'" [search]="filter"
                        [title]="'menu.courses'" [showDetail]="false" [withFilters]="false"
                        [route]="'courses'"
@@ -111,14 +112,6 @@
                        [sectionIcon]="icon"
                        (dataLoaded)="calculateTotal($event)"
         ></vex-aio-table>
-        <vex-aio-table *ngIf="detailData && detailData?.course_type != 1" [columns]="columnsSalesPrivate"
-                       [entity]="'/admin/courses/'+this.detailData?.id + '/sells'" [search]="filter"
-                       [title]="'menu.courses'" [showDetail]="false" [withFilters]="false"
-                       [route]="'courses'"
-                       [canDelete]="false" [canDeactivate]="false"
-                       [filterColumn]="'school_id'" [filterField]="user.schools[0].id"
-                       [sectionIcon]="icon"
-                       (dataLoaded)="calculateTotal($event)"></vex-aio-table>
       </mat-tab>
 		</mat-tab-group>
 	</div>

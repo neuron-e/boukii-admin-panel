@@ -27,25 +27,20 @@ export class DashboardService {
 
   /**
    * Obtiene todas las métricas del dashboard de una vez
+   * OPTIMIZADO: Usa endpoint unificado que reduce ~20 llamadas API a 1 sola
    */
   getDashboardMetrics(selectedDate: moment.Moment = moment()): Observable<DashboardMetrics> {
-    const schoolId = this.user.schools?.[0]?.id;
-    if (!schoolId) {
-      return of(this.getEmptyMetrics());
-    }
+    const dateStr = selectedDate.format('YYYY-MM-DD');
 
-    return forkJoin({
-      alertas: this.getCriticalAlerts(selectedDate, schoolId),
-      revenue: this.getRevenueMetrics(selectedDate, schoolId),
-      ocupacion: this.getOccupancyData(selectedDate, schoolId),
-      proximasActividades: this.getUpcomingActivities(selectedDate, schoolId),
-      tendencias: this.getTrendData(selectedDate, schoolId),
-      quickStats: this.getQuickStats(selectedDate, schoolId)
-    }).pipe(
-      map(data => ({
-        ...data,
-        lastUpdated: new Date().toISOString()
-      })),
+    // NUEVO: Usar endpoint optimizado /admin/dashboard/metrics
+    // El school_id se obtiene automáticamente del bearer token en el backend
+    return this.crudService.get(`/admin/dashboard/metrics?date=${dateStr}`).pipe(
+      map((response: any) => {
+        if (response?.success && response?.data) {
+          return response.data as DashboardMetrics;
+        }
+        return this.getEmptyMetrics();
+      }),
       catchError(error => {
         console.error('Error obteniendo métricas del dashboard:', error);
         return of(this.getEmptyMetrics());
@@ -54,7 +49,13 @@ export class DashboardService {
   }
 
   /**
+   * DEPRECATED: Métodos privados antiguos - mantenidos para referencia pero ya no se usan
+   * El nuevo endpoint /admin/dashboard/metrics maneja todo en el backend
+   */
+
+  /**
    * Obtiene alertas críticas del sistema
+   * @deprecated - Usar getDashboardMetrics() que llama al endpoint optimizado
    */
   private getCriticalAlerts(date: moment.Moment, schoolId: number): Observable<CriticalAlerts> {
     const dateStr = date.format('YYYY-MM-DD');

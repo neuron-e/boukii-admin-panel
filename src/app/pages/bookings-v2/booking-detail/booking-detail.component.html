@@ -47,6 +47,7 @@
                                        [total]="activity.total"
                                        [isDetail]="true"
                                        [status]="activity.status"
+                                       [bookingId]="bookingData?.id"
                                        [groupedActivities]="groupedActivities"
                                        (deleteActivity)="processDelete(i)"
                                        (editActivity)="editActivity($event, i)">

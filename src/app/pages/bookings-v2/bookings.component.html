@@ -229,11 +229,11 @@
                         }}
                         {{bUsers?.course?.sport?.name}}
                       </div>
-                      <ng-container *ngIf="bUsers?.course?.course_type == 1">
-                        <div [style.background]="bUsers?.course_sub_group.degree.color"
+                      <ng-container *ngIf="bUsers?.course?.course_type == 1 && bUsers?.course_sub_group?.degree">
+                        <div [style.background]="bUsers?.course_sub_group?.degree?.color"
                              class="placeLevel m-0 body-1">
-                          {{bUsers?.course_sub_group.degree?.annotation}}
-                          {{bUsers?.course_sub_group.degree?.name}}
+                          {{bUsers?.course_sub_group?.degree?.annotation}}
+                          {{bUsers?.course_sub_group?.degree?.name}}
                         </div>
                       </ng-container>
                       <ng-container *ngIf="bUsers?.course?.course_type !== 1">

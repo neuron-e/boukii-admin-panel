@@ -60,6 +60,8 @@ import { SchoolService } from 'src/service/school.service';
 })
 export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   private readonly destroyRef: DestroyRef = inject(DestroyRef);
+  private viewInitialized = false;
+  private lastRequestKey = '';
 
   layoutCtrl = new UntypedFormControl('boxed');
   subject$: ReplaySubject<any[]> = new ReplaySubject<any[]>(1);
@@ -188,6 +190,9 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   // Detecta cambios en las propiedades de entrada
   ngOnChanges(changes: SimpleChanges): void {
+    if (!this.viewInitialized) {
+      return;
+    }
     if (changes['search'] || changes['entity']) {
       this.pageIndex = 1;
       this.getFilteredData(this.pageIndex, this.pageSize, this.filter);
@@ -372,6 +377,24 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
    * We are simulating this request here.
    */
   getFilteredData(pageIndex: number, pageSize: number, filter: any) {
+    const requestKey = [
+      this.entity,
+      pageIndex,
+      pageSize,
+      this.Sort?.direction,
+      this.backendOrderColumn,
+      this.searchCtrl.value,
+      filter,
+      this.search,
+      this.filterColumn,
+      this.filterField,
+      this.with
+    ].join('|');
+    if (this.lastRequestKey === requestKey) {
+      return;
+    }
+    this.lastRequestKey = requestKey;
+    this.loading = true;
     //this.loading = true;
     // Asegúrate de que pageIndex y pageSize se pasan correctamente.
     // Puede que necesites ajustar pageIndex según cómo espera tu backend que se paginen los índices (base 0 o base 1).
@@ -387,7 +410,8 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       null,
       this.searchCtrl.value,
       this.with)
-      .subscribe((response: any) => {
+      .subscribe({
+        next: (response: any) => {
         this.pageIndex = pageIndex;
         this.pageSize = pageSize;
         this.data = response.data;
@@ -401,6 +425,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
           this.paginator.pageSize = pageSize;
         }
         this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+        }
       });
   }
   /**
@@ -433,6 +461,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   ngAfterViewInit() {
     this.dataSource = new MatTableDataSource();
     this.dataSource.sort = this.sort;
+    this.viewInitialized = true;
     this.getData(this.pageIndex, this.pageSize);
   }
 
