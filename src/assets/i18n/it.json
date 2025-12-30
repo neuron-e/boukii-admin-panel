@@ -2002,12 +2002,14 @@
   "booking.price_mismatch.title": "Differenza di prezzo rilevata.",
   "booking.price_mismatch.body": "Il subtotale calcolato {{expected}} {{currency}} differisce dal totale salvato {{stored}} {{currency}}.",
   "booking.price_mismatch.adjust": "Genera adeguamento",
+  "price_snapshot_basket_import": "Snapshot del prezzo creato dal carrello",
   "booking.price_adjustment.confirm_title": "Conferma adeguamento prezzo",
-  "booking.price_adjustment.confirm_underpaid": "Il totale verr? aggiornato da {{stored}} a {{expected}} {{currency}}, la prenotazione sar? marcata come non pagata e l'importo gi? pagato verr? mantenuto. Continuare?",
+  "booking.price_adjustment.confirm_underpaid": "Il totale verrà aggiornato da {{stored}} a {{expected}} {{currency}}, la prenotazione sarà marcata come non pagata e l'importo già pagato verrà mantenuto. Continuare?",
   "booking.price_adjustment.title": "Rimborso della differenza di prezzo",
-  "booking.price_adjustment.no_refund_text": "Il totale verr? aggiornato e non verr? emesso alcun rimborso per la differenza di {{difference}} {{currency}}.",
-  "booking.price_adjustment.refund_text": "Verr? emesso un rimborso di {{difference}} {{currency}}.",
-  "booking.price_adjustment.voucher_text": "Verr? creato un voucher di {{difference}} {{currency}}.",
-  "booking.price_mismatch.reason_fallback": "Almeno un'attivit? ha usato un prezzo di fallback perch? il price range del corso non corrisponde a durata/partecipanti."
+  "booking.price_adjustment.no_refund_text": "Il totale verrà aggiornato e non verrà emesso alcun rimborso per la differenza di {{difference}} {{currency}}.",
+  "booking.price_adjustment.refund_text": "Verrà emesso un rimborso di {{difference}} {{currency}}.",
+  "booking.price_adjustment.voucher_text": "Verrà creato un voucher di {{difference}} {{currency}}.",
+  "booking.price_mismatch.reason_fallback": "Almeno un'attività ha usato un prezzo di fallback perché il price range del corso non corrisponde a durata/partecipanti.",
+  "registered_correctly": "Registrato correttamente"
 }
 

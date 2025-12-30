@@ -2000,15 +2000,17 @@
   "send_pay_link": "Enviar enlace de pago",
   "updated_by_admin": "Actualizado por administrador",
   "confirm_booking_message": "Mensaje de confirmación de reserva",
-  "booking.price_fallback.tooltip": "Precio estimado: el curso no tiene price range para este intervalo/participantes. Se us? la configuraci?n general.",
+  "registered_correctly": "Registrado correctamente",
+  "booking.price_fallback.tooltip": "Precio estimado: el curso no tiene price range para este intervalo/participantes. Se usó la configuración general.",
   "booking.price_mismatch.title": "Diferencia de precio detectada.",
   "booking.price_mismatch.body": "El subtotal calculado {{expected}} {{currency}} no coincide con el total guardado {{stored}} {{currency}}.",
   "booking.price_mismatch.adjust": "Generar ajuste",
+  "price_snapshot_basket_import": "Snapshot de precio creado desde el basket",
   "booking.price_adjustment.confirm_title": "Confirmar ajuste de precio",
-  "booking.price_adjustment.confirm_underpaid": "Se actualizará el total de {{stored}} a {{expected}} {{currency}}, se marcará como no pagada y se mantendr? el importe ya cobrado. ?Continuar?",
+  "booking.price_adjustment.confirm_underpaid": "Se actualizará el total de {{stored}} a {{expected}} {{currency}}, se marcará como no pagada y se mantendrá el importe ya cobrado. ¿Continuar?",
   "booking.price_adjustment.title": "Reembolso por diferencia de precio",
   "booking.price_adjustment.no_refund_text": "Se actualizará el total y no se realizará reembolso por la diferencia de {{difference}} {{currency}}.",
   "booking.price_adjustment.refund_text": "Se realizará un reembolso por {{difference}} {{currency}}.",
   "booking.price_adjustment.voucher_text": "Se generará un bono por {{difference}} {{currency}}.",
-  "booking.price_mismatch.reason_fallback": "Al menos una actividad ha usado un precio de fallback porque el price range del curso no coincide con duraci?n/participantes."
+  "booking.price_mismatch.reason_fallback": "Al menos una actividad ha usado un precio de fallback porque el price range del curso no coincide con duración/participantes."
 }

@@ -24,6 +24,8 @@ import {ComponentsCustomModule} from '../../../../components/components-custom.m
 import {BookingDetailDialogComponent} from './booking-dialog/booking-dialog.component';
 import {BookingDatesEditUnifiedComponent} from './booking-dates-edit-unified/booking-dates-edit-unified.component';
 import { EditMeetingPointModalComponent } from './edit-meeting-point-modal/edit-meeting-point-modal.component';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { ConfirmModalModule } from '../../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component.module';
 
 
 
@@ -55,6 +57,8 @@ import { EditMeetingPointModalComponent } from './edit-meeting-point-modal/edit-
     FluxModalModule,
     MatRadioModule,
     MatDialogModule,
+    MatTooltipModule,
+    ConfirmModalModule,
     IconComponent,
     ComponentsCustomModule,
   ],

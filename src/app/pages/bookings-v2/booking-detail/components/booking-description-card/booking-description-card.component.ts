@@ -74,6 +74,7 @@ export class BookingDescriptionCard implements OnChanges {
   @Input() schoolObs: any;
   @Input() groupedActivities: any;
   @Input() total: any;
+  @Input() priceFallback = false;
   @Input() summaryMode = false;
   @Input() isDetail = false;
   @Input() status = 1;

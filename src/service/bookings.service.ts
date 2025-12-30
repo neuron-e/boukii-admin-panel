@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import {BehaviorSubject, delay, EMPTY, forkJoin, mergeMap, Observable} from 'rxjs';
+import { map } from 'rxjs/operators';
 import * as moment from 'moment';
 import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
@@ -530,28 +531,34 @@ export class BookingService {
     });
   }
 
-  private handleNoRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any): Observable<any> {
-    const operations = [
+    private handleNoRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any): Observable<any> {
+    const operations: Observable<any>[] = [
       this.createBookingLog({
         booking_id: bookingId,
         action: 'no_refund',
         before_change: 'confirmed',
         user_id: userData.id
-      }),
-      this.createPayment({
-        booking_id: bookingId,
-        school_id: userData.schools[0].id,
-        amount: bookTotalPrice,
-        status: 'no_refund',
-        notes: 'no refund applied'
-      }),
-      this.cancelBookingUsers(bookingUsers)
+      })
     ];
+
+    if (bookTotalPrice > 0) {
+      operations.push(
+        this.createPayment({
+          booking_id: bookingId,
+          school_id: userData.schools[0].id,
+          amount: bookTotalPrice,
+          status: 'no_refund',
+          notes: 'no refund applied'
+        })
+      );
+    }
+
+    operations.push(this.cancelBookingUsers(bookingUsers));
 
     return forkJoin(operations);
   }
 
-  private handleBoukiiPay(bookingId: number, bookTotalPrice: number, bookingUsers: any[], userData: any, reason: string): Observable<any> {
+    private handleBoukiiPay(bookingId: number, bookTotalPrice: number, bookingUsers: any[], userData: any, reason: string): Observable<any> {
     const provider = 'boukii_pay';
     const operations: Observable<any>[] = [
       this.createBookingLog({
@@ -563,44 +570,49 @@ export class BookingService {
       })
     ];
 
-    operations.push(
-      this.crudService.post(`/admin/bookings/refunds/${bookingId}`, {
-        amount: bookTotalPrice
-      })
-    );
+    if (bookTotalPrice > 0) {
+      operations.push(
+        this.crudService.post(`/admin/bookings/refunds/${bookingId}`, {
+          amount: bookTotalPrice
+        })
+      );
+    }
 
-
-    operations.push(
-      this.cancelBookingUsers(bookingUsers)
-    );
+    operations.push(this.cancelBookingUsers(bookingUsers));
 
     return forkJoin(operations);
   }
 
-  private handleCashRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, reason: string): Observable<any> {
+    private handleCashRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, reason: string): Observable<any> {
     const provider = 'cash';
-    const operations = [
+    const operations: Observable<any>[] = [
       this.createBookingLog({
         booking_id: bookingId,
         action: 'refund_' + provider,
         before_change: 'confirmed',
         user_id: userData.id,
         description: reason
-      }),
-      this.createPayment({
-        booking_id: bookingId,
-        school_id: userData.schools[0].id,
-        amount: bookTotalPrice,
-        status: 'refund',
-        notes: 'other'
-      }),
-      this.cancelBookingUsers(bookingUsers)
+      })
     ];
+
+    if (bookTotalPrice > 0) {
+      operations.push(
+        this.createPayment({
+          booking_id: bookingId,
+          school_id: userData.schools[0].id,
+          amount: bookTotalPrice,
+          status: 'refund',
+          notes: reason
+        })
+      );
+    }
+
+    operations.push(this.cancelBookingUsers(bookingUsers));
 
     return forkJoin(operations);
   }
 
-  private handleVoucherRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, clientMainId: number): Observable<any> {
+    private handleVoucherRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, clientMainId: number): Observable<any> {
     const provider = 'voucher';
     const voucherData: VoucherData = {
       code: 'BOU-' + this.generateRandomNumber(),
@@ -611,31 +623,39 @@ export class BookingService {
       school_id: userData.schools[0].id
     };
 
-    return forkJoin([
+    const operations: Observable<any>[] = [
       this.createBookingLog({
         booking_id: bookingId,
         action: 'refund_' + provider,
         before_change: 'confirmed',
-        user_id: userData.id
+        user_id: userData.id,
+        description: 'Voucher refund'
       }),
-      this.cancelBookingUsers(bookingUsers),
-      this.createPayment({
-        booking_id: bookingId,
-        school_id: userData.schools[0].id,
-        amount: bookTotalPrice,
-        status: 'refund',
-        notes: 'voucher'
-      }),
-      this.crudService.create('/vouchers', voucherData).pipe(
-        mergeMap(result =>
-          this.crudService.create('/vouchers-logs', {
-            voucher_id: result.data.id,
-            booking_id: bookingId,
-            amount: -voucherData.quantity
-          })
+      this.cancelBookingUsers(bookingUsers)
+    ];
+
+    if (bookTotalPrice > 0) {
+      operations.push(
+        this.createPayment({
+          booking_id: bookingId,
+          school_id: userData.schools[0].id,
+          amount: bookTotalPrice,
+          status: 'refund',
+          notes: 'voucher'
+        }),
+        this.crudService.create('/vouchers', voucherData).pipe(
+          mergeMap(result =>
+            this.crudService.create('/vouchers-logs', {
+              voucher_id: result.data.id,
+              booking_id: bookingId,
+              amount: -voucherData.quantity
+            })
+          )
         )
-      )
-    ]);
+      );
+    }
+
+    return forkJoin(operations);
   }
 
   processCancellation(
@@ -652,7 +672,15 @@ export class BookingService {
       ? group.dates.flatMap(date => date.booking_users.map(b => b.id))
       : bookingUserIds;
 
-    const totalFinal = group ? group.total : total; // Si group no está, usar data.total
+    const cancellationAmount = this.parseNumber(group ? group.total : total);
+
+    const currentTotal = this.resolveCancellationBaseTotal(bookingData);
+
+    const currentBalance = this.getCurrentBalance(bookingData);
+
+    const newTotal = Math.max(0, currentTotal - cancellationAmount);
+
+    const amountToProcess = Math.max(0, currentBalance - newTotal);
 
     const initialLog: BookingLog = {
       booking_id: bookingData.id,
@@ -670,7 +698,7 @@ export class BookingService {
         cancellationOperation = this.handleNoRefund(
           bookingData.id,
           bookingUserIdsFinal,
-          totalFinal,
+          amountToProcess,
           user
         );
         break;
@@ -678,7 +706,7 @@ export class BookingService {
       case 'boukii_pay':
         cancellationOperation = this.handleBoukiiPay(
           bookingData.id,
-          totalFinal,
+          amountToProcess,
           bookingUserIdsFinal,
           user,
           data.reason
@@ -689,7 +717,7 @@ export class BookingService {
         cancellationOperation = this.handleCashRefund(
           bookingData.id,
           bookingUserIdsFinal,
-          totalFinal,
+          amountToProcess,
           user,
           data.reason
         );
@@ -699,7 +727,7 @@ export class BookingService {
         cancellationOperation = this.handleVoucherRefund(
           bookingData.id,
           bookingUserIdsFinal,
-          totalFinal,
+          amountToProcess,
           user,
           bookingData.client_main_id
         );
@@ -711,16 +739,199 @@ export class BookingService {
 
     return this.createBookingLog(initialLog).pipe(
       mergeMap(() => cancellationOperation),
-      delay(1000),
-      mergeMap(() => {
-        const status = isPartial ? 3 : 2;
-        return this.crudService.update('/bookings', { status }, bookingData.id);
-      })
+      delay(1000)
     );
+  }
+
+  private resolveCancellationBaseTotal(bookingData: any): number {
+    if (!bookingData) {
+      return 0;
+    }
+
+    const snapshotTotal = this.parseNumber(bookingData?.pricing_snapshot?.snapshot?.totals?.total);
+    if (snapshotTotal > 0) {
+      return snapshotTotal;
+    }
+
+    const computedTotal = this.parseNumber(bookingData?.computed_total);
+    if (computedTotal > 0) {
+      return computedTotal;
+    }
+
+    return this.parseNumber(bookingData?.price_total);
   }
 
   private generateRandomNumber(): string {
     return Math.random().toString(36).substring(2, 15);
+  }
+
+  private parseNumber(value: any): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (value === null || value === undefined) {
+      return 0;
+    }
+    const parsed = parseFloat(String(value));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private getCurrentBalance(bookingData: any): number {
+    const payments = Array.isArray(bookingData?.payments) ? bookingData.payments : [];
+    const totalPaid = payments
+      .filter(p => p?.status === 'paid')
+      .reduce((sum, p) => sum + this.parseNumber(p?.amount), 0);
+    const totalRefunded = payments
+      .filter(p => p?.status === 'refund' || p?.status === 'partial_refund')
+      .reduce((sum, p) => sum + this.parseNumber(p?.amount), 0);
+    const totalNoRefund = payments
+      .filter(p => p?.status === 'no_refund')
+      .reduce((sum, p) => sum + this.parseNumber(p?.amount), 0);
+
+    const voucherLogs = Array.isArray(bookingData?.vouchers_logs) ? bookingData.vouchers_logs : [];
+    const vouchersUsed = voucherLogs
+      .filter(v => this.parseNumber(v?.amount) > 0)
+      .reduce((sum, v) => sum + this.parseNumber(v?.amount), 0);
+    const vouchersRefunded = voucherLogs
+      .filter(v => this.parseNumber(v?.amount) < 0)
+      .reduce((sum, v) => sum + Math.abs(this.parseNumber(v?.amount)), 0);
+
+    return totalPaid + vouchersUsed - totalRefunded - vouchersRefunded - totalNoRefund;
+  }
+
+  private getTotalVouchersAmount(bookingData: any): number {
+    const vouchers = Array.isArray(bookingData?.vouchers)
+      ? bookingData.vouchers
+      : Array.isArray(bookingData?.vouchers_logs)
+        ? bookingData.vouchers_logs
+        : [];
+    return vouchers.reduce((acc: number, item: any) => {
+      const value = item?.bonus?.reducePrice ?? item?.amount ?? 0;
+      return acc + this.parseNumber(value);
+    }, 0);
+  }
+
+  processPriceAdjustment(
+    bookingData: any,
+    newTotal: number,
+    user: any,
+    refundData?: { type: string; reason?: string; bonus?: any[]; unifyBonus?: boolean }
+  ): Observable<{ price_total: number; paid_total: number; paid: boolean; pending_amount?: number; vouchers?: any[] }> {
+    if (!bookingData?.id) {
+      return EMPTY;
+    }
+
+    const bookingId = bookingData.id;
+    const oldTotal = this.parseNumber(bookingData.price_total);
+    const paidTotal = this.parseNumber(bookingData.paid_total);
+    const vouchersTotal = this.getTotalVouchersAmount(bookingData);
+    const diff = Number((newTotal - oldTotal).toFixed(2));
+    const refundAmount = diff < 0 ? Math.abs(diff) : 0;
+
+    let nextPaidTotal = paidTotal;
+    if (refundAmount > 0) {
+      nextPaidTotal = Math.max(0, paidTotal - refundAmount);
+    }
+
+    const pendingAmount = Math.max(0, newTotal - nextPaidTotal - vouchersTotal);
+    const paid = nextPaidTotal >= newTotal;
+
+    const updatePayload: any = {
+      price_total: Number(newTotal.toFixed(2)),
+      paid_total: Number(nextPaidTotal.toFixed(2)),
+      paid,
+      pending_amount: Number(pendingAmount.toFixed(2))
+    };
+
+    const operations: Observable<any>[] = [];
+
+    operations.push(this.createBookingLog({
+      booking_id: bookingId,
+      action: 'price_adjustment',
+      description: `adjusted from ${oldTotal} to ${newTotal}`,
+      before_change: 'confirmed',
+      user_id: user?.id
+    }));
+
+    if (refundAmount > 0 && refundData?.type) {
+      const reason = refundData.reason || 'price_adjustment';
+      if (refundData.type === 'boukii_pay') {
+        operations.push(
+          this.crudService.post(`/admin/bookings/refunds/${bookingId}`, { amount: refundAmount })
+        );
+      } else if (refundData.type === 'refund') {
+        operations.push(
+          this.createPayment({
+            booking_id: bookingId,
+            school_id: user?.schools?.[0]?.id,
+            amount: refundAmount,
+            status: 'refund',
+            notes: reason
+          })
+        );
+      } else if (refundData.type === 'refund_gift') {
+        const voucherData: VoucherData = {
+          code: 'BOU-' + this.generateRandomNumber(),
+          quantity: refundAmount,
+          remaining_balance: refundAmount,
+          payed: false,
+          client_id: bookingData.client_main_id,
+          school_id: user?.schools?.[0]?.id
+        };
+
+        operations.push(
+          this.createPayment({
+            booking_id: bookingId,
+            school_id: user?.schools?.[0]?.id,
+            amount: refundAmount,
+            status: 'refund',
+            notes: 'voucher'
+          })
+        );
+
+        operations.push(
+          this.crudService.create('/vouchers', voucherData).pipe(
+            mergeMap(result =>
+              this.crudService.create('/vouchers-logs', {
+                voucher_id: result.data.id,
+                booking_id: bookingId,
+                amount: -voucherData.quantity
+              })
+            )
+          )
+        );
+      }
+
+      operations.push(this.createBookingLog({
+        booking_id: bookingId,
+        action: `price_adjustment_refund_${refundData.type}`,
+        description: `refund ${refundAmount}`,
+        before_change: 'confirmed',
+        user_id: user?.id,
+        reason: reason
+      }));
+    }
+
+    operations.push(this.crudService.update('/bookings', updatePayload, bookingId));
+    operations.push(this.crudService.post(`/admin/bookings/${bookingId}/pricing/adjust`, {
+      overrides: {
+        totals: {
+          total: updatePayload.price_total,
+          paid_total: updatePayload.paid_total,
+          pending_amount: updatePayload.pending_amount
+        }
+      },
+      note: refundData?.reason ? `price_adjustment:${refundData.reason}` : 'price_adjustment'
+    }));
+
+    return forkJoin(operations).pipe(
+      map(() => ({
+        price_total: updatePayload.price_total,
+        paid_total: updatePayload.paid_total,
+        paid: updatePayload.paid,
+        pending_amount: updatePayload.pending_amount
+      }))
+    );
   }
 }
 

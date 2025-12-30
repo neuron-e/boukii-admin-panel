@@ -8,7 +8,7 @@
     ]"
                    class="booking-breadcrumb"></vex-breadcrumbs>
 </div>
-<div class="booking-loading-overlay" *ngIf="isLoading">
+<div class="booking-loading-overlay" *ngIf="isLoading || isCancelling">
   <mat-progress-spinner diameter="48" mode="indeterminate"></mat-progress-spinner>
   <div class="loading-text">{{ 'loading' | translate }}</div>
 </div>
@@ -45,6 +45,7 @@
                                        [clientObs]="activity.clientObs"
                                        [schoolObs]="activity.schoolObs"
                                        [total]="activity.total"
+                                       [priceFallback]="activity.priceFallback"
                                        [isDetail]="true"
                                        [status]="activity.status"
                                        [bookingId]="bookingData?.id"

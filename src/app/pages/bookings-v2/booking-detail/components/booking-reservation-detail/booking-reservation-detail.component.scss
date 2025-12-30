@@ -121,6 +121,18 @@
   border-bottom: 1px solid var(--color-grey3);
 }
 
+.price-with-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.price-with-warning mat-icon {
+  line-height: 1;
+}
+
 .sectionTitle {
   display: flex;
   gap: 0.5rem;

@@ -2000,11 +2000,13 @@
   "booking.price_mismatch.title": "Price mismatch detected.",
   "booking.price_mismatch.body": "Computed subtotal {{expected}} {{currency}} differs from stored total {{stored}} {{currency}}.",
   "booking.price_mismatch.adjust": "Generate adjustment",
+  "price_snapshot_basket_import": "Price snapshot created from basket",
   "booking.price_adjustment.confirm_title": "Confirm price adjustment",
   "booking.price_adjustment.confirm_underpaid": "This will update the total from {{stored}} to {{expected}} {{currency}}, mark the booking as unpaid, and keep the amount already paid. Continue?",
   "booking.price_adjustment.title": "Refund price difference",
   "booking.price_adjustment.no_refund_text": "The total will be updated and no refund will be issued for the difference of {{difference}} {{currency}}.",
   "booking.price_adjustment.refund_text": "A refund of {{difference}} {{currency}} will be issued.",
   "booking.price_adjustment.voucher_text": "A voucher of {{difference}} {{currency}} will be created.",
-  "booking.price_mismatch.reason_fallback": "At least one activity used a fallback price because the course price range did not match its duration/participants."
+  "booking.price_mismatch.reason_fallback": "At least one activity used a fallback price because the course price range did not match its duration/participants.",
+  "registered_correctly": "Registered correctly"
 }

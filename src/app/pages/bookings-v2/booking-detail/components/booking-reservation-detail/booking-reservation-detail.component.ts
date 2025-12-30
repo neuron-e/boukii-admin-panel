@@ -19,6 +19,8 @@ import { MeetingPointService } from 'src/service/meeting-point.service';
 import { buildDiscountInfoList } from 'src/app/pages/bookings-v2/shared/discount-utils';
 import { EditMeetingPointModalComponent } from '../edit-meeting-point-modal/edit-meeting-point-modal.component';
 import { ApplyDiscountCodeComponent } from '../../../bookings-create-update/components/apply-discount-code/apply-discount-code.component';
+import { ConfirmModalComponent } from '../../../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
+import { CancelPartialBookingModalComponent } from '../../../cancel-partial-booking/cancel-partial-booking.component';
 
 @Component({
   selector: 'booking-detail-reservation-detail',
@@ -56,6 +58,10 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   meetingPointAddress: string = '';
   meetingPointInstructions: string = '';
   meetingPointSaving = false;
+  adjustingPrice = false;
+  showMeetingPoint = false;
+  showPaymentHistory = false;
+  showChangeHistory = false;
 
   constructor(
     protected langService: LangService,
@@ -482,6 +488,170 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     this.displayOutstanding = this.getOutstandingTotal();
   }
 
+  toggleMeetingPoint(): void {
+    this.showMeetingPoint = !this.showMeetingPoint;
+  }
+
+  togglePaymentHistory(): void {
+    this.showPaymentHistory = !this.showPaymentHistory;
+  }
+
+  toggleChangeHistory(): void {
+    this.showChangeHistory = !this.showChangeHistory;
+  }
+
+  private parseNumber(value: any): number {
+    const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? '0'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  getStoredTotal(): number {
+    return this.parseNumber(this.bookingData?.price_total);
+  }
+
+  getComputedSubtotal(): number {
+    const snapshotTotal = this.getSnapshotTotal();
+    if (snapshotTotal > 0) {
+      return Number(snapshotTotal.toFixed(2));
+    }
+
+    const computed = this.parseNumber(this.bookingData?.computed_total);
+    if (computed > 0) {
+      return Number(computed.toFixed(2));
+    }
+    return Number(this.sumActivityTotal().toFixed(2));
+  }
+
+  getPriceMismatch(): number {
+    const diff = this.getComputedSubtotal() - this.getStoredTotal();
+    return Number(diff.toFixed(2));
+  }
+
+  hasPriceMismatch(): boolean {
+    return Math.abs(this.getPriceMismatch()) >= 0.01;
+  }
+
+  getPriceMismatchAmount(): number {
+    return Math.abs(this.getPriceMismatch());
+  }
+
+  hasPriceFallbackActivities(): boolean {
+    return Array.isArray(this.activities) && this.activities.some(activity => activity?.priceFallback);
+  }
+
+  private getSnapshotTotal(): number {
+    const snapshot = this.bookingData?.pricing_snapshot;
+    const calculatedTotal = this.parseNumber(snapshot?.snapshot?.calculated?.total_final);
+    if (calculatedTotal > 0) {
+      return calculatedTotal;
+    }
+
+    const source = snapshot?.source;
+    const snapshotTotal = this.parseNumber(snapshot?.snapshot?.totals?.total);
+    const hasReduction = this.parseNumber(this.bookingData?.price_reduction) > 0;
+    if (source === 'basket_import' && hasReduction) {
+      return 0;
+    }
+
+    return snapshotTotal > 0 ? snapshotTotal : 0;
+  }
+
+  isPriceMismatchUnderpaid(): boolean {
+    return this.getPriceMismatch() > 0.01;
+  }
+
+  openPriceAdjustment(): void {
+    if (!this.bookingData || !this.hasPriceMismatch() || this.adjustingPrice) {
+      return;
+    }
+
+    const computedTotal = this.getComputedSubtotal();
+    const storedTotal = this.getStoredTotal();
+    const currency = this.getActivitiesCurrency();
+    const diff = this.getPriceMismatch();
+
+    if (diff > 0) {
+      const dialogRef = this.dialog.open(ConfirmModalComponent, {
+        maxWidth: '100vw',
+        panelClass: 'full-screen-dialog',
+        data: {
+          title: this.translateService.instant('booking.price_adjustment.confirm_title'),
+          message: this.translateService.instant('booking.price_adjustment.confirm_underpaid', {
+            stored: storedTotal.toFixed(2),
+            expected: computedTotal.toFixed(2),
+            currency
+          })
+        }
+      });
+
+      dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+        if (confirmed) {
+          this.applyPriceAdjustment(computedTotal);
+        }
+      });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(CancelPartialBookingModalComponent, {
+      width: '1000px',
+      panelClass: 'full-screen-dialog',
+      data: {
+        mode: 'price_adjustment',
+        itemPrice: Math.abs(diff),
+        booking: this.bookingData,
+        currentBonus: this.bookingData?.vouchers ?? [],
+        currentBonusLog: this.bookingData?.vouchers_logs ?? [],
+        currency
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result: any) => {
+      if (result && result.type) {
+        this.applyPriceAdjustment(computedTotal, result);
+      }
+    });
+  }
+
+  private applyPriceAdjustment(newTotal: number, refundData?: { type: string; reason?: string }): void {
+    if (!this.bookingData || this.adjustingPrice) {
+      return;
+    }
+
+    const user = JSON.parse(localStorage.getItem('boukiiUser') || 'null');
+    this.adjustingPrice = true;
+
+    this.bookingService.processPriceAdjustment(
+      this.bookingData,
+      newTotal,
+      user,
+      refundData
+    ).subscribe({
+      next: (payload: any) => {
+        if (payload) {
+          this.bookingData.price_total = payload.price_total;
+          this.bookingData.paid_total = payload.paid_total;
+          this.bookingData.paid = payload.paid;
+          if (payload.pending_amount !== undefined) {
+            (this.bookingData as any).pending_amount = payload.pending_amount;
+          }
+          if (payload.vouchers) {
+            this.bookingData.vouchers = payload.vouchers;
+          }
+        }
+        this.updateBookingData();
+        this.refreshDisplayTotals();
+        this.snackbar.open(this.translateService.instant('snackbar.booking_detail.update'), 'OK', { duration: 3000 });
+      },
+      error: () => {
+        this.snackbar.open(this.translateService.instant('snackbar.error'), 'OK', { duration: 3000 });
+        this.adjustingPrice = false;
+      },
+      complete: () => {
+        this.adjustingPrice = false;
+      }
+    });
+  }
+
   private persistCancellationInsurance(): void {
     if (!this.bookingData || !this.bookingData.id || this.bookingData.paid) {
       return;
@@ -600,6 +770,34 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       ? activity.total
       : parseFloat(String(activity?.total || 0).replace(/[^\d.-]/g, '')) || 0;
     return total + discount;
+  }
+
+  getPaymentLabel(payment: any): string {
+    if (!payment) {
+      return '';
+    }
+
+    const status = payment.status ? this.translateService.instant(payment.status) : '';
+
+    if (payment.status === 'no_refund') {
+      const cancelLabel = this.translateService.instant('cancel_no_refund');
+      return status && cancelLabel ? `${cancelLabel} - ${status}` : (cancelLabel || status);
+    }
+
+    let detail = '';
+    if (payment.notes) {
+      detail = this.translateService.instant(payment.notes);
+    } else {
+      detail = this.schoolService.getPaymentProvider() === 'payyo'
+        ? this.translateService.instant('payment_payyo')
+        : 'Boukii Pay';
+    }
+
+    if (!status) {
+      return detail;
+    }
+
+    return detail ? `${status} - ${detail}` : status;
   }
 openEditMeetingPointModal(): void {    const dialogRef = this.dialog.open(EditMeetingPointModalComponent, {      width: '600px',      data: {        meetingPointName: this.meetingPointName,        meetingPointAddress: this.meetingPointAddress,        meetingPointInstructions: this.meetingPointInstructions      }    });    dialogRef.afterClosed().subscribe((result: any) => {      if (result) {        this.meetingPointName = result.meeting_point;        this.meetingPointAddress = result.meeting_point_address;        this.meetingPointInstructions = result.meeting_point_instructions;        this.saveBookingMeetingPoint();      }    });  }
 

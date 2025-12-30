@@ -2034,12 +2034,14 @@
   "booking.price_mismatch.title": "Preisabweichung erkannt.",
   "booking.price_mismatch.body": "Der berechnete Zwischensumme {{expected}} {{currency}} weicht vom gespeicherten Gesamtbetrag {{stored}} {{currency}} ab.",
   "booking.price_mismatch.adjust": "Anpassung erzeugen",
-  "booking.price_adjustment.confirm_title": "Preisanpassung best?tigen",
+  "price_snapshot_basket_import": "Preis-Snapshot aus dem Warenkorb erstellt",
+  "booking.price_adjustment.confirm_title": "Preisanpassung bestätigen",
   "booking.price_adjustment.confirm_underpaid": "Der Gesamtbetrag wird von {{stored}} auf {{expected}} {{currency}} aktualisiert, die Buchung wird als unbezahlt markiert und der bereits bezahlte Betrag bleibt erhalten. Fortfahren?",
-  "booking.price_adjustment.title": "R?ckerstattung der Preisdifferenz",
-  "booking.price_adjustment.no_refund_text": "Der Gesamtbetrag wird aktualisiert und es erfolgt keine R?ckerstattung der Differenz von {{difference}} {{currency}}.",
-  "booking.price_adjustment.refund_text": "Eine R?ckerstattung von {{difference}} {{currency}} wird durchgef?hrt.",
-  "booking.price_adjustment.voucher_text": "Ein Gutschein ?ber {{difference}} {{currency}} wird erstellt.",
-  "booking.price_mismatch.reason_fallback": "Mindestens eine Aktivit?t hat einen Fallback-Preis verwendet, da der Price Range des Kurses nicht zur Dauer/Teilnehmerzahl passt."
+  "booking.price_adjustment.title": "Rückerstattung der Preisdifferenz",
+  "booking.price_adjustment.no_refund_text": "Der Gesamtbetrag wird aktualisiert und es erfolgt keine Rückerstattung der Differenz von {{difference}} {{currency}}.",
+  "booking.price_adjustment.refund_text": "Eine Rückerstattung von {{difference}} {{currency}} wird durchgeführt.",
+  "booking.price_adjustment.voucher_text": "Ein Gutschein über {{difference}} {{currency}} wird erstellt.",
+  "booking.price_mismatch.reason_fallback": "Mindestens eine Aktivität hat einen Fallback-Preis verwendet, da der Price Range des Kurses nicht zur Dauer/Teilnehmerzahl passt.",
+  "registered_correctly": "Richtig registriert"
 }
 

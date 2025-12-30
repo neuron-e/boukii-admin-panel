@@ -2034,13 +2034,15 @@
   "booking.price_mismatch.title": "?cart de prix d?tect?.",
   "booking.price_mismatch.body": "Le sous-total calcul? {{expected}} {{currency}} diff?re du total enregistr? {{stored}} {{currency}}.",
   "booking.price_mismatch.adjust": "G?n?rer un ajustement",
+  "price_snapshot_basket_import": "Snapshot de prix cr?? ? partir du panier",
   "booking.price_adjustment.confirm_title": "Confirmer l'ajustement de prix",
   "booking.price_adjustment.confirm_underpaid": "Le total sera mis ? jour de {{stored}} ? {{expected}} {{currency}}, la r?servation sera marqu?e comme non pay?e et le montant d?j? pay? sera conserv?. Continuer ?",
   "booking.price_adjustment.title": "Remboursement de la diff?rence de prix",
-  "booking.price_adjustment.no_refund_text": "Le total sera mis ? jour et aucun remboursement ne sera effectu? pour la diff?rence de {{difference}} {{currency}}.",
-  "booking.price_adjustment.refund_text": "Un remboursement de {{difference}} {{currency}} sera effectu?.",
-  "booking.price_adjustment.voucher_text": "Un bon de {{difference}} {{currency}} sera cr??.",
-  "booking.price_mismatch.reason_fallback": "Au moins une activit? a utilis? un prix de secours car le price range du cours ne correspond pas ? la dur?e/participants."
+  "booking.price_adjustment.no_refund_text": "Le total sera mis à jour et aucun remboursement ne sera effectué pour la différence de {{difference}} {{currency}}.",
+  "booking.price_adjustment.refund_text": "Un remboursement de {{difference}} {{currency}} sera effectué.",
+  "booking.price_adjustment.voucher_text": "Un bon de {{difference}} {{currency}} sera créé.",
+  "booking.price_mismatch.reason_fallback": "Au moins une activité a utilisé un prix de secours car le price range du cours ne correspond pas à la durée/participants.",
+  "registered_correctly": "Enregistré correctement"
 }
 
 

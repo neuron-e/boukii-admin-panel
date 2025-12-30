@@ -171,11 +171,16 @@
         <div [ngClass]="{ 'line-through': activity.status == 2 }">
           <span class="date">{{("00"+ (i + 1)).slice(-2)}}.</span>
           <span class="hour"> {{ activity.course.name }} </span>
-          <span class="price" [ngClass]="{ 'line-through': activity.status == 2 }">
+          <span class="price price-with-warning" [ngClass]="{ 'line-through': activity.status == 2 }">
             <span class="discounted-price">
               {{ activity.courseBaseTotal || getActivityBaseAmount(activity) | number:'0.2-2' }}
               {{ getActivitiesCurrency() }}
             </span>
+            <mat-icon *ngIf="activity.priceFallback"
+                      style="font-size: 12px; margin-left: 4px; color: #ff9800;"
+                      [matTooltip]="'booking.price_fallback.tooltip' | translate">
+              info
+            </mat-icon>
           </span>
         </div>
         <ng-container *ngIf="getDiscountInfoList(activity).length">
@@ -210,6 +215,23 @@
         </div>
         <div *ngIf="i < activities.length - 1"
              style="margin-left: 30px; border-top: 1px solid #dee6ea; margin-top: 8px; padding-top: 8px;"></div>
+      </div>
+    </div>
+    <div class="section" *ngIf="hasPriceMismatch()">
+      <div class="dateRow" style="background: #fff8e1; border: 1px solid #ffe0b2; padding: 10px; border-radius: 6px;">
+        <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+          <mat-icon style="color: #ff9800;">warning</mat-icon>
+          <span style="flex: 1;">
+            <strong>{{ 'booking.price_mismatch.title' | translate }}</strong>
+            {{ 'booking.price_mismatch.body' | translate:{ expected: getComputedSubtotal().toFixed(2), stored: getStoredTotal().toFixed(2), currency: getActivitiesCurrency() } }}
+            <span *ngIf="hasPriceFallbackActivities()" style="display: block; margin-top: 6px; color: #6b6b6b;">
+              {{ 'booking.price_mismatch.reason_fallback' | translate }}
+            </span>
+          </span>
+          <button mat-raised-button color="primary" (click)="openPriceAdjustment()">
+            {{ 'booking.price_mismatch.adjust' | translate }}
+          </button>
+        </div>
       </div>
     </div>
     <div class="section">
@@ -257,7 +279,7 @@
         </div>
       </div>
 
-      <div class="dateRow" *ngIf="bookingData.reduction != null">
+      <div class="dateRow" *ngIf="(bookingData.price_reduction && bookingData.price_reduction > 0) || bookingData.reduction != null">
         <div>
           <span class="hour" (click)="addReduction()"
                 *ngIf="!bookingData.paid && bookingData.reduction == null && this.calculateTotalVoucherPrice()
@@ -305,8 +327,11 @@
       <div class="sectionTitle">
         <mat-icon class="icon24">place</mat-icon>
         {{ 'meeting_point' | translate }}
+        <button mat-icon-button class="toggle-button" (click)="toggleMeetingPoint()">
+          <mat-icon>{{ showMeetingPoint ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
       </div>
-      <div class="meeting-point-summary">
+      <div class="meeting-point-summary" *ngIf="showMeetingPoint">
         <div class="meeting-point-info">
           <div class="meeting-point-row" *ngIf="meetingPointName">
             <strong>{{ 'meeting_point' | translate }}:</strong>
@@ -359,6 +384,9 @@
     <div class="section" style="margin-bottom: 0; border: none">
       <div class="sectionTitle">
         {{ "payment_history" | translate }}
+        <button mat-icon-button class="toggle-button" (click)="togglePaymentHistory()">
+          <mat-icon>{{ showPaymentHistory ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
       </div>
       <div class="dateRow" style="border-bottom: 1px solid #dee6ea; padding-bottom: 10px">
         <div>
@@ -382,7 +410,8 @@
         </div>
       </div>
 
-      <div class="dateRow">
+      <div *ngIf="showPaymentHistory">
+        <div class="dateRow">
         <div>
           <span class="hour" *ngIf="displayOutstanding > 0 && !bookingData.paid"
                 (click)="addBonus()" style="
@@ -423,19 +452,14 @@
           <span class="hour">{{ payment.created_at | date: "hh:mm" }}h </span>
         </div>
         <div>
-          <span class="discounted-price">
-              {{ payment.status | translate }} - {{
-                payment.notes
-                  ? (payment.notes | translate)
-                  : (schoolService.getPaymentProvider() === 'payyo'
-                      ? ('payment_payyo' | translate)
-                      : 'Boukii Pay')
-              }}
-          </span>
+            <span class="discounted-price">
+              {{ getPaymentLabel(payment) }}
+            </span>
           <span class="price">
             {{ payment.amount }} {{ getActivitiesCurrency() }}
           </span>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -443,18 +467,23 @@
     <div class="section" style="margin-bottom: 0; border: none">
       <div class="sectionTitle">
         {{ "change_history" | translate }}
+        <button mat-icon-button class="toggle-button" (click)="toggleChangeHistory()">
+          <mat-icon>{{ showChangeHistory ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
       </div>
-      <div class="dateRow" *ngFor="let bookingLog of bookingData.booking_logs">
-        <div>
-          <span class="date"> {{ bookingLog.created_at | date: "dd.MM.yyyy" }}:</span>
-          <span class="hour">{{ bookingLog.created_at | date: "hh:mm" }}h </span>
-          <span class="price">
-            <span class="discounted-price">
-              {{ bookingLog.action | translate }}
+      <ng-container *ngIf="showChangeHistory">
+        <div class="dateRow" *ngFor="let bookingLog of bookingData.booking_logs">
+          <div>
+            <span class="date"> {{ bookingLog.created_at | date: "dd.MM.yyyy" }}:</span>
+            <span class="hour">{{ bookingLog.created_at | date: "hh:mm" }}h </span>
+            <span class="price">
+              <span class="discounted-price">
+                {{ bookingLog.action | translate }}
+              </span>
             </span>
-          </span>
+          </div>
         </div>
-      </div>
+      </ng-container>
     </div>
   </div>
 

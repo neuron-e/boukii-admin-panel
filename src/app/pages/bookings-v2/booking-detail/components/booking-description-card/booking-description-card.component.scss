@@ -293,6 +293,12 @@
       color: var(--color-dark1);
       margin-left: auto;
       float: right;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+    .price mat-icon {
+      line-height: 1;
     }
     .original-price {
       text-decoration: line-through;

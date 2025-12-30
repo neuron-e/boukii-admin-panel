@@ -1,7 +1,9 @@
 <form>
   <div class="flex items-center" mat-dialog-title>
     <h2 class="headline m-0 flex-auto">
-      {{ defaults.isDateRemovalRefund ? 'Fechas eliminadas - Reembolso requerido' : ('bookings_page.cancelations.cancel_partial_booking' | translate) }}
+      {{ isAdjustmentMode
+        ? ('booking.price_adjustment.title' | translate)
+        : (defaults.isDateRemovalRefund ? 'Fechas eliminadas - Reembolso requerido' : ('bookings_page.cancelations.cancel_partial_booking' | translate)) }}
     </h2>
     <button class="text-secondary" mat-dialog-close mat-icon-button type="button">
       <mat-icon svgIcon="mat:close"></mat-icon>
@@ -28,9 +30,10 @@
 
           <!-- Mensaje estándar para cancelaciones -->
           <div *ngIf="!defaults.isDateRemovalRefund">
-            <p>{{'bookings_page.cancelations.no_refund_text' | translate}}
+            <p *ngIf="!isAdjustmentMode">{{'bookings_page.cancelations.no_refund_text' | translate}}
               <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span>
             </p>
+            <p *ngIf="isAdjustmentMode">{{'booking.price_adjustment.no_refund_text' | translate:{difference: defaults.itemPrice, currency: defaults.booking.currency} }}</p>
           </div>
 
           <p *ngIf="defaults.isDateRemovalRefund" style="font-size: 14px; color: #666;">
@@ -51,8 +54,9 @@
         <mat-tab [label]="schoolService.getPaymentProvider() === 'payyo' ? ('payment_payyo' | translate) : 'Boukii Pay'">
           <mat-dialog-content class="flex flex-col" *ngIf="!loading">
             <div style="width: 100%;">
-              <p *ngIf="defaults.booking[schoolService.getPaymentProvider() === 'payyo' ? 'payyo_reference' : 'payrexx_reference'] !== null">{{'bookings_page.cancelations.refund_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>
-              <p *ngIf="defaults.booking[schoolService.getPaymentProvider() === 'payyo' ? 'payyo_reference' : 'payrexx_reference'] === null">{{'bookings_page.cancelations.refund_no_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>
+              <p *ngIf="!isAdjustmentMode && defaults.booking[schoolService.getPaymentProvider() === 'payyo' ? 'payyo_reference' : 'payrexx_reference'] !== null">{{'bookings_page.cancelations.refund_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>
+              <p *ngIf="!isAdjustmentMode && defaults.booking[schoolService.getPaymentProvider() === 'payyo' ? 'payyo_reference' : 'payrexx_reference'] === null">{{'bookings_page.cancelations.refund_no_boukiipay_text' | translate }}: <span style="color:#fe3085">{{defaults.itemPrice}} {{defaults.booking.currency}}</span></p>
+              <p *ngIf="isAdjustmentMode">{{'booking.price_adjustment.refund_text' | translate:{difference: defaults.itemPrice, currency: defaults.booking.currency} }}</p>
             </div>
             <mat-divider></mat-divider>
             <mat-dialog-actions align="end" *ngIf="!loading && defaults.booking[schoolService.getPaymentProvider() === 'payyo' ? 'payyo_reference' : 'payrexx_reference'] !== null">
@@ -64,7 +68,8 @@
         <mat-tab label="{{'bookings_page.cancelations.cash' | translate}}">
           <mat-dialog-content class="flex flex-col" *ngIf="!loading">
             <div style="width: 100%;">
-              <p>{{'bookings_page.cancelations.refund_text' | translate}}</p>
+              <p *ngIf="!isAdjustmentMode">{{'bookings_page.cancelations.refund_text' | translate}}</p>
+              <p *ngIf="isAdjustmentMode">{{'booking.price_adjustment.refund_text' | translate:{difference: defaults.itemPrice, currency: defaults.booking.currency} }}</p>
               <div style="float:left; width: 100%">
                 <mat-form-field appearance="outline" class="flex-auto" style="float:left; width: 100%">
                   <mat-label>{{'reason' | translate}}</mat-label>
@@ -82,7 +87,8 @@
         <mat-tab label="{{'bookings_page.cancelations.gift_voucher' | translate}}">
           <mat-dialog-content class="flex flex-col" *ngIf="!loading">
             <div style="width: 100%;">
-              <p>{{'bookings_page.refund.gift_voucher_text' | translate}}</p>
+              <p *ngIf="!isAdjustmentMode">{{'bookings_page.refund.gift_voucher_text' | translate}}</p>
+              <p *ngIf="isAdjustmentMode">{{'booking.price_adjustment.voucher_text' | translate:{difference: defaults.itemPrice, currency: defaults.booking.currency} }}</p>
               <div style="float:left; width: 100%">
                 <mat-checkbox *ngFor="let item of defaults.currentBonus" (change)="checkBonus($event, item)" [disabled]="calculateAllRemainingQuantity() && defaults.currentBonus.length > 1" [disabled]="true" [checked]="true" style="float:left;width: 100%">
                   {{item.bonus.code}}: <span style="color:#fe3085">{{getCurrentUse(item)}} {{defaults.booking.currency}}</span>

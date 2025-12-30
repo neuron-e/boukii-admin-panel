@@ -2053,7 +2053,7 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
 
     const payload = { accepted: accepted };
 
-    this.crudService.update(`admin/booking-users/${bookingUser.id}/acceptance`, payload, '')
+    this.crudService.update('/booking-users', payload, bookingUser.id)
       .subscribe({
         next: (response: any) => {
           // Actualizar el objeto local

@@ -39,6 +39,10 @@ export class CancelPartialBookingModalComponent implements OnInit {
    this.loading = false;
   }
 
+  get isAdjustmentMode(): boolean {
+    return this.defaults?.mode === 'price_adjustment';
+  }
+
 
   getCurrentUse(bonus: any) {
     let ret = 0;

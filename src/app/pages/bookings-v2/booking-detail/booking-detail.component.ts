@@ -37,12 +37,15 @@ export class BookingDetailV2Component implements OnInit {
   groupedActivities: any[] = [];
   id: number;
   user: any;
+  pricingSnapshot: any = null;
+  pricingAudits: any[] = [];
   paymentMethod: number = 1; // Valor por defecto (directo)
   step: number = 1;  // Paso inicial
   selectedPaymentOptionId: PaymentMethodId | null = null;
   selectedPaymentOptionLabel: string = '';
   isPaid = false;
   isLoading = false;
+  isCancelling = false;
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
   // Prefer stored price_total; fallback to computed/basket when missing
@@ -322,6 +325,29 @@ export class BookingDetailV2Component implements OnInit {
     this.hydrateGroupedActivitiesLevels();
     this.mainClient = booking.client_main;
     this.syncPaymentSelectionFromBooking(booking);
+    this.loadPricingSnapshot();
+  }
+
+  private loadPricingSnapshot(): void {
+    if (!this.bookingData?.id) {
+      return;
+    }
+
+    this.crudService.get(`/admin/bookings/${this.bookingData.id}/pricing`)
+      .subscribe({
+        next: (response: any) => {
+          const payload = response?.data ?? response;
+          this.pricingSnapshot = payload?.snapshot ?? null;
+          this.pricingAudits = Array.isArray(payload?.audits) ? payload.audits : [];
+          if (this.bookingData) {
+            this.bookingData.pricing_snapshot = this.pricingSnapshot;
+            this.bookingData.pricing_audits = this.pricingAudits;
+          }
+        },
+        error: (error) => {
+          console.warn('Failed to load pricing snapshot', error);
+        }
+      });
   }
 
   private hydrateGroupedActivitiesLevels(): void {
@@ -551,11 +577,15 @@ export class BookingDetailV2Component implements OnInit {
           schoolObs: user.notes_school,
           total: user.price,
           status: user.status,
-          statusList: [] // Nuevo array para almacenar los status de los usuarios
+          statusList: [], // Nuevo array para almacenar los status de los usuarios
+          priceFallback: false
         };
       }
 
       acc[groupId].statusList.push(user.status);
+      if (user?.price_fallback || user?.computed_price) {
+        acc[groupId].priceFallback = true;
+      }
 
       // Determinar el nuevo status basado en los valores de statusList
       const uniqueStatuses = new Set(acc[groupId].statusList);
@@ -650,6 +680,9 @@ export class BookingDetailV2Component implements OnInit {
         const priceForDate = this.bookingService.calculateDatePrice(groupedActivity.course, date, true);
         date.price = priceForDate.toFixed(2);
         date.currency = groupedActivity.course?.currency || booking.currency;
+        if (priceForDate <= 0 && groupedActivity.course?.course_type === 2 && groupedActivity.course?.is_flexible) {
+          groupedActivity.priceFallback = true;
+        }
       });
 
       groupedActivity.total = groupedActivity.dates.reduce((sum: number, date: any) => {
@@ -879,8 +912,10 @@ export class BookingDetailV2Component implements OnInit {
 
         dialogRef.afterClosed().subscribe((data: any) => {
           if (data) {
+            this.isCancelling = true;
             this.bookingService.processCancellation(
               data, this.bookingData, this.hasOtherActiveGroups(group), this.user, group)
+              .pipe(finalize(() => this.isCancelling = false))
               .subscribe({
                 next: () => {
                   this.getBooking();
@@ -923,9 +958,11 @@ export class BookingDetailV2Component implements OnInit {
 
       dialogRef.afterClosed().subscribe((data: any) => {
         if (data) {
+          this.isCancelling = true;
           this.bookingService.processCancellation(
             data, this.bookingData, false, this.user, null,
             this.bookingData.booking_users.map(b => b.id), this.bookingData.price_total)
+            .pipe(finalize(() => this.isCancelling = false))
             .subscribe({
               next: () => {
                 this.getBooking();
@@ -952,8 +989,10 @@ export class BookingDetailV2Component implements OnInit {
 
   cancelFull() {
     const bookingUserIds = this.bookingData.booking_users.map(b => b.id)
+    this.isCancelling = true;
     this.crudService.post('/admin/bookings/cancel',
       { bookingUsers: bookingUserIds })
+      .pipe(finalize(() => this.isCancelling = false))
       .subscribe((response) => {
         let bookingData = {
           ...response.data,
@@ -974,13 +1013,15 @@ export class BookingDetailV2Component implements OnInit {
 
     // MEJORA: Unificar cancelación vía BookingService.processCancellation
     // para mantener consistencia en logs y auditoría
+    this.isCancelling = true;
     this.bookingService.processCancellation(
       { type: 'no_refund' },
       this.bookingData,
       this.hasOtherActiveGroups(group),
       this.user,
       group
-    ).subscribe({
+    ).pipe(finalize(() => this.isCancelling = false))
+    .subscribe({
       next: () => {
         this.getBooking();
         this.snackBar.open(

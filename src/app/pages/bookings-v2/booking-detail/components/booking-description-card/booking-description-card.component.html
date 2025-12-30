@@ -196,6 +196,11 @@
                   <span>
                     {{ bookingService.calculateDatePrice(course, date, true) | number:'0.2-2' }} {{ date.currency }}
                   </span>
+                  <mat-icon *ngIf="priceFallback"
+                            style="font-size: 12px; margin-left: 4px; vertical-align: middle; color: #ff9800;"
+                            [matTooltip]="'booking.price_fallback.tooltip' | translate">
+                    info
+                  </mat-icon>
                 </span>
               </div>
               <div class="monitorRow" *ngIf="course && course.course_type!==1">
