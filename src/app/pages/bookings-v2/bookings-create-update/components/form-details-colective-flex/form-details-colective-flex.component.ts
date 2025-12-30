@@ -107,8 +107,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit, OnChanges {
         const isToday = dateMoment.isSame(currentTime, 'day');
         const isInFuture = dateMoment.isAfter(currentTime, 'day');
         const isPastDay = dateMoment.isBefore(currentTime, 'day');
-        const hourStartMoment = moment(date.hour_start, 'HH:mm');
-        const isValidToday = isToday && hourStartMoment.isAfter(currentTime);
+        const isValidToday = isToday;
         const monitor = this.findMonitor(date);
         const hasCapacity = !!monitor;
 

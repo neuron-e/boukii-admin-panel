@@ -70,8 +70,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
           const isInFuture = dateMoment.isAfter(currentTime, "day");
 
           // Verificamos si la hora de inicio es posterior a la hora actual (solo si es hoy)
-          const hourStartMoment = moment(date.hour_start, "HH:mm");
-          const isValidToday = isToday && hourStartMoment.isAfter(currentTime);
+          const isValidToday = isToday;
           // Comprobar capacidad por nivel (subgrupo con hueco) y autoasignar monitor
           const monitor = this.findMonitor(date);
           const hasCapacity = !!monitor;
