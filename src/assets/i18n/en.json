@@ -816,6 +816,10 @@
   "courses.transfer.target_subgroup": "Select target subgroup",
   "courses.transfer.current_subgroup": "Current subgroup",
   "courses.transfer.no_students": "No students in this subgroup",
+  "courses.transfer.scope_title": "Transfer scope",
+  "courses.transfer.scope_single": "Only this day",
+  "courses.transfer.scope_future": "This day and following",
+  "courses.transfer.scope_all": "All days",
   "courses.uniperiod": "A period",
   "courses.update": "Course editing",
   "courses.when": "When can you take the course?",
@@ -1991,5 +1995,16 @@
   "payment_method_updated": "Payment method updated",
   "send_pay_link": "Send payment link",
   "updated_by_admin": "Updated by admin",
-  "confirm_booking_message": "Confirm booking message"
+  "confirm_booking_message": "Confirm booking message",
+  "booking.price_fallback.tooltip": "Estimated price: this course has no price range configured for this duration/participants. General settings were used.",
+  "booking.price_mismatch.title": "Price mismatch detected.",
+  "booking.price_mismatch.body": "Computed subtotal {{expected}} {{currency}} differs from stored total {{stored}} {{currency}}.",
+  "booking.price_mismatch.adjust": "Generate adjustment",
+  "booking.price_adjustment.confirm_title": "Confirm price adjustment",
+  "booking.price_adjustment.confirm_underpaid": "This will update the total from {{stored}} to {{expected}} {{currency}}, mark the booking as unpaid, and keep the amount already paid. Continue?",
+  "booking.price_adjustment.title": "Refund price difference",
+  "booking.price_adjustment.no_refund_text": "The total will be updated and no refund will be issued for the difference of {{difference}} {{currency}}.",
+  "booking.price_adjustment.refund_text": "A refund of {{difference}} {{currency}} will be issued.",
+  "booking.price_adjustment.voucher_text": "A voucher of {{difference}} {{currency}} will be created.",
+  "booking.price_mismatch.reason_fallback": "At least one activity used a fallback price because the course price range did not match its duration/participants."
 }

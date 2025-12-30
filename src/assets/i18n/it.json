@@ -815,7 +815,11 @@
   "courses.transfer.title": "Studente trasferitore",
   "courses.transfer.target_subgroup": "Seleziona il sottogruppo di destinazione",
   "courses.transfer.current_subgroup": "Sottogruppo corrente",
-  "courses.transfer.no_students": "Nessuno studente in questo sottogruppo",
+  "courses.transfer.no_students": "Nessuno studente in questo sottogruppo",  "courses.transfer.scope_title": "Ambito trasferimento",
+  "courses.transfer.scope_single": "Solo questo giorno",
+  "courses.transfer.scope_future": "Questo giorno e successivi",
+  "courses.transfer.scope_all": "Tutti i giorni",
+
   "courses.uniperiod": "Un periodo",
   "courses.update": "Modifica del corso",
   "courses.when": "Quando puoi frequentare il corso?",
@@ -1993,5 +1997,17 @@
   "payment_method_updated": "Metodo di pagamento aggiornato",
   "send_pay_link": "Invia link di pagamento",
   "updated_by_admin": "Aggiornato dall'amministratore",
-  "confirm_booking_message": "Messaggio di conferma prenotazione"
+  "confirm_booking_message": "Messaggio di conferma prenotazione",
+  "booking.price_fallback.tooltip": "Prezzo stimato: nessun price range configurato per questa durata/partecipanti. Sono state usate le impostazioni generali.",
+  "booking.price_mismatch.title": "Differenza di prezzo rilevata.",
+  "booking.price_mismatch.body": "Il subtotale calcolato {{expected}} {{currency}} differisce dal totale salvato {{stored}} {{currency}}.",
+  "booking.price_mismatch.adjust": "Genera adeguamento",
+  "booking.price_adjustment.confirm_title": "Conferma adeguamento prezzo",
+  "booking.price_adjustment.confirm_underpaid": "Il totale verr? aggiornato da {{stored}} a {{expected}} {{currency}}, la prenotazione sar? marcata come non pagata e l'importo gi? pagato verr? mantenuto. Continuare?",
+  "booking.price_adjustment.title": "Rimborso della differenza di prezzo",
+  "booking.price_adjustment.no_refund_text": "Il totale verr? aggiornato e non verr? emesso alcun rimborso per la differenza di {{difference}} {{currency}}.",
+  "booking.price_adjustment.refund_text": "Verr? emesso un rimborso di {{difference}} {{currency}}.",
+  "booking.price_adjustment.voucher_text": "Verr? creato un voucher di {{difference}} {{currency}}.",
+  "booking.price_mismatch.reason_fallback": "Almeno un'attivit? ha usato un prezzo di fallback perch? il price range del corso non corrisponde a durata/partecipanti."
 }
+

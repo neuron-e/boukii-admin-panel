@@ -824,6 +824,10 @@
   "courses.transfer.target_subgroup": "Choisir le sous-groupe cible",
   "courses.transfer.current_subgroup": "Sous-groupe actuel",
   "courses.transfer.no_students": "Aucun élève dans ce sous-groupe",
+  "courses.transfer.scope_title": "Portee du transfert",
+  "courses.transfer.scope_single": "Seulement ce jour",
+  "courses.transfer.scope_future": "Ce jour et suivants",
+  "courses.transfer.scope_all": "Tous les jours",
   "courses.uniperiod": "Une période",
   "courses.update": "Édition de cours",
   "courses.when": "Quand peut-on suivre le cours ?",
@@ -2025,5 +2029,20 @@
   "payment_method_updated": "Méthode de paiement mise à jour",
   "send_pay_link": "Envoyer le lien de paiement",
   "updated_by_admin": "Mis à jour par l'administrateur",
-  "confirm_booking_message": "Message de confirmation de réservation"
+  "confirm_booking_message": "Message de confirmation de réservation",
+  "booking.price_fallback.tooltip": "Prix estim? : aucun price range configur? pour cette dur?e/participants. Les r?glages g?n?raux ont ?t? utilis?s.",
+  "booking.price_mismatch.title": "?cart de prix d?tect?.",
+  "booking.price_mismatch.body": "Le sous-total calcul? {{expected}} {{currency}} diff?re du total enregistr? {{stored}} {{currency}}.",
+  "booking.price_mismatch.adjust": "G?n?rer un ajustement",
+  "booking.price_adjustment.confirm_title": "Confirmer l'ajustement de prix",
+  "booking.price_adjustment.confirm_underpaid": "Le total sera mis ? jour de {{stored}} ? {{expected}} {{currency}}, la r?servation sera marqu?e comme non pay?e et le montant d?j? pay? sera conserv?. Continuer ?",
+  "booking.price_adjustment.title": "Remboursement de la diff?rence de prix",
+  "booking.price_adjustment.no_refund_text": "Le total sera mis ? jour et aucun remboursement ne sera effectu? pour la diff?rence de {{difference}} {{currency}}.",
+  "booking.price_adjustment.refund_text": "Un remboursement de {{difference}} {{currency}} sera effectu?.",
+  "booking.price_adjustment.voucher_text": "Un bon de {{difference}} {{currency}} sera cr??.",
+  "booking.price_mismatch.reason_fallback": "Au moins une activit? a utilis? un prix de secours car le price range du cours ne correspond pas ? la dur?e/participants."
 }
+
+
+
+

@@ -4310,7 +4310,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       panelClass: 'full-screen-dialog',  // Si necesitas estilos adicionales
       data: {
         degree: this.taskDetail.degree, subgroup: this.taskDetail.course_subgroup_id, id: this.taskDetail.course_id,
-        subgroupNumber: this.taskDetail.subgroup_number, currentDate: moment(this.taskDetail.date), degrees: this.taskDetail.degrees_sport, currentStudents: this.taskDetail.all_clients
+        subgroupNumber: this.taskDetail.subgroup_number, currentDate: moment(this.taskDetail.date), degrees: this.taskDetail.degrees_sport, currentStudents: this.taskDetail.all_clients, currentMonitor: this.taskDetail.monitor
       }
     });
 

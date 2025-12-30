@@ -20,13 +20,13 @@ export class CourseUserTransferTimelineComponent implements OnInit {
   studentToChange: any = [];
   languages: any = [];
   subGroupsToChange: any = null;
-  clients: any = [];
   course: any = [];
   countries = MOCK_COUNTRIES;
   loading = true;
   user: any;
   groupedByColor = {};
   colorKeys: string[] = [];
+  transferScope: 'single' | 'future' | 'all' = 'all';
 
   constructor(@Inject(MAT_DIALOG_DATA) public defaults: any, private crudService: ApiCrudService, private translateService: TranslateService,
   private snackbar: MatSnackBar, private dialogRef: MatDialogRef<any>) {
@@ -46,7 +46,6 @@ export class CourseUserTransferTimelineComponent implements OnInit {
 
     this.colorKeys = Object.keys(this.groupedByColor);
 
-    this.getClients();
     this.getData();
 
 
@@ -71,23 +70,8 @@ export class CourseUserTransferTimelineComponent implements OnInit {
 
         });
 
-      })
-  }
-
-  getClients() {
-    this.crudService.list('/clients', 1, 100000, 'desc', 'id', '&school_id='+this.user.schools[0].id)
-      .subscribe((data: any) => {
-        this.clients = data.data;
         this.loading = false;
-
       })
-  }
-
-  getClient(id: any) {
-    if (id && id !== null) {
-      const client = this.clients.find((c) => c.id === id);
-      return client;
-    }
   }
 
   calculateAge(birthDateString) {
@@ -129,13 +113,11 @@ export class CourseUserTransferTimelineComponent implements OnInit {
     }
   }
 
-  onCheckboxChange(selectedIndex: number, isChecked: boolean, subGroup: any) {
+  onCheckboxChange(isChecked: boolean, subGroup: any) {
     this.subGroupsToChange = subGroup;
     if (isChecked) {
-      this.courseSubGroups.forEach((item, index) => {
-        if (index !== selectedIndex) {
-          item.checked = false; // Deseleccionar todos los otros checkboxes
-        }
+      this.courseSubGroups.forEach((item) => {
+        item.checked = item.id === subGroup.id;
       });
     }
   }
@@ -145,7 +127,9 @@ export class CourseUserTransferTimelineComponent implements OnInit {
       initialSubgroupId: this.defaults.subgroup,
       targetSubgroupId: this.subGroupsToChange.id,
       clientIds: [],
-      moveAllDays: true
+      scope: this.transferScope,
+      scope_date: moment(this.defaults.currentDate).format('YYYY-MM-DD'),
+      moveAllDays: this.transferScope === 'all'
     }
     this.studentToChange.forEach(element => {
       data.clientIds.push(element.client_id);
