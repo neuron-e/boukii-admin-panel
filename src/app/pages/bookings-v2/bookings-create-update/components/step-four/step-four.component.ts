@@ -688,19 +688,9 @@ export class StepFourComponent implements OnDestroy {
     this.cursesInSelectedDate = this.courses.filter(course =>
       course.course_dates.some(d => {
         const courseDateMoment = moment(d.date, "YYYY-MM-DD");
-        const currentTime = moment(); // Definir la hora actual aquí
 
-        if (courseDateMoment.isSame(moment(), "day")) {
-          if(course.course_type == 1) {
-            const hourStart = moment(d.hour_start, "HH:mm");
-            return this.selectedDateMoment.isSame(courseDateMoment, 'day') && currentTime.isBefore(hourStart);
-          } else {
-            const hourEnd = moment(d.hour_end, "HH:mm");
-            return this.selectedDateMoment.isSame(courseDateMoment, 'day') && currentTime.isBefore(hourEnd);
-          }
-        } else {
-          return this.selectedDateMoment.isSame(courseDateMoment, 'day');
-        }
+        // FIXED: Permitir reservas para hoy sin restricción de horario
+        return this.selectedDateMoment.isSame(courseDateMoment, 'day');
       })
     );
     if (this.isSelectedDateInPast()) {
@@ -711,47 +701,24 @@ export class StepFourComponent implements OnDestroy {
 
   compareCourseDates() {
     let ret = [];
-    const currentTime = moment(); // Hora actual
     this.coursesDateByInterval.clear(); // Limpiar el mapa de intervalos
 
     this.courses.forEach((course) => {
       course.course_dates.forEach((courseDate) => {
         const courseDateMoment = moment(courseDate.date, "YYYY-MM-DD");
         const formattedDate = courseDateMoment.format("YYYY-MM-DD");
-        let shouldAdd = false;
 
-        // Si la fecha del curso es hoy, comprobar las horas
-        if (courseDateMoment.isSame(moment(), "day")) {
-          if(course.course_type == 1) {
-          const hourStart = moment(courseDate.hour_start, "HH:mm");
+        // FIXED: Permitir todas las fechas de los cursos disponibles
+        // La validación de horarios se maneja en el backend
+        ret.push(formattedDate);
 
-          // Solo añadir la fecha si el curso aún no ha empezado
-          if (currentTime.isBefore(hourStart)) {
-            shouldAdd = true;
+        // Si tiene interval_id, añadirla al mapa de intervalos
+        if (courseDate.interval_id) {
+          const intervalId = String(courseDate.interval_id);
+          if (!this.coursesDateByInterval.has(intervalId)) {
+            this.coursesDateByInterval.set(intervalId, []);
           }
-          } else {
-            const hourEnd = moment(courseDate.hour_end, "HH:mm");
-            if (currentTime.isBefore(hourEnd)) {
-              shouldAdd = true;
-            }
-          }
-        } else {
-          // Si la fecha no es hoy, añadirla sin comprobación de hora
-          shouldAdd = true;
-        }
-
-        // Si la fecha es válida, añadirla al array general y al mapa por intervalo
-        if (shouldAdd) {
-          ret.push(formattedDate);
-
-          // Si tiene interval_id, añadirla al mapa de intervalos
-          if (courseDate.interval_id) {
-            const intervalId = String(courseDate.interval_id);
-            if (!this.coursesDateByInterval.has(intervalId)) {
-              this.coursesDateByInterval.set(intervalId, []);
-            }
-            this.coursesDateByInterval.get(intervalId).push(formattedDate);
-          }
+          this.coursesDateByInterval.get(intervalId).push(formattedDate);
         }
       });
     });
@@ -1062,7 +1029,6 @@ export class StepFourComponent implements OnDestroy {
 
   private filterCoursesBySelectedDate(courses: any[]): any[] {
     const selectedDateMoment = moment(this.selectedDate);
-    const today = moment();
 
     return courses.filter(course =>
       course.course_dates?.some(dateInfo => {
@@ -1072,15 +1038,8 @@ export class StepFourComponent implements OnDestroy {
           return false;
         }
 
-        if (courseDateMoment.isSame(today, 'day')) {
-          if (course.course_type === 1) {
-            const hourStart = moment(dateInfo.hour_start, 'HH:mm');
-            return today.isBefore(hourStart);
-          }
-          const hourEnd = moment(dateInfo.hour_end, 'HH:mm');
-          return today.isBefore(hourEnd);
-        }
-
+        // FIXED: Permitir reservas para hoy sin restricción de horario
+        // La validación de horarios pasados se maneja en el backend
         return true;
       })
     );

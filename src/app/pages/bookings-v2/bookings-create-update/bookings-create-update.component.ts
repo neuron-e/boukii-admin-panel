@@ -1076,7 +1076,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           date.currency = this.course.currency || 'CHF';
         }
       });
-    } else if (this.course?.course_type === 0 && this.course?.is_flexible) {
+    } else if (this.course?.course_type === 1 && this.course?.is_flexible) {
+      // FIXED: Cambiar de course_type === 0 a === 1 (colectivos)
       // COLECTIVOS FLEX: Precio base por fecha
       selectedDates.forEach((date: any) => {
         date.price = this.course?.price || '0';

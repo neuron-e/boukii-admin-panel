@@ -277,10 +277,7 @@
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ?
                      $event.preventDefault() : toggleDetailMove(task, $event)"
                      class="task-wrapper cursor-pointer" [ngClass]="[
-                                (task.booking_id && ((idDetail == task.booking_id &&
-                                hourDetail == task.hour_start && dateDetail == task.date
-                                 && monitorDetail == task.monitor_id ) || (idGroupedTasks == task.booking_id
-                                  && hourGrouped == task.hour_start && dateGrouped == task.date))) ?
+                                (isTaskHighlighted(task) || isGroupedTaskHighlighted(task)) ?
                                 (task.type === 'collective' ? 'task-selected-collective' : task.type === 'private' ? 'task-selected-private'
                                 : task.type === 'activity' ? 'task-selected-activity' : '') : '',
                                 task.class,
@@ -360,9 +357,7 @@
                      (click)="task.block_id ? toggleBlock(task, $event) : toggleDetail(task, $event)"
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ? $event.preventDefault() : toggleDetailMove(task, $event)"
                      class="task-wrapper-week cursor-pointer" [ngClass]="[
-                                (task.booking_id && ((idDetail == task.booking_id && hourDetail == task.hour_start
-                                && dateDetail == task.date && monitorDetail == task.monitor_id )
-                                || (idGroupedTasks == task.booking_id && hourGrouped == task.hour_start && dateGrouped == task.date))) ?
+                                (isTaskHighlighted(task) || isGroupedTaskHighlighted(task)) ?
                                  (task.type === 'collective' ? 'task-selected-collective' : task.type === 'private' ? 'task-selected-private'
                                 : task.type === 'activity' ? 'task-selected-activity' : '') : '',
                                 task.class,
@@ -541,9 +536,7 @@
                      (click)="task.block_id ? toggleBlock(task, $event) : toggleDetail(task, $event)"
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ? $event.preventDefault() : toggleDetailMove(task, $event)"
                      [ngClass]="[
-                                (task.booking_id && ((idDetail == task.booking_id && hourDetail == task.hour_start
-                                && dateDetail == task.date && monitorDetail == task.monitor_id )
-                                || (idGroupedTasks == task.booking_id && hourGrouped == task.hour_start && dateGrouped == task.date))) ?
+                                (isTaskHighlighted(task) || isGroupedTaskHighlighted(task)) ?
                                  (task.type === 'collective' ? 'task-selected-collective' : task.type === 'private' ? 'task-selected-private'
                                 : task.type === 'activity' ? 'task-selected-activity' : '') : '',
                                 task.class,
@@ -604,7 +597,7 @@
         <div *ngFor="let task of groupedTasks" (click)="toggleDetail(task, $event)"
              class="modal-grouped-task-wrapper cursor-pointer"
              (contextmenu)="toggleDetailMove(task, $event)" [ngClass]="[
-                    (task.booking_id && (idDetail == task.booking_id && hourDetail == task.hour_start && dateDetail == task.date && monitorDetail == task.monitor_id && subgroupDetail == task.course_subgroup_id)) ?
+                    isTaskHighlighted(task) ?
                       (task.type === 'collective' ? 'task-selected-collective' : task.type === 'private' ? 'task-selected-private'
                                 : task.type === 'activity' ? 'task-selected-activity' : '') : '',
                     task.class

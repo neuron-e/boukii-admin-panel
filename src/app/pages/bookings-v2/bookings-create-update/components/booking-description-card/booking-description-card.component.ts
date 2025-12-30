@@ -3,6 +3,7 @@ import { ChangeMonitorOption } from "src/app/static-data/changeMonitorOptions";
 import { LangService } from "src/service/langService";
 import { UtilsService } from "src/service/utils.service";
 import { TranslateService } from '@ngx-translate/core';
+import { SchoolService } from 'src/service/school.service';
 import {
   AppliedDiscountInfo,
   applyFlexibleDiscount,
@@ -75,7 +76,8 @@ export class BookingDescriptionCard implements OnChanges {
     protected langService: LangService,
     protected utilsService: UtilsService,
     private translateService: TranslateService,
-    private bookingDataService: BookingDataService
+    private bookingDataService: BookingDataService,
+    private schoolService: SchoolService
   ) { }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -247,7 +249,65 @@ export class BookingDescriptionCard implements OnChanges {
   }
 
   public resolveDatePrice(date: any): number {
-    const rawValue = date?.price ?? this.course?.price ?? this.course?.minPrice ?? 0;
+    // Intentar primero con el precio de la fecha
+    let rawValue = date?.price;
+
+    // Si el precio es 0 o no existe, intentar calcular basándose en el tipo de curso
+    if (!rawValue || rawValue === '0' || rawValue === 0) {
+      // Para cursos privados flexibles, calcular desde price_range
+      if (this.course?.course_type === 2 && this.course?.is_flexible && this.utilizers?.length) {
+        const duration = date?.duration;
+        const paxCount = this.utilizers.length;
+
+        console.log('🔍 [resolveDatePrice] Calculando precio privado flex:', {
+          duration,
+          paxCount,
+          coursePriceRange: this.course.price_range,
+          schoolSettings: this.schoolService.schoolSettings
+        });
+
+        if (duration) {
+          // Intentar primero con el price_range del curso
+          let priceRange = null;
+
+          if (this.course.price_range) {
+            priceRange = Array.isArray(this.course.price_range)
+              ? this.course.price_range
+              : (typeof this.course.price_range === 'string' ? JSON.parse(this.course.price_range) : []);
+          }
+
+          // Si el curso no tiene price_range o está vacío, usar el de school settings
+          if (!priceRange || priceRange.length === 0) {
+            const schoolSettings = this.schoolService.schoolSettings;
+            console.log('📋 [resolveDatePrice] Usando school settings:', schoolSettings);
+            if (schoolSettings?.prices_range?.prices) {
+              priceRange = schoolSettings.prices_range.prices.map((p: any) => ({
+                ...p,
+                intervalo: p.intervalo.replace(/^(\d+)h$/, "$1h 0min") // Normalizar formato
+              }));
+              console.log('✅ [resolveDatePrice] Price range desde school:', priceRange);
+            }
+          }
+
+          // Buscar el intervalo que coincida con la duración
+          if (priceRange && priceRange.length > 0) {
+            const interval = priceRange.find((range: any) => range.intervalo === duration);
+            console.log('🔎 [resolveDatePrice] Buscando intervalo:', { duration, found: interval });
+            if (interval) {
+              const priceForPax = parseFloat(interval[paxCount]) || parseFloat(interval[paxCount.toString()]) || 0;
+              console.log('💰 [resolveDatePrice] Precio encontrado:', priceForPax);
+              rawValue = priceForPax;
+            }
+          }
+        }
+      }
+
+      // Si aún no tenemos precio, usar el precio base del curso
+      if (!rawValue || rawValue === '0' || rawValue === 0) {
+        rawValue = this.course?.price ?? this.course?.minPrice ?? 0;
+      }
+    }
+
     const numeric = Number(rawValue);
     return Number.isFinite(numeric) ? numeric : 0;
   }

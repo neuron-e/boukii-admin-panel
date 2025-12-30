@@ -61,6 +61,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   private keydownHandler?: (event: KeyboardEvent) => void;
   // FIX: Sincronizar scroll horizontal
   private hoursScrollElement?: HTMLDivElement;
+  private readonly plannerViewStorageKey = 'plannerViewState';
 
   hoursRange: string[];
   hoursRangeMinusLast: string[];
@@ -110,6 +111,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   monitorDetail: any;
   subgroupDetail: any;
   taskDetail: any;
+  selectedTaskKey: string | null = null;
   showBlock: boolean = false;
   idBlock: any;
   blockDetail: any;
@@ -299,6 +301,8 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     await this.calculateWeeksInMonth();
     //await this.calculateTaskPositions();
 
+    this.loadSavedViewState();
+    this.syncViewLabels();
     //BRING PREVIOUS FILTERS
     this.loadSavedFilters();
     this.loadBookings(this.currentDate);
@@ -407,7 +411,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     this.updateView();
   }
 
-  updateView() {
+  private syncViewLabels(): void {
     if (this.timelineView === 'week') {
       const start = startOfWeek(this.currentDate, { weekStartsOn: 1 });
       const end = endOfWeek(this.currentDate, { weekStartsOn: 1 });
@@ -418,18 +422,25 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     } else {
       this.currentWeek = '';
     }
+  }
+
+  updateView() {
+    this.syncViewLabels();
+    this.saveViewState();
     this.loadBookings(this.currentDate);
   }
 
-  loadBookings(date: Date) {
-    this.loading = true;
+  loadBookings(date: Date, options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      this.loading = true;
+    }
     let firstDate, lastDate;
     if (this.timelineView === 'week') {
       const startOfWeekDate = startOfWeek(date, { weekStartsOn: 1 });
       const endOfWeekDate = endOfWeek(date, { weekStartsOn: 1 });
       firstDate = moment(startOfWeekDate).format('YYYY-MM-DD');
       lastDate = moment(endOfWeekDate).format('YYYY-MM-DD');
-      this.searchBookings(firstDate, lastDate);
+      this.searchBookings(firstDate, lastDate, options);
 
       /*this.filteredTasks = this.tasksCalendarStyle.filter(task => {
         const taskDate = new Date(task.date);
@@ -440,7 +451,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       const endMonth = endOfMonth(date);
       firstDate = moment(startMonth).format('YYYY-MM-DD');
       lastDate = moment(endMonth).format('YYYY-MM-DD');
-      this.searchBookings(firstDate, lastDate);
+      this.searchBookings(firstDate, lastDate, options);
 
       /*this.filteredTasks = this.tasksCalendarStyle.filter(task => {
         const taskDate = new Date(task.date);
@@ -450,19 +461,21 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       const dateStr = date.toLocaleString().split('T')[0];
       firstDate = moment(date).format('YYYY-MM-DD');
       lastDate = firstDate;
-      this.searchBookings(firstDate, lastDate);
+      this.searchBookings(firstDate, lastDate, options);
       /*this.filteredTasks = this.tasksCalendarStyle.filter(task => task.date === dateStr);*/
     }
 
   }
 
-  searchBookings(firstDate: string, lastDate: string) {
+  searchBookings(firstDate: string, lastDate: string, options: { silent?: boolean } = {}) {
     this.crudService.get('/admin/getPlanner?date_start=' + firstDate + '&date_end=' + lastDate + '&school_id=' + this.activeSchool + '&perPage=' + 99999).pipe(takeUntil(this.destroy$)).subscribe(
       (data: any) => {
         this.processData(data.data);
       },
       error => {
-        this.loading = false;
+        if (!options.silent) {
+          this.loading = false;
+        }
       }
     );
   }
@@ -1338,6 +1351,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         this.monitorDetail = task.monitor_id;
         this.subgroupDetail = task.course_subgroup_id;
         this.taskDetail = task;
+        this.selectedTaskKey = this.getTaskSelectionKey(task);
         this.showDetail = true;
         this.initializeMonitorAssignment(task);
 
@@ -1367,6 +1381,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     this.monitorDetail = null;
     this.subgroupDetail = null;
     this.taskDetail = null;
+    this.selectedTaskKey = null;
     this.showDetail = false;
     this.editedMonitor = null;
     this.showEditMonitor = false;
@@ -1633,9 +1648,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Contexto de la tarea actual
     const ctx = this.taskDetail || {};
+    const baseCourseType = ctx?.course?.course_type ?? ctx?.course_type ?? null;
     let subgroupId = fallbackSubgroupId;
 
-    if (!bookingUsers.length) {
+    if (!bookingUsers.length && baseCourseType === 1) {
       if (ctx.course_subgroup_id) {
         subgroupId = ctx.course_subgroup_id;
       } else if (!ctx.all_clients?.length && ctx.booking_id) {
@@ -1643,6 +1659,9 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         subgroupId = ctx.booking_id;
         ctx.booking_id = null;
       }
+    }
+    if (baseCourseType !== 1) {
+      subgroupId = null;
     }
 
     return {
@@ -1657,8 +1676,8 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
       course_id: ctx.course_id ?? null,
       booking_id: ctx.booking_id ?? null,
-      course_subgroup_id: ctx.course_subgroup_id ?? null,
-      course_date_id: ctx.course_date_id ?? null
+      course_subgroup_id: baseCourseType !== 1 ? null : (ctx.course_subgroup_id ?? null),
+      course_date_id: baseCourseType !== 1 && bookingUsers.length ? null : (ctx.course_date_id ?? null)
     };
   }
 
@@ -1667,7 +1686,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     this.taskMoved = null;
     this.hideDetail();
     this.hideGrouped();
-    this.loadBookings(this.currentDate);
+    this.loadBookings(this.currentDate, { silent: true });
     this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
     this.clearCurrentAssignmentContext();
   }
@@ -1760,7 +1779,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
             this.editedMonitor = null;
             this.showEditMonitor = false;
             this.hideDetail();
-            this.loadBookings(this.currentDate);
+            this.loadBookings(this.currentDate, { silent: true });
           });
       } else {
 
@@ -1900,10 +1919,46 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       }
 
       // 3) misma sesión (fallback)
-      if (bookingId && candidate.booking_id && candidate.booking_id === bookingId) return true;
+      if (isGroupCourse && bookingId && candidate.booking_id && candidate.booking_id === bookingId) return true;
 
       return false;
     });
+  }
+
+  private getTaskSelectionKey(task: any): string | null {
+    if (!task) {
+      return null;
+    }
+    if (task.group_id != null) {
+      return `grp-${task.group_id}`;
+    }
+    if (task.course_subgroup_id != null) {
+      return `sg-${task.course_subgroup_id}`;
+    }
+    if (task.id != null) {
+      return `id-${task.id}`;
+    }
+    if (task.booking_id != null) {
+      return `bk-${task.booking_id}-${task.date ?? ''}-${task.hour_start ?? ''}`;
+    }
+    return null;
+  }
+
+  isGroupedTaskHighlighted(task: any): boolean {
+    return !!(task?.booking_id && this.idGroupedTasks == task.booking_id && this.hourGrouped == task.hour_start && this.dateGrouped == task.date);
+  }
+
+  isTaskHighlighted(task: any): boolean {
+    if (!task) {
+      return false;
+    }
+    const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
+    if (baseCourseType !== 1) {
+      return !!this.selectedTaskKey && this.selectedTaskKey === this.getTaskSelectionKey(task);
+    }
+    return !!(task.booking_id && this.idDetail == task.booking_id
+      && this.hourDetail == task.hour_start && this.dateDetail == task.date
+      && this.monitorDetail == task.monitor_id);
   }
 
   onMonitorAssignmentScopeChange(scope: MonitorAssignmentScope): void {
@@ -2305,6 +2360,19 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       return [];
     }
 
+    const baseCourseType = baseTask?.course?.course_type ?? baseTask?.course_type ?? null;
+    if (baseCourseType !== 1) {
+      const bookingUserIds = new Set<number>();
+      const clients = Array.isArray(baseTask.all_clients) ? baseTask.all_clients : [];
+      clients.forEach((client: any) => {
+        const resolvedId = this.resolveBookingUserId(client);
+        if (resolvedId != null) {
+          bookingUserIds.add(resolvedId);
+        }
+      });
+      return Array.from(bookingUserIds);
+    }
+
     const relatedTasks = this.getRelatedTasks(baseTask);
     const { start, end } = this.resolveAssignmentDateRange();
     const bookingUserIds = new Set<number>();
@@ -2444,6 +2512,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Ids base de la tarea actual
     const ctx = this.taskDetail || {};
+    const baseCourseType = ctx?.course?.course_type ?? ctx?.course_type ?? null;
     const courseId        = ctx.course_id ?? ctx.course?.id ?? null;
     const bookingId       = ctx.booking_id ?? null;
     const subgroupId      = ctx.course_subgroup_id ?? null;
@@ -2461,33 +2530,36 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const scope = this.monitorAssignmentScope;
-    const subgroupIdsSet = new Set<number>(this.collectSubgroupIdsForAssignment());
-    options?.subgroupIds?.forEach(id => {
-      if (id != null) subgroupIdsSet.add(id);
-    });
+    const subgroupIdsSet = new Set<number>();
+    if (baseCourseType === 1) {
+      this.collectSubgroupIdsForAssignment().forEach(id => subgroupIdsSet.add(id));
+      options?.subgroupIds?.forEach(id => {
+        if (id != null) subgroupIdsSet.add(id);
+      });
 
-    if (ctx.course_subgroup_id != null) {
-      subgroupIdsSet.add(ctx.course_subgroup_id);
-    }
+      if (ctx.course_subgroup_id != null) {
+        subgroupIdsSet.add(ctx.course_subgroup_id);
+      }
 
-    if (fallbackSubgroupId != null) {
-      subgroupIdsSet.add(fallbackSubgroupId);
-    }
+      if (fallbackSubgroupId != null) {
+        subgroupIdsSet.add(fallbackSubgroupId);
+      }
 
-    if ((scope === 'all' || scope === 'from' || scope === 'range') && ctx.course_id) {
-      // For 'all' scope, filter to same degree only; for 'from'/'range' it will be filtered later
-      const filterByDegree = scope === 'all';
-      this.collectCourseSubgroupIdsForTask(ctx, filterByDegree).forEach(id => subgroupIdsSet.add(id));
-    }
+      if ((scope === 'all' || scope === 'from' || scope === 'range') && ctx.course_id) {
+        // For 'all' scope, filter to same degree only; for 'from'/'range' it will be filtered later
+        const filterByDegree = scope === 'all';
+        this.collectCourseSubgroupIdsForTask(ctx, filterByDegree).forEach(id => subgroupIdsSet.add(id));
+      }
 
-    if (!bookingUserIds.length && subgroupIdsSet.size === 0 && !ctx.all_clients?.length && ctx.booking_id) {
-      subgroupIdsSet.add(ctx.booking_id);
-      ctx.booking_id = null;
+      if (!bookingUserIds.length && subgroupIdsSet.size === 0 && !ctx.all_clients?.length && ctx.booking_id) {
+        subgroupIdsSet.add(ctx.booking_id);
+        ctx.booking_id = null;
+      }
     }
 
     const subgroupIds = Array.from(subgroupIdsSet);
 
-    const subgroupIdToUse = subgroupIds[0] ?? fallbackSubgroupId ?? null;
+    const subgroupIdToUse = baseCourseType === 1 ? (subgroupIds[0] ?? fallbackSubgroupId ?? null) : null;
 
     const payload: MonitorTransferPayload = {
       monitor_id: monitorId,
@@ -2500,7 +2572,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       booking_id: bookingId,
       subgroup_id: subgroupIdToUse,                 // en el backend lo recoges como subgroup_id
       course_subgroup_id: subgroupIdToUse ?? null,
-      course_date_id: courseDateId,
+      course_date_id: baseCourseType !== 1 && bookingUserIds.length ? null : courseDateId,
       subgroup_ids: subgroupIds
     };
 
@@ -3272,7 +3344,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       this.editedMonitor = null;
       this.showEditMonitor = false;
       this.hideDetail();
-      this.loadBookings(this.currentDate);
+      this.loadBookings(this.currentDate, { silent: true });
       this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
     }
   }
@@ -3294,10 +3366,8 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
     dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result) => {
       if (result) {
-
+        this.getData();
       }
-
-      this.getData();
     });
   }
 
@@ -3640,6 +3710,36 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       this.filterNwd = options.filterNwd;
       this.filterBlockPayed = options.filterBlockPayed;
       this.filterBlockNotPayed = options.filterBlockNotPayed;
+    }
+  }
+
+  private saveViewState(): void {
+    const state = {
+      timelineView: this.timelineView,
+      currentDate: this.currentDate ? this.currentDate.toISOString() : null
+    };
+    localStorage.setItem(this.plannerViewStorageKey, JSON.stringify(state));
+  }
+
+  private loadSavedViewState(): void {
+    const raw = localStorage.getItem(this.plannerViewStorageKey);
+    if (!raw) {
+      return;
+    }
+    try {
+      const state = JSON.parse(raw);
+      if (state?.timelineView) {
+        this.timelineView = state.timelineView;
+      }
+      if (state?.currentDate) {
+        const parsedDate = new Date(state.currentDate);
+        if (!Number.isNaN(parsedDate.getTime())) {
+          this.currentDate = parsedDate;
+          this.searchDate = parsedDate;
+        }
+      }
+    } catch {
+      // ignore malformed storage
     }
   }
 
@@ -4192,7 +4292,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       if (data) {
         this.hideDetail();
         this.hideGrouped();
-        this.loadBookings(this.currentDate);
+        this.loadBookings(this.currentDate, { silent: true });
         /*          const bookingLog = {
                     booking_id: this.id,
                     action: 'update booking',
@@ -4225,7 +4325,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         dialogRef.close();
         this.hideDetail();
         this.hideGrouped();
-        this.loadBookings(this.currentDate);
+        this.loadBookings(this.currentDate, { silent: true });
       }
     });
   }
