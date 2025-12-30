@@ -1334,6 +1334,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         this.dateGrouped = task.date;
         this.taskDetail = null;
         this.idDetail = null;
+        this.selectedTaskKey = null;
         this.showGrouped = true;
       }
       else {
@@ -1929,36 +1930,29 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!task) {
       return null;
     }
-    if (task.group_id != null) {
-      return `grp-${task.group_id}`;
-    }
-    if (task.course_subgroup_id != null) {
-      return `sg-${task.course_subgroup_id}`;
-    }
     if (task.id != null) {
       return `id-${task.id}`;
     }
     if (task.booking_id != null) {
-      return `bk-${task.booking_id}-${task.date ?? ''}-${task.hour_start ?? ''}`;
+      const date = task.date ?? '';
+      const hour = task.hour_start ?? '';
+      const monitor = task.monitor_id ?? 'none';
+      const subgroup = task.course_subgroup_id ?? task.subgroup_id ?? 'none';
+      const group = task.group_id ?? 'none';
+      return `bk-${task.booking_id}-${date}-${hour}-${monitor}-${subgroup}-${group}`;
     }
     return null;
   }
 
   isGroupedTaskHighlighted(task: any): boolean {
-    return !!(task?.booking_id && this.idGroupedTasks == task.booking_id && this.hourGrouped == task.hour_start && this.dateGrouped == task.date);
+    return !!(this.showGrouped && task?.booking_id && this.idGroupedTasks == task.booking_id && this.hourGrouped == task.hour_start && this.dateGrouped == task.date);
   }
 
   isTaskHighlighted(task: any): boolean {
     if (!task) {
       return false;
     }
-    const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
-    if (baseCourseType !== 1) {
-      return !!this.selectedTaskKey && this.selectedTaskKey === this.getTaskSelectionKey(task);
-    }
-    return !!(task.booking_id && this.idDetail == task.booking_id
-      && this.hourDetail == task.hour_start && this.dateDetail == task.date
-      && this.monitorDetail == task.monitor_id);
+    return !!this.selectedTaskKey && this.selectedTaskKey === this.getTaskSelectionKey(task);
   }
 
   onMonitorAssignmentScopeChange(scope: MonitorAssignmentScope): void {
