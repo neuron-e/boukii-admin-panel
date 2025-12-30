@@ -191,6 +191,20 @@ $transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
   }
 }
 
+.tab-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 8px 4px;
+  color: $text-secondary;
+
+  mat-spinner {
+    ::ng-deep circle {
+      stroke: $primary-color;
+    }
+  }
+}
+
 // ==================== ANALYTICS CONTENT ====================
 .analytics-content {
   .section-title {

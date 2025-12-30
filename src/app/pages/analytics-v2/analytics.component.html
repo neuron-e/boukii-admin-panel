@@ -182,6 +182,10 @@
 
 
       <!-- Analytics Tabs -->
+      <div *ngIf="tabLoading[activeTab]" class="tab-loading">
+        <mat-spinner diameter="28"></mat-spinner>
+        <span>{{ 'loading_analytics' | translate }}</span>
+      </div>
       <mat-tab-group class="analytics-tabs" [(selectedIndex)]="activeTabIndex" (selectedTabChange)="onTabChange($event)">
 
         <!-- Revenue Analysis Tab -->

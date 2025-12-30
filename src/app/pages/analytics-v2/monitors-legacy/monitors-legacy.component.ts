@@ -731,45 +731,76 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
 
   // ==================== DATA LOADING (USING LEGACY ENDPOINTS) ====================
 
-  private async loadAllMonitorData():  Promise<void> {
+  private async loadAllMonitorData(): Promise<void> {
     this.loading = true;
 
     try {
-      const [
-        bookings,
-        active,
-        hours,
-        total,
-        byDate,
-        _unused,
-        bySport
-      ] = await Promise.all([
+      const coreResults = await Promise.allSettled([
         this.loadMonitorsBookings(),
         this.loadActiveMonitors(),
         this.loadTotalHours(),
-        this.loadBookingsTotal(),
         this.loadBookingsByDate(),
         this.loadHoursByDate(),
         this.loadHoursBySport()
       ]);
 
-      this.monitorBookingsResponse = bookings.data;
-      this.monitorActiveResponse = active.data;
-      this.monitorHoursResponse = hours.data;
-      this.monitorTotalPriceResponse = total.data;
-      this.hoursTypeData = byDate.data;
-      this.hoursSportData = this.transformSportData(bySport.data);
+      const [bookings, active, hours, byDate, byCourseType, bySport] = coreResults;
+
+      if (bookings.status === 'fulfilled') {
+        this.monitorBookingsResponse = bookings.value.data;
+      } else {
+        console.error('Error loading monitor bookings:', bookings.reason);
+        this.monitorBookingsResponse = [];
+      }
+
+      if (active.status === 'fulfilled') {
+        this.monitorActiveResponse = active.value.data;
+      } else {
+        console.error('Error loading active monitors:', active.reason);
+        this.monitorActiveResponse = {};
+      }
+
+      if (hours.status === 'fulfilled') {
+        this.monitorHoursResponse = hours.value.data;
+      } else {
+        console.error('Error loading monitor hours:', hours.reason);
+        this.monitorHoursResponse = {};
+      }
+
+      if (byCourseType.status === 'fulfilled') {
+        this.hoursTypeData = byCourseType.value.data;
+      } else if (byDate.status === 'fulfilled') {
+        this.hoursTypeData = byDate.value.data;
+      } else {
+        console.error('Error loading hours by date:', byCourseType.status === 'rejected' ? byCourseType.reason : byDate.reason);
+        this.hoursTypeData = {};
+      }
+
+      if (bySport.status === 'fulfilled') {
+        this.hoursSportData = this.transformSportData(bySport.value.data);
+      } else {
+        console.error('Error loading hours by sport:', bySport.reason);
+        this.hoursSportData = {};
+      }
 
       this.processAllData();
       this.createCharts();
-      this.loading = false;
-      this.cdr.detectChanges();
-    } catch(error) {
+    } catch (error) {
       console.error('Error loading monitor data:', error);
-      this.loading = false;
     } finally {
       this.loading = false;
+      this.cdr.detectChanges();
     }
+
+    this.loadBookingsTotal()
+      .then((total) => {
+        this.monitorTotalPriceResponse = total.data;
+        this.processKPIs();
+        this.cdr.detectChanges();
+      })
+      .catch((error) => {
+        console.error('Error loading monitor totals:', error);
+      });
   }
 
   private processMonitorsData(): void {

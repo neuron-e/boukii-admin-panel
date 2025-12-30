@@ -246,6 +246,17 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   activeTab = 'revenue'; // ← AÑADIR ESTA LÍNEA
   activeTabIndex = 0;
   showAdvancedFilters = false;
+  fullDashboardLoaded = false;
+  fullDashboardLoading = false;
+  tabLoading: { [key: string]: boolean } = {
+    revenue: false,
+    payments: false,
+    courses: false,
+    sources: false,
+    monitors: false,
+    comparative: false,
+    alerts: false
+  };
 
   // ==================== USER DATA ====================
   user: any;
@@ -368,9 +379,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       onlyWeekends: new FormControl(false),
       onlyPaidBookings: new FormControl(false),
       includeRefunds: new FormControl(true),
-      includeTestDetection: new FormControl(true),
+      includeTestDetection: new FormControl(false),
       includePayrexxAnalysis: new FormControl(false),
-      optimizationLevel: new FormControl('balanced')
+      optimizationLevel: new FormControl('fast')
     });
   }
 
@@ -449,6 +460,11 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   public loadAnalyticsData(): void {
     this.loading = true;
     const filters = this.buildFiltersObject();
+    if (!filters.school_id) {
+      this.loading = false;
+      this.showMessage('No se pudo determinar la escuela para analytics', 'warning');
+      return;
+    }
 
     // Usar principalmente el endpoint season-dashboard
     this.apiService.get('/admin/finance/season-dashboard', [], filters).subscribe({
@@ -458,7 +474,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.cdr.detectChanges();
 
         // Crear gráficos después de que los datos estén listos
-        setTimeout(() => this.createAllCharts(), 100);
+        setTimeout(() => this.createChartsForTab(this.activeTab), 100);
       },
       error: (error) => {
         console.error('❌ Error loading analytics data:', error);
@@ -472,6 +488,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     const formValue = this.filterForm.value;
 
     const filters: any = {
+      school_id: this.user?.schools?.[0]?.id ?? this.user?.school?.id ?? null,
       start_date: formValue.startDate,
       end_date: formValue.endDate,
       include_test_detection: formValue.includeTestDetection,
@@ -529,21 +546,35 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ==================== CHART CREATION ====================
 
-  private createAllCharts(): void {
+  private createChartsForTab(tabId: string): void {
     if (!this.dashboardData) return;
 
     try {
-      this.createRevenueChart();
-      this.createCourseTypeRevenueChart();
-      this.createPaymentMethodsChart();
-      this.createPaymentTrendsChart();
-      this.createTopCoursesChart();
-      this.createCompletionRatesChart();
-      this.createSourcesChart();
-      this.createSourcePerformanceChart();
-      this.createComparisonChart();
+      switch (tabId) {
+        case 'revenue':
+          this.createRevenueChart();
+          this.createCourseTypeRevenueChart();
+          break;
+        case 'payments':
+          this.createPaymentMethodsChart();
+          this.createPaymentTrendsChart();
+          break;
+        case 'courses':
+          this.createTopCoursesChart();
+          this.createCompletionRatesChart();
+          break;
+        case 'sources':
+          this.createSourcesChart();
+          this.createSourcePerformanceChart();
+          break;
+        case 'comparative':
+          this.createComparisonChart();
+          break;
+        default:
+          break;
+      }
     } catch (error) {
-      console.error('❌ Error creating charts:', error);
+      console.error('�?O Error creating charts:', error);
     }
   }
 
@@ -1426,31 +1457,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onTabChange(event: MatTabChangeEvent): void {
     this.activeTabIndex = event.index;
-    this.activeTab = this.tabs[event.index].id; // ← ESTO YA ESTABA
-
-    // Cargar datos específicos de la pestaña
-    switch (this.activeTab) {
-      case 'revenue':
-        break;
-      case 'payments':
-        break;
-      case 'courses':
-        break;
-      case 'sources':
-        break;
-      case 'comparative':
-        break;
-      case 'alerts':
-        break;
-      case 'monitors':
-        // El componente MonitorsLegacy maneja su propia carga
-        break;
-      default:
-        break;
-    }
-
-    // Los gráficos se crean automáticamente con createAllCharts()
-    // No necesitamos createTabSpecificCharts() porque no está implementado
+    this.activeTab = this.tabs[event.index].id;
+    this.maybeLoadFullDashboard(this.activeTab);
+    setTimeout(() => this.createChartsForTab(this.activeTab), 100);
   }
 
   public onPresetRangeChange(event: any): void {
@@ -1514,7 +1523,55 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   public refreshData(): void {
     this.loadAnalyticsData();
   }
+  private resetTabLoading(): void {
+    Object.keys(this.tabLoading).forEach((key) => {
+      this.tabLoading[key] = false;
+    });
+  }
 
+  private requiresFullData(tabId: string): boolean {
+    return ['revenue', 'courses', 'comparative', 'alerts'].includes(tabId);
+  }
+
+  private resolveFullOptimizationLevel(): string {
+    const level = this.filterForm?.value?.optimizationLevel;
+    if (level && level !== 'fast') {
+      return level;
+    }
+
+    return 'balanced';
+  }
+
+  private maybeLoadFullDashboard(tabId: string): void {
+    if (!this.dashboardData) return;
+    if (!this.requiresFullData(tabId)) return;
+    if (this.fullDashboardLoaded || this.fullDashboardLoading) return;
+
+    const filters = this.buildFiltersObject();
+    if (!filters.school_id) return;
+
+    filters.optimization_level = this.resolveFullOptimizationLevel();
+    this.fullDashboardLoading = true;
+    this.tabLoading[tabId] = true;
+
+    this.apiService.get('/admin/finance/season-dashboard', [], filters).subscribe({
+      next: (response) => {
+        this.dashboardData = response.data;
+        this.updateTableData();
+        this.fullDashboardLoaded = true;
+        this.fullDashboardLoading = false;
+        this.resetTabLoading();
+        this.cdr.detectChanges();
+        setTimeout(() => this.createChartsForTab(this.activeTab), 100);
+      },
+      error: (error) => {
+        console.error('�?O Error loading full analytics data:', error);
+        this.fullDashboardLoading = false;
+        this.resetTabLoading();
+        this.cdr.detectChanges();
+      }
+    });
+  }
   public toggleAdvancedFilters(): void {
     this.showAdvancedFilters = !this.showAdvancedFilters;
   }
@@ -1994,3 +2051,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }).format(value / 100);
   }
 }
+
+
+
+
+
+
+
+
+
