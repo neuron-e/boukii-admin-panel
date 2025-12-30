@@ -1007,7 +1007,7 @@ export class CourseDetailCardNivelComponent implements OnInit, OnDestroy, OnChan
     });
 
     // Actualizar via API
-    this.crudService.update('/admin/booking-users', payload, user.id)
+    this.crudService.update('/booking-users', payload, user.id)
       .subscribe({
         next: () => {
           // Actualizar el objeto local
