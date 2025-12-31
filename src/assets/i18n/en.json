@@ -1045,6 +1045,8 @@
   "form_validation_error": "Please fill in all required fields",
   "france": "french",
   "free": "Free",
+  "booking_free": "Free booking",
+  "booking_free_detail": "Free ({{amount}} {{currency}} reduction)",
   "fri": "Fri",
   "friday": "friday",
   "from": "From",

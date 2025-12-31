@@ -10,6 +10,8 @@ import { SchoolService } from 'src/service/school.service';
 import { map } from 'rxjs/operators';
 import { forkJoin } from 'rxjs';
 import { LayoutService } from 'src/@vex/services/layout.service';
+import { buildDiscountInfoList } from 'src/app/pages/bookings-v2/shared/discount-utils';
+import { BookingService } from 'src/service/bookings.service';
 
 @Component({
   selector: 'vex-bookings-v2',
@@ -89,7 +91,13 @@ export class BookingsV2Component implements OnInit, OnChanges {
     { label: 'Actions', property: 'actions', type: 'button', visible: true }
   ];
 
-  constructor(private crudService: ApiCrudService, private router: Router, private schoolService: SchoolService, public LayoutService: LayoutService) {
+  constructor(
+    private crudService: ApiCrudService,
+    private router: Router,
+    private schoolService: SchoolService,
+    public LayoutService: LayoutService,
+    private bookingService: BookingService
+  ) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
 
     this.schoolService.getSchoolData(this.user).subscribe((school) => {
@@ -139,6 +147,7 @@ export class BookingsV2Component implements OnInit, OnChanges {
 
         // Obtener usuarios únicos de la reserva
         this.getUniqueBookingUsers(this.detailData.bookingusers);
+        this.enrichPreviewBookingUsers();
 
         // Cargar niveles por deporte de la escuela (asíncrono)
         await this.getSchoolSportDegrees();
@@ -172,6 +181,7 @@ export class BookingsV2Component implements OnInit, OnChanges {
         }
         this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
         this.getUniqueBookingUsers(this.detailData.bookingusers);
+        this.enrichPreviewBookingUsers();
       }
       this.detailLoading = false;
     } else {
@@ -618,6 +628,55 @@ export class BookingsV2Component implements OnInit, OnChanges {
 
     // Convertir el Map en un array de objetos únicos con fechas agrupadas
     this.bookingUsersUnique = Array.from(uniqueEntriesMap.values());
+  }
+
+  private parseNumber(value: any): number {
+    const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? '0'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private buildPreviewDatesForGroup(group: any): any[] {
+    const users = Array.isArray(group?.bookingusers) ? group.bookingusers : [];
+    return users.map((user: any) => ({
+      price: this.parseNumber(user?.price ?? group?.course?.price ?? 0),
+      originalPrice: this.parseNumber(user?.price ?? group?.course?.price ?? 0),
+      interval_id: user?.course_date?.interval_id ?? user?.course_interval_id ?? user?.interval_id ?? null,
+      interval_name: user?.course_date?.interval_name ?? user?.interval_name ?? null,
+      currency: user?.currency ?? group?.currency ?? this.detailData?.currency ?? ''
+    }));
+  }
+
+  private enrichPreviewBookingUsers(): void {
+    if (!Array.isArray(this.bookingUsersUnique)) {
+      return;
+    }
+
+    this.bookingUsersUnique = this.bookingUsersUnique.map((group: any) => {
+      if (!group?.course) {
+        return group;
+      }
+
+      const dates = this.buildPreviewDatesForGroup(group);
+      const discountInfo = buildDiscountInfoList(group.course, dates);
+      const discountAmount = discountInfo.reduce((sum: number, info: any) => {
+        const amount = this.parseNumber(info?.amountSaved ?? 0);
+        return sum + amount;
+      }, 0);
+      const baseTotal = dates.reduce((sum: number, date: any) => sum + this.parseNumber(date.price), 0);
+      const totalAfterDiscount = Math.max(0, baseTotal - discountAmount);
+
+      return {
+        ...group,
+        discountInfo,
+        discountAmount,
+        baseTotal,
+        totalAfterDiscount
+      };
+    });
+  }
+
+  isFreeBooking(): boolean {
+    return this.resolveDisplayTotal(this.detailData) <= 0.01;
   }
 
   /*  getUniqueBookingUsers(data: any) {

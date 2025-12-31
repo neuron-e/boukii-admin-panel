@@ -510,6 +510,18 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     });
   }
 
+  isFreeBooking(): boolean {
+    return this.getFinalTotal() <= 0.01;
+  }
+
+  getFreeReductionAmount(): number {
+    const reduction = this.parseNumber(this.bookingData?.price_reduction);
+    if (reduction > 0) {
+      return Number(reduction.toFixed(2));
+    }
+    return Number(this.sumActivityTotal().toFixed(2));
+  }
+
   private parseNumber(value: any): number {
     const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? '0'));
     return Number.isFinite(parsed) ? parsed : 0;

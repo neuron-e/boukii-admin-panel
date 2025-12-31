@@ -339,15 +339,15 @@ export class BookingDataService {
     const baseTotal = interval.dates.reduce((sum, date) =>
       sum + (date.originalPrice || date.price), 0
     );
-
-    const finalTotal = interval.dates.reduce((sum, date) =>
-      sum + date.price, 0
-    );
-
+    const intervalKey = interval.key !== 'default' ? interval.key : undefined;
+    const discountsSource = getApplicableDiscounts(course, intervalKey);
+    const discountedTotal = applyFlexibleDiscount(baseTotal, interval.dates.length, discountsSource);
+    const finalTotal = Math.max(0, discountedTotal);
+    const discountAmount = Math.max(0, baseTotal - finalTotal);
 
     return {
       baseTotal,
-      discountAmount: baseTotal - finalTotal,
+      discountAmount,
       finalTotal,
       currency
     };
@@ -448,31 +448,46 @@ export class BookingDataService {
     const isCollectiveFixed = this.isCollectiveFixedCourse(course);
     const fixedCoursePrice = isCollectiveFixed ? this.getCourseBasePrice(course) : 0;
 
-    const basePrice = isCollectiveFixed
+    let basePrice = isCollectiveFixed
       ? fixedCoursePrice
       : dates.reduce((sum, date) =>
         sum + (date.originalPrice || date.price), 0
       );
 
-    const finalPrice = isCollectiveFixed
+    let finalPrice = isCollectiveFixed
       ? fixedCoursePrice
       : dates.reduce((sum, date) =>
         sum + date.price, 0
       );
 
-    const discountAmount = Math.max(0, basePrice - finalPrice);
+    let discountAmount = Math.max(0, basePrice - finalPrice);
 
     const breakdown: ActivityPriceSummary['breakdown'] = {};
 
     if (intervals) {
+      let intervalBase = 0;
+      let intervalFinal = 0;
+      let intervalDiscount = 0;
       intervals.forEach(interval => {
+        const base = interval.priceSummary?.baseTotal || 0;
+        const discount = interval.priceSummary?.discountAmount || 0;
+        const final = interval.priceSummary?.finalTotal || 0;
         breakdown[interval.key] = {
-          basePrice: interval.priceSummary?.baseTotal || 0,
-          discountAmount: interval.priceSummary?.discountAmount || 0,
-          finalPrice: interval.priceSummary?.finalTotal || 0,
+          basePrice: base,
+          discountAmount: discount,
+          finalPrice: final,
           dateCount: interval.dates.length
         };
+        intervalBase += base;
+        intervalFinal += final;
+        intervalDiscount += discount;
       });
+
+      if (!isCollectiveFixed && intervalBase > 0) {
+        basePrice = intervalBase;
+        finalPrice = intervalFinal;
+        discountAmount = intervalDiscount;
+      }
     }
 
     return {

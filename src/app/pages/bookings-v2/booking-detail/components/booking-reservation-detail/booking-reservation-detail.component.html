@@ -388,29 +388,44 @@
           <mat-icon>{{ showPaymentHistory ? 'expand_less' : 'expand_more' }}</mat-icon>
         </button>
       </div>
-      <div class="dateRow" style="border-bottom: 1px solid #dee6ea; padding-bottom: 10px">
-        <div>
-          <span class="date" style="color:#2fca45"
-                *ngIf="bookingData.paid || displayOutstanding <= 0">{{ "ispaid" | translate }}</span>
-          <span class="date" style="color:#FB9B1B"
-                *ngIf="!bookingData.paid && displayOutstanding > 0">{{ "pending_payment" | translate | uppercase }}</span>
-          <span class="price">
-            <span class="discounted-price" style="color:#2fca45"
-                  *ngIf="bookingData.paid || displayOutstanding <= 0">
-              {{ getPaidAmount()  | number:'0.2-2' }}
-              {{ getActivitiesCurrency() }}
-            </span>
+        <div class="dateRow" style="border-bottom: 1px solid #dee6ea; padding-bottom: 10px">
+          <div>
+            <ng-container *ngIf="isFreeBooking(); else paymentStatus">
+              <span class="date" style="color:#2fca45">{{ 'booking_free' | translate }}</span>
+              <span class="price">
+                <span class="discounted-price" style="color:#2fca45">
+                  0.00 {{ getActivitiesCurrency() }}
+                </span>
+              </span>
+            </ng-container>
+            <ng-template #paymentStatus>
+              <span class="date" style="color:#2fca45"
+                    *ngIf="bookingData.paid || displayOutstanding <= 0">{{ "ispaid" | translate }}</span>
+              <span class="date" style="color:#FB9B1B"
+                    *ngIf="!bookingData.paid && displayOutstanding > 0">{{ "pending_payment" | translate | uppercase }}</span>
+              <span class="price">
+                <span class="discounted-price" style="color:#2fca45"
+                      *ngIf="bookingData.paid || displayOutstanding <= 0">
+                  {{ getPaidAmount()  | number:'0.2-2' }}
+                  {{ getActivitiesCurrency() }}
+                </span>
 
-            <span class="discounted-price" style="color:#FB9B1B"
-                  *ngIf="!bookingData.paid && displayOutstanding > 0">
-              {{ displayOutstanding | number:'0.2-2'}}
-              {{ getActivitiesCurrency() }}
-            </span>
-          </span>
+                <span class="discounted-price" style="color:#FB9B1B"
+                      *ngIf="!bookingData.paid && displayOutstanding > 0">
+                  {{ displayOutstanding | number:'0.2-2'}}
+                  {{ getActivitiesCurrency() }}
+                </span>
+              </span>
+            </ng-template>
+          </div>
         </div>
-      </div>
 
       <div *ngIf="showPaymentHistory">
+        <div class="dateRow" *ngIf="isFreeBooking()">
+          <div>
+            <span class="hour">{{ 'booking_free_detail' | translate:{ amount: getFreeReductionAmount() | number:'0.2-2', currency: getActivitiesCurrency() } }}</span>
+          </div>
+        </div>
         <div class="dateRow">
         <div>
           <span class="hour" *ngIf="displayOutstanding > 0 && !bookingData.paid"

@@ -108,16 +108,20 @@
                 style="color:rgba(83, 65, 0, 1);background-color:#F7E399;">
 						{{'partial_cancelled' | translate | uppercase }}
 					</span>
-          <span class="col-right">
-						<span *ngIf="detailData?.status === 1 && detailData?.paid"
+					<span class="col-right">
+            <span *ngIf="detailData?.status === 1 && isFreeBooking()"
+                  style="color:#00C32B;background-color: #B2EFAD;">
+							{{'booking_free' | translate | uppercase }}
+						</span>
+						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && detailData?.paid"
                   style="color:#00C32B;background-color: #B2EFAD;">
 							{{'payed' | translate | uppercase }}
 						</span>
-						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id != 3"
+						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && !detailData?.paid && detailData?.payment_method_id != 3"
                   style="color:#FF0000;background-color: #F7BB99;">
 							{{'no_payed' | translate | uppercase }}
 						</span>
-						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 3"
+						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && !detailData?.paid && detailData?.payment_method_id == 3"
                   style="color:#FA9917;background-color: #F7E399;">
 							{{(detailData?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
 						</span>
@@ -193,7 +197,7 @@
             </div>
             <div class="col-right">
               <b>
-                {{bUsers.price | number:'0.2-2'}} {{ detailData?.currency }}
+                {{ (bUsers.totalAfterDiscount ?? bUsers.price) | number:'0.2-2' }} {{ detailData?.currency }}
               </b>
             </div>
           </div>
@@ -275,9 +279,32 @@
                   </div>
                   <div class="col-right">
                     <!-- {{(bUsers?.course?.course_type === 1 ? 'colective' : 'private' )| translate}} {{getSportName(bUsers?.course?.sport_id)}} -->
-                    {{bUsers?.price | number:'0.2-2'}} {{bUsers?.currency}}
+                    {{ (bUsers.totalAfterDiscount ?? bUsers?.price) | number:'0.2-2' }} {{bUsers?.currency}}
                   </div>
 
+                </div>
+                <div *ngIf="bUsers.discountAmount > 0" class="dateRow" style="margin-left: 30px;">
+                  <div style="display: flex; align-items: center; width: 100%; gap: 12px;">
+                    <span class="hour" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4caf50; flex: 1;">
+                      <mat-icon style="font-size: 16px;">local_offer</mat-icon>
+                      <span>{{ 'reduction' | translate }}</span>
+                    </span>
+                    <span class="price">
+                      <span class="discounted-price" style="color: #1b5e20;">
+                        -{{ bUsers.discountAmount | number:'0.2-2' }} {{ detailData?.currency }}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <div class="dateRow" style="border-bottom: 1px solid #dee6ea; padding-bottom: 10px;">
+                  <div style="display: flex; align-items: center; width: 100%;">
+                    <span class="hour" style="font-weight: 600;">{{ 'subtotal' | translate }}</span>
+                    <span class="price">
+                      <span class="discounted-price">
+                        {{ (bUsers.totalAfterDiscount ?? bUsers?.price) | number:'0.2-2' }} {{ detailData?.currency }}
+                      </span>
+                    </span>
+                  </div>
                 </div>
                 <!-- <div style="float: left; width: 100%;" *ngIf="bUsers.course.course_type">
                   <div style="float: left; width: 75%;color:#fff; padding:5%;margin-top: 5%;font-size:12px" [ngStyle]="{'background-color': getDegree(bUsers?.degree_id)?.color}">

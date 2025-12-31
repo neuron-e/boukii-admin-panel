@@ -1057,6 +1057,8 @@
   "form_validation_error": "Por favor complete todos los campos requeridos",
   "france": "francés",
   "free": "Libre",
+  "booking_free": "Reserva gratuita",
+  "booking_free_detail": "Gratuita (reducción {{amount}} {{currency}})",
   "fri": "Vie",
   "friday": "viernes",
   "from": "Desde",

@@ -1057,6 +1057,8 @@
   "form_validation_error": "Bitte füllen Sie alle Pflichtfelder aus",
   "france": "französisch",
   "free": "Frei",
+  "booking_free": "Kostenfreie Buchung",
+  "booking_free_detail": "Kostenfrei ({{amount}} {{currency}} Reduktion)",
   "fri": "Fr",
   "friday": "Freitag",
   "from": "Aus",
