@@ -54,11 +54,20 @@ export function parseFlexibleDiscounts(raw: any): FlexibleDiscountRule[] {
   return parsed
     .map((item: any) => {
       const threshold = Number(item?.date ?? item?.dates ?? item?.count ?? item?.n ?? item?.days ?? 0);
-      const value = Number(item?.discount ?? item?.percentage ?? item?.percent ?? item?.value ?? 0);
+      const value = Number(
+        item?.discount ??
+        item?.reduction ??
+        item?.amount ??
+        item?.percentage ??
+        item?.percent ??
+        item?.value ??
+        0
+      );
       const rawType = item?.type;
       let type: 'percentage' | 'fixed' = 'percentage';
       if (typeof rawType === 'string') {
-        type = rawType.toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
+        const normalized = rawType.toLowerCase();
+        type = normalized.includes('fixed') || normalized.includes('amount') ? 'fixed' : 'percentage';
       } else if (typeof rawType === 'number' && !isNaN(rawType)) {
         type = rawType === 2 ? 'fixed' : 'percentage';
       } else if (rawType != null) {
@@ -66,6 +75,8 @@ export function parseFlexibleDiscounts(raw: any): FlexibleDiscountRule[] {
         if (!isNaN(numericType)) {
           type = numericType === 2 ? 'fixed' : 'percentage';
         }
+      } else if (item?.reduction != null || item?.amount != null) {
+        type = 'fixed';
       }
       return {
         threshold,
@@ -171,7 +182,19 @@ export function resolveIntervalName(course: any, intervalId: string): string | n
 }
 
 export function buildDiscountInfoList(course: any, selectedDates: any[]): AppliedDiscountInfo[] {
-  if (!course?.is_flexible || !Array.isArray(selectedDates) || selectedDates.length === 0) {
+  if (!Array.isArray(selectedDates) || selectedDates.length === 0) {
+    return [];
+  }
+
+  const hasCourseDiscounts = parseFlexibleDiscounts(course?.discounts).length > 0;
+  const settings = normalizeSettings(course?.settings);
+  const hasIntervalDiscounts = Array.isArray(settings?.intervals)
+    ? settings.intervals.some((interval: any) =>
+      Array.isArray(interval?.discounts) && interval.discounts.length > 0
+    )
+    : false;
+
+  if (!course?.is_flexible && !hasCourseDiscounts && !hasIntervalDiscounts) {
     return [];
   }
 

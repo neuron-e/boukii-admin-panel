@@ -500,6 +500,16 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     this.showChangeHistory = !this.showChangeHistory;
   }
 
+  getVisibleBookingLogs(): any[] {
+    const logs = Array.isArray(this.bookingData?.booking_logs)
+      ? this.bookingData.booking_logs
+      : [];
+    return logs.filter((log: any) => {
+      const action = (log?.action || '').toString().toLowerCase();
+      return action && !action.includes('snapshot');
+    });
+  }
+
   private parseNumber(value: any): number {
     const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? '0'));
     return Number.isFinite(parsed) ? parsed : 0;
@@ -510,16 +520,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   getComputedSubtotal(): number {
-    const snapshotTotal = this.getSnapshotTotal();
-    if (snapshotTotal > 0) {
-      return Number(snapshotTotal.toFixed(2));
-    }
-
-    const computed = this.parseNumber(this.bookingData?.computed_total);
-    if (computed > 0) {
-      return Number(computed.toFixed(2));
-    }
-    return Number(this.sumActivityTotal().toFixed(2));
+    return this.getComputedExpectedTotal();
   }
 
   getPriceMismatch(): number {
@@ -554,6 +555,23 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     }
 
     return snapshotTotal > 0 ? snapshotTotal : 0;
+  }
+
+  private getComputedExpectedTotal(): number {
+    const base = this.sumActivityTotal();
+    const insurance = this.bookingData?.has_cancellation_insurance
+      ? this.parseNumber(this.bookingData?.price_cancellation_insurance)
+      : 0;
+    const reduction = this.parseNumber(this.bookingData?.price_reduction);
+    const discountCodeValue = this.parseNumber(this.bookingData?.discount_code_value);
+    const boukiiCare = this.bookingData?.has_boukii_care
+      ? this.parseNumber(this.bookingData?.price_boukii_care)
+      : 0;
+    const tva = this.bookingData?.has_tva
+      ? this.parseNumber(this.bookingData?.price_tva)
+      : 0;
+    const total = base + insurance - reduction - discountCodeValue + boukiiCare + tva;
+    return Number((isNaN(total) ? 0 : total).toFixed(2));
   }
 
   isPriceMismatchUnderpaid(): boolean {

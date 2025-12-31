@@ -620,7 +620,8 @@ export class BookingDetailV2Component implements OnInit {
       );
       if (dateIndex === -1) {
         const courseDateFromCourse = (user.course?.course_dates || []).find((d: any) => d.id === user.course_date_id);
-        const resolvedDate = courseDateFromCourse?.date || user.course_date?.date || user.date || null;
+        const courseDateFromBooking = user.course_date;
+        const resolvedDate = courseDateFromCourse?.date || courseDateFromBooking?.date || user.date || null;
 
         const durationInfo = normalizeDurationInfo(user.formattedDuration ?? user.duration, user.hour_start, user.hour_end);
 
@@ -636,8 +637,15 @@ export class BookingDetailV2Component implements OnInit {
           utilizers: [],
           extras: [],
           booking_users: [],
-          interval_id: courseDateFromCourse?.interval_id ?? user.course_interval_id ?? user.interval_id ?? null,
-          interval_name: courseDateFromCourse?.interval_name ?? user.interval_name ?? null
+          interval_id: courseDateFromCourse?.interval_id
+            ?? courseDateFromBooking?.interval_id
+            ?? user.course_interval_id
+            ?? user.interval_id
+            ?? null,
+          interval_name: courseDateFromCourse?.interval_name
+            ?? courseDateFromBooking?.interval_name
+            ?? user.interval_name
+            ?? null
         });
       }
       const currentDate = acc[groupId].dates.find((date: any) =>
