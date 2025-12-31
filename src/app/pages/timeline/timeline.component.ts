@@ -164,6 +164,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   monitorAssignmentStartDate: string | null = null;
   monitorAssignmentEndDate: string | null = null;
   monitorAssignmentSubgroupIds: number[] = [];
+  monitorAssignmentSelectedDates: string[] = [];
   monitorAssignmentDates: { value: string, label: string }[] = [];
   monitorSearchTerm: string = '';
   hasApiAvailability = false;
@@ -837,7 +838,9 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
           monitor: monitor,
           course_id: booking.course_id,
           course_date_id: booking.course_date_id,
-          course_subgroup_id: booking.booking_users && booking.booking_users?.length > 0 ? booking.booking_users[0].course_subgroup_id : null,
+          course_subgroup_id: booking.course_subgroup_id
+            ?? booking.subgroup_id
+            ?? (booking.booking_users && booking.booking_users?.length > 0 ? booking.booking_users[0].course_subgroup_id : null),
           subgroup_number: booking.subgroup_number,
           total_subgroups: booking.total_subgroups,
           course: booking.course,
@@ -1634,6 +1637,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     this.monitorAssignmentStartDate = selection.startDate;
     this.monitorAssignmentEndDate = selection.endDate;
     this.monitorAssignmentSubgroupIds = selection.targetSubgroupIds ?? [];
+    this.monitorAssignmentSelectedDates = (selection.selectedDates ?? []).filter(date => !!date);
     this.updateCurrentAssignmentContext();
   }
 
@@ -1655,6 +1659,8 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!bookingUsers.length && baseCourseType === 1) {
       if (ctx.course_subgroup_id) {
         subgroupId = ctx.course_subgroup_id;
+      } else if (ctx.subgroup_id) {
+        subgroupId = ctx.subgroup_id;
       } else if (!ctx.all_clients?.length && ctx.booking_id) {
         // mantiene tu fallback actual
         subgroupId = ctx.booking_id;
@@ -1677,7 +1683,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
       course_id: ctx.course_id ?? null,
       booking_id: ctx.booking_id ?? null,
-      course_subgroup_id: baseCourseType !== 1 ? null : (ctx.course_subgroup_id ?? null),
+      course_subgroup_id: baseCourseType !== 1 ? null : (ctx.course_subgroup_id ?? ctx.subgroup_id ?? null),
       course_date_id: baseCourseType !== 1 && bookingUsers.length ? null : (ctx.course_date_id ?? null)
     };
   }
@@ -1824,6 +1830,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     this.monitorAssignmentStartDate = null;
     this.monitorAssignmentEndDate = null;
     this.monitorAssignmentDates = [];
+    this.monitorAssignmentSelectedDates = [];
     this.updateCurrentAssignmentContext();
   }
 
@@ -1832,8 +1839,36 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       this.clearCurrentAssignmentContext();
       return;
     }
-    this.currentAssignmentSlots = this.buildSlotsForCurrentSelection();
+    this.currentAssignmentSlots = this.dedupeAssignmentSlots(this.buildSlotsForCurrentSelection());
     this.currentAssignmentTargetSubgroupIds = new Set(this.collectSubgroupIdsForAssignment());
+    if (this.monitorAssignmentSelectedDates?.length) {
+      this.currentAssignmentSlots = this.currentAssignmentSlots.filter(slot =>
+        this.monitorAssignmentSelectedDates.some(date => this.getDateStrFromAny(date) === slot.date)
+      );
+    }
+  }
+
+  private dedupeAssignmentSlots(slots: MonitorAssignmentSlot[]): MonitorAssignmentSlot[] {
+    const seen = new Set<string>();
+    const deduped: MonitorAssignmentSlot[] = [];
+
+    slots.forEach(slot => {
+      const date = this.getDateStrFromAny(slot?.date) ?? slot?.date ?? '';
+      const start = slot?.startTime ?? '';
+      const end = slot?.endTime ?? '';
+      const subgroupId = slot?.context?.subgroupId ?? slot?.context?.courseSubgroupId ?? 'none';
+      const key = `${date}-${start}-${end}-${subgroupId}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      deduped.push({
+        ...slot,
+        date
+      });
+    });
+
+    return deduped;
   }
 
   private clearCurrentAssignmentContext(): void {
@@ -2407,12 +2442,21 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const { start, end } = this.resolveAssignmentDateRange();
+    const selectedDateSet = new Set(
+      (this.monitorAssignmentSelectedDates ?? [])
+        .map(value => this.getDateStrFromAny(value))
+        .filter((value): value is string => !!value)
+    );
     const subgroupIds = new Set<number>();
     const scope = this.monitorAssignmentScope;
-    const baseDegreeId = this.resolveTaskDegreeId(baseTask);
+    const baseSubgroupDatesId = this.resolveSubgroupDatesId(baseTask);
+    const baseSubgroupId =
+      baseTask.course_subgroup_id ??
+      baseTask.subgroup_id ??
+      null;
 
     const addCandidateSubgroup = (candidate: any) => {
-      const subgroupId = candidate?.course_subgroup_id ?? candidate?.subgroup_id ?? candidate?.booking_id ?? null;
+      const subgroupId = candidate?.course_subgroup_id ?? candidate?.subgroup_id ?? null;
       if (subgroupId != null) {
         subgroupIds.add(subgroupId);
       }
@@ -2432,8 +2476,16 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
             return;
           }
         }
-        if (!this.isSameAssignmentDegree(baseDegreeId, candidate)) {
-          return;
+        if (baseSubgroupDatesId != null) {
+          const candidateDatesId = this.resolveSubgroupDatesId(candidate);
+          if (candidateDatesId !== baseSubgroupDatesId) {
+            return;
+          }
+        } else if (baseSubgroupId != null) {
+          const candidateSubgroupId = candidate?.course_subgroup_id ?? candidate?.subgroup_id ?? null;
+          if (candidateSubgroupId !== baseSubgroupId) {
+            return;
+          }
         }
         addCandidateSubgroup(candidate);
       });
@@ -2509,7 +2561,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     const baseCourseType = ctx?.course?.course_type ?? ctx?.course_type ?? null;
     const courseId        = ctx.course_id ?? ctx.course?.id ?? null;
     const bookingId       = ctx.booking_id ?? null;
-    const subgroupId      = ctx.course_subgroup_id ?? null;
+    const subgroupId      = ctx.course_subgroup_id ?? ctx.subgroup_id ?? null;
     const courseDateId    = ctx.course_date_id ?? null;
     const degreeId        = ctx.degree?.id ?? null;
 
@@ -2526,7 +2578,11 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     const scope = this.monitorAssignmentScope;
     const subgroupIdsSet = new Set<number>();
     if (baseCourseType === 1) {
-      this.collectSubgroupIdsForAssignment().forEach(id => subgroupIdsSet.add(id));
+      if (this.monitorAssignmentSubgroupIds?.length) {
+        this.monitorAssignmentSubgroupIds.forEach(id => subgroupIdsSet.add(id));
+      } else {
+        this.collectSubgroupIdsForAssignment().forEach(id => subgroupIdsSet.add(id));
+      }
       options?.subgroupIds?.forEach(id => {
         if (id != null) subgroupIdsSet.add(id);
       });
@@ -2534,15 +2590,16 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       if (ctx.course_subgroup_id != null) {
         subgroupIdsSet.add(ctx.course_subgroup_id);
       }
+      if (ctx.subgroup_id != null) {
+        subgroupIdsSet.add(ctx.subgroup_id);
+      }
 
       if (fallbackSubgroupId != null) {
         subgroupIdsSet.add(fallbackSubgroupId);
       }
 
-      if ((scope === 'all' || scope === 'from' || scope === 'range') && ctx.course_id) {
-        // For 'all' scope, filter to same degree only; for 'from'/'range' it will be filtered later
-        const filterByDegree = scope === 'all';
-        this.collectCourseSubgroupIdsForTask(ctx, filterByDegree).forEach(id => subgroupIdsSet.add(id));
+      if ((scope === 'all' || scope === 'from' || scope === 'range') && !this.monitorAssignmentSubgroupIds?.length) {
+        this.collectSubgroupIdsForAssignment(true).forEach(id => subgroupIdsSet.add(id));
       }
 
       if (!bookingUserIds.length && subgroupIdsSet.size === 0 && !ctx.all_clients?.length && ctx.booking_id) {
@@ -2553,11 +2610,22 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
     const subgroupIds = Array.from(subgroupIdsSet);
 
-    const subgroupIdToUse = baseCourseType === 1 ? (subgroupIds[0] ?? fallbackSubgroupId ?? null) : null;
+    const subgroupIdToUse = baseCourseType === 1
+      ? (this.monitorAssignmentSubgroupIds?.[0] ?? subgroupId ?? subgroupIds[0] ?? fallbackSubgroupId ?? null)
+      : null;
+
+    let finalSubgroupIds = subgroupIds;
+    if (baseCourseType === 1) {
+      if (scope === 'single') {
+        finalSubgroupIds = subgroupIdToUse != null ? [subgroupIdToUse] : [];
+      } else if (this.monitorAssignmentSubgroupIds?.length) {
+        finalSubgroupIds = Array.from(new Set(this.monitorAssignmentSubgroupIds));
+      }
+    }
 
     const payload: MonitorTransferPayload = {
       monitor_id: monitorId,
-      booking_users: bookingUserIds,
+      booking_users: baseCourseType === 1 ? [] : bookingUserIds,
 
       scope,              // 'single'|'interval'|'all'|'from'|'range'
       start_date: startDate,
@@ -2567,7 +2635,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       subgroup_id: subgroupIdToUse,                 // en el backend lo recoges como subgroup_id
       course_subgroup_id: subgroupIdToUse ?? null,
       course_date_id: baseCourseType !== 1 && bookingUserIds.length ? null : courseDateId,
-      subgroup_ids: subgroupIds
+      subgroup_ids: finalSubgroupIds
     };
 
     if (scope !== 'single') {
@@ -2578,7 +2646,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       payload.course_date_id = options.courseDateId;
     }
 
-    if (options?.subgroupIds?.length) {
+    if (options?.subgroupIds?.length && scope !== 'single') {
       payload.subgroup_ids = Array.from(new Set([...(payload.subgroup_ids ?? []), ...options.subgroupIds.filter(id => id != null) as number[]]));
     }
 
@@ -2594,10 +2662,9 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     const { start, end } = this.resolveAssignmentDateRange();
     const startDate = start?.format('YYYY-MM-DD') ?? null;
     const endDate = end?.format('YYYY-MM-DD') ?? startDate;
-    const subgroupIds = this.collectSubgroupIdsForAssignment(true);
-    const courseId = ctx.course_id ?? ctx.course?.id ?? null;
-    const subgroupId = ctx.course_subgroup_id ?? ctx.booking_id ?? null;
     const scope = this.monitorAssignmentScope;
+    const courseId = ctx.course_id ?? ctx.course?.id ?? null;
+    const subgroupId = ctx.course_subgroup_id ?? ctx.subgroup_id ?? ctx.booking_id ?? null;
 
     const payload: MonitorTransferPreviewPayload = {
       scope,
@@ -2609,10 +2676,6 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     if (subgroupId != null) {
       payload.subgroup_id = subgroupId;
     }
-    if (subgroupIds?.length) {
-      payload.subgroup_ids = subgroupIds;
-    }
-
     return payload;
   }
 
@@ -2623,7 +2686,27 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const { start, end } = this.resolveAssignmentDateRange();
-    const relatedTasks = this.getRelatedTasks(baseTask);
+    const selectedDateSet = new Set(
+      (this.monitorAssignmentSelectedDates ?? [])
+        .map(value => this.getDateStrFromAny(value))
+        .filter((value): value is string => !!value)
+    );
+    const selectedSubgroupIds = (this.monitorAssignmentSubgroupIds?.length
+      ? this.monitorAssignmentSubgroupIds
+      : []).filter(id => id != null);
+    const targetSubgroupId = selectedSubgroupIds.length
+      ? selectedSubgroupIds[0]
+      : (baseTask.course_subgroup_id ?? baseTask.subgroup_id ?? null);
+    const relatedTasks = this.getRelatedTasks(baseTask).filter(task => {
+      if (!selectedSubgroupIds.length && targetSubgroupId == null) {
+        return true;
+      }
+      const taskSubgroupId = task?.course_subgroup_id ?? task?.subgroup_id ?? null;
+      if (selectedSubgroupIds.length) {
+        return selectedSubgroupIds.some(id => Number(taskSubgroupId) === Number(id));
+      }
+      return Number(taskSubgroupId) === Number(targetSubgroupId);
+    });
     const slots: MonitorAssignmentSlot[] = [];
     const seen = new Set<string>();
 
@@ -2655,22 +2738,26 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       if (!dateValue) {
         return;
       }
-      const taskDate = moment(dateValue, 'YYYY-MM-DD');
+      const normalizedDate = this.getDateStrFromAny(dateValue) ?? dateValue;
+      const taskDate = moment(normalizedDate, 'YYYY-MM-DD');
       if (!taskDate.isValid() || taskDate.isBefore(start) || taskDate.isAfter(end)) {
+        return;
+      }
+      if (selectedDateSet.size && !selectedDateSet.has(normalizedDate)) {
         return;
       }
       const startLabel = startTime ?? baseTask.hour_start;
       const endLabel = endTime ?? baseTask.hour_end;
       const subgroupKey = subgroupId != null ? subgroupId : 'none';
-      const key = `${dateValue}-${startLabel}-${endLabel}-${subgroupKey}`;
+      const key = `${normalizedDate}-${startLabel}-${endLabel}-${subgroupKey}`;
       if (seen.has(key)) {
         return;
       }
       seen.add(key);
-      const label = this.assignmentHelper.formatSlotLabel(dateValue, startLabel, endLabel);
+      const label = this.assignmentHelper.formatSlotLabel(normalizedDate, startLabel, endLabel);
         const normalizedSubgroupId = subgroupId ?? baseTask.course_subgroup_id ?? null;
-        const currentMonitorTask = this.findTaskForSubgroup(normalizedSubgroupId, dateValue);
-      const courseSubgroupDetails = this.findCourseSubgroupDetails(normalizedSubgroupId, dateValue);
+        const currentMonitorTask = this.findTaskForSubgroup(normalizedSubgroupId, normalizedDate);
+      const courseSubgroupDetails = this.findCourseSubgroupDetails(normalizedSubgroupId, normalizedDate);
       const currentMonitorInfo = currentMonitorTask
         ? {
             id: currentMonitorTask.monitor_id ?? currentMonitorTask.monitor?.id ?? null,
@@ -2678,13 +2765,15 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
           }
         : (courseSubgroupDetails
             ? { id: courseSubgroupDetails.monitorId, name: courseSubgroupDetails.monitorName }
-            : this.findCurrentMonitorForSubgroup(normalizedSubgroupId, dateValue));
-      const levelLabel =
+            : this.findCurrentMonitorForSubgroup(normalizedSubgroupId, normalizedDate));
+        const baseLevelLabel =
         this.getLevelLabelFromTask(currentMonitorTask) ??
         courseSubgroupDetails?.levelLabel ??
         this.resolveCurrentLevelLabel();
+        const subgroupOrderLabel = this.resolveSubgroupOrderLabel(normalizedSubgroupId, normalizedDate);
+        const levelLabel = subgroupOrderLabel ? `${baseLevelLabel} ${subgroupOrderLabel}` : baseLevelLabel;
         slots.push({
-          date: dateValue,
+          date: normalizedDate,
           startTime: startLabel,
           endTime: endLabel,
         degreeId: baseTask.degree_id,
@@ -2710,9 +2799,14 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
             .flatMap((group: any) => group?.course_subgroups ?? [])
             .map((sub: any) => sub?.id)
             .filter((id: any) => id != null);
+          const filteredSubgroups = selectedSubgroupIds.length
+            ? subgroups.filter((id: any) => selectedSubgroupIds.some(targetId => Number(id) === Number(targetId)))
+            : (targetSubgroupId == null
+              ? subgroups
+              : subgroups.filter((id: any) => Number(id) === Number(targetSubgroupId)));
 
-          if (subgroups.length) {
-            subgroups.forEach(subId => {
+          if (filteredSubgroups.length) {
+            filteredSubgroups.forEach(subId => {
               addSlot(
                 dateValue,
                 cd?.hour_start ?? baseTask.hour_start,
@@ -2721,19 +2815,32 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
                 subId
               );
             });
-          } else {
+          } else if (!selectedSubgroupIds.length && targetSubgroupId == null) {
             addSlot(
               dateValue,
               cd?.hour_start ?? baseTask.hour_start,
               cd?.hour_end ?? baseTask.hour_end,
               cd?.id ?? null,
-              baseTask.course_subgroup_id
+              targetSubgroupId ?? baseTask.course_subgroup_id
             );
           }
         });
 
-        const fallbackDates = this.collectCourseDatesForTask(baseTask);
-        fallbackDates.forEach(dateValue => addSlot(dateValue, baseTask.hour_start, baseTask.hour_end, null, baseTask.course_subgroup_id));
+        if (!selectedSubgroupIds.length && targetSubgroupId == null) {
+          const fallbackDates = this.collectCourseDatesForTask(baseTask);
+          fallbackDates.forEach(dateValue => addSlot(dateValue, baseTask.hour_start, baseTask.hour_end, null, baseTask.course_subgroup_id));
+        }
+      }
+
+      if (selectedDateSet.size) {
+        const subgroupIdsForDates = selectedSubgroupIds.length
+          ? selectedSubgroupIds
+          : [targetSubgroupId ?? baseTask.course_subgroup_id].filter((id): id is number => id != null);
+        Array.from(selectedDateSet).forEach(dateValue => {
+          subgroupIdsForDates.forEach(subgroupId => {
+            addSlot(dateValue, baseTask.hour_start, baseTask.hour_end, null, subgroupId);
+          });
+        });
       }
 
     return slots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -2999,6 +3106,92 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     return null;
   }
 
+  private resolveSubgroupOrderLabel(subgroupId: number | null, dateValue?: string | null): string | null {
+    if (!subgroupId || !this.taskDetail?.course) {
+      return null;
+    }
+
+    const course = this.taskDetail.course;
+    const normalizedDate = dateValue ? this.getDateStrFromAny(dateValue) : null;
+    const normalizeId = (val: any) => (val == null ? null : Number(val));
+    const targetId = normalizeId(subgroupId);
+
+    const findOrderInContainer = (container: any): number | null => {
+      if (!container) {
+        return null;
+      }
+      const subgroups = container.course_subgroups ?? container.courseSubgroups ?? container.subgroups ?? [];
+      const index = subgroups.findIndex((sub: any) => normalizeId(sub?.id) === targetId);
+      return index >= 0 ? index + 1 : null;
+    };
+
+    const courseDates = course.course_dates ?? [];
+    for (const cd of courseDates) {
+      if (normalizedDate) {
+        const dateValueNormalized = this.getDateStrFromAny(cd?.date ?? cd?.date_start ?? cd?.date_start_res ?? null);
+        if (dateValueNormalized !== normalizedDate) {
+          continue;
+        }
+      }
+      const direct = findOrderInContainer(cd);
+      if (direct != null) {
+        return String(direct);
+      }
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      for (const group of groups) {
+        const order = findOrderInContainer(group);
+        if (order != null) {
+          return String(order);
+        }
+      }
+    }
+
+    const groups = course.course_groups ?? [];
+    for (const group of groups) {
+      const order = findOrderInContainer(group);
+      if (order != null) {
+        return String(order);
+      }
+    }
+
+    const targetTask = this.findTaskForSubgroup(targetId, normalizedDate);
+    const courseId = targetTask?.course_id ?? this.taskDetail?.course_id ?? course?.id ?? null;
+    const groupId = targetTask?.course_group_id ?? this.taskDetail?.course_group_id ?? null;
+    const degreeId = targetTask?.degree_id ?? this.taskDetail?.degree_id ?? null;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const candidateIds = new Set<number>();
+
+    tasksSource.forEach(task => {
+      if (courseId != null && Number(task?.course_id) !== Number(courseId)) {
+        return;
+      }
+      if (groupId != null && Number(task?.course_group_id) !== Number(groupId)) {
+        return;
+      }
+      if (degreeId != null && Number(task?.degree_id) !== Number(degreeId)) {
+        return;
+      }
+      if (normalizedDate && this.getDateStrFromAny(task?.date) !== normalizedDate) {
+        return;
+      }
+      const subgroupRaw = task?.course_subgroup_id;
+      const subgroupParsed = subgroupRaw == null ? null : Number(subgroupRaw);
+      if (subgroupParsed != null && !Number.isNaN(subgroupParsed)) {
+        candidateIds.add(subgroupParsed);
+      }
+    });
+
+    if (candidateIds.size) {
+      const orderedIds = Array.from(candidateIds).sort((a, b) => a - b);
+      const idx = orderedIds.indexOf(targetId);
+      if (idx >= 0) {
+        return String(idx + 1);
+      }
+    }
+
+    return null;
+  }
+
   private timeRangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
     return startA < endB && endA > startB;
   }
@@ -3081,13 +3274,14 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       return slots;
     }
 
+    slots = this.dedupeAssignmentSlots(slots);
     const availabilityContext = {
       bookingUserIds: this.collectBookingUserIdsForAssignment(),
       subgroupIds: this.extractSubgroupIdsFromSlots(slots),
       courseId: this.taskDetail?.course_id ?? this.taskDetail?.course?.id ?? null
     };
     if (!availabilityContext.subgroupIds.length && this.taskDetail) {
-      availabilityContext.subgroupIds = this.collectCourseSubgroupIdsForTask(this.taskDetail);
+      availabilityContext.subgroupIds = this.collectSubgroupIdsForAssignment(true);
     }
     // Asegurar que se incluyan los subgrupos a transferir en las exclusiones de disponibilidad
     if (this.monitorAssignmentSubgroupIds.length) {
@@ -3182,19 +3376,18 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
               .filter((id): id is number => id != null)
           )
         );
+        if (!subgroupsToUse.length && this.monitorAssignmentSubgroupIds?.length) {
+          subgroupsToUse = [...this.monitorAssignmentSubgroupIds];
+        }
 
         // For different scopes, use appropriate subgroup collection:
         // - scope='all': use ALL subgroups of the SAME DEGREE in the course
         // - scope='from'/'range': use all related subgroups in date range (same degree)
         // - scope='single'/'interval': use only preview subgroups
         if (this.taskDetail) {
-          if (this.monitorAssignmentScope === 'all') {
-            // For 'all' scope: change every subgroup of the SAME DEGREE in the course
-            // Note: backend will also filter by degree, this ensures frontend-backend alignment
-            subgroupsToUse = this.collectCourseSubgroupIdsForTask(this.taskDetail, true);
-          } else if (this.monitorAssignmentScope === 'from' || this.monitorAssignmentScope === 'range') {
-            // For 'from'/'range' scope, include all related subgroups in the date range (same degree)
-            subgroupsToUse = this.collectSubgroupIdsForAssignment(false);
+          if (this.monitorAssignmentScope === 'all' || this.monitorAssignmentScope === 'from' || this.monitorAssignmentScope === 'range') {
+            // For wider scopes, keep only linked subgroup-date entries for the selected subgroup.
+            subgroupsToUse = this.collectSubgroupIdsForAssignment(true);
           }
         }
 
@@ -3220,10 +3413,12 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
           this.monitorAssignmentEndDate = seq[seq.length - 1].date;
 
           const sequenceSubgroupIds = this.extractSubgroupIdsFromSlots(seq);
-          const subgroupIdsToUse =
-            sequenceSubgroupIds.length || !this.taskDetail
-              ? sequenceSubgroupIds
-              : this.collectCourseSubgroupIdsForTask(this.taskDetail);
+          const subgroupIdsToUse = sequenceSubgroupIds.length
+            ? sequenceSubgroupIds
+            : this.collectSubgroupIdsForAssignment(true);
+          if (!subgroupIdsToUse.length && this.monitorAssignmentSubgroupIds?.length) {
+            subgroupIdsToUse.push(...this.monitorAssignmentSubgroupIds);
+          }
           if (!subgroupIdsToUse.length && this.taskDetail?.course_subgroup_id != null) {
             subgroupIdsToUse.push(this.taskDetail.course_subgroup_id);
           }
@@ -4227,7 +4422,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
     if (!ids.size && this.taskDetail) {
-      this.collectCourseSubgroupIdsForTask(this.taskDetail).forEach(id => ids.add(id));
+      this.collectSubgroupIdsForAssignment(true).forEach(id => ids.add(id));
       if (this.taskDetail?.course_subgroup_id != null) {
         ids.add(Number(this.taskDetail.course_subgroup_id));
       }

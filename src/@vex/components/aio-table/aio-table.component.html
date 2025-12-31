@@ -67,8 +67,8 @@
               }}
 						</span>
           </mat-checkbox>
-          <mat-checkbox [checked]="courseActivity"
-                        (change)="courseActivity = !courseActivity;filterData(false, 1)" color="primary">
+            <mat-checkbox *ngIf="entity.includes('courses')" [checked]="courseActivity"
+                          (change)="courseActivity = !courseActivity;filterData(false, 1)" color="primary">
 						<span style="color:#00BEFFFF">
 							{{'activity' | translate
               }}

@@ -39,6 +39,7 @@ export interface MonitorAssignmentDialogResult {
   startDate: string | null;
   endDate: string | null;
   targetSubgroupIds?: number[];
+  selectedDates?: string[];
 }
 
 @Component({
@@ -55,6 +56,7 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
   readonly monitorName: string;
   summaryItems: MonitorAssignmentDialogSummaryItem[];
   private allSummaryItems: MonitorAssignmentDialogSummaryItem[];
+  private summaryLabelMap = new Map<string, string | null>();
   private targetSubgroupIds: number[];
   private previewContext: MonitorTransferPreviewPayload | null;
   private previewSubscription?: Subscription;
@@ -78,6 +80,7 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
     this.monitorName = this.resolveMonitorName(data.monitor);
     this.allSummaryItems = data.summaryItems ?? [];
     this.summaryItems = [...this.allSummaryItems];
+    this.buildSummaryLabelMap();
     this.targetSubgroupIds = (data.targetSubgroupIds ?? []).filter(id => id != null);
     this.previewContext = data.previewContext ?? null;
 
@@ -174,7 +177,10 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
       scope: this.scope,
       startDate: this.startDate,
       endDate: this.endDate,
-      targetSubgroupIds: this.targetSubgroupIds ?? []
+      targetSubgroupIds: this.targetSubgroupIds ?? [],
+      selectedDates: this.summaryItems
+        .map(item => item.value)
+        .filter((value): value is string => !!value)
     });
   }
 
@@ -294,13 +300,8 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
       payload.course_id = this.previewContext.course_id;
     }
 
-    if (this.scope === 'interval' || this.scope === 'single') {
-      if (this.previewContext.subgroup_id != null) {
-        payload.subgroup_id = this.previewContext.subgroup_id;
-      }
-    }
-    if (this.scope === 'single' && this.previewContext.subgroup_ids?.length) {
-      payload.subgroup_ids = this.previewContext.subgroup_ids;
+    if (this.previewContext.subgroup_id != null) {
+      payload.subgroup_id = this.previewContext.subgroup_id;
     }
 
     return payload;
@@ -355,6 +356,7 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
         // Crear un item por cada fecha en el subgrupo
         item.all_dates_in_subgroup.forEach((dateItem: any) => {
           const value = this.normalizeDateValue(dateItem?.date);
+          const fallbackLabel = this.resolveSummaryLabelFromMap(value, typeof item?.id === 'number' ? item.id : null);
 
           result.push({
             value,
@@ -364,7 +366,7 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
               hour_end: dateItem?.hour_end
             }),
             // MEJORADO: Mostrar monitor POR FECHA (ahora viene en dateItem, no en item)
-            levelLabel: item?.level_label ?? item?.course?.name ?? null,
+            levelLabel: fallbackLabel ?? item?.level_label ?? item?.course?.name ?? null,
             currentMonitor: dateItem?.current_monitor?.name ?? item?.current_monitor?.name ?? null,
             subgroupId: typeof item?.id === 'number' ? item.id : null
           });
@@ -372,10 +374,11 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
       } else {
         // FALLBACK: Antiguo formato (solo 1 fecha)
         const value = this.normalizeDateValue(item?.date);
+        const fallbackLabel = this.resolveSummaryLabelFromMap(value, typeof item?.id === 'number' ? item.id : null);
         result.push({
           value,
           dateLabel: this.resolveSummaryDateLabel(value, item),
-          levelLabel: item?.level_label ?? item?.course?.name ?? null,
+          levelLabel: fallbackLabel ?? item?.level_label ?? item?.course?.name ?? null,
           currentMonitor: item?.current_monitor?.name ?? null,
           subgroupId: typeof item?.id === 'number' ? item.id : null
         });
@@ -474,6 +477,25 @@ export class MonitorAssignmentDialogComponent implements OnDestroy {
     }
 
     this.summaryItems = inScopeDates;
+  }
+
+  private buildSummaryLabelMap(): void {
+    this.summaryLabelMap.clear();
+    this.allSummaryItems.forEach(item => {
+      if (!item?.value || !item?.subgroupId) {
+        return;
+      }
+      const key = `${item.value}|${item.subgroupId}`;
+      this.summaryLabelMap.set(key, item.levelLabel ?? null);
+    });
+  }
+
+  private resolveSummaryLabelFromMap(dateValue: string | null, subgroupId: number | null): string | null {
+    if (!dateValue || subgroupId == null) {
+      return null;
+    }
+    const key = `${dateValue}|${subgroupId}`;
+    return this.summaryLabelMap.get(key) ?? null;
   }
 
   private resolveIntervalDateOptions(): MonitorAssignmentDialogDateOption[] {

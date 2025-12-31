@@ -48,12 +48,26 @@ export class MonitorAssignmentHelperService {
       return { available: slots, blocked: [] };
     }
 
+    const dedupedSlots: MonitorAssignmentSlot[] = [];
+    const seen = new Set<string>();
+    slots.forEach(slot => {
+      const date = slot?.date ?? '';
+      const start = slot?.startTime ?? '';
+      const end = slot?.endTime ?? slot?.startTime ?? '';
+      const key = `${date}-${start}-${end}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      dedupedSlots.push(slot);
+    });
+
     const available: MonitorAssignmentSlot[] = [];
     const blocked: MonitorAssignmentSlot[] = [];
 
     const batchSize = 10;
-    for (let i = 0; i < slots.length; i += batchSize) {
-      const batch = slots.slice(i, i + batchSize);
+    for (let i = 0; i < dedupedSlots.length; i += batchSize) {
+      const batch = dedupedSlots.slice(i, i + batchSize);
       const results = await Promise.all(
         batch.map(async (slot) => {
           if (!slot.date || !slot.startTime) {
