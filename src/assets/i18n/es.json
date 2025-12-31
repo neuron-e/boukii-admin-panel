@@ -1058,6 +1058,7 @@
   "france": "francés",
   "free": "Libre",
   "booking_free": "Reserva gratuita",
+  "booking_free_short": "Gratuita",
   "booking_free_detail": "Gratuita (reducción {{amount}} {{currency}})",
   "fri": "Vie",
   "friday": "viernes",

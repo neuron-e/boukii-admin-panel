@@ -695,8 +695,13 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses"
-                [style.color]=" row[column.property] ? '#CEE741' : 'red'" mat-cell>
-              {{ (row[column.property] ? 'yes' : 'no')| translate | uppercase }}
+                [style.color]="getPaymentStatusColor(row, column.property)" mat-cell>
+              <ng-container *ngIf="isFreeBookingRow(row); else paidStatus">
+                {{ 'booking_free_short' | translate | uppercase }}
+              </ng-container>
+              <ng-template #paidStatus>
+                {{ (row[column.property] ? 'yes' : 'no')| translate | uppercase }}
+              </ng-template>
             </td>
           </ng-container>
         </ng-container>

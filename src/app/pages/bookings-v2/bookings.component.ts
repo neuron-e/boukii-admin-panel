@@ -11,7 +11,6 @@ import { map } from 'rxjs/operators';
 import { forkJoin } from 'rxjs';
 import { LayoutService } from 'src/@vex/services/layout.service';
 import { buildDiscountInfoList } from 'src/app/pages/bookings-v2/shared/discount-utils';
-import { BookingService } from 'src/service/bookings.service';
 
 @Component({
   selector: 'vex-bookings-v2',
@@ -95,8 +94,7 @@ export class BookingsV2Component implements OnInit, OnChanges {
     private crudService: ApiCrudService,
     private router: Router,
     private schoolService: SchoolService,
-    public LayoutService: LayoutService,
-    private bookingService: BookingService
+    public LayoutService: LayoutService
   ) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
 
@@ -638,8 +636,12 @@ export class BookingsV2Component implements OnInit, OnChanges {
   private buildPreviewDatesForGroup(group: any): any[] {
     const users = Array.isArray(group?.bookingusers) ? group.bookingusers : [];
     return users.map((user: any) => ({
-      price: this.parseNumber(user?.price ?? group?.course?.price ?? 0),
-      originalPrice: this.parseNumber(user?.price ?? group?.course?.price ?? 0),
+      price: group?.course?.course_type === 1
+        ? this.parseNumber(group?.course?.price ?? user?.price ?? 0)
+        : this.parseNumber(user?.price ?? 0),
+      originalPrice: group?.course?.course_type === 1
+        ? this.parseNumber(group?.course?.price ?? user?.price ?? 0)
+        : this.parseNumber(user?.price ?? 0),
       interval_id: user?.course_date?.interval_id ?? user?.course_interval_id ?? user?.interval_id ?? null,
       interval_name: user?.course_date?.interval_name ?? user?.interval_name ?? null,
       currency: user?.currency ?? group?.currency ?? this.detailData?.currency ?? ''
@@ -677,6 +679,20 @@ export class BookingsV2Component implements OnInit, OnChanges {
 
   isFreeBooking(): boolean {
     return this.resolveDisplayTotal(this.detailData) <= 0.01;
+  }
+
+  getPreviewPaidLabel(): string {
+    if (this.isFreeBooking()) {
+      return 'booking_free_short';
+    }
+    return this.detailData?.paid ? 'yes' : 'no';
+  }
+
+  getPreviewPaymentMethodLabel(): string {
+    if (this.isFreeBooking()) {
+      return 'booking_free';
+    }
+    return this.getPaymentMethod(this.detailData?.payment_method_id ?? this.detailData?.payment_method);
   }
 
   /*  getUniqueBookingUsers(data: any) {

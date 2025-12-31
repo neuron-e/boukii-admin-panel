@@ -1046,6 +1046,7 @@
   "france": "french",
   "free": "Free",
   "booking_free": "Free booking",
+  "booking_free_short": "Free",
   "booking_free_detail": "Free ({{amount}} {{currency}} reduction)",
   "fri": "Fri",
   "friday": "friday",

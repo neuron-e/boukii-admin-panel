@@ -1166,7 +1166,46 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   getPaymentMethodByRow(row: any, property: string): string {
     const candidate = row ? row[property] ?? row?.payment_method_id ?? row?.payment_method : null;
     const paymentMethodId = this.normalizePaymentMethodId(candidate);
+    if (this.isFreeBookingRow(row)) {
+      return 'booking_free';
+    }
     return this.getPaymentMethod(paymentMethodId);
+  }
+
+  private resolveRowTotal(row: any): number {
+    if (!row) return 0;
+    const rawTotal = row.price_total ?? row?.booking?.price_total ?? null;
+    if (rawTotal !== null && rawTotal !== undefined && rawTotal !== '') {
+      const total = Number(rawTotal);
+      if (!isNaN(total)) return total;
+    }
+    const computedTotal = row.computed_total ?? row?.booking?.computed_total ?? null;
+    if (computedTotal !== null && computedTotal !== undefined) {
+      const total = Number(computedTotal);
+      if (!isNaN(total)) return total;
+    }
+    const basketRaw = row.basket ?? row?.booking?.basket ?? null;
+    if (basketRaw) {
+      try {
+        const basket = typeof basketRaw === 'string' ? JSON.parse(basketRaw) : basketRaw;
+        const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
+        if (!isNaN(basketTotal)) return basketTotal;
+      } catch {
+        return 0;
+      }
+    }
+    return 0;
+  }
+
+  isFreeBookingRow(row: any): boolean {
+    return this.resolveRowTotal(row) <= 0.01;
+  }
+
+  getPaymentStatusColor(row: any, property: string): string {
+    if (this.isFreeBookingRow(row)) {
+      return '#2fca45';
+    }
+    return row?.[property] ? '#CEE741' : 'red';
   }
 
   getPaymentMethod(id: number | null): string {

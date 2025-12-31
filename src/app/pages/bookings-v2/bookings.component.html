@@ -283,22 +283,25 @@
                   </div>
 
                 </div>
-                <div *ngIf="bUsers.discountAmount > 0" class="dateRow" style="margin-left: 30px;">
-                  <div style="display: flex; align-items: center; width: 100%; gap: 12px;">
-                    <span class="hour" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4caf50; flex: 1;">
-                      <mat-icon style="font-size: 16px;">local_offer</mat-icon>
-                      <span>{{ 'reduction' | translate }}</span>
-                    </span>
+                <div style="margin-left: 30px; margin-top: 8px; border-top: 1px solid #dee6ea; padding-top: 8px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <span class="hour">{{ 'course_total' | translate }}</span>
                     <span class="price">
-                      <span class="discounted-price" style="color: #1b5e20;">
+                      <span class="discounted-price">
+                        {{ (bUsers.baseTotal ?? bUsers?.price) | number:'0.2-2' }} {{ detailData?.currency }}
+                      </span>
+                    </span>
+                  </div>
+                  <div *ngIf="bUsers.discountAmount > 0" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; color: #1b5e20;">
+                    <span class="hour">{{ 'reduction' | translate }}</span>
+                    <span class="price">
+                      <span class="discounted-price">
                         -{{ bUsers.discountAmount | number:'0.2-2' }} {{ detailData?.currency }}
                       </span>
                     </span>
                   </div>
-                </div>
-                <div class="dateRow" style="border-bottom: 1px solid #dee6ea; padding-bottom: 10px;">
-                  <div style="display: flex; align-items: center; width: 100%;">
-                    <span class="hour" style="font-weight: 600;">{{ 'subtotal' | translate }}</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; font-weight: 600;">
+                    <span class="hour">{{ 'subtotal' | translate }}</span>
                     <span class="price">
                       <span class="discounted-price">
                         {{ (bUsers.totalAfterDiscount ?? bUsers?.price) | number:'0.2-2' }} {{ detailData?.currency }}
@@ -490,11 +493,11 @@
               {{ 'ispaid' | translate }}:
             </b>
           </div>
-          <div class="col-right">
-            <b *ngIf="parseFloat(detailData?.vouchers_used_amount)">
-              {{ parseFloat(detailData?.paid_total) + parseFloat(detailData?.vouchers_used_amount)}} {{ detailData?.currency }}
-            </b>
-          </div>
+            <div class="col-right">
+              <b>
+                {{ getPreviewPaidLabel() | translate | uppercase }}
+              </b>
+            </div>
         </div>
         <div class="subtitle-sub">
           {{ 'options' | translate }}
@@ -543,16 +546,24 @@
 						-{{getBonusPrice() | number:'0.2-2'}} {{detailData?.currency}}
 					</div>
 				</div>
+        <div *ngIf="detailData?.price_reduction > 0" class="subtitle-sub">
+          <div class="col-left">
+            {{ 'reduction' | translate }}
+          </div>
+          <div class="col-right">
+            -{{ detailData?.price_reduction | number:'0.2-2' }} {{ detailData?.currency }}
+          </div>
+        </div>
 				<div class="title-actividad">
 					<div class="col-left">
 						<b class="title">
 							{{ 'method_paiment' | translate }}:
 						</b>
-					</div>
-					<div class="col-right">
-						{{ getPaymentMethod(detailData?.payment_method_id ?? detailData?.payment_method) | translate }}
-					</div>
-				</div>
+  					</div>
+  					<div class="col-right">
+  						{{ getPreviewPaymentMethodLabel() | translate }}
+  					</div>
+  				</div>
 				<!--<div *ngIf="detailData.payment_method != 6" class="list-holder">
 					<div>
 						class="col-left"
