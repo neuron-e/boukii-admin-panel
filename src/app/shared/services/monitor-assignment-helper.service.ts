@@ -99,7 +99,24 @@ export class MonitorAssignmentHelperService {
       }
     }
 
-    return { available, blocked };
+    const dedupeSlots = (items: MonitorAssignmentSlot[]): MonitorAssignmentSlot[] => {
+      const seenKeys = new Set<string>();
+      const result: MonitorAssignmentSlot[] = [];
+      items.forEach(item => {
+        const date = item?.date ?? '';
+        const start = item?.startTime ?? '';
+        const end = item?.endTime ?? item?.startTime ?? '';
+        const key = `${date}-${start}-${end}`;
+        if (seenKeys.has(key)) {
+          return;
+        }
+        seenKeys.add(key);
+        result.push(item);
+      });
+      return result;
+    };
+
+    return { available: dedupeSlots(available), blocked: dedupeSlots(blocked) };
   }
 
   async confirmPartialAvailability(

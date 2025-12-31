@@ -812,6 +812,11 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
           monitor = this.filteredMonitors.find(monitor => monitor.id === booking.monitor_id) || null;
         }
 
+        const computedSubgroupNumber = this.resolveBookingSubgroupOrder(booking);
+        const subgroupNumber = (booking.total_subgroups && booking.total_subgroups > 1 && computedSubgroupNumber != null)
+          ? computedSubgroupNumber
+          : (booking.subgroup_number ?? computedSubgroupNumber);
+
         return {
           id: booking?.id,
           booking_id: booking?.booking?.id,
@@ -841,7 +846,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
           course_subgroup_id: booking.course_subgroup_id
             ?? booking.subgroup_id
             ?? (booking.booking_users && booking.booking_users?.length > 0 ? booking.booking_users[0].course_subgroup_id : null),
-          subgroup_number: booking.subgroup_number,
+          subgroup_number: subgroupNumber,
           total_subgroups: booking.total_subgroups,
           course: booking.course,
           meeting_point: booking.meeting_point,
@@ -1178,7 +1183,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       return group;
     }, {});
 
-    //Store ids that will be deleted
+    //Store ids that will be deleted (no monitor grouping)
     let groupedTaskIds = new Set();
 
     // Process each group to adjust overlapping tasks
@@ -1264,14 +1269,68 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       groupedByDate[date] = overlappingGroups.flat();
     });
 
+    const buildMonitorGroupKey = (task: any): string | null => {
+      if (task.course_id == null || task.monitor_id == null) {
+        return null;
+      }
+      const courseType = task.course?.course_type ?? task.course_type ?? null;
+      const baseKey = courseType == 1
+        ? `${task.course_id}-${task.hour_start}-${task.hour_end}`
+        : `${task.course_id}-${task.hour_start}-${task.hour_end}-${task.group_id}`;
+      return `${task.monitor_id}-${task.date}-${baseKey}`;
+    };
+
+    const buildMonitorTaskKey = (task: any): string => {
+      const bookingId = task?.booking_id ?? task?.id ?? 'none';
+      const date = task?.date ?? 'no-date';
+      const start = task?.hour_start ?? 'no-start';
+      const monitorId = task?.monitor_id ?? 'no-monitor';
+      const subgroupId = task?.course_subgroup_id ?? task?.subgroup_id ?? 'no-subgroup';
+      return `${bookingId}-${date}-${start}-${monitorId}-${subgroupId}`;
+    };
+
     // Remove the original tasks that were grouped -> NOT THE ONES THAT ALREADY HAVE MONITOR
     const filteredPlannerTasks = plannerTasks.filter(task =>
       !groupedTaskIds.has(task.booking_id) ||
       (groupedTaskIds.has(task.booking_id) && task.monitor_id)
     );
 
+    // Group overlapping tasks per monitor (same behavior as "no monitor" column)
+    const groupedMonitorTasks: any[] = [];
+    const groupedMonitorTaskKeys = new Set<string>();
+    const monitorTasks = filteredPlannerTasks.filter(task => task.monitor_id != null);
+    const groupedByMonitor = monitorTasks.reduce((group, task) => {
+      const key = buildMonitorGroupKey(task);
+      if (!key) {
+        return group;
+      }
+      (group[key] = group[key] || []).push(task);
+      return group;
+    }, {});
+
+    Object.keys(groupedByMonitor).forEach(key => {
+      const tasksForKey = groupedByMonitor[key] || [];
+      if (tasksForKey.length <= 1) {
+        return;
+      }
+      const baseTask = { ...tasksForKey[0], grouped_tasks: tasksForKey };
+      groupedMonitorTasks.push(baseTask);
+      tasksForKey.forEach(task => groupedMonitorTaskKeys.add(buildMonitorTaskKey(task)));
+    });
+
+    const finalPlannerTasks = filteredPlannerTasks.filter(task => {
+      if (task.monitor_id == null) {
+        return true;
+      }
+      return !groupedMonitorTaskKeys.has(buildMonitorTaskKey(task));
+    });
+
     // Combine adjusted tasks with the rest
-    this.plannerTasks = [...filteredPlannerTasks, ...Object.values(groupedByDate).flat()];
+    this.plannerTasks = [
+      ...finalPlannerTasks,
+      ...Object.values(groupedByDate).flat(),
+      ...groupedMonitorTasks
+    ];
     this.bumpMonitorOptionsVersion();
     this.loading = false;
   }
@@ -1740,8 +1799,28 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   getBirthYears(date: string) {
+    if (!date) {
+      return null;
+    }
     const birthDate = moment(date);
-    return moment().diff(birthDate, 'years');
+    if (!birthDate.isValid()) {
+      return null;
+    }
+    const years = moment().diff(birthDate, 'years');
+    return years > 0 ? years : null;
+  }
+
+  resolveBirthDate(entity: any): string | null {
+    if (!entity) {
+      return null;
+    }
+    return entity.birth_date
+      ?? entity.birthDate
+      ?? entity.birth_date_formatted
+      ?? entity.birthDateFormatted
+      ?? entity.user?.birth_date
+      ?? entity.user?.birthDate
+      ?? null;
   }
 
   getLanguageById(languageId: number): string {
@@ -3186,6 +3265,102 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       const idx = orderedIds.indexOf(targetId);
       if (idx >= 0) {
         return String(idx + 1);
+      }
+    }
+
+    return null;
+  }
+
+  private resolveBookingSubgroupOrder(booking: any): number | null {
+    if (!booking) {
+      return null;
+    }
+    const subgroupId = booking.course_subgroup_id
+      ?? booking.subgroup_id
+      ?? booking?.booking_users?.[0]?.course_subgroup_id
+      ?? null;
+    if (!subgroupId) {
+      return null;
+    }
+
+    const course = booking.course ?? booking.courseGroup?.course ?? booking.course_group?.course ?? null;
+    if (!course) {
+      return null;
+    }
+
+    const normalizeId = (value: any) => (value == null ? null : Number(value));
+    const targetId = normalizeId(subgroupId);
+    if (targetId == null || Number.isNaN(targetId)) {
+      return null;
+    }
+
+    const matchInContainer = (container: any): number | null => {
+      if (!container) {
+        return null;
+      }
+      const subgroups = container?.course_subgroups ?? container?.courseSubgroups ?? container?.subgroups ?? [];
+      const idx = subgroups.findIndex((sub: any) => normalizeId(sub?.id) === targetId);
+      return idx >= 0 ? idx + 1 : null;
+    };
+
+    const dateId = booking.course_date_id ?? null;
+    const dateValue = this.getDateStrFromAny(booking.date ?? booking.date_full ?? null);
+    const courseDates = course.course_dates ?? [];
+
+    for (const cd of courseDates) {
+      if (dateId != null && normalizeId(cd?.id) !== normalizeId(dateId)) {
+        continue;
+      }
+      if (dateId == null && dateValue) {
+        const cdDate = this.getDateStrFromAny(cd?.date ?? cd?.date_start ?? cd?.date_start_res ?? null);
+        if (cdDate && cdDate !== dateValue) {
+          continue;
+        }
+      }
+      const direct = matchInContainer(cd);
+      if (direct != null) {
+        return direct;
+      }
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      for (const group of groups) {
+        const order = matchInContainer(group);
+        if (order != null) {
+          return order;
+        }
+      }
+    }
+
+    const courseGroups = course.course_groups ?? [];
+    for (const group of courseGroups) {
+      const order = matchInContainer(group);
+      if (order != null) {
+        return order;
+      }
+    }
+
+    const ids = new Set<number>();
+    const collectFromContainer = (container: any) => {
+      const subgroups = container?.course_subgroups ?? container?.courseSubgroups ?? container?.subgroups ?? [];
+      subgroups.forEach((sub: any) => {
+        const id = normalizeId(sub?.id);
+        if (id != null && !Number.isNaN(id)) {
+          ids.add(id);
+        }
+      });
+    };
+
+    courseGroups.forEach(collectFromContainer);
+    courseDates.forEach((cd: any) => {
+      collectFromContainer(cd);
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      groups.forEach(collectFromContainer);
+    });
+
+    if (ids.size) {
+      const ordered = Array.from(ids).sort((a, b) => a - b);
+      const idx = ordered.indexOf(targetId);
+      if (idx >= 0) {
+        return idx + 1;
       }
     }
 

@@ -310,8 +310,10 @@
                     </div>
                     <div
                       *ngIf="(task.type === 'private' || task.type === 'activity')">{{getLanguageById(task.all_clients[0].client.language1_id)}}
-                      ·{{getBirthYears(task.all_clients[0].client.birth_date)}}
-                      {{'years' |translate}}</div>
+                      <ng-container *ngIf="getBirthYears(task.all_clients[0].client.birth_date) as years">
+                        - {{years}} {{'years' |translate}}
+                      </ng-container>
+                    </div>
                   </div>
                   <div
                     *ngIf="task.type=='collective' || task.type=='private' || task.type=='activity'"
@@ -868,8 +870,7 @@
                           {{getLanguageById(client.client.language3_id)}} ·
                         </ng-container>
                         {{getCountryById(client.client.country)}} ·
-                        {{getBirthYears(client.client.birth_date)}} {{'years'
-                        |translate}}
+                        <ng-container *ngIf="getBirthYears(client.client.birth_date) as years">{{years}} {{'years' | translate }}</ng-container>
                       </div>
                       <div style="display: flex;">
                         <vex-icon src="chat">
@@ -943,8 +944,7 @@
                       {{getLanguageById(client.client.language3_id)}} ·
                     </ng-container>
                     {{getCountryById(client.client.country)}} ·
-                    {{getBirthYears(client.client.birth_date)}} {{'years'
-                    |translate}}
+                        <ng-container *ngIf="getBirthYears(client.client.birth_date) as years">{{years}} {{'years' | translate }}</ng-container>
                   </span>
                   <div style="display: flex;">
                     <vex-icon src="chat">
@@ -1007,8 +1007,10 @@
                         {{getLanguageById(taskDetail.monitor.language1_id)}} ·
                       </ng-container>
                       {{getCountryById(taskDetail.monitor.country)}} ·
-                      {{getBirthYears(taskDetail.monitor.birth_date)}} {{'years'
-                      | translate }}
+                      <ng-container *ngIf="getBirthYears(resolveBirthDate(taskDetail.monitor)) as years; else monitorAgeUnknown">
+                        {{years}} {{'years' | translate }}
+                      </ng-container>
+                      <ng-template #monitorAgeUnknown>N/D</ng-template>
                     </div>
                     <div style="display: flex;">
                       <vex-icon src="chat">
@@ -1202,8 +1204,7 @@
                           {{getLanguageById(client.client.language3_id)}} ·
                         </ng-container>
                         {{getCountryById(client.client.country)}} ·
-                        {{getBirthYears(client.client.birth_date)}} {{'years'
-                        |translate}}
+                        <ng-container *ngIf="getBirthYears(client.client.birth_date) as years">{{years}} {{'years' | translate }}</ng-container>
                       </div>
                       <div style="display: flex;">
                         <vex-icon src="chat">
@@ -1426,8 +1427,10 @@
                     {{getLanguageById(blockDetail.monitor.language1_id)}} ·
                   </ng-container>
                   {{getCountryById(blockDetail.monitor.country)}} ·
-                  {{getBirthYears(blockDetail.monitor.birth_date)}}
-                  &ensp;{{'years' | translate}}
+                  <ng-container *ngIf="getBirthYears(resolveBirthDate(blockDetail.monitor)) as years; else blockMonitorAgeUnknown">
+                    {{years}} &ensp;{{'years' | translate}}
+                  </ng-container>
+                  <ng-template #blockMonitorAgeUnknown>N/D</ng-template>
 
                 </span>
               </div>
@@ -1456,3 +1459,6 @@
   </vex-page-layout-content>
 
 </vex-page-layout>
+
+
+

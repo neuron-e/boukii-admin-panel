@@ -238,19 +238,42 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     if (!subgroup) {
       return null;
     }
-    const key = typeof subgroup.key === 'string' ? subgroup.key.trim() : '';
-    if (key) {
-      return key;
-    }
+    const groupId = this.normalizeId(
+      subgroup.course_group_id ?? subgroup.group_id ?? subgroup.course_group?.id ?? this.group?.id
+    );
+    const groupPrefix = groupId ? `g${groupId}-` : '';
     const subgroupDatesId = subgroup.subgroup_dates_id ?? subgroup.subgroupDatesId;
     if (subgroupDatesId != null && String(subgroupDatesId).trim()) {
-      return `sgd-${String(subgroupDatesId).trim()}`;
+      return `${groupPrefix}sgd-${String(subgroupDatesId).trim()}`;
+    }
+    const key = typeof subgroup.key === 'string' ? subgroup.key.trim() : '';
+    if (key) {
+      return `${groupPrefix}key-${key}`;
     }
     const candidateId = subgroup.id ?? subgroup.course_subgroup_id ?? subgroup.subgroup_id;
     if (candidateId != null && String(candidateId).trim()) {
-      return `sg-${String(candidateId).trim()}`;
+      return `${groupPrefix}sg-${String(candidateId).trim()}`;
     }
     return null;
+  }
+
+  private buildSubgroupGroupMap(date: any): Map<string, string> {
+    const map = new Map<string, string>();
+    const groups = this.toArray(date?.course_groups || date?.courseGroups);
+    groups.forEach((group: any) => {
+      const groupId = this.normalizeId(group?.id ?? group?.course_group_id ?? group?.group_id);
+      if (!groupId) {
+        return;
+      }
+      const subgroups = this.toArray(group?.course_subgroups || group?.courseSubgroups);
+      subgroups.forEach((sg: any) => {
+        const sgId = this.normalizeId(sg?.id ?? sg?.course_subgroup_id ?? sg?.subgroup_id);
+        if (sgId) {
+          map.set(sgId, groupId);
+        }
+      });
+    });
+    return map;
   }
 
   private getTargetSubgroupIdentity(): string | null {
@@ -1103,13 +1126,31 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
   private collectSubgroupIds(indexes: number[]): number[] {
     const dates = this.getCourseDates();
     const ids = new Set<number>();
+    const targetKey = this.getTargetSubgroupIdentity();
 
     indexes.forEach(idx => {
       const date = dates[idx];
       if (!date) {
         return;
       }
-      const subgroup = this.getSubgroupForDate(date);
+      let subgroup = this.getSubgroupForDate(date);
+      if (targetKey) {
+        const subgroupGroupMap = this.buildSubgroupGroupMap(date);
+        const candidates = this.toArray(date?.course_subgroups || date?.courseSubgroups).map((sg: any) => {
+          const sgId = this.normalizeId(sg?.id ?? sg?.course_subgroup_id ?? sg?.subgroup_id);
+          if (!sgId) {
+            return sg;
+          }
+          const sgGroupId = this.normalizeId(
+            sg?.course_group_id ?? sg?.group_id ?? sg?.course_group?.id ?? subgroupGroupMap.get(sgId)
+          );
+          return sgGroupId ? { ...sg, course_group_id: sgGroupId } : sg;
+        });
+        const match = this.findSubgroupByIdentity(candidates, targetKey);
+        if (match) {
+          subgroup = match;
+        }
+      }
       if (subgroup?.id) {
         ids.add(subgroup.id);
       }
@@ -1127,7 +1168,9 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
     const { startDate, endDate } = this.resolveAssignmentDateRangeFromIndexes(indexes);
     const courseDates = this.getCourseDates();
     const primaryDate = courseDates[indexes[0]] || null;
-    const subgroup = this.getSubgroupForDate(primaryDate);
+    const cachedSubgroup = this.getCachedSubgroupByIndex(this.subgroup_index);
+    const fallbackSubgroup = cachedSubgroup ?? this.group?.course_subgroups?.[this.subgroup_index];
+    const subgroup = this.getSubgroupForDate(primaryDate) ?? fallbackSubgroup;
     const courseId = this.courseFormGroup?.controls['id']?.value ?? null;
     const subgroupIds = this.collectSubgroupIds(indexes);
     const scopeToUse = scopeOverride ?? this.assignmentScope;
@@ -2161,11 +2204,21 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
   getSubgroupForDate(date: any): any | null {
     if (!date || !this.level?.id) return null;
     const degreeId = this.normalizeId(this.level.id);
+    const groupId = this.normalizeId(this.group?.id ?? this.group?.course_group_id ?? this.group?.group_id);
     const targetKey = this.getTargetSubgroupIdentity();
+    const subgroupGroupMap = this.buildSubgroupGroupMap(date);
 
     const dateId = date?.id ?? null;
     const dateLevelSubgroups = this.toArray(date?.course_subgroups || date?.courseSubgroups)
       .filter((sg: any) => this.normalizeId(sg?.degree_id ?? sg?.degreeId) === degreeId)
+      .filter((sg: any) => {
+        if (!groupId) return true;
+        const sgId = this.normalizeId(sg?.id ?? sg?.course_subgroup_id ?? sg?.subgroup_id);
+        const sgGroupId = this.normalizeId(
+          sg?.course_group_id ?? sg?.group_id ?? sg?.course_group?.id ?? (sgId ? subgroupGroupMap.get(sgId) : null)
+        );
+        return !sgGroupId || sgGroupId === groupId;
+      })
       .filter((sg: any) => {
         const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
         return !dateId || !sgDateId || sgDateId === dateId;
@@ -2180,8 +2233,10 @@ export class FluxDisponibilidadComponent implements OnInit, OnDestroy, OnChanges
       return dateLevelSubgroups[this.subgroup_index];
     }
 
-    const group = (date?.course_groups || [])
-      .find((g: any) => this.normalizeId(g?.degree_id ?? g?.degreeId) === degreeId);
+    const groups = this.toArray(date?.course_groups || date?.courseGroups);
+    const group = groupId
+      ? groups.find((g: any) => this.normalizeId(g?.id ?? g?.course_group_id ?? g?.group_id) === groupId)
+      : groups.find((g: any) => this.normalizeId(g?.degree_id ?? g?.degreeId) === degreeId);
     const groupSubgroups = this.toArray(group?.course_subgroups || group?.courseSubgroups)
       .filter((sg: any) => {
         const sgDateId = sg?.course_date_id ?? sg?.courseDateId ?? null;
