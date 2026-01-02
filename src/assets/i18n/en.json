@@ -1,4 +1,4 @@
-{
+﻿{
   "Additional Options": "[TRADUCIR EN] Opciones Adicionales",
   "All Course Types": "[TRADUCIR EN] Todos los Tipos de Curso",
   "Allow this voucher to be transferred to another client": "[TRADUCIR EN] Permitir transferir este bono a otro cliente",
@@ -1467,6 +1467,9 @@
   "preferred_chart_types": "Preferred Chart Types",
   "present_course_day": "Present on the course day",
   "preset_ranges": "Preset Ranges",
+  "filter_by": "Filter by",
+  "filter_by_booking_created": "Booking created date",
+  "filter_by_activity_dates": "Activity dates",
   "preview_sample_email": "jane@example.com",
   "preview_sample_name": "Jane Smith",
   "preview_sample_school": "Boukii School",
@@ -1875,7 +1878,7 @@
   "top_performing_courses": "Top Performing Courses",
   "total": "Total",
   "total_bookings": "Total Bookings",
-  "total_clients": "Total Clients",
+  "total_clients": "Customers (bookers)",
   "total_cost": "Total Cost",
   "total_cost_lowercase": "total cost",
   "total_days_worked": "Total days worked",
@@ -1883,9 +1886,10 @@
   "total_income": "Total Income",
   "total_lowercase": "total",
   "total_occupancy": "Total Occupancy",
-  "total_participants": "Total Participants",
+  "total_participants": "Participants (unique)",
   "total_refunds": "Total Refunds",
   "total_revenue": "Total Revenue",
+  "collected_label": "Collected",
   "transactions": "Transactions",
   "transferred_vouchers": "Transferred vouchers",
   "translate_ia": "Translate automatically",
@@ -2013,3 +2017,4 @@
   "booking.price_mismatch.reason_fallback": "At least one activity used a fallback price because the course price range did not match its duration/participants.",
   "registered_correctly": "Registered correctly"
 }
+

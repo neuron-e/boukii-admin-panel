@@ -602,8 +602,12 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
           if (Array.isArray(bookingArray) && bookingArray.length > 0) {
 
-            //Check if private bookings have the the same hours - and group them
-            if ((bookingArray[0].course.course_type === 2 || bookingArray[0].course.course_type === 3) && bookingArray.length > 1) {
+            const courseType = bookingArray[0].course.course_type;
+            // Private bookings should never group (even with same hours).
+            if (courseType === 2) {
+              bookingArrayComplete = bookingArray.map(item => [item]);
+            } else if (courseType === 3 && bookingArray.length > 1) {
+              // Activity bookings keep time grouping.
               const groupedByTime = bookingArray.reduce((acc, curr) => {
                 const timeKey = `${curr.hour_start}-${curr.hour_end}`;
                 if (!acc[timeKey]) {
@@ -615,7 +619,6 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
               for (const group in groupedByTime) {
                 bookingArrayComplete.push(groupedByTime[group]);
               }
-
             } else {
               bookingArrayComplete.push(bookingArray);
             }

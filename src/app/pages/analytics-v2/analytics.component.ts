@@ -1,4 +1,4 @@
-import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
+ï»¿import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
 import {Router} from '@angular/router';
 import {TranslateService} from '@ngx-translate/core';
@@ -372,6 +372,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       startDate: new FormControl(startDate),
       endDate: new FormControl(endDate),
       presetRange: new FormControl(''),
+      dateFilter: new FormControl('created_at'),
       courseType: new FormControl([]),
       source: new FormControl([]),
       paymentMethod: new FormControl([]),
@@ -491,6 +492,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       school_id: this.user?.schools?.[0]?.id ?? this.user?.school?.id ?? null,
       start_date: formValue.startDate,
       end_date: formValue.endDate,
+      date_filter: formValue.dateFilter,
       include_test_detection: formValue.includeTestDetection,
       include_payrexx_analysis: formValue.includePayrexxAnalysis,
       optimization_level: formValue.optimizationLevel
@@ -574,7 +576,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
           break;
       }
     } catch (error) {
-      console.error('ƒ?O Error creating charts:', error);
+      console.error('ï¿½?O Error creating charts:', error);
     }
   }
 
@@ -1565,7 +1567,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => this.createChartsForTab(this.activeTab), 100);
       },
       error: (error) => {
-        console.error('ƒ?O Error loading full analytics data:', error);
+        console.error('ï¿½?O Error loading full analytics data:', error);
         this.fullDashboardLoading = false;
         this.resetTabLoading();
         this.cdr.detectChanges();
@@ -1723,8 +1725,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     csvContent += `"Ingresos Totales","${this.formatCurrencyForCsv(this.dashboardData?.executive_kpis?.revenue_expected)}"\n`;
     csvContent += `"Reservas Totales","${this.dashboardData?.season_info?.total_bookings || 0}"\n`;
     csvContent += `"Ingresos Pendientes","${this.formatCurrencyForCsv(this.dashboardData?.executive_kpis?.revenue_pending)}"\n`;
-    csvContent += `"Participantes Totales","${this.dashboardData?.executive_kpis?.total_participants || 0}"\n`;
-    csvContent += `"Clientes Totales","${this.dashboardData?.executive_kpis?.total_clients || 0}"\n\n`;
+    csvContent += `"Participantes (Ãºnicos)","${this.dashboardData?.executive_kpis?.total_participants || 0}"\n`;
+    csvContent += `"Clientes (compradores)","${this.dashboardData?.executive_kpis?.total_clients || 0}"\n\n`;
 
     // Revenue by Month
     if (this.dashboardData?.trend_analysis?.monthly_breakdown?.length) {
@@ -2051,6 +2053,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }).format(value / 100);
   }
 }
+
 
 
 

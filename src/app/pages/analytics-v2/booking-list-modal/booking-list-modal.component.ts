@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+﻿import { Component, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 @Component({
@@ -380,12 +380,14 @@ export class BookingListModalComponent {
   searchTerm = '';
   filteredBookings: any[] = [];
   displayedColumns: string[] = [];
+  currencyCode = 'CHF';
 
   constructor(
     public dialogRef: MatDialogRef<BookingListModalComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any
   ) {
     this.filteredBookings = [...(this.data.bookings || [])];
+    this.currencyCode = this.data?.currency || 'CHF';
     this.setupColumns();
   }
 
@@ -456,16 +458,14 @@ export class BookingListModalComponent {
 
   // 💰 FORMATEAR CURRENCY
   formatCurrency(amount: number | null | undefined): string {
-    if (amount === null || amount === undefined || isNaN(amount)) {
-      return '0,00 €';
-    }
+    const safeAmount = amount === null || amount === undefined || isNaN(amount) ? 0 : amount;
 
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
-      currency: 'EUR',
+      currency: this.currencyCode,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(amount);
+    }).format(safeAmount);
   }
 
   // 🏷️ OBTENER NOMBRE DEL ESTADO
@@ -589,3 +589,4 @@ export class BookingListModalComponent {
     this.applyFilter();
   }
 }
+

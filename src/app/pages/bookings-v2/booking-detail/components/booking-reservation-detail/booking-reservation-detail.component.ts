@@ -535,7 +535,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   getStoredTotal(): number {
-    return this.parseNumber(this.bookingData?.price_total);
+    return Math.max(0, this.parseNumber(this.bookingData?.price_total));
   }
 
   getOriginalTotal(): number {

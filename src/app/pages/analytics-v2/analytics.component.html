@@ -1,4 +1,4 @@
-<vex-page-layout>
+﻿<vex-page-layout>
   <vex-secondary-toolbar current>
   <vex-breadcrumbs [crumbs]="[
       {icon:'analytics'},
@@ -53,6 +53,14 @@
                 <mat-label>{{ 'end_date' | translate }}</mat-label>
                 <input matInput type="date" formControlName="endDate">
                 <mat-icon matSuffix>calendar_today</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="filter-field">
+                <mat-label>{{ 'filter_by' | translate }}</mat-label>
+                <mat-select formControlName="dateFilter">
+                  <mat-option value="created_at">{{ 'filter_by_booking_created' | translate }}</mat-option>
+                  <mat-option value="activity">{{ 'filter_by_activity_dates' | translate }}</mat-option>
+                </mat-select>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="filter-field">
@@ -229,6 +237,7 @@
                   [kpiData]="{
         title: 'total_revenue' | translate,
         value: dashboardData.executive_kpis.revenue_expected,
+        subtitle: ('collected_label' | translate) + ': ' + (dashboardData.executive_kpis.revenue_received | currency:currency),
         format: 'currency',
         currency: currency,
         trend: getTrend(dashboardData.executive_kpis.revenue_expected, 0),
@@ -892,3 +901,5 @@
 
   </vex-page-layout-content>
 </vex-page-layout>
+
+

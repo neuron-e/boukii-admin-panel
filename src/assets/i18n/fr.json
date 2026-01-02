@@ -1,4 +1,4 @@
-{
+﻿{
   "Additional Options": "Options supplementaires",
   "All Course Types": "[TRADUCIR FR] Todos los Tipos de Curso",
   "Allow this voucher to be transferred to another client": "[TRADUCIR FR] Permitir transferir este bono a otro cliente",
@@ -1490,6 +1490,9 @@
   "preferred_chart_types": "Types de Graphiques Préférés",
   "present_course_day": "Présent le jour du cours",
   "preset_ranges": "Plages Prédéfinies",
+  "filter_by": "Filtrer par",
+  "filter_by_booking_created": "Date de création",
+  "filter_by_activity_dates": "Dates d'activité",
   "preview_sample_email": "marie@example.com",
   "preview_sample_name": "Marie Dupont",
   "preview_sample_school": "École Boukii",
@@ -1907,7 +1910,7 @@
   "top_performing_courses": "Meilleurs cours",
   "total": "Total",
   "total_bookings": "Total Réservations",
-  "total_clients": "Total Clients",
+  "total_clients": "Clients (acheteurs)",
   "total_cost": "Coût total",
   "total_cost_lowercase": "coût total",
   "total_days_worked": "Total de jours travaillés",
@@ -1915,9 +1918,10 @@
   "total_income": "Revenu total",
   "total_lowercase": "totaux",
   "total_occupancy": "Occupation Totale",
-  "total_participants": "Total Participants",
+  "total_participants": "Participants (uniques)",
   "total_refunds": "Remboursements Totaux",
   "total_revenue": "Revenus Totals",
+  "collected_label": "Encaissé",
   "transactions": "Transactions",
   "transfer": "Transférer",
   "transferred_vouchers": "Bons transférés",
@@ -2047,6 +2051,7 @@
   "booking.price_mismatch.reason_fallback": "Au moins une activité a utilisé un prix de secours car le price range du cours ne correspond pas à la durée/participants.",
   "registered_correctly": "Enregistré correctement"
 }
+
 
 
 
