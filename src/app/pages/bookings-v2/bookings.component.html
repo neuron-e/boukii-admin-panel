@@ -197,7 +197,7 @@
             </div>
             <div class="col-right">
               <b>
-                {{ (bUsers.totalAfterDiscount ?? bUsers.price) | number:'0.2-2' }} {{ detailData?.currency }}
+                {{ (isCancelledBooking() ? 0 : (bUsers.totalAfterDiscount ?? bUsers.price)) | number:'0.2-2' }} {{ detailData?.currency }}
               </b>
             </div>
           </div>
@@ -304,7 +304,7 @@
                     <span class="hour">{{ 'subtotal' | translate }}</span>
                     <span class="price">
                       <span class="discounted-price">
-                        {{ (bUsers.totalAfterDiscount ?? bUsers?.price) | number:'0.2-2' }} {{ detailData?.currency }}
+                        {{ (isCancelledBooking() || bUsers.status === 2 ? 0 : (bUsers.totalAfterDiscount ?? bUsers?.price)) | number:'0.2-2' }} {{ detailData?.currency }}
                       </span>
                     </span>
                   </div>
@@ -647,10 +647,15 @@
 					<div class="col-right">
 						<ul>
 							<li class="total">
-								{{detailData?.price_total | number:'0.2-2'}} {{detailData?.currency}}
+								{{ getPreviewDisplayTotal() | number:'0.2-2' }} {{detailData?.currency}}
 							</li>
 						</ul>
 					</div>
+				</div>
+				<div class="total-original-line" *ngIf="isCancelledBooking()">
+					<span>
+						{{ 'original_price' | translate }}: {{ getPreviewOriginalTotal() | number:'0.2-2' }} {{ detailData?.currency }}
+					</span>
 				</div>
 			</mat-card-content>
 		</mat-card>

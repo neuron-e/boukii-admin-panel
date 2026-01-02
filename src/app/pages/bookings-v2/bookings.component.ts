@@ -47,7 +47,7 @@ export class BookingsV2Component implements OnInit, OnChanges {
     if (originalRaw !== null && originalRaw !== undefined && originalRaw !== '') {
       const originalTotal = Number(originalRaw);
       if (!isNaN(originalTotal)) {
-        return originalTotal;
+        return Math.max(0, originalTotal);
       }
     }
     const computedTotal = booking.computed_total !== undefined ? Number(booking.computed_total) : NaN;
@@ -61,8 +61,8 @@ export class BookingsV2Component implements OnInit, OnChanges {
       }
     }
     const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
-    if (!isNaN(computedTotal)) return computedTotal;
-    if (!isNaN(basketTotal)) return basketTotal;
+    if (!isNaN(computedTotal)) return Math.max(0, computedTotal);
+    if (!isNaN(basketTotal)) return Math.max(0, basketTotal);
     return 0;
   }
 
@@ -138,6 +138,8 @@ export class BookingsV2Component implements OnInit, OnChanges {
           && this.detailData?.price_total !== '';
         if (!hasStoredTotal) {
           this.detailData.price_total = displayTotal;
+        } else if (Number(this.detailData?.price_total) < 0) {
+          this.detailData.price_total = Math.max(0, Number(displayTotal));
         }
 
         // Ordenar los usuarios de la reserva
@@ -176,6 +178,8 @@ export class BookingsV2Component implements OnInit, OnChanges {
           && this.detailData?.price_total !== '';
         if (!hasStoredTotal) {
           this.detailData.price_total = displayTotal;
+        } else if (Number(this.detailData?.price_total) < 0) {
+          this.detailData.price_total = Math.max(0, Number(displayTotal));
         }
         this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
         this.getUniqueBookingUsers(this.detailData.bookingusers);
@@ -681,7 +685,37 @@ export class BookingsV2Component implements OnInit, OnChanges {
     return this.resolveDisplayTotal(this.detailData) <= 0.01;
   }
 
+  isCancelledBooking(): boolean {
+    return this.detailData?.status === 2;
+  }
+
+  getPreviewDisplayTotal(): number {
+    if (this.isCancelledBooking()) {
+      return 0;
+    }
+    return this.resolveDisplayTotal(this.detailData);
+  }
+
+  getPreviewOriginalTotal(): number {
+    if (this.isFreeBooking()) {
+      return 0;
+    }
+    const original = this.parseNumber(this.detailData?.original_price);
+    if (original > 0) {
+      return Math.max(0, original);
+    }
+    const stored = this.resolveDisplayTotal(this.detailData);
+    if (stored > 0) {
+      return stored;
+    }
+    const reduction = Math.abs(this.parseNumber(this.detailData?.price_reduction));
+    return reduction > 0 ? reduction : 0;
+  }
+
   getPreviewPaidLabel(): string {
+    if (this.isCancelledBooking()) {
+      return 'cancelled';
+    }
     if (this.isFreeBooking()) {
       return 'booking_free_short';
     }
@@ -795,8 +829,11 @@ export class BookingsV2Component implements OnInit, OnChanges {
         const hasStoredTotal = booking?.price_total !== null
           && booking?.price_total !== undefined
           && booking?.price_total !== '';
+        const normalizedTotal = Math.max(0, Number(displayTotal));
         if (!hasStoredTotal) {
-          booking.price_total = displayTotal;
+          booking.price_total = normalizedTotal;
+        } else if (Number(booking.price_total) < 0) {
+          booking.price_total = normalizedTotal;
         }
       });
     }

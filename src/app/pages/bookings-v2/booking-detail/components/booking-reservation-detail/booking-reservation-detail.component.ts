@@ -316,7 +316,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     // Preferir total proveniente de backend (ya neto de descuentos)
     const backendTotal = Number(this.bookingData?.price_total);
     if (!isNaN(backendTotal)) {
-      return Number(backendTotal.toFixed(2));
+      return Number(Math.max(0, backendTotal).toFixed(2));
     }
 
     this.recalculateTva();
@@ -329,7 +329,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     const tva = this.bookingData?.has_tva ? Number(this.bookingData.price_tva || 0) : 0;
 
     const total = base + insurance - reduction - discountCodeValue + boukiiCare + tva;
-    return Number((isNaN(total) ? 0 : total).toFixed(2));
+    return Number((isNaN(total) ? 0 : Math.max(0, total)).toFixed(2));
   }
 
   private getBaseTotalBeforeDiscountCode(): number {
@@ -453,6 +453,9 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     this.bookingService.setBookingData(this.bookingData);
     const pending = this.bookingService.calculatePendingPrice();
     return Number((pending < 0 ? 0 : pending).toFixed(2));*/
+    if (this.isCancelledBooking()) {
+      return 0;
+    }
     const total = this.getFinalTotal();
     const vouchers = this.calculateTotalVoucherPrice();
     const outstanding = total - vouchers;
@@ -485,7 +488,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
 
   private refreshDisplayTotals(): void {
     this.displayTotal = this.getFinalTotal();
-    this.displayOutstanding = this.getOutstandingTotal();
+    this.displayOutstanding = this.isCancelledBooking() ? 0 : this.getOutstandingTotal();
   }
 
   toggleMeetingPoint(): void {
@@ -514,6 +517,10 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     return this.getFinalTotal() <= 0.01;
   }
 
+  isCancelledBooking(): boolean {
+    return this.bookingData?.status === 2;
+  }
+
   getFreeReductionAmount(): number {
     const reduction = this.parseNumber(this.bookingData?.price_reduction);
     if (reduction > 0) {
@@ -531,6 +538,22 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     return this.parseNumber(this.bookingData?.price_total);
   }
 
+  getOriginalTotal(): number {
+    if (this.isFreeBooking()) {
+      return 0;
+    }
+    const original = this.parseNumber(this.bookingData?.original_price);
+    if (original > 0) {
+      return Math.max(0, original);
+    }
+    const stored = this.getStoredTotal();
+    if (stored > 0) {
+      return Math.max(0, stored);
+    }
+    const reduction = Math.abs(this.parseNumber(this.bookingData?.price_reduction));
+    return reduction > 0 ? reduction : 0;
+  }
+
   getComputedSubtotal(): number {
     return this.getComputedExpectedTotal();
   }
@@ -541,6 +564,9 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   hasPriceMismatch(): boolean {
+    if (this.isCancelledBooking()) {
+      return false;
+    }
     return Math.abs(this.getPriceMismatch()) >= 0.01;
   }
 
@@ -583,7 +609,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       ? this.parseNumber(this.bookingData?.price_tva)
       : 0;
     const total = base + insurance - reduction - discountCodeValue + boukiiCare + tva;
-    return Number((isNaN(total) ? 0 : total).toFixed(2));
+    return Number((isNaN(total) ? 0 : Math.max(0, total)).toFixed(2));
   }
 
   isPriceMismatchUnderpaid(): boolean {
@@ -802,6 +828,16 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     return total + discount;
   }
 
+  getActivitySubtotalDisplay(activity: any): number {
+    if (activity?.status === 2) {
+      return 0;
+    }
+    const total = typeof activity?.total === 'number'
+      ? activity.total
+      : parseFloat(String(activity?.total || 0).replace(/[^\d.-]/g, '')) || 0;
+    return total;
+  }
+
   getPaymentLabel(payment: any): string {
     if (!payment) {
       return '';
@@ -835,3 +871,4 @@ openEditMeetingPointModal(): void {    const dialogRef = this.dialog.open(EditMe
   protected readonly parseFloat = parseFloat;
   protected readonly Math = Math;
 }
+

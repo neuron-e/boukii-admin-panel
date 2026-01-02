@@ -209,7 +209,7 @@
           <div>
             <span class="hour" style="font-weight: 600;">{{ 'subtotal' | translate }}</span>
             <span class="price">
-              <span class="discounted-price">{{ activity.total | number:'0.2-2' }} {{ getActivitiesCurrency() }}</span>
+              <span class="discounted-price">{{ getActivitySubtotalDisplay(activity) | number:'0.2-2' }} {{ getActivitiesCurrency() }}</span>
             </span>
           </div>
         </div>
@@ -253,7 +253,7 @@
     <div class="section" style="margin-bottom: 0;border: none;">
       <div class="dateRow">
         <div>
-          <span class="hour" *ngIf="!bookingData.paid"
+          <span class="hour" *ngIf="!bookingData.paid && !isCancelledBooking()"
                 (click)="openDiscountCodeModal()" style="
             color: #E91E63;
              font-size: 14px;
@@ -268,7 +268,7 @@
 
           <span style="width: 100%; float:left" *ngIf="bookingData.discount_code_value && bookingData.discount_code_value > 0">
             			              <img class="icon24" style="float: left;color: red; cursor:pointer; display: inline-flex"
-                                     src="assets/icons/icon/delete.png" *ngIf="!bookingData.paid"
+                                     src="assets/icons/icon/delete.png" *ngIf="!bookingData.paid && !isCancelledBooking()"
                                      (click)="clearDiscountCode();">
             <p style="float:left">{{'discount_code' |translate}} {{ bookingData.discount_code }}</p>
             <p style="float:right">
@@ -282,7 +282,7 @@
       <div class="dateRow" *ngIf="(bookingData.price_reduction && bookingData.price_reduction > 0) || bookingData.reduction != null">
         <div>
           <span class="hour" (click)="addReduction()"
-                *ngIf="!bookingData.paid && bookingData.reduction == null && this.calculateTotalVoucherPrice()
+                *ngIf="!bookingData.paid && !isCancelledBooking() && bookingData.reduction == null && this.calculateTotalVoucherPrice()
             < bookingData.price_total && !bookingData.paid" style="
             color: #E91E63;
              font-size: 14px;
@@ -297,7 +297,7 @@
 
           <span style="width: 100%; float:left" *ngIf="bookingData.price_reduction && bookingData.price_reduction > 0;">
             			              <img class="icon24" style="float: left;color: red; cursor:pointer; display: inline-flex"
-                                     src="assets/icons/icon/delete.png" *ngIf="!bookingData.paid"
+                                     src="assets/icons/icon/delete.png" *ngIf="!bookingData.paid && !isCancelledBooking()"
                                      (click)="deleteReduction();">
             <p style="float:left">{{'reduction' |translate}}</p>
             <p style="float:right">
@@ -310,7 +310,7 @@
       <div class="dateRow">
         <div>
           <mat-checkbox color="primary" [(ngModel)]="bookingData.has_cancellation_insurance"
-                        (change)="calculateRem($event)" [disabled]="isNaN(this.cancellationInsurancePercent) || bookingData.paid"
+                        (change)="calculateRem($event)" [disabled]="isNaN(this.cancellationInsurancePercent) || bookingData.paid || isCancelledBooking()"
                         style="float: left;"></mat-checkbox>
           <span class="hour">
             {{ "op_rem" | translate }}
@@ -360,14 +360,19 @@
     {{ "bookings_page.description.total" | translate }}
     <ng-container>
       <span class="totalPrice">
-        {{ displayTotal  | number:'0.2-2'}}
+        {{ (isCancelledBooking() ? 0 : displayTotal)  | number:'0.2-2'}}
         {{ getActivitiesCurrency() }}
       </span>
     </ng-container>
-    <ng-container>
-      <span *ngIf="!bookingData.paid && displayOutstanding > 0">{{ "to_pay" | translate }}</span>
+    <ng-container *ngIf="isCancelledBooking()">
+      <span class="hour" style="display: block; font-size: 12px; color: #8a8a8a;">
+        {{ 'original_price' | translate }}: {{ getOriginalTotal() | number:'0.2-2' }} {{ getActivitiesCurrency() }}
+      </span>
     </ng-container>
-    <ng-container *ngIf="!bookingData.paid && displayOutstanding > 0">
+    <ng-container>
+      <span *ngIf="!bookingData.paid && displayOutstanding > 0 && !isCancelledBooking()">{{ "to_pay" | translate }}</span>
+    </ng-container>
+    <ng-container *ngIf="!bookingData.paid && displayOutstanding > 0 && !isCancelledBooking()">
       <span class="totalPrice" *ngIf="displayOutstanding != 0">
         {{ displayOutstanding  | number:'0.2-2' }}
         {{ getActivitiesCurrency() }}
@@ -390,38 +395,48 @@
       </div>
         <div class="dateRow" style="border-bottom: 1px solid #dee6ea; padding-bottom: 10px">
           <div>
-            <ng-container *ngIf="isFreeBooking(); else paymentStatus">
-              <span class="date" style="color:#2fca45">{{ 'booking_free' | translate }}</span>
+            <ng-container *ngIf="isCancelledBooking(); else bookingStatus">
+              <span class="date" style="color:#9E9E9E">{{ 'cancelled' | translate }}</span>
               <span class="price">
-                <span class="discounted-price" style="color:#2fca45">
+                <span class="discounted-price" style="color:#9E9E9E">
                   0.00 {{ getActivitiesCurrency() }}
                 </span>
               </span>
             </ng-container>
-            <ng-template #paymentStatus>
-              <span class="date" style="color:#2fca45"
-                    *ngIf="bookingData.paid || displayOutstanding <= 0">{{ "ispaid" | translate }}</span>
-              <span class="date" style="color:#FB9B1B"
-                    *ngIf="!bookingData.paid && displayOutstanding > 0">{{ "pending_payment" | translate | uppercase }}</span>
-              <span class="price">
-                <span class="discounted-price" style="color:#2fca45"
-                      *ngIf="bookingData.paid || displayOutstanding <= 0">
-                  {{ getPaidAmount()  | number:'0.2-2' }}
-                  {{ getActivitiesCurrency() }}
+            <ng-template #bookingStatus>
+              <ng-container *ngIf="isFreeBooking(); else paymentStatus">
+                <span class="date" style="color:#2fca45">{{ 'booking_free' | translate }}</span>
+                <span class="price">
+                  <span class="discounted-price" style="color:#2fca45">
+                    0.00 {{ getActivitiesCurrency() }}
+                  </span>
                 </span>
+              </ng-container>
+              <ng-template #paymentStatus>
+                <span class="date" style="color:#2fca45"
+                      *ngIf="bookingData.paid || displayOutstanding <= 0">{{ "ispaid" | translate }}</span>
+                <span class="date" style="color:#FB9B1B"
+                      *ngIf="!bookingData.paid && displayOutstanding > 0">{{ "pending_payment" | translate | uppercase }}</span>
+                <span class="price">
+                  <span class="discounted-price" style="color:#2fca45"
+                        *ngIf="bookingData.paid || displayOutstanding <= 0">
+                    {{ getPaidAmount()  | number:'0.2-2' }}
+                    {{ getActivitiesCurrency() }}
+                  </span>
 
-                <span class="discounted-price" style="color:#FB9B1B"
-                      *ngIf="!bookingData.paid && displayOutstanding > 0">
-                  {{ displayOutstanding | number:'0.2-2'}}
-                  {{ getActivitiesCurrency() }}
+                  <span class="discounted-price" style="color:#FB9B1B"
+                        *ngIf="!bookingData.paid && displayOutstanding > 0">
+                    {{ displayOutstanding | number:'0.2-2'}}
+                    {{ getActivitiesCurrency() }}
+                  </span>
                 </span>
-              </span>
+              </ng-template>
             </ng-template>
           </div>
         </div>
 
       <div *ngIf="showPaymentHistory">
-        <div class="dateRow" *ngIf="isFreeBooking()">
+        <div class="dateRow" *ngIf="isFreeBooking() && !isCancelledBooking()">
           <div>
             <span class="hour">{{ 'booking_free_detail' | translate:{ amount: getFreeReductionAmount() | number:'0.2-2', currency: getActivitiesCurrency() } }}</span>
           </div>
