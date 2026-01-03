@@ -603,9 +603,19 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
           if (Array.isArray(bookingArray) && bookingArray.length > 0) {
 
             const courseType = bookingArray[0].course.course_type;
-            // Private bookings should never group (even with same hours).
+            // Private bookings: group shared sessions (same group/date/time/monitor).
             if (courseType === 2) {
-              bookingArrayComplete = bookingArray.map(item => [item]);
+              const groupedBySession = bookingArray.reduce((acc, curr) => {
+                const groupId = curr.group_id ?? curr.course_group_id ?? curr.course_subgroup_id ?? curr.booking_id ?? curr.id;
+                const key = `${groupId}-${curr.date ?? ''}-${curr.hour_start}-${curr.hour_end}-${curr.monitor_id ?? 'no-monitor'}`;
+                if (!acc[key]) {
+                  acc[key] = [];
+                }
+                acc[key].push(curr);
+                return acc;
+              }, {});
+
+              bookingArrayComplete = Object.values(groupedBySession) as any[];
             } else if (courseType === 3 && bookingArray.length > 1) {
               // Activity bookings keep time grouping.
               const groupedByTime = bookingArray.reduce((acc, curr) => {

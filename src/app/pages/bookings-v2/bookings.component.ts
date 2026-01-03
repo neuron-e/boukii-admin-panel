@@ -617,7 +617,15 @@ export class BookingsV2Component implements OnInit, OnChanges {
     const uniqueEntriesMap = new Map();
 
     data.forEach((item: any) => {
-      const groupKey = item.group_id ?? item.course_group_id ?? item.course_subgroup_id ?? item.client_id;
+      let groupKey = item.group_id ?? item.course_group_id ?? item.course_subgroup_id ?? null;
+      if (groupKey == null && item?.course?.course_type === 2) {
+        const bookingKey = item.booking_id ?? item.id ?? 'booking';
+        const monitorKey = item.monitor_id ?? 'no-monitor';
+        groupKey = `${bookingKey}-${item.course_id}-${item.hour_start}-${item.hour_end}-${monitorKey}`;
+      }
+      if (groupKey == null) {
+        groupKey = item.client_id ?? item.course_id ?? 'unknown';
+      }
       const key = `${groupKey}-${item.course_id}`;
 
       if (!uniqueEntriesMap.has(key)) {
@@ -638,6 +646,30 @@ export class BookingsV2Component implements OnInit, OnChanges {
   private parseNumber(value: any): number {
     const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? '0'));
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  getPreviewParticipants(group: any): any[] {
+    const users = Array.isArray(group?.bookingusers) ? group.bookingusers : [];
+    const unique = new Map<number, any>();
+
+    users.forEach((user: any) => {
+      const client = user?.client;
+      if (client?.id == null) {
+        return;
+      }
+      if (!unique.has(client.id)) {
+        unique.set(client.id, client);
+      }
+    });
+
+    return Array.from(unique.values());
+  }
+
+  hasPreviewParticipantNotes(group: any, clientId: number): boolean {
+    const users = Array.isArray(group?.bookingusers) ? group.bookingusers : [];
+    return users.some((user: any) =>
+      user?.client_id === clientId && (user?.notes || user?.notes_school)
+    );
   }
 
   private toMinutes(timeValue: string | null | undefined): number | null {
@@ -670,6 +702,9 @@ export class BookingsV2Component implements OnInit, OnChanges {
         datesMap.set(dateKey, {
           price: 0,
           originalPrice: 0,
+          date: user?.date ?? null,
+          hour_start: user?.hour_start ?? null,
+          hour_end: user?.hour_end ?? null,
           interval_id: user?.course_date?.interval_id ?? user?.course_interval_id ?? user?.interval_id ?? null,
           interval_name: user?.course_date?.interval_name ?? user?.interval_name ?? null,
           currency: user?.currency ?? group?.currency ?? this.detailData?.currency ?? '',
@@ -718,6 +753,15 @@ export class BookingsV2Component implements OnInit, OnChanges {
           originalPrice: price
         };
       });
+      const previewDates = dates
+        .slice()
+        .sort((a: any, b: any) => {
+          const dateCompare = new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime();
+          if (dateCompare !== 0) {
+            return dateCompare;
+          }
+          return String(a.hour_start ?? '').localeCompare(String(b.hour_start ?? ''));
+        });
       const discountInfo = buildDiscountInfoList(group.course, dates);
       const discountAmount = discountInfo.reduce((sum: number, info: any) => {
         const amount = this.parseNumber(info?.amountSaved ?? 0);
@@ -731,7 +775,8 @@ export class BookingsV2Component implements OnInit, OnChanges {
         discountInfo,
         discountAmount,
         baseTotal,
-        totalAfterDiscount
+        totalAfterDiscount,
+        previewDates
       };
     });
   }

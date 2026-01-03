@@ -1,4 +1,4 @@
-<vex-page-layout>
+﻿<vex-page-layout>
 	<!-- <vex-secondary-toolbar>
     <vex-breadcrumbs
       [crumbs]="[{text: '', icon: 'reservas-2'}, {text: 'list', icon: ''}]"
@@ -241,9 +241,8 @@
                         </div>
                       </ng-container>
                       <ng-container *ngIf="bUsers?.course?.course_type !== 1">
-                        <!-- Para course_type distinto de 1 -->
-                        <ng-container *ngFor="let item of detailData?.bookingusers">
-                          <div *ngIf="item.client_id == bUsers.client_id && item.date == bUsers.date">
+                        <ng-container *ngFor="let item of bUsers?.previewDates">
+                          <div>
 														<span class="date-course">
 															<img class="icon-calendar"
                                    src="assets/img/icons/calendar-1.svg">
@@ -254,6 +253,9 @@
 															-
                               {{ item.hour_end }}h
 														</span>
+                            <span class="price">
+                              {{ item.price | number:'0.2-2' }} {{ item.currency || detailData?.currency }}
+                            </span>
                           </div>
                         </ng-container>
                       </ng-container>
@@ -322,56 +324,53 @@
                     {{'participant' | translate}}
                   </div>
                   <div class="holder-participante">
-                    <div class="col-left">
+                    <div class="col-left" *ngFor="let participant of getPreviewParticipants(bUsers)">
                       <div class="c-l">
                         <app-level-user *ngIf="detailData?.degrees_sport && detailData?.degrees_sport.length"
                                         [allLevels]="detailData?.degrees_sport"
-                                        [selectLevel]="getClientDegree(bUsers.client)"
+                                        [selectLevel]="getClientDegree(participant)"
                                         [size]="60"
-                                        [userImage]="bUsers?.client?.image !== null && bUsers?.client?.image !== '' ? bUsers?.client?.image : imageAvatar"></app-level-user>
+                                        [userImage]="participant?.image !== null && participant?.image !== '' ? participant?.image : imageAvatar"></app-level-user>
                       </div>
                       <div class="c-r">
                         <div class="course-title">
-                          {{bUsers?.client?.first_name}}
-                          {{bUsers?.client?.last_name}}
-                          <mat-icon color="warn" class="warning-icon" *ngIf="bUsers.notes || bUsers.notes_school">warning</mat-icon>
+                          {{participant?.first_name}}
+                          {{participant?.last_name}}
+                          <mat-icon color="warn" class="warning-icon" *ngIf="hasPreviewParticipantNotes(bUsers, participant?.id)">warning</mat-icon>
                         </div>
                         <div class="course-label">
-                          {{getLanguage(bUsers?.client?.language1_id)}}
-                          ·
-                          {{ getCountry(bUsers?.client?.country) }}
-                          ·
-                          {{calculateAge(bUsers?.client?.birth_date)}}
+                          {{getLanguage(participant?.language1_id)}}
+                          ú
+                          {{ getCountry(participant?.country) }}
+                          ú
+                          {{calculateAge(participant?.birth_date)}}
                           {{'years' | translate }}
                         </div>
-                        <div *ngIf="getClientDegreeObject(bUsers.client)"
-                             [style.background]="getClientDegreeObject(bUsers.client)?.color"
+                        <div *ngIf="getClientDegreeObject(participant)"
+                             [style.background]="getClientDegreeObject(participant)?.color"
                              class="placeLevel m-0 body-1">
-                          {{getClientDegreeObject(bUsers.client)?.annotation}}
-                          {{getClientDegreeObject(bUsers.client)?.name}}
+                          {{getClientDegreeObject(participant)?.annotation}}
+                          {{getClientDegreeObject(participant)?.name}}
                         </div>
-                        <div *ngIf="!getClientDegreeObject(bUsers.client)">
+                        <div *ngIf="!getClientDegreeObject(participant)">
                           {{"level"
                           | translate}} NDF
                         </div>
                         <div style="display: flex;">
                           <vex-icon src="chat"></vex-icon>
                           <vex-icon src="mail"
-                                    href="mailto:{{bUsers?.client?.email}}"
+                                    href="mailto:{{participant?.email}}"
                                     style="cursor:pointer"
-                                    title="{{bUsers?.client?.email}}">
+                                    title="{{participant?.email}}">
                           </vex-icon>
                           <vex-icon src="phone"
-                                    href="tel:{{bUsers?.client?.phone}}"
-                                    title="{{bUsers?.client?.phone}}">
+                                    href="tel:{{participant?.phone}}"
+                                    title="{{participant?.phone}}">
                           </vex-icon>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                <div>
                   <div class="subtitle">
                     <img class="icon-calendar"
                          src="assets/img/icons/monitores-3.svg">
@@ -661,3 +660,9 @@
 		</mat-card>
 	</vex-page-layout-content>
 </vex-page-layout>
+
+
+
+
+
+
