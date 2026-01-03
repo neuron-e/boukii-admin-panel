@@ -11,6 +11,7 @@ import { map } from 'rxjs/operators';
 import { forkJoin } from 'rxjs';
 import { LayoutService } from 'src/@vex/services/layout.service';
 import { buildDiscountInfoList } from 'src/app/pages/bookings-v2/shared/discount-utils';
+import { BookingService } from 'src/service/bookings.service';
 
 @Component({
   selector: 'vex-bookings-v2',
@@ -94,7 +95,8 @@ export class BookingsV2Component implements OnInit, OnChanges {
     private crudService: ApiCrudService,
     private router: Router,
     private schoolService: SchoolService,
-    public LayoutService: LayoutService
+    public LayoutService: LayoutService,
+    private bookingService: BookingService
   ) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
 
@@ -615,7 +617,8 @@ export class BookingsV2Component implements OnInit, OnChanges {
     const uniqueEntriesMap = new Map();
 
     data.forEach((item: any) => {
-      const key = `${item.client_id}-${item.course_id}`;
+      const groupKey = item.group_id ?? item.course_group_id ?? item.course_subgroup_id ?? item.client_id;
+      const key = `${groupKey}-${item.course_id}`;
 
       if (!uniqueEntriesMap.has(key)) {
         uniqueEntriesMap.set(key, {
@@ -637,19 +640,64 @@ export class BookingsV2Component implements OnInit, OnChanges {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  private toMinutes(timeValue: string | null | undefined): number | null {
+    if (!timeValue) {
+      return null;
+    }
+    const parts = timeValue.split(':').map((piece: string) => parseInt(piece, 10));
+    if (parts.length < 2 || parts.some((value) => Number.isNaN(value))) {
+      return null;
+    }
+    return parts[0] * 60 + parts[1];
+  }
+
+  private getDurationMinutes(start?: string, end?: string): number | null {
+    const startMinutes = this.toMinutes(start);
+    const endMinutes = this.toMinutes(end);
+    if (startMinutes === null || endMinutes === null || endMinutes < startMinutes) {
+      return null;
+    }
+    return endMinutes - startMinutes;
+  }
+
   private buildPreviewDatesForGroup(group: any): any[] {
     const users = Array.isArray(group?.bookingusers) ? group.bookingusers : [];
-    return users.map((user: any) => ({
-      price: group?.course?.course_type === 1
-        ? this.parseNumber(group?.course?.price ?? user?.price ?? 0)
-        : this.parseNumber(user?.price ?? 0),
-      originalPrice: group?.course?.course_type === 1
-        ? this.parseNumber(group?.course?.price ?? user?.price ?? 0)
-        : this.parseNumber(user?.price ?? 0),
-      interval_id: user?.course_date?.interval_id ?? user?.course_interval_id ?? user?.interval_id ?? null,
-      interval_name: user?.course_date?.interval_name ?? user?.interval_name ?? null,
-      currency: user?.currency ?? group?.currency ?? this.detailData?.currency ?? ''
-    }));
+    const datesMap = new Map<string, any>();
+
+    users.forEach((user: any) => {
+      const dateKey = `${user?.course_date_id ?? 'no-date'}-${user?.hour_start ?? ''}-${user?.hour_end ?? ''}`;
+      if (!datesMap.has(dateKey)) {
+        datesMap.set(dateKey, {
+          price: 0,
+          originalPrice: 0,
+          interval_id: user?.course_date?.interval_id ?? user?.course_interval_id ?? user?.interval_id ?? null,
+          interval_name: user?.course_date?.interval_name ?? user?.interval_name ?? null,
+          currency: user?.currency ?? group?.currency ?? this.detailData?.currency ?? '',
+          durationMinutes: this.getDurationMinutes(user?.hour_start, user?.hour_end) ?? undefined,
+          booking_users: [],
+          utilizers: [],
+          extras: []
+        });
+      }
+
+      const entry = datesMap.get(dateKey);
+      entry.booking_users.push(user);
+
+      if (user?.client && !entry.utilizers.some((utilizer: any) => utilizer?.id === user.client_id)) {
+        entry.utilizers.push(user.client);
+      }
+
+      if (Array.isArray(user?.booking_user_extras)) {
+        user.booking_user_extras.forEach((extra: any) => {
+          const extraItem = extra?.course_extra ?? extra?.courseExtra;
+          if (extraItem) {
+            entry.extras.push(extraItem);
+          }
+        });
+      }
+    });
+
+    return Array.from(datesMap.values());
   }
 
   private enrichPreviewBookingUsers(): void {
@@ -662,7 +710,14 @@ export class BookingsV2Component implements OnInit, OnChanges {
         return group;
       }
 
-      const dates = this.buildPreviewDatesForGroup(group);
+      const dates = this.buildPreviewDatesForGroup(group).map((date: any) => {
+        const price = this.bookingService.calculateDatePrice(group.course, date, true);
+        return {
+          ...date,
+          price,
+          originalPrice: price
+        };
+      });
       const discountInfo = buildDiscountInfoList(group.course, dates);
       const discountAmount = discountInfo.reduce((sum: number, info: any) => {
         const amount = this.parseNumber(info?.amountSaved ?? 0);
