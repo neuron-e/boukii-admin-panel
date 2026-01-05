@@ -841,9 +841,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         }
 
         const computedSubgroupNumber = this.resolveBookingSubgroupOrder(booking);
-        const subgroupNumber = (booking.total_subgroups && booking.total_subgroups > 1 && computedSubgroupNumber != null)
-          ? computedSubgroupNumber
-          : (booking.subgroup_number ?? computedSubgroupNumber);
+        const subgroupNumber = booking.subgroup_number ?? computedSubgroupNumber;
 
         return {
           id: booking?.id,
