@@ -603,11 +603,12 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
           if (Array.isArray(bookingArray) && bookingArray.length > 0) {
 
             const courseType = bookingArray[0].course.course_type;
-            // Private bookings: group shared sessions (same group/date/time/monitor).
+            // Private bookings: group shared sessions (same booking/group/date/time).
             if (courseType === 2) {
               const groupedBySession = bookingArray.reduce((acc, curr) => {
-                const groupId = curr.group_id ?? curr.course_group_id ?? curr.course_subgroup_id ?? curr.booking_id ?? curr.id;
-                const key = `${groupId}-${curr.date ?? ''}-${curr.hour_start}-${curr.hour_end}-${curr.monitor_id ?? 'no-monitor'}`;
+                const groupId = curr.group_id ?? curr.course_group_id ?? curr.course_subgroup_id ?? 'no-group';
+                const bookingId = curr.booking_id ?? curr.id ?? 'no-booking';
+                const key = `${bookingId}-${groupId}-${curr.date ?? ''}-${curr.hour_start}-${curr.hour_end}`;
                 if (!acc[key]) {
                   acc[key] = [];
                 }
@@ -615,7 +616,15 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
                 return acc;
               }, {});
 
-              bookingArrayComplete = Object.values(groupedBySession) as any[];
+              Object.values(groupedBySession).forEach((sessionGroup: any[]) => {
+                const resolvedMonitorId = sessionGroup.find(item => item?.monitor_id != null)?.monitor_id ?? null;
+                if (resolvedMonitorId != null) {
+                  sessionGroup.forEach(item => {
+                    item.monitor_id = resolvedMonitorId;
+                  });
+                }
+                bookingArrayComplete.push(sessionGroup);
+              });
             } else if (courseType === 3 && bookingArray.length > 1) {
               // Activity bookings keep time grouping.
               const groupedByTime = bookingArray.reduce((acc, curr) => {
@@ -644,7 +653,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
                   if ((this.filterCollective || groupedBookingArray[0].course.course_type !== 1) &&
                     (this.filterPrivate || groupedBookingArray[0].course.course_type !== 2) &&
                     (this.filterActivity || groupedBookingArray[0].course.course_type === 3)) {
-                    const firstBooking = { ...groupedBookingArray[0], bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
+                    const representative = (groupedBookingArray[0]?.course?.course_type === 2)
+                      ? (groupedBookingArray.find(entry => entry?.monitor_id != null) ?? groupedBookingArray[0])
+                      : groupedBookingArray[0];
+                    const firstBooking = { ...representative, bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
                     allBookings.push(firstBooking);
                   }
                 }
@@ -653,7 +665,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
                   if ((this.filterCollective || groupedBookingArray[0].course.course_type !== 1) &&
                     (this.filterPrivate || groupedBookingArray[0].course.course_type !== 2) &&
                     (this.filterActivity || groupedBookingArray[0].course.course_type === 3)) {
-                    const firstBooking = { ...groupedBookingArray[0], bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
+                    const representative = (groupedBookingArray[0]?.course?.course_type === 2)
+                      ? (groupedBookingArray.find(entry => entry?.monitor_id != null) ?? groupedBookingArray[0])
+                      : groupedBookingArray[0];
+                    const firstBooking = { ...representative, bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
                     allBookings.push(firstBooking);
                   }
                 }
