@@ -124,6 +124,7 @@ interface SeasonDashboardData {
     sport: string;
     revenue: number;
     participants: number;
+    unique_participants?: number;
     bookings: number;
     average_price: number;
     revenue_received: number;
@@ -476,6 +477,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
         // Crear gráficos después de que los datos estén listos
         setTimeout(() => this.createChartsForTab(this.activeTab), 100);
+        this.maybeLoadFullDashboard(this.activeTab);
       },
       error: (error) => {
         console.error('❌ Error loading analytics data:', error);
@@ -585,33 +587,66 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const data = this.dashboardData.trend_analysis?.monthly_breakdown || [];
 
+    if (data.length === 0) {
+      // Mostrar mensaje de sin datos
+      const layout = {
+        xaxis: { visible: false },
+        yaxis: { visible: false },
+        annotations: [{
+          text: this.translateService.instant('no_data_available') || 'No hay datos disponibles',
+          xref: 'paper',
+          yref: 'paper',
+          showarrow: false,
+          font: { size: 16, color: '#999' }
+        }]
+      };
+      Plotly.newPlot(this.revenueChartRef.nativeElement, [], layout, { responsive: true });
+      return;
+    }
+
     // ✅ ARREGLO: Procesar las fechas correctamente
     const processedData = data.map(item => ({
       ...item,
-      month_formatted: this.formatDateWithMonthName(item.month), // Agregar versión formateada
-      month_original: item.month // Mantener original para ordenamiento
+      month_formatted: this.formatDateWithMonthName(item.month),
+      month_original: item.month
     }));
 
-    const trace = {
-      x: processedData.map(d => d.month_formatted), // ✅ Usar fechas formateadas
+    // Usar barras si hay pocos datos (3 o menos), líneas si hay más
+    const chartType = data.length <= 3 ? 'bar' : 'scatter';
+    const trace: any = {
+      x: processedData.map(d => d.month_formatted),
       y: processedData.map(d => d.revenue),
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: 'Revenue',
-      line: { color: this.chartColors.primary, width: 3 },
-      marker: { color: this.chartColors.primary, size: 6 }
+      type: chartType,
+      name: this.translateService.instant('revenue') || 'Ingresos',
+      marker: {
+        color: this.chartColors.primary,
+        size: 10
+      },
+      text: processedData.map(d => `${d.revenue.toFixed(2)} ${this.currency}`),
+      textposition: 'outside',
+      textfont: { size: 12 }
     };
+
+    if (chartType === 'scatter') {
+      trace.mode = 'lines+markers+text';
+      trace.line = { color: this.chartColors.primary, width: 3 };
+    }
 
     const layout = {
       title: false,
       xaxis: {
-        title: this.translateService.instant('dates'),
-        tickangle: -45 // ✅ Rotar etiquetas para mejor legibilidad
+        title: this.translateService.instant('month') || 'Mes',
+        tickangle: data.length > 6 ? -45 : 0
       },
-      yaxis: { title: `Revenue (${this.currency})` },
-      margin: { l: 60, r: 20, t: 20, b: 80 }, // ✅ Más margen abajo para fechas rotadas
+      yaxis: {
+        title: `${this.translateService.instant('revenue') || 'Ingresos'} (${this.currency})`,
+        rangemode: 'tozero'
+      },
+      margin: { l: 80, r: 40, t: 40, b: data.length > 6 ? 100 : 60 },
       plot_bgcolor: 'rgba(0,0,0,0)',
-      paper_bgcolor: 'rgba(0,0,0,0)'
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      showlegend: false,
+      bargap: 0.3
     };
 
     Plotly.newPlot(this.revenueChartRef.nativeElement, [trace], layout, { responsive: true });
@@ -632,9 +667,10 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const courses = this.dashboardData.courses || [];
+    const typeBreakdown = (this.dashboardData as any).course_type_breakdown || [];
 
-    if (courses.length === 0) {
-      console.warn('⚠️ No hay cursos disponibles');
+    if (courses.length === 0 && typeBreakdown.length === 0) {
+      console.warn('?? No hay cursos disponibles');
       this.showEmptyChart();
       return;
     }
@@ -653,7 +689,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
           revenue: 0,
           bookings: 0,
           participants: 0,
-          revenue_received: 0,
+            unique_participants: 0,
+            revenue_received: 0,
           conversion_rate_sum: 0,
           course_count: 0
         };
@@ -662,11 +699,37 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       typeStats[typeName].revenue += revenue;
       typeStats[typeName].bookings += course.bookings || 0;
       typeStats[typeName].participants += course.participants || 0;
+      typeStats[typeName].unique_participants += course.unique_participants || 0;
       typeStats[typeName].revenue_received += course.revenue_received || 0;
       typeStats[typeName].conversion_rate_sum += course.sales_conversion_rate || 0;
       typeStats[typeName].course_count += course.courses_sold || 0;
     }
 
+    if (courses.length === 0 && typeBreakdown.length > 0) {
+      for (const item of typeBreakdown) {
+        const typeName = this.getCourseTypeName(item.type);
+        const revenue = item.revenue || 0;
+
+        if (!typeStats[typeName]) {
+          typeStats[typeName] = {
+            typeName,
+            revenue: 0,
+            bookings: 0,
+            participants: 0,
+            unique_participants: 0,
+            revenue_received: 0,
+            conversion_rate_sum: 0,
+            course_count: 0
+          };
+        }
+
+        typeStats[typeName].revenue += revenue;
+        typeStats[typeName].bookings += item.bookings || 0;
+        typeStats[typeName].participants += item.participants || 0;
+        typeStats[typeName].unique_participants += item.unique_participants || 0;
+        typeStats[typeName].course_count += item.courses_sold || 0;
+      }
+    }
     // Verificar que tenemos datos válidos
     const hasValidData = Object.values(typeStats).some(stat => stat.revenue > 0);
 
@@ -709,11 +772,14 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         hovertemplate: '%{hovertext}<extra></extra>',
         hovertext: Object.values(typeStats).map((stats: any) => {
           const typeName = this.translateService.instant(stats.typeName);
+          const participants = stats.unique_participants > 0
+            ? stats.unique_participants
+            : stats.participants;
           return `<b>${typeName}</b><br>` +
-            `💰 Revenue: ${stats.revenue.toFixed(2)} €<br>` +
-            `📋 Reservas: ${stats.bookings} bookings<br>` +
-            `📚 Cursos vendidos: ${stats.course_count} cursos<br>` +
-            `👥 Participantes: ${stats.participants}`;
+            `Revenue: ${stats.revenue.toFixed(2)} ${this.currency}<br>` +
+            `Reservas: ${stats.bookings} bookings<br>` +
+            `Cursos vendidos: ${stats.course_count} cursos<br>` +
+            `Participantes: ${participants}`;
         })
       };
 
@@ -731,6 +797,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
             revenue: 0,
             bookings: 0,
             participants: 0,
+            unique_participants: 0,
             revenue_received: 0,
             conversion_rate_sum: 0,
             course_count: 0
@@ -899,6 +966,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.topCoursesChartRef?.nativeElement || !this.dashboardData) return;
 
     const courses = this.dashboardData.courses || [];
+    const typeBreakdown = (this.dashboardData as any).course_type_breakdown || [];
     const topCourses = courses
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
@@ -1462,6 +1530,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.activeTab = this.tabs[event.index].id;
     this.maybeLoadFullDashboard(this.activeTab);
     setTimeout(() => this.createChartsForTab(this.activeTab), 100);
+        this.maybeLoadFullDashboard(this.activeTab);
   }
 
   public onPresetRangeChange(event: any): void {
@@ -1551,8 +1620,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const filters = this.buildFiltersObject();
     if (!filters.school_id) return;
-
-    filters.optimization_level = this.resolveFullOptimizationLevel();
     this.fullDashboardLoading = true;
     this.tabLoading[tabId] = true;
 
@@ -1565,6 +1632,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.resetTabLoading();
         this.cdr.detectChanges();
         setTimeout(() => this.createChartsForTab(this.activeTab), 100);
+        this.maybeLoadFullDashboard(this.activeTab);
       },
       error: (error) => {
         console.error('�?O Error loading full analytics data:', error);
@@ -2053,6 +2121,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }).format(value / 100);
   }
 }
+
+
+
+
+
+
 
 
 
