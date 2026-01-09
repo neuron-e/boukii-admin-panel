@@ -926,6 +926,10 @@ vex-flux-modal[ng-reflect-title*="payment"] {
   z-index: 1600 !important;
 }
 
+.snackbar-multiline .mat-mdc-snack-bar-label {
+  white-space: pre-line;
+}
+
 /* Loading overlays and spinners */
 .loading-overlay,
 .spinner-overlay {

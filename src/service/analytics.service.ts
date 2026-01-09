@@ -266,21 +266,29 @@ export class AnalyticsProfessionalService {
     this.setLoading(true);
     this.filtersSubject.next(filters);
 
-    const cacheKey = `season-dashboard-${JSON.stringify(filters)}`;
-    const cached = this.getFromCache(cacheKey);
+    // Temporarily disable frontend cache to ensure fresh data
+    // const cacheKey = `season-dashboard-${JSON.stringify(filters)}`;
+    // const cached = this.getFromCache(cacheKey);
+    //
+    // if (cached) {
+    //   this.setLoading(false);
+    //   this.dashboardSubject.next(cached);
+    //   return of(cached);
+    // }
 
-    if (cached) {
-      this.setLoading(false);
-      this.dashboardSubject.next(cached);
-      return of(cached);
-    }
+    // Add cache-busting timestamp to force fresh requests
+    const filtersWithCacheBuster = {
+      ...filters,
+      _t: Date.now()
+    };
 
     return this.http.get<any>(`${this.baseUrl}/finance/season-dashboard`, {
-      params: this.buildHttpParams(filters)
+      params: this.buildHttpParams(filtersWithCacheBuster)
     }).pipe(
       map(response => response.data),
       tap(data => {
-        this.setToCache(cacheKey, data);
+        // Temporarily disable cache storage
+        // this.setToCache(cacheKey, data);
         this.dashboardSubject.next(data);
         this.setLoading(false);
       }),

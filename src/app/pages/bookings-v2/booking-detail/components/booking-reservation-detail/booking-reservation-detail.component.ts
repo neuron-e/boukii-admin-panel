@@ -457,8 +457,9 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
       return 0;
     }
     const total = this.getFinalTotal();
+    const paidTotal = Number(this.bookingData?.paid_total ?? 0);
     const vouchers = this.calculateTotalVoucherPrice();
-    const outstanding = total - vouchers;
+    const outstanding = total - paidTotal - vouchers;
     return Number((outstanding < 0 ? 0 : outstanding).toFixed(2));
   }
 

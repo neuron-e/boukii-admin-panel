@@ -4,7 +4,7 @@ import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { BookingService } from '../../../../service/bookings.service';
 import { ApiCrudService } from '../../../../service/crud.service';
 import {ActivatedRoute, Router} from '@angular/router';
-import { BehaviorSubject, Subject, finalize } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, map, of, switchMap } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { BookingDialogComponent } from '../bookings-create-update/components/booking-dialog/booking-dialog.component';
 import {
@@ -1053,7 +1053,7 @@ export class BookingDetailV2Component implements OnInit {
 
   // Método para finalizar la reserva
   finalizeBooking(): void {
-    if (!this.bookingData) {
+    if (!this.bookingData || this.isLoading) {
       return;
     }
 
@@ -1098,46 +1098,52 @@ export class BookingDetailV2Component implements OnInit {
       bookingData.paid = true;
       bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
     }
-
     // Enviar la reserva a la API
+    this.isLoading = true;
     this.crudService.post(`/admin/bookings/update/${this.id}/payment`, bookingData)
-      .subscribe(
-        (result: any) => {
+      .pipe(
+        switchMap((result: any) => {
+          if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
+            return this.crudService
+              .post(`/admin/bookings/payments/${this.id}`, result.data.basket)
+              .pipe(map((paymentResult: any) => ({ result, paymentResult })));
+          }
+          return of({ result });
+        }),
+        finalize(() => {
+          this.isLoading = false;
+        })
+      )
+      .subscribe({
+        next: ({ result, paymentResult }: any) => {
           // Manejar pagos en línea
           if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
-            this.crudService.post(`/admin/bookings/payments/${this.id}`, result.data.basket)
-              .subscribe(
-                (paymentResult: any) => {
-                  if (bookingData.payment_method_id === 2) {
-                    window.open(paymentResult.data, "_self");
-                  } else {
-                    this.snackBar.open(
-                      this.translateService.instant('snackbar.booking_detail.send_mail'),
-                      this.getCloseActionLabel(),
-                      { duration: 1000 }
-                    );
-                  }
-                },
-                (error) => {
-                  this.showErrorSnackbar(this.translateService.instant('snackbar.booking.payment.error'));
-                }
+            if (bookingData.payment_method_id === 2) {
+              window.open(paymentResult.data, "_self");
+            } else {
+              this.snackBar.open(
+                this.translateService.instant('snackbar.booking_detail.send_mail'),
+                this.getCloseActionLabel(),
+                { duration: 1000 }
               );
-          } else {
-            this.snackBar.open(
-              this.translateService.instant('snackbar.booking_detail.update'),
-              this.getCloseActionLabel(),
-              { duration: 3000 }
-            );
-            this.payModal = false;
-            this.bookingData$.next(result.data);
-            this.bookingData = result.data;
-            this.syncPaymentSelectionFromBooking(result.data);
+            }
+            return;
           }
+
+          this.snackBar.open(
+            this.translateService.instant('snackbar.booking_detail.update'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+          this.payModal = false;
+          this.bookingData$.next(result.data);
+          this.bookingData = result.data;
+          this.syncPaymentSelectionFromBooking(result.data);
         },
-        (error) => {
+        error: () => {
           this.showErrorSnackbar(this.translateService.instant('snackbar.booking.payment.error'));
         }
-      );
+      });
   }
 
   calculateTotalVoucherPrice(): number {
@@ -1328,3 +1334,5 @@ export class BookingDetailV2Component implements OnInit {
 
 
 }
+
+

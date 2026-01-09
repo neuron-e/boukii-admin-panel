@@ -5,6 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import moment from 'moment';
 import { Observable, forkJoin, map, startWith } from 'rxjs';
 import { ApiCrudService } from 'src/service/crud.service';
+import { UtilsService } from 'src/service/utils.service';
 import { ConfirmModalEditBookingComponent } from '../../bookings-create-update-edit/confirm-dialog-edit-booking/confirm-dialog-edit-booking.component';
 import { TranslateService } from '@ngx-translate/core';
 import { ConfirmModalComponent } from 'src/app/pages/monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
@@ -34,7 +35,8 @@ export class UpdateCourseModalComponent implements OnInit {
   selectedCourseDateId: any;
 
   constructor(@Inject(MAT_DIALOG_DATA) public defaults: any, private crudService: ApiCrudService, private dialogRef: MatDialogRef<any>,
-              private translateService: TranslateService, private dialog: MatDialog, private snackbar: MatSnackBar) {
+              private translateService: TranslateService, private dialog: MatDialog, private snackbar: MatSnackBar,
+              private utilsService: UtilsService) {
 
   }
 
@@ -257,10 +259,11 @@ export class UpdateCourseModalComponent implements OnInit {
                 });
 
             }, (error) => {
-              this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
-                moment(error.error.data[0].date).format('YYYY-MM-DD') + ' | '
-                + error.error.data[0].hour_start + ' - ' + error.error.data[0].hour_end, 'OK',
-                {duration: 3000})
+              const overlapMessage = this.utilsService.formatBookingOverlapMessage(error?.error?.data);
+              this.snackbar.open(overlapMessage, 'OK', {
+                duration: 4000,
+                panelClass: ['snackbar-multiline']
+              });
             });
           const updateBookingUserRQS = [];
 

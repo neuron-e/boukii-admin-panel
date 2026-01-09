@@ -47,6 +47,12 @@ interface SeasonDashboardData {
     collection_efficiency: number;
     consistency_rate: number;
     average_booking_value: number;
+    unpaid_with_debt_amount?: number;
+    unpaid_with_debt_count?: number;
+    overpayment_amount?: number;
+    overpayment_count?: number;
+    fully_paid_count?: number;
+    revenue_real?: number;
   };
   booking_sources: {
     total_bookings: number;
@@ -229,8 +235,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('topCoursesChart', { static: false }) topCoursesChartRef!: ElementRef;
   @ViewChild('completionRatesChart', { static: false }) completionRatesChartRef!: ElementRef;
   @ViewChild('sourcesChart', { static: false }) sourcesChartRef!: ElementRef;
-  @ViewChild('sourcePerformanceChart', { static: false }) sourcePerformanceChartRef!: ElementRef;
-  @ViewChild('comparisonChart', { static: false }) comparisonChartRef!: ElementRef;
   @ViewChild(MonitorsLegacyComponent, { static: false }) monitorsLegacyComponent!: MonitorsLegacyComponent;
 
   // ==================== FORM CONTROLS ====================
@@ -254,9 +258,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     payments: false,
     courses: false,
     sources: false,
-    monitors: false,
-    comparative: false,
-    alerts: false
+    monitors: false
   };
 
   // ==================== USER DATA ====================
@@ -295,13 +297,11 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ==================== TABS CONFIGURATION (ACTUALIZADO) ====================
   tabs = [
-    { id: 'revenue', label: 'Análisis de Ingresos', icon: 'monetization_on' },
-    { id: 'payments', label: 'Métodos de Pago', icon: 'payment' },
-    { id: 'courses', label: 'Análisis de Cursos', icon: 'school' },
-    { id: 'sources', label: 'Fuentes de Reserva', icon: 'source' },
-    { id: 'monitors', label: 'Monitores', icon: 'person' }, // ← NUEVA
-    { id: 'comparative', label: 'Análisis Comparativo', icon: 'compare_arrows' },
-    { id: 'alerts', label: 'Alertas y Recomendaciones', icon: 'warning' }
+    { id: 'revenue', label: 'revenue_analysis', icon: 'monetization_on' },
+    { id: 'payments', label: 'payment_methods', icon: 'payment' },
+    { id: 'courses', label: 'courses_analysis', icon: 'school' },
+    { id: 'sources', label: 'booking_sources', icon: 'source' },
+    { id: 'monitors', label: 'monitors_tab', icon: 'person' } // ← NUEVA
   ];
 
   // ==================== MODAL PROPERTIES ====================
@@ -464,7 +464,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     const filters = this.buildFiltersObject();
     if (!filters.school_id) {
       this.loading = false;
-      this.showMessage('No se pudo determinar la escuela para analytics', 'warning');
+      this.showMessage(this.translateService.instant('analytics_school_missing'), 'warning');
       return;
     }
 
@@ -569,10 +569,6 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
           break;
         case 'sources':
           this.createSourcesChart();
-          this.createSourcePerformanceChart();
-          break;
-        case 'comparative':
-          this.createComparisonChart();
           break;
         default:
           break;
@@ -593,7 +589,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         xaxis: { visible: false },
         yaxis: { visible: false },
         annotations: [{
-          text: this.translateService.instant('no_data_available') || 'No hay datos disponibles',
+          text: this.translateService.instant('no_data_available'),
           xref: 'paper',
           yref: 'paper',
           showarrow: false,
@@ -617,7 +613,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       x: processedData.map(d => d.month_formatted),
       y: processedData.map(d => d.revenue),
       type: chartType,
-      name: this.translateService.instant('revenue') || 'Ingresos',
+      name: this.translateService.instant('revenue'),
       marker: {
         color: this.chartColors.primary,
         size: 10
@@ -639,7 +635,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         tickangle: data.length > 6 ? -45 : 0
       },
       yaxis: {
-        title: `${this.translateService.instant('revenue') || 'Ingresos'} (${this.currency})`,
+        title: `${this.translateService.instant('revenue')} (${this.currency})`,
         rangemode: 'tozero'
       },
       margin: { l: 80, r: 40, t: 40, b: data.length > 6 ? 100 : 60 },
@@ -760,6 +756,11 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       const totalCoursesSold = coursesSoldData.reduce((sum, courses) => sum + courses, 0);
 
       // Configurar el gráfico
+      const revenueLabel = this.translateService.instant('revenue');
+      const bookingsLabel = this.translateService.instant('bookings');
+      const coursesSoldLabel = this.translateService.instant('courses_sold');
+      const participantsLabel = this.translateService.instant('participants');
+
       const trace = {
         values,
         labels,
@@ -776,10 +777,10 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
             ? stats.unique_participants
             : stats.participants;
           return `<b>${typeName}</b><br>` +
-            `Revenue: ${stats.revenue.toFixed(2)} ${this.currency}<br>` +
-            `Reservas: ${stats.bookings} bookings<br>` +
-            `Cursos vendidos: ${stats.course_count} cursos<br>` +
-            `Participantes: ${participants}`;
+            `${revenueLabel}: ${stats.revenue.toFixed(2)} ${this.currency}<br>` +
+            `${bookingsLabel}: ${stats.bookings}<br>` +
+            `${coursesSoldLabel}: ${stats.course_count}<br>` +
+            `${participantsLabel}: ${participants}`;
         })
       };
 
@@ -943,8 +944,13 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (!onlineVsOffline) return;
 
+    const onlineLabel = this.translateService.instant('online');
+    const offlineLabel = this.translateService.instant('offline');
+    const paymentTypeLabel = this.translateService.instant('payment_type');
+    const revenueLabel = this.translateService.instant('revenue');
+
     const trace = {
-      x: ['Online', 'Offline'],
+      x: [onlineLabel, offlineLabel],
       y: [onlineVsOffline.online.revenue, onlineVsOffline.offline.revenue],
       type: 'bar',
       marker: { color: [this.chartColors.info, this.chartColors.secondary] }
@@ -952,8 +958,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const layout = {
       title: false,
-      xaxis: { title: 'Payment Type' },
-      yaxis: { title: `Revenue (${this.currency})` },
+      xaxis: { title: paymentTypeLabel },
+      yaxis: { title: `${revenueLabel} (${this.currency})` },
       margin: { l: 60, r: 20, t: 20, b: 40 },
       plot_bgcolor: 'rgba(0,0,0,0)',
       paper_bgcolor: 'rgba(0,0,0,0)'
@@ -966,28 +972,46 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.topCoursesChartRef?.nativeElement || !this.dashboardData) return;
 
     const courses = this.dashboardData.courses || [];
-    const typeBreakdown = (this.dashboardData as any).course_type_breakdown || [];
+    console.log('📊 [COURSES DEBUG] Total courses:', courses.length, courses);
+
+    // Ordenar por ingresos (mayor a menor) y tomar top 10
     const topCourses = courses
       .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
+      .slice(0, 10)
+      .reverse(); // Invertir para que los mayores queden arriba
+
+    console.log('📊 [COURSES DEBUG] Top courses for chart:', topCourses.length, topCourses);
 
     // ✅ APLICAR COLORES POR TIPO DE CURSO
     const colors = topCourses.map(course => this.getCourseTypeColor(course.type));
 
+    const revenueLabel = this.translateService.instant('revenue');
+
     const trace = {
       x: topCourses.map(c => c.revenue),
-      y: topCourses.map(c => c.name),
+      y: topCourses.map(c => this.shortenCourseName(c.name)),
       type: 'bar',
       orientation: 'h',
-      marker: { color: colors } // ✅ COLORES POR TIPO
+      marker: { color: colors },
+      text: topCourses.map(c => `${this.formatCurrency(c.revenue)}`),
+      textposition: 'auto',
+      hovertemplate: '<b>%{customdata}</b><br>' +
+                     `${revenueLabel}: %{x:,.0f} ${this.currency}<br>` +
+                     '<extra></extra>',
+      customdata: topCourses.map(c => c.name) // Nombre completo en hover
     };
 
     const layout = {
       title: false,
-      xaxis: { title: `Revenue (${this.currency})` },
-      margin: { l: 150, r: 20, t: 20, b: 40 },
+      xaxis: { title: `${revenueLabel} (${this.currency})` },
+      yaxis: {
+        automargin: true,
+        tickfont: { size: 11 }
+      },
+      margin: { l: 200, r: 40, t: 20, b: 60 },
       plot_bgcolor: 'rgba(0,0,0,0)',
-      paper_bgcolor: 'rgba(0,0,0,0)'
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      height: 450
     };
 
     Plotly.newPlot(this.topCoursesChartRef.nativeElement, [trace], layout, { responsive: true });
@@ -996,33 +1020,44 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private createCompletionRatesChart(): void {
     if (!this.completionRatesChartRef?.nativeElement || !this.dashboardData) return;
 
-    const courses = this.dashboardData.courses?.slice(0, 10) || [];
+    const courses = this.dashboardData.courses || [];
+
+    // Ordenar por número de reservas (mayor a menor) y tomar top 10, luego invertir
+    const topCoursesByBookings = courses
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 10)
+      .reverse(); // Invertir para que los mayores queden arriba
 
     // ✅ APLICAR COLORES POR TIPO DE CURSO
-    const colors = courses.map(course => this.getCourseTypeColor(course.type));
+    const colors = topCoursesByBookings.map(course => this.getCourseTypeColor(course.type));
+
+    const bookingsLabel = this.translateService.instant('bookings');
 
     const trace = {
-      x: courses.map(c => c.name),
-      y: courses.map(c => {
-        const statusBreakdown = c.status_breakdown || {};
-        const total = Number(Object.values(statusBreakdown).reduce(
-          (sum: number, count: unknown) => sum + Number(count ?? 0),
-          0
-        ));
-        const completed = Number(statusBreakdown[1] ?? 0);
-        return total > 0 ? (completed / total) * 100 : 0;
-      }),
+      x: topCoursesByBookings.map(c => c.bookings),
+      y: topCoursesByBookings.map(c => this.shortenCourseName(c.name)),
       type: 'bar',
-      marker: { color: colors } // ✅ COLORES POR TIPO
+      orientation: 'h',
+      marker: { color: colors },
+      text: topCoursesByBookings.map(c => `${c.bookings} ${bookingsLabel}`),
+      textposition: 'auto',
+      hovertemplate: '<b>%{customdata}</b><br>' +
+                     `${this.translateService.instant('bookings_count')}: %{x}<br>` +
+                     '<extra></extra>',
+      customdata: topCoursesByBookings.map(c => c.name) // Nombre completo en hover
     };
 
     const layout = {
       title: false,
-      xaxis: { title: 'Courses' },
-      yaxis: { title: 'Completion Rate (%)' },
-      margin: { l: 60, r: 20, t: 20, b: 100 },
+      xaxis: { title: this.translateService.instant('number_of_bookings') },
+      yaxis: {
+        automargin: true,
+        tickfont: { size: 11 }
+      },
+      margin: { l: 200, r: 40, t: 20, b: 60 },
       plot_bgcolor: 'rgba(0,0,0,0)',
-      paper_bgcolor: 'rgba(0,0,0,0)'
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      height: 450
     };
 
     Plotly.newPlot(this.completionRatesChartRef.nativeElement, [trace], layout, { responsive: true });
@@ -1031,7 +1066,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private createSourcesChart(): void {
     if (!this.sourcesChartRef?.nativeElement || !this.dashboardData) return;
 
-    const sources = this.dashboardData.booking_sources?.source_breakdown || [];
+    const sources = this.getBookingSourceBreakdown();
 
     const trace = {
       values: sources.map(s => s.revenue),
@@ -1050,75 +1085,123 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     Plotly.newPlot(this.sourcesChartRef.nativeElement, [trace], layout, { responsive: true });
   }
 
-  private createSourcePerformanceChart(): void {
-    if (!this.sourcePerformanceChartRef?.nativeElement || !this.dashboardData) return;
+  public getBookingSourceBreakdown(): Array<{
+    source: string;
+    bookings: number;
+    percentage: number;
+    unique_clients: number;
+    revenue: number;
+    avg_booking_value: number;
+    consistency_rate?: number;
+  }> {
+    const sources = this.dashboardData?.booking_sources?.source_breakdown || [];
+    if (!sources.length) return [];
 
-    const sources = this.dashboardData.booking_sources?.source_breakdown || [];
+    const merged: { [key: string]: any } = {};
+    sources.forEach((source) => {
+      const key = source.source === 'booking_page' ? 'web' : source.source;
+      if (!merged[key]) {
+        merged[key] = {
+          source: key,
+          bookings: 0,
+          percentage: 0,
+          unique_clients: 0,
+          revenue: 0,
+          avg_booking_value: 0,
+          consistency_rate: source.consistency_rate || 0
+        };
+      }
+      merged[key].bookings += source.bookings || 0;
+      merged[key].unique_clients += source.unique_clients || 0;
+      merged[key].revenue += source.revenue || 0;
+    });
 
-    const trace = {
-      x: sources.map(s => s.source),
-      y: sources.map(s => s.consistency_rate),
-      type: 'bar',
-      marker: { color: this.chartColors.warning }
-    };
+    const totalBookings = Object.values(merged).reduce((sum, item) => sum + item.bookings, 0);
+    Object.values(merged).forEach((item: any) => {
+      item.percentage = totalBookings > 0 ? Math.round((item.bookings / totalBookings) * 100 * 100) / 100 : 0;
+      item.avg_booking_value = item.bookings > 0 ? Math.round((item.revenue / item.bookings) * 100) / 100 : 0;
+      item.revenue = Math.round(item.revenue * 100) / 100;
+    });
 
-    const layout = {
-      title: false,
-      xaxis: { title: 'Source' },
-      yaxis: { title: 'Consistency Rate (%)' },
-      margin: { l: 60, r: 20, t: 20, b: 40 },
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      paper_bgcolor: 'rgba(0,0,0,0)'
-    };
-
-    Plotly.newPlot(this.sourcePerformanceChartRef.nativeElement, [trace], layout, { responsive: true });
-  }
-
-  private createComparisonChart(): void {
-    if (!this.comparisonChartRef?.nativeElement || !this.dashboardData) return;
-
-    const kpis = this.dashboardData.executive_kpis;
-    const classification = this.dashboardData.season_info.booking_classification;
-
-    const trace1 = {
-      x: ['Production', 'Test', 'Cancelled'],
-      y: [classification.production_count, classification.test_count, classification.cancelled_count],
-      name: 'Bookings Count',
-      type: 'bar',
-      marker: { color: this.chartColors.primary }
-    };
-
-    const trace2 = {
-      x: ['Production', 'Test', 'Cancelled'],
-      y: [classification.production_revenue, classification.test_revenue, classification.cancelled_revenue],
-      name: 'Revenue',
-      type: 'bar',
-      yaxis: 'y2',
-      marker: { color: this.chartColors.secondary }
-    };
-
-    const layout = {
-      title: false,
-      xaxis: { title: 'Booking Type' },
-      yaxis: { title: 'Count', side: 'left' },
-      yaxis2: { title: 'Revenue', side: 'right', overlaying: 'y' },
-      margin: { l: 60, r: 60, t: 20, b: 40 },
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      paper_bgcolor: 'rgba(0,0,0,0)'
-    };
-
-    Plotly.newPlot(this.comparisonChartRef.nativeElement, [trace1, trace2], layout, { responsive: true });
+    return Object.values(merged).sort((a: any, b: any) => b.bookings - a.bookings);
   }
 
   public onPendingRevenueClick(): void {
     if (!this.dashboardData?.executive_kpis?.revenue_pending ||
       this.dashboardData.executive_kpis.revenue_pending <= 0) {
-      this.showMessage('No hay reservas con pagos pendientes', 'info');
+      this.showMessage(this.translateService.instant('analytics_no_pending_bookings'), 'info');
       return;
     }
 
-    this.showMessage('Cargando reservas pendientes...', 'info');
+    this.showMessage(this.translateService.instant('analytics_loading_pending_bookings'), 'info');
     this.loadPendingBookingsDetailed();
+  }
+
+  // 📋 CLICK EN KPI DE PENDIENTES DE COBRO (solo con deuda)
+  public onUnpaidWithDebtClick(): void {
+    if (!this.dashboardData?.executive_kpis?.unpaid_with_debt_count ||
+      this.dashboardData.executive_kpis.unpaid_with_debt_count <= 0) {
+      this.showMessage(this.translateService.instant('analytics_no_unpaid_with_debt_bookings'), 'info');
+      return;
+    }
+
+    this.showMessage(this.translateService.instant('analytics_loading_unpaid_with_debt_bookings'), 'info');
+    this.loadUnpaidWithDebtBookings();
+  }
+
+  // 📋 CLICK EN KPI DE SOBREPAGOS
+  public onOverpaymentClick(): void {
+    if (!this.dashboardData?.executive_kpis?.overpayment_count ||
+      this.dashboardData.executive_kpis.overpayment_count <= 0) {
+      this.showMessage(this.translateService.instant('analytics_no_overpayment_bookings'), 'info');
+      return;
+    }
+
+    this.showMessage(this.translateService.instant('analytics_loading_overpayment_bookings'), 'info');
+    this.loadOverpaymentBookings();
+  }
+
+  // 📋 CLICK EN KPI DE COMPLETAMENTE PAGADAS
+  public onFullyPaidClick(): void {
+    if (!this.dashboardData?.executive_kpis?.fully_paid_count ||
+      this.dashboardData.executive_kpis.fully_paid_count <= 0) {
+      this.showMessage(this.translateService.instant('analytics_no_fully_paid_bookings'), 'info');
+      return;
+    }
+
+    this.showMessage(this.translateService.instant('analytics_loading_fully_paid_bookings'), 'info');
+    this.loadFullyPaidBookings();
+  }
+
+  // 📋 CARGAR RESERVAS COMPLETAMENTE PAGADAS
+  private loadFullyPaidBookings(): void {
+    const filters = this.buildFiltersObject();
+    filters.payment_category = 'fully_paid';
+
+    this.apiService.get('/admin/finance/booking-details', [], filters).subscribe({
+      next: (response) => {
+        if (!response.data?.bookings?.length) {
+          this.showMessage(this.translateService.instant('analytics_no_fully_paid_bookings_found'), 'warning');
+          return;
+        }
+
+        const fullyPaidBookingsData = {
+          title: this.translateService.instant('analytics_fully_paid_bookings_title', {
+            count: response.data.bookings.length
+          }),
+          type: 'fully_paid',
+          bookings: response.data.bookings,
+          currency: this.currency,
+          financial_summary: response.data.financial_summary
+        };
+
+        this.openBookingListModal(fullyPaidBookingsData);
+      },
+      error: (error) => {
+        console.error('Error cargando reservas completamente pagadas:', error);
+        this.showMessage(this.translateService.instant('analytics_error_loading_fully_paid_bookings'), 'error');
+      }
+    });
   }
 
   // 📋 CARGAR RESERVAS PENDIENTES CON DETALLE
@@ -1129,22 +1212,26 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.apiService.get('/admin/finance/booking-details', [], filters).subscribe({
       next: (response) => {
         if (!response.data?.bookings?.length) {
-          this.showMessage('No se encontraron reservas pendientes', 'warning');
+          this.showMessage(this.translateService.instant('analytics_no_pending_bookings_found'), 'warning');
           return;
         }
 
         const pendingBookingsData = {
-          title: `Reservas con Pagos Pendientes (${response.data.bookings.length})`,
+          title: this.translateService.instant('analytics_pending_bookings_title', {
+            count: response.data.bookings.length
+          }),
           type: 'pending',
           bookings: response.data.bookings,
-          currency: this.currency
+          currency: this.currency,
+          financial_summary: response.data.financial_summary,
+          payment_classification: response.data.payment_classification
         };
 
         this.openBookingListModal(pendingBookingsData);
       },
       error: (error) => {
         console.error('Error cargando reservas pendientes:', error);
-        this.showMessage('Error cargando reservas pendientes', 'error');
+        this.showMessage(this.translateService.instant('analytics_error_loading_pending_bookings'), 'error');
       }
     });
   }
@@ -1152,11 +1239,11 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   public onCancelledBookingsClick(): void {
     if (!this.dashboardData?.season_info?.booking_classification?.cancelled_count ||
       this.dashboardData.season_info.booking_classification.cancelled_count <= 0) {
-      this.showMessage('No hay reservas canceladas', 'info');
+      this.showMessage(this.translateService.instant('analytics_no_cancelled_bookings'), 'info');
       return;
     }
 
-    this.showMessage('Cargando reservas canceladas...', 'info');
+    this.showMessage(this.translateService.instant('analytics_loading_cancelled_bookings'), 'info');
     this.loadCancelledBookingsDetailed();
   }
 
@@ -1167,12 +1254,14 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.apiService.get('/admin/finance/booking-details', [], filters).subscribe({
       next: (response) => {
         if (!response.data?.bookings?.length) {
-          this.showMessage('No se encontraron reservas canceladas', 'warning');
+          this.showMessage(this.translateService.instant('analytics_no_cancelled_bookings_found'), 'warning');
           return;
         }
 
         const cancelledBookingsData = {
-          title: `Reservas Canceladas (${response.data.bookings.length})`,
+          title: this.translateService.instant('analytics_cancelled_bookings_title', {
+            count: response.data.bookings.length
+          }),
           type: 'cancelled',
           bookings: response.data.bookings,
           currency: this.currency
@@ -1182,9 +1271,140 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error cargando reservas canceladas:', error);
-        this.showMessage('Error cargando reservas canceladas', 'error');
+        this.showMessage(this.translateService.instant('analytics_error_loading_cancelled_bookings'), 'error');
       }
     });
+  }
+
+  // 📋 CARGAR RESERVAS CON DEUDA PENDIENTE
+  private loadUnpaidWithDebtBookings(): void {
+    const filters = this.buildFiltersObject();
+    filters.payment_category = 'unpaid_with_debt';
+
+    this.apiService.get('/admin/finance/booking-details', [], filters).subscribe({
+      next: (response) => {
+        if (!response.data?.bookings?.length) {
+          this.showMessage(this.translateService.instant('analytics_no_unpaid_with_debt_bookings_found'), 'warning');
+          return;
+        }
+
+        const unpaidBookingsData = {
+          title: this.translateService.instant('analytics_unpaid_with_debt_bookings_title', {
+            count: response.data.bookings.length
+          }),
+          type: 'unpaid_with_debt',
+          bookings: response.data.bookings,
+          currency: this.currency,
+          financial_summary: response.data.financial_summary,
+          payment_classification: response.data.payment_classification
+        };
+
+        this.openBookingListModal(unpaidBookingsData);
+      },
+      error: (error) => {
+        console.error('Error cargando reservas con deuda:', error);
+        this.showMessage(this.translateService.instant('analytics_error_loading_unpaid_with_debt_bookings'), 'error');
+      }
+    });
+  }
+
+  // 📋 CARGAR RESERVAS CON SOBREPAGO
+  private loadOverpaymentBookings(): void {
+    const filters = this.buildFiltersObject();
+    filters.payment_category = 'overpayment';
+
+    this.apiService.get('/admin/finance/booking-details', [], filters).subscribe({
+      next: (response) => {
+        if (!response.data?.bookings?.length) {
+          this.showMessage(this.translateService.instant('analytics_no_overpayment_bookings_found'), 'warning');
+          return;
+        }
+
+        const overpaymentBookingsData = {
+          title: this.translateService.instant('analytics_overpayment_bookings_title', {
+            count: response.data.bookings.length
+          }),
+          type: 'overpayment',
+          bookings: response.data.bookings,
+          currency: this.currency,
+          financial_summary: response.data.financial_summary,
+          payment_classification: response.data.payment_classification
+        };
+
+        this.openBookingListModal(overpaymentBookingsData);
+      },
+      error: (error) => {
+        console.error('Error cargando reservas con sobrepago:', error);
+        this.showMessage(this.translateService.instant('analytics_error_loading_overpayment_bookings'), 'error');
+      }
+    });
+  }
+
+  // 📊 OBTENER TOTAL DE RESERVAS CON DESBALANCE
+  public getTotalImbalanceCount(): number {
+    if (!this.dashboardData?.executive_kpis) {
+      return 0;
+    }
+    const unpaidCount = Number(this.dashboardData.executive_kpis.unpaid_with_debt_count) || 0;
+    const overpaymentCount = Number(this.dashboardData.executive_kpis.overpayment_count) || 0;
+    return unpaidCount + overpaymentCount;
+  }
+
+  // 📊 OBTENER SUBTITLE FORMATEADO PARA DESBALANCES
+  public getImbalanceSubtitle(): string {
+    const total = this.getTotalImbalanceCount();
+    return this.translateService.instant('analytics_bookings_with_imbalance', { count: total });
+  }
+
+  // 📊 CALCULAR PORCENTAJE DE PAGADO (sobre lo que se debe, no sobre el total esperado)
+  public getPaymentPercentage(): number {
+    if (!this.dashboardData?.executive_kpis) {
+      return 0;
+    }
+    const received = this.dashboardData.executive_kpis.revenue_received || 0;
+    const unpaidWithDebt = this.dashboardData.executive_kpis.unpaid_with_debt_amount || 0;
+    const totalDue = received + unpaidWithDebt; // Lo que se debe = lo recibido + lo que falta
+
+    if (totalDue === 0) return 100;
+    return Math.round((received / totalDue) * 100);
+  }
+
+  // 📊 CALCULAR PORCENTAJE DE PENDIENTES DE COBRO
+  public getUnpaidPercentage(): number {
+    if (!this.dashboardData?.executive_kpis) {
+      return 0;
+    }
+    const unpaidWithDebt = this.dashboardData.executive_kpis.unpaid_with_debt_amount || 0;
+    const expected = this.dashboardData.executive_kpis.revenue_expected || 0;
+
+    if (expected === 0) return 0;
+    return Math.round((unpaidWithDebt / expected) * 100);
+  }
+
+  // 📊 CALCULAR PORCENTAJE DE SOBREPAGOS
+  public getOverpaymentPercentage(): number {
+    if (!this.dashboardData?.executive_kpis) {
+      return 0;
+    }
+    const overpayment = this.dashboardData.executive_kpis.overpayment_amount || 0;
+    const expected = this.dashboardData.executive_kpis.revenue_expected || 0;
+
+    if (expected === 0) return 0;
+    return Math.round((overpayment / expected) * 100);
+  }
+
+  // 📊 CALCULAR PORCENTAJE DE DESBALANCES NETOS
+  public getNetImbalancePercentage(): number {
+    if (!this.dashboardData?.executive_kpis) {
+      return 0;
+    }
+    const unpaidWithDebt = this.dashboardData.executive_kpis.unpaid_with_debt_amount || 0;
+    const overpayment = this.dashboardData.executive_kpis.overpayment_amount || 0;
+    const netImbalance = unpaidWithDebt - overpayment;
+    const expected = this.dashboardData.executive_kpis.revenue_expected || 0;
+
+    if (expected === 0) return 0;
+    return Math.round((netImbalance / expected) * 100);
   }
 
   private openBookingListModal(data: any): void {
@@ -1228,49 +1448,69 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
 // 📤 MANEJAR EXPORTACIÓN DE TODAS LAS RESERVAS
   private handleExportAllBookings(result: any): void {
-    const exportType = result.type === 'pending' ? 'pending' : 'cancelled';
-    const fileName = `reservas_${exportType}_${this.getCurrentDateString()}`;
+    const exportType = result.type;
+    const exportTypeLabel = this.translateService.instant(`analytics_export_type_${exportType}`);
+    const filePrefix = this.translateService.instant('analytics_bookings_export_file_prefix');
+    const fileName = `${filePrefix}_${exportTypeLabel}_${this.getCurrentDateString()}`;
 
-    this.showMessage(`Exportando ${result.data.length} reservas...`, 'info');
+    this.showMessage(this.translateService.instant('analytics_exporting_bookings', {
+      count: result.data.length
+    }), 'info');
 
-    const filters = {
-      ...this.buildFiltersObject(),
-      [`only_${exportType}`]: true,
-      format: 'csv'
-    };
+    if (exportType === 'pending' || exportType === 'cancelled') {
+      const filters = {
+        ...this.buildFiltersObject(),
+        [`only_${exportType}`]: true,
+        format: 'csv'
+      };
 
-    const endpoint = exportType === 'pending'
-      ? '/admin/finance/export-pending-bookings'
-      : '/admin/finance/export-cancelled-bookings';
+      const endpoint = exportType === 'pending'
+        ? '/admin/finance/export-pending-bookings'
+        : '/admin/finance/export-cancelled-bookings';
 
-    this.apiService.get(endpoint, [], filters).subscribe({
-      next: (response) => {
-        if (response.data?.download_url) {
-          window.open(response.data.download_url, '_blank');
-          this.showMessage(`Exportación de ${result.data.length} reservas completada`, 'success');
-        } else {
-          this.showMessage('Error en la exportación', 'error');
+      this.apiService.get(endpoint, [], filters).subscribe({
+        next: (response) => {
+          if (response.data?.download_url) {
+            window.open(response.data.download_url, '_blank');
+            this.showMessage(this.translateService.instant('analytics_export_bookings_completed', {
+              count: result.data.length
+            }), 'success');
+          } else {
+            this.showMessage(this.translateService.instant('analytics_export_error'), 'error');
+          }
+        },
+        error: (error) => {
+          console.error('Error exportando reservas:', error);
+          this.showMessage(this.translateService.instant('analytics_export_error'), 'error');
         }
-      },
-      error: (error) => {
-        console.error('Error exportando reservas:', error);
-        this.showMessage('Error exportando reservas', 'error');
-      }
-    });
+      });
+      return;
+    }
+
+    const csvContent = this.createBookingListCsv(result.data || [], exportType, result.title);
+    this.downloadCsvContent(csvContent, fileName);
+    this.showMessage(this.translateService.instant('analytics_export_bookings_completed', {
+      count: result.data.length
+    }), 'success');
   }
 
 // 📤 MANEJAR EXPORTACIÓN DE RESERVA INDIVIDUAL
   private handleExportSingleBooking(result: any): void {
     const booking = result.booking;
 
-    this.showMessage(`Exportando reserva #${booking.id}...`, 'info');
+    this.showMessage(this.translateService.instant('analytics_exporting_single_booking', {
+      id: booking.id
+    }), 'info');
 
     // Crear un mini CSV para la reserva individual
     const csvContent = this.createSingleBookingCsv(booking, result.type);
-    const fileName = `reserva_${booking.id}_${this.getCurrentDateString()}.csv`;
+    const bookingPrefix = this.translateService.instant('analytics_single_booking_export_file_prefix');
+    const fileName = `${bookingPrefix}_${booking.id}_${this.getCurrentDateString()}.csv`;
 
     this.downloadCsvContent(csvContent, fileName);
-    this.showMessage(`Reserva #${booking.id} exportada`, 'success');
+    this.showMessage(this.translateService.instant('analytics_single_booking_exported', {
+      id: booking.id
+    }), 'success');
   }
 
 // 👁️ MANEJAR VER DETALLES DE RESERVA
@@ -1281,7 +1521,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       // Navegar al detalle de la reserva
       this.router.navigate(['/admin/bookings', booking.id]);
     } else {
-      this.showMessage('ID de reserva no disponible', 'warning');
+      this.showMessage(this.translateService.instant('analytics_booking_id_unavailable'), 'warning');
     }
   }
 
@@ -1289,29 +1529,58 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private createSingleBookingCsv(booking: any, type: string): string {
     let csvContent = '\xEF\xBB\xBF'; // BOM for UTF-8
 
-    csvContent += `DETALLE DE RESERVA #${booking.id}\n`;
-    csvContent += `Generado: ${new Date().toLocaleString('es-ES')}\n\n`;
+    csvContent += `${this.translateService.instant('analytics_booking_details_title', { id: booking.id })}\n`;
+    csvContent += `${this.translateService.instant('analytics_generated_at')}: ${new Date().toLocaleString(this.getLocale())}\n\n`;
 
     // Headers
     if (type === 'pending') {
-      csvContent += '"Campo","Valor"\n';
-      csvContent += `"ID","${booking.id}"\n`;
-      csvContent += `"Cliente","${booking.client_name}"\n`;
-      csvContent += `"Email","${booking.client_email}"\n`;
-      csvContent += `"Fecha","${booking.booking_date}"\n`;
-      csvContent += `"Importe Total","${this.formatCurrencyForCsv(booking.amount)}"\n`;
-      csvContent += `"Importe Recibido","${this.formatCurrencyForCsv(booking.received_amount)}"\n`;
-      csvContent += `"Importe Pendiente","${this.formatCurrencyForCsv(booking.pending_amount)}"\n`;
-      csvContent += `"Estado","${booking.status}"\n`;
+      csvContent += `"${this.translateService.instant('field_label')}","${this.translateService.instant('value_label')}"\n`;
+      csvContent += `"${this.translateService.instant('id')}","${booking.id}"\n`;
+      csvContent += `"${this.translateService.instant('client')}","${booking.client_name}"\n`;
+      csvContent += `"${this.translateService.instant('email_label')}","${booking.client_email}"\n`;
+      csvContent += `"${this.translateService.instant('date')}","${booking.booking_date}"\n`;
+      csvContent += `"${this.translateService.instant('total_amount')}","${this.formatCurrencyForCsv(booking.amount)}"\n`;
+      csvContent += `"${this.translateService.instant('received')}","${this.formatCurrencyForCsv(booking.received_amount)}"\n`;
+      csvContent += `"${this.translateService.instant('pending')}","${this.formatCurrencyForCsv(booking.pending_amount)}"\n`;
+      csvContent += `"${this.translateService.instant('status')}","${booking.status}"\n`;
     } else {
-      csvContent += '"Campo","Valor"\n';
-      csvContent += `"ID","${booking.id}"\n`;
-      csvContent += `"Cliente","${booking.client_name}"\n`;
-      csvContent += `"Email","${booking.client_email}"\n`;
-      csvContent += `"Fecha","${booking.booking_date}"\n`;
-      csvContent += `"Importe","${this.formatCurrencyForCsv(booking.amount)}"\n`;
-      csvContent += `"Estado","${booking.status}"\n`;
+      csvContent += `"${this.translateService.instant('field_label')}","${this.translateService.instant('value_label')}"\n`;
+      csvContent += `"${this.translateService.instant('id')}","${booking.id}"\n`;
+      csvContent += `"${this.translateService.instant('client')}","${booking.client_name}"\n`;
+      csvContent += `"${this.translateService.instant('email_label')}","${booking.client_email}"\n`;
+      csvContent += `"${this.translateService.instant('date')}","${booking.booking_date}"\n`;
+      csvContent += `"${this.translateService.instant('amount')}","${this.formatCurrencyForCsv(booking.amount)}"\n`;
+      csvContent += `"${this.translateService.instant('status')}","${booking.status}"\n`;
     }
+
+    return csvContent;
+  }
+
+  private createBookingListCsv(bookings: any[], type: string, title?: string): string {
+    let csvContent = '\xEF\xBB\xBF'; // BOM for UTF-8
+
+    const typeLabel = this.translateService.instant(`analytics_export_type_${type}`);
+    const headerTitle = title || `${this.translateService.instant('analytics_bookings_export_file_prefix')} ${typeLabel}`;
+    csvContent += `${headerTitle}\n`;
+    csvContent += `${this.translateService.instant('analytics_generated_at')}: ${new Date().toLocaleString(this.getLocale())}\n\n`;
+
+    csvContent += `"${this.translateService.instant('id')}","${this.translateService.instant('client')}","${this.translateService.instant('email_label')}","${this.translateService.instant('date')}","${this.translateService.instant('total_amount')}","${this.translateService.instant('received')}","${this.translateService.instant('pending')}","${this.translateService.instant('status')}"\n`;
+
+    bookings.forEach((booking) => {
+      const row = [
+        booking.id ?? '',
+        booking.client_name ?? '',
+        booking.client_email ?? '',
+        booking.booking_date ?? '',
+        this.formatCurrencyForCsv(booking.amount ?? 0),
+        this.formatCurrencyForCsv(booking.received_amount ?? 0),
+        this.formatCurrencyForCsv(booking.pending_amount ?? 0),
+        booking.status ?? ''
+      ];
+
+      const escapedRow = row.map((field) => `"${String(field).replace(/\"/g, '""')}"`);
+      csvContent += `${escapedRow.join(',')}\n`;
+    });
 
     return csvContent;
   }
@@ -1319,9 +1588,19 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 // 💰 FORMATEAR CURRENCY PARA CSV
   private formatCurrencyForCsv(amount: number | null | undefined): string {
     if (amount === null || amount === undefined || isNaN(amount)) {
-      return '0,00 EUR';
+      return new Intl.NumberFormat(this.getLocale(), {
+        style: 'currency',
+        currency: this.currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(0);
     }
-    return `${amount.toFixed(2).replace('.', ',')} EUR`;
+    return new Intl.NumberFormat(this.getLocale(), {
+      style: 'currency',
+      currency: this.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
   }
 
 // 📅 OBTENER FECHA ACTUAL COMO STRING
@@ -1417,7 +1696,20 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       panelClass: [`snackbar-${type}`]
     };
 
-    this.snackBar.open(message, 'Cerrar', config);
+    this.snackBar.open(message, this.translateService.instant('close'), config);
+  }
+
+  private getLocale(): string {
+    const lang = this.translateService.currentLang || 'en';
+    const localeMap: { [key: string]: string } = {
+      en: 'en-US',
+      es: 'es-ES',
+      fr: 'fr-FR',
+      de: 'de-DE',
+      it: 'it-IT'
+    };
+
+    return localeMap[lang] || lang;
   }
 
 // 6. EXPORTAR RESERVAS PENDIENTES
@@ -1601,7 +1893,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private requiresFullData(tabId: string): boolean {
-    return ['revenue', 'courses', 'comparative', 'alerts'].includes(tabId);
+    return ['revenue', 'courses'].includes(tabId);
   }
 
   private resolveFullOptimizationLevel(): string {
@@ -1648,7 +1940,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public onExportData(): void {
     if (!this.dashboardData) {
-      this.showMessage('No hay datos disponibles para exportar', 'warning');
+      this.showMessage(this.translateService.instant('analytics_no_data_to_export'), 'warning');
       return;
     }
 
@@ -1669,13 +1961,13 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       sections: ['executive_summary', 'financial_kpis', 'booking_analysis', 'critical_issues']
     };
 
-    this.showMessage('Exportando datos del dashboard...', 'info');
+    this.showMessage(this.translateService.instant('analytics_export_dashboard_in_progress'), 'info');
 
     this.apiService.get('/admin/finance/season-dashboard/export', [], exportFilters).subscribe({
       next: (response) => {
         if (response.data?.download_url) {
           window.open(response.data.download_url, '_blank');
-          this.showMessage('Exportación completada exitosamente', 'success');
+          this.showMessage(this.translateService.instant('analytics_export_dashboard_done'), 'success');
         } else {
           // Fallback: if no download_url, export locally
           this.exportDashboardDataLocally();
@@ -1690,18 +1982,19 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private exportDashboardDataLocally(): void {
-    this.showMessage('Generando exportación local...', 'info');
+    this.showMessage(this.translateService.instant('analytics_export_dashboard_local_in_progress'), 'info');
     const csvContent = this.generateDashboardCsv();
-    const fileName = `dashboard_export_${this.getCurrentDateString()}.csv`;
+    const filePrefix = this.translateService.instant('analytics_dashboard_export_file_prefix');
+    const fileName = `${filePrefix}_${this.getCurrentDateString()}.csv`;
     this.downloadCsvContent(csvContent, fileName);
-    this.showMessage('Dashboard exportado exitosamente', 'success');
+    this.showMessage(this.translateService.instant('analytics_export_dashboard_local_done'), 'success');
   }
 
   private exportMonitorsData(): void {
 
     // Check if monitors component is available
     if (!this.monitorsLegacyComponent) {
-      this.showMessage('El componente de monitores no está disponible', 'warning');
+      this.showMessage(this.translateService.instant('analytics_monitors_component_unavailable'), 'warning');
       console.error('❌ MonitorsLegacyComponent is not available');
       return;
     }
@@ -1710,19 +2003,22 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     const monitorsData = this.monitorsLegacyComponent.monitorsData;
 
     if (!monitorsData || monitorsData.length === 0) {
-      this.showMessage('No hay datos de monitores para exportar', 'warning');
+      this.showMessage(this.translateService.instant('analytics_no_monitors_data'), 'warning');
       console.warn('⚠️ No monitors data available for export');
       return;
     }
-    this.showMessage('Exportando datos de monitores...', 'info');
+    this.showMessage(this.translateService.instant('analytics_exporting_monitors'), 'info');
 
     // Generate CSV from local data
     const csvContent = this.generateMonitorsCsv(monitorsData);
-    const fileName = `monitores_export_${this.getCurrentDateString()}.csv`;
+    const filePrefix = this.translateService.instant('analytics_monitors_export_file_prefix');
+    const fileName = `${filePrefix}_${this.getCurrentDateString()}.csv`;
 
     // Download the CSV
     this.downloadCsvContent(csvContent, fileName);
-    this.showMessage(`${monitorsData.length} monitores exportados exitosamente`, 'success');
+    this.showMessage(this.translateService.instant('analytics_monitors_export_done', {
+      count: monitorsData.length
+    }), 'success');
   }
 
 
@@ -1730,13 +2026,21 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     let csvContent = '\uFEFF'; // UTF-8 BOM
 
     // Add export metadata
-    csvContent += `"EXPORTACIÓN DE MONITORES"\n`;
-    csvContent += `"Fecha de exportación: ${new Date().toLocaleString('es-ES')}"\n`;
-    csvContent += `"Rango de fechas: ${this.filterForm.value.startDate} - ${this.filterForm.value.endDate}"\n`;
-    csvContent += `"Total monitores: ${monitorsData.length}"\n\n`;
+    csvContent += `"${this.translateService.instant('analytics_monitors_export_title')}"\n`;
+    csvContent += `"${this.translateService.instant('analytics_export_date')}: ${new Date().toLocaleString(this.getLocale())}"\n`;
+    csvContent += `"${this.translateService.instant('analytics_date_range')}: ${this.filterForm.value.startDate} - ${this.filterForm.value.endDate}"\n`;
+    csvContent += `"${this.translateService.instant('analytics_total_monitors')}: ${monitorsData.length}"\n\n`;
 
     // Header
-    csvContent += '"Monitor","Deporte","H. Colectivas","H. Privadas","H. Actividades","H. Bloqueos","Total Horas","Precio/Hora","Total"\n';
+    csvContent += `"${this.translateService.instant('monitor')}",`;
+    csvContent += `"${this.translateService.instant('sport')}",`;
+    csvContent += `"${this.translateService.instant('collective_hours_abbr')}",`;
+    csvContent += `"${this.translateService.instant('private_hours_abbr')}",`;
+    csvContent += `"${this.translateService.instant('activities_hours_abbr')}",`;
+    csvContent += `"${this.translateService.instant('nwd_hours_abbr')}",`;
+    csvContent += `"${this.translateService.instant('total_hours')}",`;
+    csvContent += `"${this.translateService.instant('price_per_hour')}",`;
+    csvContent += `"${this.translateService.instant('total')}"\n`;
 
     // Data rows
     monitorsData.forEach(monitor => {
@@ -1766,7 +2070,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 0);
 
     csvContent += '\n';
-    csvContent += `"TOTAL","","","","","","${totalHours}","","${this.formatNumberForCsv(totalCost)}"\n`;
+    csvContent += `"${this.translateService.instant('total').toUpperCase()}","","","","","","${totalHours}","","${this.formatNumberForCsv(totalCost)}"\n`;
 
     return csvContent;
   }
@@ -1778,28 +2082,31 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (value === null || value === undefined || isNaN(value)) {
       return '0.00';
     }
-    return value.toFixed(2).replace('.', ',');
+    return new Intl.NumberFormat(this.getLocale(), {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
   }
 
   private generateDashboardCsv(): string {
     let csvContent = '\uFEFF'; // UTF-8 BOM
 
-    csvContent += `"DASHBOARD ANALYTICS EXPORT"\n`;
-    csvContent += `"Fecha de exportación: ${new Date().toLocaleString('es-ES')}"\n`;
-    csvContent += `"Rango de fechas: ${this.filterForm.value.startDate} - ${this.filterForm.value.endDate}"\n\n`;
+    csvContent += `"${this.translateService.instant('analytics_dashboard_export_title')}"\n`;
+    csvContent += `"${this.translateService.instant('analytics_export_date')}: ${new Date().toLocaleString(this.getLocale())}"\n`;
+    csvContent += `"${this.translateService.instant('analytics_date_range')}: ${this.filterForm.value.startDate} - ${this.filterForm.value.endDate}"\n\n`;
 
     // Executive Summary
-    csvContent += `"RESUMEN EJECUTIVO"\n`;
-    csvContent += `"Ingresos Totales","${this.formatCurrencyForCsv(this.dashboardData?.executive_kpis?.revenue_expected)}"\n`;
-    csvContent += `"Reservas Totales","${this.dashboardData?.season_info?.total_bookings || 0}"\n`;
-    csvContent += `"Ingresos Pendientes","${this.formatCurrencyForCsv(this.dashboardData?.executive_kpis?.revenue_pending)}"\n`;
-    csvContent += `"Participantes (únicos)","${this.dashboardData?.executive_kpis?.total_participants || 0}"\n`;
-    csvContent += `"Clientes (compradores)","${this.dashboardData?.executive_kpis?.total_clients || 0}"\n\n`;
+    csvContent += `"${this.translateService.instant('analytics_executive_summary_title')}"\n`;
+    csvContent += `"${this.translateService.instant('total_revenue')}","${this.formatCurrencyForCsv(this.dashboardData?.executive_kpis?.revenue_expected)}"\n`;
+    csvContent += `"${this.translateService.instant('total_bookings')}","${this.dashboardData?.season_info?.total_bookings || 0}"\n`;
+    csvContent += `"${this.translateService.instant('pending_revenue')}","${this.formatCurrencyForCsv(this.dashboardData?.executive_kpis?.revenue_pending)}"\n`;
+    csvContent += `"${this.translateService.instant('unique_participants')}","${this.dashboardData?.executive_kpis?.total_participants || 0}"\n`;
+    csvContent += `"${this.translateService.instant('unique_clients')}","${this.dashboardData?.executive_kpis?.total_clients || 0}"\n\n`;
 
     // Revenue by Month
     if (this.dashboardData?.trend_analysis?.monthly_breakdown?.length) {
-      csvContent += `"INGRESOS POR MES"\n`;
-      csvContent += `"Mes","Ingresos","Reservas","Valor Promedio","Clientes Únicos"\n`;
+      csvContent += `"${this.translateService.instant('analytics_revenue_by_month_title')}"\n`;
+      csvContent += `"${this.translateService.instant('month')}","${this.translateService.instant('revenue')}","${this.translateService.instant('bookings')}","${this.translateService.instant('average_value')}","${this.translateService.instant('unique_clients')}"\n`;
       this.dashboardData.trend_analysis.monthly_breakdown.forEach((item: any) => {
         csvContent += `"${this.formatDateWithMonthName(item.month)}","${this.formatCurrencyForCsv(item.revenue)}","${item.bookings}","${this.formatCurrencyForCsv(item.avg_booking_value)}","${item.unique_clients}"\n`;
       });
@@ -1808,10 +2115,10 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Courses
     if (this.dashboardData?.courses?.length) {
-      csvContent += `"CURSOS"\n`;
-      csvContent += `"Curso","Tipo","Ingresos","Reservas","Precio Promedio","Participantes"\n`;
+      csvContent += `"${this.translateService.instant('analytics_courses_title')}"\n`;
+      csvContent += `"${this.translateService.instant('course_name')}","${this.translateService.instant('type')}","${this.translateService.instant('revenue')}","${this.translateService.instant('bookings')}","${this.translateService.instant('avg_price')}","${this.translateService.instant('participants')}"\n`;
       this.dashboardData.courses.forEach((course: any) => {
-        csvContent += `"${course.name}","${this.getCourseTypeName(course.type)}","${this.formatCurrencyForCsv(course.revenue)}","${course.bookings}","${this.formatCurrencyForCsv(course.average_price)}","${course.participants}"\n`;
+        csvContent += `"${course.name}","${this.translateService.instant(this.getCourseTypeName(course.type))}","${this.formatCurrencyForCsv(course.revenue)}","${course.bookings}","${this.formatCurrencyForCsv(course.average_price)}","${course.participants}"\n`;
       });
     }
 
@@ -1825,16 +2132,18 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public viewCourseDetails(course: any): void {
     if (!course?.id) {
-      this.showMessage('ID de curso no disponible', 'warning');
+      this.showMessage(this.translateService.instant('analytics_course_id_unavailable'), 'warning');
       return;
     }
 
     // Preparar datos para el modal
     const modalData = {
       courseId: course.id,
-      courseName: course.name || `Curso #${course.id}`,
+      courseName: course.name || this.translateService.instant('analytics_course_fallback_name', { id: course.id }),
       courseType: course.type,
       sport: course.sport,
+      dateFilter: this.filterForm.value.dateFilter,
+      optimizationLevel: this.filterForm.value.optimizationLevel,
       dateRange: this.filterForm.value.startDate && this.filterForm.value.endDate ? {
         start: this.filterForm.value.startDate,
         end: this.filterForm.value.endDate
@@ -1880,7 +2189,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private exportSingleCourseStatistics(courseId: number, course: any): void {
-    this.showMessage(`Exportando estadísticas de ${course.name}...`, 'info');
+    this.showMessage(this.translateService.instant('analytics_exporting_course_stats', {
+      course: course.name
+    }), 'info');
 
     const filters = {
       ...this.buildFiltersObject(),
@@ -1892,14 +2203,16 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (response) => {
         if (response.data?.download_url) {
           window.open(response.data.download_url, '_blank');
-          this.showMessage(`Estadísticas de ${course.name} exportadas correctamente`, 'success');
+          this.showMessage(this.translateService.instant('analytics_course_stats_exported', {
+            course: course.name
+          }), 'success');
         } else {
-          this.showMessage('Error en la exportación', 'error');
+          this.showMessage(this.translateService.instant('analytics_export_error'), 'error');
         }
       },
       error: (error) => {
         console.error('Error exportando estadísticas del curso:', error);
-        this.showMessage('Error exportando estadísticas', 'error');
+        this.showMessage(this.translateService.instant('analytics_export_error'), 'error');
       }
     });
   }
@@ -1927,15 +2240,28 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 // Método helper para formatear monedas
   public formatCurrency(amount: number): string {
     if (amount === null || amount === undefined || isNaN(amount)) {
-      return `0.00 ${this.currency}`;
+      return new Intl.NumberFormat(this.getLocale(), {
+        style: 'currency',
+        currency: this.currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(0);
     }
 
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat(this.getLocale(), {
       style: 'currency',
       currency: this.currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);
+  }
+
+  // Método helper para acortar nombres de curso largos
+  private shortenCourseName(name: string): string {
+    if (!name) return '';
+    const maxLength = 45;
+    if (name.length <= maxLength) return name;
+    return name.substring(0, maxLength - 3) + '...';
   }
 
 
@@ -1990,7 +2316,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public getComparisonValue(current: number, previous?: number): string {
-    if (!previous || previous === 0) return 'N/A';
+    if (!previous || previous === 0) return this.translateService.instant('not_available');
     const diff = current - previous;
     const percentage = (diff / previous) * 100;
     const sign = diff >= 0 ? '+' : '';
@@ -2019,10 +2345,10 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getMostUsedPaymentMethod(): string {
     const methods = this.dashboardData?.payment_methods?.methods || [];
-    if (methods.length === 0) return 'N/A';
+    if (methods.length === 0) return this.translateService.instant('not_available');
 
     let maxRevenue = 0;
-    let mostUsedMethod = 'N/A';
+    let mostUsedMethod = this.translateService.instant('not_available');
 
     methods.forEach((method: any) => {
       if (method.revenue > maxRevenue) {
@@ -2064,17 +2390,25 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
    * Get display name for payment method
    */
   getPaymentMethodDisplayName(method: string): string {
-    const displayNames: { [key: string]: string } = {
-      'cash': 'Efectivo',
-      'card': 'Tarjeta',
-      'online': 'Online',
-      'vouchers': 'Vouchers',
-      'pending': 'Pendiente',
-      'bank_transfer': 'Transferencia',
-      'paypal': 'PayPal'
+    const keyMap: { [key: string]: string } = {
+      cash: 'cash',
+      card: 'card',
+      online: 'online',
+      vouchers: 'voucher',
+      pending: 'pending',
+      bank_transfer: 'bank_transfer',
+      paypal: 'paypal'
     };
 
-    return displayNames[method] || method.charAt(0).toUpperCase() + method.slice(1);
+    const key = keyMap[method];
+    if (key) {
+      const translated = this.translateService.instant(key);
+      if (translated && translated !== key) {
+        return translated;
+      }
+    }
+
+    return method.charAt(0).toUpperCase() + method.slice(1);
   }
 
   /**
@@ -2114,7 +2448,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   formatPercentage(value: number): string {
     if (!value && value !== 0) return '0%';
 
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat(this.getLocale(), {
       style: 'percent',
       minimumFractionDigits: 1,
       maximumFractionDigits: 1

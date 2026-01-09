@@ -1,4 +1,7 @@
 <ng-container >
+  <div class="booking-loading-overlay" *ngIf="isSubmitting">
+    <div class="loading-text">{{ 'loading' | translate }}</div>
+  </div>
 	<div class="barWrapper">
 		<vex-breadcrumbs [crumbs]="[
       { icon: 'reservas' },
@@ -255,6 +258,7 @@
   <div footer style="display: flex;">
     <!-- Botón Cancelar -->
     <button (click)="cancelPaymentStep()"
+            [disabled]="isSubmitting"
             style="height: 38px; width: 150px; border-radius: 3px; margin-top: 20px; margin-left: auto;"
             mat-raised-button type="button" class="client-button">
       {{"cancel" | translate }}
@@ -263,6 +267,7 @@
     <!-- Botón de Confirmar (Solo si Efectivo o Tarjeta) -->
     <button *ngIf="step === 1 && (selectedPaymentOptionId === 1 || selectedPaymentOptionId === 4)"
             (click)="goToNextStep()"
+            [disabled]="isSubmitting"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
       {{"continue" | translate }}
@@ -271,6 +276,7 @@
     <!-- Botón Finalizar Pago o Finalizar Reserva -->
     <button *ngIf="step === 1 && !(selectedPaymentOptionId === 1 || selectedPaymentOptionId === 4)"
             (click)="finalizeBooking()"
+            [disabled]="isSubmitting"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
       {{ getPrimaryCtaKey() | translate }}
@@ -279,6 +285,7 @@
     <!-- Botón Finalizar Reserva (Solo si Confirmación de Pago es Sí) -->
     <button *ngIf="step === 2"
             (click)="finalizeBooking()"
+            [disabled]="!isPaid || isSubmitting"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
       {{"end_booking" | translate }}

@@ -433,14 +433,11 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
         .subscribe({
           next: (response: any) => resolve(response.success),
           error: (error) => {
-            const errorMsg = error.error?.data?.[0];
-            if (errorMsg) {
-              this.snackbar.open(
-                `${this.translateService.instant('snackbar.booking.overlap')} ${moment(errorMsg.date).format('YYYY-MM-DD')} | ${errorMsg.hour_start} - ${errorMsg.hour_end}`,
-                'OK',
-                { duration: 3000 }
-              );
-            }
+            const overlapMessage = this.utilsService.formatBookingOverlapMessage(error.error?.data);
+            this.snackbar.open(overlapMessage, 'OK', {
+              duration: 4000,
+              panelClass: ['snackbar-multiline']
+            });
             resolve(false);
           }
         });

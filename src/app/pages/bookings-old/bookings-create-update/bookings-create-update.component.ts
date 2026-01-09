@@ -16,6 +16,7 @@ import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { BookingsCreateUpdateModalComponent } from '../bookings-create-update-modal/bookings-create-update-modal.component';
 import { ApiCrudService } from 'src/service/crud.service';
+import { UtilsService } from 'src/service/utils.service';
 import { MatCalendar, MatCalendarCellCssClasses, MatDatepickerInputEvent } from '@angular/material/datepicker';
 import { DateAdapter, NativeDateAdapter } from '@angular/material/core';
 import * as moment from 'moment';
@@ -285,7 +286,7 @@ export class BookingsCreateUpdateComponent implements OnInit {
   constructor(private fb: UntypedFormBuilder, private dialog: MatDialog, private crudService: ApiCrudService, private calendarService: CalendarService,
     private snackbar: MatSnackBar, private passwordGen: PasswordService, private router: Router,
     public translateService: TranslateService, private cdr: ChangeDetectorRef,
-    private dateAdapter: DateAdapter<Date>, public schoolService: SchoolService,
+    private dateAdapter: DateAdapter<Date>, public schoolService: SchoolService, private utilsService: UtilsService,
     @Optional() public dialogRef: MatDialogRef<BookingsCreateUpdateComponent>,
     @Optional() @Inject(MAT_DIALOG_DATA) public externalData: any) {
     this.dateAdapter.setLocale(this.translateService.getDefaultLang());
@@ -824,13 +825,11 @@ export class BookingsCreateUpdateComponent implements OnInit {
     let overlap = this.hasLocalOverlap(checkAval);
 
     if (overlap) {
-      this.snackbar.open(
-        this.translateService.instant('snackbar.booking.overlap') +
-        moment(overlap.date).format('YYYY-MM-DD') + ' | ' +
-        overlap.hour_start + ' - ' +
-        overlap.hour_end,
-        'OK', { duration: 3000 }
-      );
+      const overlapMessage = this.utilsService.formatBookingOverlapMessage([overlap]);
+      this.snackbar.open(overlapMessage, 'OK', {
+        duration: 4000,
+        panelClass: ['snackbar-multiline']
+      });
     } else {
       this.crudService.post('/admin/bookings/checkbooking', checkAval)
         .subscribe((response) => {
@@ -1196,8 +1195,11 @@ export class BookingsCreateUpdateComponent implements OnInit {
           this.reservableCourseDate = [];
           this.clientsForm.disable();
         }, (error) => {
-          this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
-            moment(error.error.data[0].date).format('YYYY-MM-DD') + ' | ' + error.error.data[0].hour_start + ' - ' + error.error.data[0].hour_end, 'OK', { duration: 3000 })
+          const overlapMessage = this.utilsService.formatBookingOverlapMessage(error?.error?.data);
+          this.snackbar.open(overlapMessage, 'OK', {
+            duration: 4000,
+            panelClass: ['snackbar-multiline']
+          });
         });
     }
 

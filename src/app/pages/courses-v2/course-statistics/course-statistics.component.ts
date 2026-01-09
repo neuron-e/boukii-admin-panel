@@ -77,6 +77,8 @@ export class CourseStatisticsComponent implements OnInit, OnDestroy {
   // ==================== INPUTS ====================
   @Input() courseId!: number;
   @Input() dateRange?: { start: string; end: string };
+  @Input() dateFilter?: string;
+  @Input() optimizationLevel?: string;
   @Input() showTitle: boolean = true;
   @Input() compact: boolean = false; // Para modo modal vs página completa
 
@@ -173,6 +175,14 @@ export class CourseStatisticsComponent implements OnInit, OnDestroy {
     if (this.dateRange) {
       params.start_date = this.dateRange.start;
       params.end_date = this.dateRange.end;
+    }
+
+    if (this.dateFilter) {
+      params.date_filter = this.dateFilter;
+    }
+
+    if (this.optimizationLevel) {
+      params.optimization_level = this.optimizationLevel;
     }
 
     return params;

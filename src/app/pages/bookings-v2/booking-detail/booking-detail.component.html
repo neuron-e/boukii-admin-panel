@@ -221,14 +221,16 @@
       <button (click)="cancelPaymentStep()"
               class="modal-action-button secondary-button"
               mat-raised-button
-              type="button">
+              type="button"
+              [disabled]="isLoading">
         {{"cancel" | translate }}
       </button>
       <button (click)="finalizeBooking()"
               class="modal-action-button primary-button"
               color="primary"
               mat-raised-button
-              type="button">
+              type="button"
+              [disabled]="isLoading">
         {{ (paymentMethod === 3 ? 'send_payment_link' : 'continue') | translate }}
       </button>
     </ng-container>
@@ -238,7 +240,8 @@
       <button (click)="step = 1"
               class="modal-action-button secondary-button"
               mat-raised-button
-              type="button">
+              type="button"
+              [disabled]="isLoading">
         {{"back" | translate }}
       </button>
       <button (click)="finalizeBooking()"
@@ -246,7 +249,7 @@
               color="primary"
               mat-raised-button
               type="button"
-              [disabled]="!isPaid">
+              [disabled]="!isPaid || isLoading">
         {{ "confirm_payment" | translate }}
       </button>
     </ng-container>

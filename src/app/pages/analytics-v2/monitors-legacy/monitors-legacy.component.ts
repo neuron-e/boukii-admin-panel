@@ -116,7 +116,7 @@ interface MonitorKPIs {
                 <div class="kpi-value">{{ formatCurrency(getTotalFilteredCost()) }}</div>
                 <div class="kpi-label">{{ 'monitor_income' | translate }}</div>
                 <div class="kpi-change">
-                  <span>{{ getAverageHourlyRate() + this.currency}}/{{ 'average_hour' | translate }}</span>
+                  <span>{{ getAverageHourlyRate() }} {{ currency }}/{{ 'average_hour' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">monetization_on</mat-icon>
@@ -335,7 +335,7 @@ interface MonitorKPIs {
                 <div class="detail-kpi-label">{{ 'total_income' | translate }}</div>
               </div>
               <div class="detail-kpi">
-                <div class="detail-kpi-value">{{ getDetailAverageHourlyRate() }}€/h</div>
+                <div class="detail-kpi-value">{{ getDetailAverageHourlyRate() }} {{ currency }}/h</div>
                 <div class="detail-kpi-label">{{ 'average_rate' | translate }}</div>
               </div>
               <div class="detail-kpi">
@@ -806,7 +806,7 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   private processMonitorsData(): void {
     this.monitorsData = this.monitorBookingsResponse.map(m => ({
       monitor: `${m.first_name}`,
-      sport: m.sport_name || 'Todos los deportes',
+      sport: m.sport_name || this.translateService.instant('all_sports'),
       hours_collective: m.hours_collective || 0,
       hours_private: m.hours_private || 0,
       hours_activities: m.hours_activities || 0,
@@ -833,8 +833,8 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   private transformSportData(data: any): Record<string, Record<string, number>> {
     const result: Record<string, Record<string, number>> = {};
     Object.values(data).forEach((entry: any) => {
-      const sport = entry.sport?.name || 'Otro';
-      const date = entry.date || 'Sin fecha';
+      const sport = entry.sport?.name || this.translateService.instant('other_label');
+      const date = entry.date || this.translateService.instant('no_date');
       const hours = entry.hours || 0;
 
       if (!result[date]) result[date] = {};
@@ -1045,16 +1045,34 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   formatCurrency(amount: number): string {
-    return `${amount.toFixed(2)} ${this.currency}`;
+    return new Intl.NumberFormat(this.getLocale(), {
+      style: 'currency',
+      currency: this.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
   }
 
   formatDate(dateString: string): string {
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
+    return date.toLocaleDateString(this.getLocale(), {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
+  }
+
+  private getLocale(): string {
+    const lang = this.translateService.currentLang || 'en';
+    const localeMap: { [key: string]: string } = {
+      en: 'en-US',
+      es: 'es-ES',
+      fr: 'fr-FR',
+      de: 'de-DE',
+      it: 'it-IT'
+    };
+
+    return localeMap[lang] || lang;
   }
 
   // ==================== TABLE FILTERING ====================
@@ -1088,29 +1106,29 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
         x: dates,
         y: dates.map(date => this.hoursTypeData[date]?.[1] || 0),
         mode: 'lines+markers',
-        name: 'Cursos Colectivos',
+        name: this.translateService.instant('collective'),
         line: { color: this.courseTypeColors[1] } // ✅ COLOR CONSISTENTE
       },
       {
         x: dates,
         y: dates.map(date => this.hoursTypeData[date]?.[2] || 0),
         mode: 'lines+markers',
-        name: 'Cursos Privados',
+        name: this.translateService.instant('private'),
         line: { color: this.courseTypeColors[2] } // ✅ COLOR CONSISTENTE
       },
       {
         x: dates,
         y: dates.map(date => this.hoursTypeData[date]?.[3] || 0),
         mode: 'lines+markers',
-        name: 'Actividades',
+        name: this.translateService.instant('activity'),
         line: { color: this.courseTypeColors[3] } // ✅ COLOR CONSISTENTE
       }
     ];
 
     const layout = {
-      title: 'Distribución de Horas por Tipo de Curso',
+      title: this.translateService.instant('hours_distribution_by_type'),
       xaxis: this.createTranslatedXAxisConfig(dates),
-      yaxis: { title: 'Horas' },
+      yaxis: { title: this.translateService.instant('hours_label') },
       paper_bgcolor: 'rgba(0,0,0,0)',
       plot_bgcolor: 'rgba(0,0,0,0)',
       showlegend: true,
@@ -1143,9 +1161,9 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
     }));
 
     const layout = {
-      title: 'Horas Trabajadas por Deporte',
+      title: this.translateService.instant('hours_by_sport'),
       xaxis: this.createTranslatedXAxisConfig(dates), // ✅ CAMBIO PRINCIPAL
-      yaxis: { title: 'Horas' },
+      yaxis: { title: this.translateService.instant('hours_label') },
       paper_bgcolor: 'rgba(0,0,0,0)',
       plot_bgcolor: 'rgba(0,0,0,0)',
       showlegend: true,

@@ -256,25 +256,11 @@ export class FormDetailsPrivateComponent implements OnInit {
           const isAvailable = response.success; // Ajusta según la respuesta real de tu API
           resolve(isAvailable); // Resolvemos la promesa con el valor de disponibilidad
         }, (error) => {
-
-          // Verificar si hay datos de solapamiento en el error
-          if (error?.error?.data && Array.isArray(error.error.data) && error.error.data.length > 0) {
-            const conflictData = error.error.data[0];
-            this.snackbar.open(
-              this.translateService.instant('snackbar.booking.overlap') +
-              moment(conflictData.date).format('YYYY-MM-DD') +
-              ' | ' + conflictData.hour_start + ' - ' + conflictData.hour_end,
-              'OK',
-              { duration: 3000 }
-            );
-          } else {
-            // Error genérico sin datos específicos
-            this.snackbar.open(
-              this.translateService.instant('snackbar.booking.overlap'),
-              'OK',
-              { duration: 3000 }
-            );
-          }
+          const overlapMessage = this.utilService.formatBookingOverlapMessage(error?.error?.data);
+          this.snackbar.open(overlapMessage, 'OK', {
+            duration: 4000,
+            panelClass: ['snackbar-multiline']
+          });
           resolve(false); // En caso de error, rechazamos la promesa
         });
     });

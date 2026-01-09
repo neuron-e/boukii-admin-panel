@@ -1,5 +1,6 @@
 ﻿import { Component, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-booking-list-dialog',
@@ -15,9 +16,9 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
       <!-- Filtro de búsqueda -->
       <div class="search-container">
         <mat-form-field appearance="outline" class="search-field">
-          <mat-label>Buscar reserva</mat-label>
+          <mat-label>{{ 'booking_search_label' | translate }}</mat-label>
           <input matInput [(ngModel)]="searchTerm" (input)="applyFilter()"
-                 placeholder="ID, nombre o email">
+                 placeholder="{{ 'booking_search_placeholder' | translate }}">
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
       </div>
@@ -28,15 +29,19 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
           <!-- Booking ID -->
           <ng-container matColumnDef="id">
-            <th mat-header-cell *matHeaderCellDef>ID</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'id' | translate }}</th>
             <td mat-cell *matCellDef="let booking">
-              <strong>#{{ booking.id }}</strong>
+              <a [routerLink]="['/bookings', booking.id]"
+                 target="_blank"
+                 class="booking-id-link">
+                <strong>#{{ booking.id }}</strong>
+              </a>
             </td>
           </ng-container>
 
           <!-- Cliente -->
           <ng-container matColumnDef="client">
-            <th mat-header-cell *matHeaderCellDef>Cliente</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'client' | translate }}</th>
             <td mat-cell *matCellDef="let booking">
               <div class="client-info">
                 <div class="client-name">{{ booking.client_name }}</div>
@@ -47,7 +52,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
           <!-- Fecha -->
           <ng-container matColumnDef="date">
-            <th mat-header-cell *matHeaderCellDef>Fecha</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'date' | translate }}</th>
             <td mat-cell *matCellDef="let booking">
               {{ formatDate(booking.booking_date) }}
             </td>
@@ -55,7 +60,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
           <!-- Importe Total -->
           <ng-container matColumnDef="amount">
-            <th mat-header-cell *matHeaderCellDef>Importe Total</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'total_amount' | translate }}</th>
             <td mat-cell *matCellDef="let booking">
               <span class="amount">
                 {{ formatCurrency(booking.amount) }}
@@ -65,7 +70,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
           <!-- Importe Pendiente (solo para pending) -->
           <ng-container matColumnDef="pending_amount">
-            <th mat-header-cell *matHeaderCellDef>Pendiente</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'pending' | translate }}</th>
             <td mat-cell *matCellDef="let booking">
               <span class="amount pending">
                 {{ formatCurrency(booking.pending_amount) }}
@@ -75,7 +80,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
           <!-- Importe Recibido (solo para pending) -->
           <ng-container matColumnDef="received_amount">
-            <th mat-header-cell *matHeaderCellDef>Recibido</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'received' | translate }}</th>
             <td mat-cell *matCellDef="let booking">
               <span class="amount received">
                 {{ formatCurrency(booking.received_amount) }}
@@ -85,7 +90,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
           <!-- Estado -->
           <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef>Estado</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'status' | translate }}</th>
             <td mat-cell *matCellDef="let booking">
               <mat-chip class="status-chip" [ngClass]="getStatusClass(booking.status)"
                         [class.has-issues]="booking.has_issues">
@@ -96,7 +101,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
           <!-- Acciones -->
           <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'actions' | translate }}</th>
             <td mat-cell *matCellDef="let booking">
               <button mat-icon-button [matMenuTriggerFor]="actionMenu">
                 <mat-icon>more_vert</mat-icon>
@@ -104,16 +109,16 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
               <mat-menu #actionMenu="matMenu">
                 <button mat-menu-item (click)="viewDetails(booking)">
                   <mat-icon>visibility</mat-icon>
-                  Ver detalles
+                  {{ 'view_details' | translate }}
                 </button>
                 <button mat-menu-item (click)="exportBooking(booking)">
                   <mat-icon>download</mat-icon>
-                  Exportar
+                  {{ 'export' | translate }}
                 </button>
                 <button mat-menu-item (click)="copyBookingId(booking)"
                         *ngIf="booking.id">
                   <mat-icon>content_copy</mat-icon>
-                  Copiar ID
+                  {{ 'copy_id' | translate }}
                 </button>
               </mat-menu>
             </td>
@@ -129,9 +134,9 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
         <!-- No data -->
         <div class="no-data" *ngIf="filteredBookings.length === 0">
           <mat-icon>inbox</mat-icon>
-          <p>No se encontraron reservas</p>
+          <p>{{ 'no_bookings_found' | translate }}</p>
           <p class="no-data-subtitle" *ngIf="searchTerm">
-            Intenta cambiar los criterios de búsqueda
+            {{ 'adjust_search_criteria' | translate }}
           </p>
         </div>
       </div>
@@ -139,23 +144,51 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
     <mat-dialog-actions class="dialog-actions">
       <div class="summary">
-        <span class="total-count">{{ filteredBookings.length }} reservas</span>
-        <span *ngIf="data.type === 'pending'" class="total-amount">
-          • {{ formatCurrency(getTotalAmount()) }} total pendiente
+        <span class="total-count">{{ filteredBookings.length }} {{ 'bookings' | translate }}</span>
+
+        <!-- Resumen financiero detallado para pending -->
+        <ng-container *ngIf="data.type === 'pending' && data.financial_summary">
+          <span class="financial-item pending-positive">
+            • {{ getCategoryCount('unpaid_with_debt') }} {{ 'pending_with_debt' | translate }}
+            <span class="amount-label">({{ formatCurrency(data.financial_summary.total_pending_positive) }})</span>
+          </span>
+          <span class="financial-item overpayment">
+            • {{ getCategoryCount('overpayment') }} {{ 'overpayments' | translate }}
+            <span class="amount-label">({{ formatCurrency(data.financial_summary.total_overpayment) }})</span>
+          </span>
+          <span class="financial-item net-pending">
+            • {{ 'net_label' | translate }}: <strong>{{ formatCurrency(data.financial_summary.net_pending) }}</strong>
+          </span>
+        </ng-container>
+
+        <!-- Resumen para sobrepagos -->
+        <span *ngIf="data.type === 'overpayment' && data.financial_summary" class="total-amount overpayment">
+          • {{ formatCurrency(data.financial_summary.total_overpayment) }} {{ 'total_overpaid' | translate }}
         </span>
+
+        <!-- Resumen para pendientes de cobro -->
+        <span *ngIf="data.type === 'unpaid_with_debt' && data.financial_summary" class="total-amount pending-debt">
+          • {{ formatCurrency(data.financial_summary.total_pending_positive) }} {{ 'total_pending' | translate }}
+        </span>
+
+        <!-- Resumen para otros tipos -->
         <span *ngIf="data.type === 'cancelled'" class="total-amount">
-          • {{ formatCurrency(getTotalAmount()) }} total cancelado
+          • {{ formatCurrency(getTotalAmount()) }} {{ 'total_cancelled' | translate }}
         </span>
+        <span *ngIf="data.type !== 'pending' && data.type !== 'cancelled' && data.type !== 'overpayment' && data.type !== 'unpaid_with_debt'" class="total-amount">
+          • {{ formatCurrency(getTotalAmount()) }} {{ 'total' | translate }}
+        </span>
+
         <span *ngIf="getHighPriorityCount() > 0" class="priority-warning">
-          • {{ getHighPriorityCount() }} alta prioridad
+          • {{ getHighPriorityCount() }} {{ 'high_priority' | translate }}
         </span>
       </div>
       <div class="actions">
-        <button mat-button mat-dialog-close>Cerrar</button>
+        <button mat-button mat-dialog-close>{{ 'close' | translate }}</button>
         <button mat-raised-button color="primary" (click)="exportAll()"
                 *ngIf="filteredBookings.length > 0">
           <mat-icon>download</mat-icon>
-          Exportar Todo
+          {{ 'export_all' | translate }}
         </button>
       </div>
     </mat-dialog-actions>
@@ -215,6 +248,18 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
     .mat-cell {
       padding: 12px 8px;
       border-bottom: 1px solid #f0f0f0;
+    }
+
+    .booking-id-link {
+      color: #1976d2;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .booking-id-link:hover {
+      color: #0d47a1;
+      text-decoration: underline;
     }
 
     .client-info .client-name {
@@ -344,6 +389,29 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
       margin-left: 8px;
     }
 
+    .summary .financial-item {
+      margin-left: 8px;
+      font-size: 0.875rem;
+    }
+
+    .summary .financial-item.pending-positive {
+      color: #f57c00;
+    }
+
+    .summary .financial-item.overpayment {
+      color: #2196f3;
+    }
+
+    .summary .financial-item.net-pending {
+      color: #333;
+      font-weight: 600;
+    }
+
+    .summary .amount-label {
+      font-weight: 500;
+      opacity: 0.9;
+    }
+
     .actions {
       display: flex;
       gap: 8px;
@@ -384,7 +452,8 @@ export class BookingListModalComponent {
 
   constructor(
     public dialogRef: MatDialogRef<BookingListModalComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    @Inject(MAT_DIALOG_DATA) public data: any,
+    private translateService: TranslateService
   ) {
     this.filteredBookings = [...(this.data.bookings || [])];
     this.currencyCode = this.data?.currency || 'CHF';
@@ -395,7 +464,7 @@ export class BookingListModalComponent {
   private setupColumns(): void {
     const baseColumns = ['id', 'client', 'date'];
 
-    if (this.data.type === 'pending') {
+    if (this.data.type === 'pending' || this.data.type === 'unpaid_with_debt' || this.data.type === 'overpayment') {
       this.displayedColumns = [
         ...baseColumns,
         'amount',
@@ -442,11 +511,11 @@ export class BookingListModalComponent {
 
   // 📅 FORMATEAR FECHA
   formatDate(dateString: string): string {
-    if (!dateString) return 'N/A';
+    if (!dateString) return this.translateService.instant('not_available');
 
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', {
+      return date.toLocaleDateString(this.getLocale(), {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
@@ -460,7 +529,7 @@ export class BookingListModalComponent {
   formatCurrency(amount: number | null | undefined): string {
     const safeAmount = amount === null || amount === undefined || isNaN(amount) ? 0 : amount;
 
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat(this.getLocale(), {
       style: 'currency',
       currency: this.currencyCode,
       minimumFractionDigits: 2,
@@ -472,20 +541,25 @@ export class BookingListModalComponent {
   getStatusName(status: string): string {
     const statusMap: { [key: string]: string } = {
       // ✅ NUEVOS ESTADOS REALES
-      'active': 'Activa',
-      'partial_cancel': 'Parcialmente Cancelada',
-      'total_cancel': 'Cancelada Totalmente',
-      'finished': 'Finalizada',
+      'active': 'status_active',
+      'partial_cancel': 'status_partial_cancel',
+      'total_cancel': 'status_total_cancel',
+      'finished': 'status_finished',
 
       // ✅ MANTENER COMPATIBILIDAD CON ESTADOS ANTIGUOS
-      'cancelled': 'Cancelada',
-      'partial': 'Parcial',
-      '1': 'Activa',
-      '2': 'Cancelada',
-      '3': 'Parcial'
+      'cancelled': 'status_cancelled',
+      'partial': 'status_partial',
+      '1': 'status_active',
+      '2': 'status_cancelled',
+      '3': 'status_partial'
     };
 
-    return statusMap[status] || status || 'Desconocido';
+    const statusKey = statusMap[status];
+    if (statusKey) {
+      return this.translateService.instant(statusKey);
+    }
+
+    return status || this.translateService.instant('status_unknown');
   }
 
   // 🎨 OBTENER CLASE CSS DEL ESTADO
@@ -545,6 +619,14 @@ export class BookingListModalComponent {
     return this.filteredBookings.filter(booking => this.isHighPriority(booking)).length;
   }
 
+  // 📊 CONTAR RESERVAS POR CATEGORÍA
+  getCategoryCount(category: string): number {
+    if (!this.data.payment_classification || !this.data.payment_classification[category]) {
+      return 0;
+    }
+    return this.data.payment_classification[category].count || 0;
+  }
+
   // 📤 EXPORTAR TODAS LAS RESERVAS
   exportAll(): void {
     this.dialogRef.close({
@@ -587,6 +669,19 @@ export class BookingListModalComponent {
   refreshData(): void {
     // Método para refrescar los datos si es necesario
     this.applyFilter();
+  }
+
+  private getLocale(): string {
+    const lang = this.translateService.currentLang || 'en';
+    const localeMap: { [key: string]: string } = {
+      en: 'en-US',
+      es: 'es-ES',
+      fr: 'fr-FR',
+      de: 'de-DE',
+      it: 'it-IT'
+    };
+
+    return localeMap[lang] || lang;
   }
 }
 

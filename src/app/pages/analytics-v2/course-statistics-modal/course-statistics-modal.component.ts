@@ -7,6 +7,8 @@ interface CourseModalData {
   courseName: string;
   courseType?: number;
   sport?: string;
+  dateFilter?: string;
+  optimizationLevel?: string;
   dateRange?: {
     start: string;
     end: string;

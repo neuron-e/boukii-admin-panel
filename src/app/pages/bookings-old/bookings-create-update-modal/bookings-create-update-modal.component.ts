@@ -7,6 +7,7 @@ import { stagger20ms } from 'src/@vex/animations/stagger.animation';
 import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { ApiCrudService } from 'src/service/crud.service';
+import { UtilsService } from 'src/service/utils.service';
 import { MatCalendar, MatCalendarCellCssClasses, MatDatepickerInputEvent } from '@angular/material/datepicker';
 import { Platform } from '@angular/cdk/platform';
 import { DateAdapter, MAT_DATE_LOCALE, NativeDateAdapter } from '@angular/material/core';
@@ -274,7 +275,8 @@ export class BookingsCreateUpdateModalComponent implements OnInit {
   private subscription: Subscription;
 
   constructor(private fb: UntypedFormBuilder, private dialog: MatDialog, private crudService: ApiCrudService, private calendarService: CalendarService, private dialogRef: MatDialogRef<any>,
-    private snackbar: MatSnackBar, private passwordGen: PasswordService, private router: Router, public translateService: TranslateService, public schoolService: SchoolService, @Inject(MAT_DIALOG_DATA) public externalData: any) {
+    private snackbar: MatSnackBar, private passwordGen: PasswordService, private router: Router, public translateService: TranslateService, public schoolService: SchoolService,
+    private utilsService: UtilsService, @Inject(MAT_DIALOG_DATA) public externalData: any) {
 
     this.minDate = new Date(); // Establecer la fecha mínima como la fecha actual
     this.subscription = this.calendarService.monthChanged$.subscribe(firstDayOfMonth => {
@@ -960,8 +962,11 @@ export class BookingsCreateUpdateModalComponent implements OnInit {
         this.reservableCourseDate = [];
         this.clientsForm.disable();
       }, (error) => {
-        this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
-          moment(error.error.data[0].date).format('YYYY-MM-DD') + ' | ' + error.error.data[0].hour_start + ' - ' + error.error.data[0].hour_end, 'OK', { duration: 3000 })
+        const overlapMessage = this.utilsService.formatBookingOverlapMessage(error?.error?.data);
+        this.snackbar.open(overlapMessage, 'OK', {
+          duration: 4000,
+          panelClass: ['snackbar-multiline']
+        });
       });
 
 

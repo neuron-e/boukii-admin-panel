@@ -61,6 +61,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   selectedPaymentOptionLabel: string = '';
   isPaid = false;
   isConfirmingPayment = false;
+  isSubmitting = false;
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
 
@@ -1246,7 +1247,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   // MÃ©todo para finalizar la reserva
   finalizeBooking(): void {
     const bookingData = this.bookingService.getBookingData();
-    if (!bookingData) {
+    if (!bookingData || this.isSubmitting) {
       return;
     }
 
@@ -1310,6 +1311,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     bookingData.user_id = user.id;
 
     // Enviar la reserva a la API
+    this.isSubmitting = true;
     this.crudService.post('/admin/bookings', bookingData)
       .subscribe(
         (result: any) => {
@@ -1320,6 +1322,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
             this.crudService.post(`/admin/bookings/payments/${bookingId}`, result.data.basket)
               .subscribe(
                 (paymentResult: any) => {
+                  this.isSubmitting = false;
                   if (bookingData.payment_method_id === 2) {
                     if (this.dialogRef) {
                       this.dialogRef.close();
@@ -1340,6 +1343,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                   }
                 },
                 (error) => {
+                  this.isSubmitting = false;
                   if (this.dialogRef) {
                     this.dialogRef.close();
                   }
@@ -1352,6 +1356,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                 }
               );
           } else {
+            this.isSubmitting = false;
             if (this.dialogRef) {
               this.dialogRef.close();
             }
@@ -1364,6 +1369,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           }
         },
         (error) => {
+          this.isSubmitting = false;
           // Verificar si es un error de coherencia cliente-participantes
           if (error.error?.message && error.error.message.includes('Error de coherencia')) {
             this.handleClientParticipantConsistencyError(error.error.message);
@@ -1390,7 +1396,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   private buildFinalPriceTotal(bookingData: any): number {
     // baseRaw ya incluye precios netos por actividad (courseSubtotalAfterDiscount)
-    const baseRaw = bookingData?.price_total ?? 0;
+    const baseRaw = this.total !== null && this.total !== undefined && !isNaN(this.total)
+      ? this.total
+      : (bookingData?.price_total ?? 0);
     const base = typeof baseRaw === 'number' ? baseRaw : parseFloat(String(baseRaw)) || 0;
 
     const insurance = bookingData?.has_cancellation_insurance

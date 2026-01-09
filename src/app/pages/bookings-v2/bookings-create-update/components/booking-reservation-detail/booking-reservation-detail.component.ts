@@ -231,6 +231,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
         this.bookingData.vouchers.push(result);
         this.updateBookingData();
         this.recalculateBonusPrice();
+        this.refreshDisplayTotals();
       }
     });
   }
@@ -248,6 +249,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
         this.bookingData.price_reduction = this.bookingData.reduction.appliedPrice;
         this.updateBookingData();
         this.recalculateBonusPrice();
+        this.refreshDisplayTotals();
       }
     });
   }
@@ -257,12 +259,14 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     this.bookingData.price_reduction = 0;
     this.updateBookingData();
     this.recalculateBonusPrice();
+    this.refreshDisplayTotals();
   }
 
   deleteBonus(index: number): void {
     this.bookingData.vouchers.splice(index, 1);
     this.updateBookingData();
     this.recalculateBonusPrice();
+    this.refreshDisplayTotals();
   }
 
   private calculateReduction(): number {
@@ -345,6 +349,10 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   private refreshDisplayTotals(): void {
     this.displayTotal = this.getFinalTotal();
     this.displayOutstanding = this.getOutstandingTotal();
+    (this.bookingData as any).computed_total = this.displayTotal;
+    (this.bookingData as any).computed_paid_total = Number(this.bookingData.paid_total || 0);
+    (this.bookingData as any).computed_pending_amount = this.displayOutstanding;
+    this.updateBookingData();
   }
 
   private syncPriceTotalWithActivities(): void {

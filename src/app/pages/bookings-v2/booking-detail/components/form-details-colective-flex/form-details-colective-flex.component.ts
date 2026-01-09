@@ -136,14 +136,11 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
           }
 
           if (Array.isArray(errorData) && errorData.length > 0) {
-            const overlap = errorData[0];
-            this.snackbar.open(
-              this.translateService.instant('snackbar.booking.overlap') +
-              moment(overlap.date).format('YYYY-MM-DD') +
-              ' | ' + overlap.hour_start + ' - ' + overlap.hour_end,
-              'OK',
-              { duration: 3000 }
-            );
+            const overlapMessage = this.utilsService.formatBookingOverlapMessage(errorData);
+            this.snackbar.open(overlapMessage, 'OK', {
+              duration: 4000,
+              panelClass: ['snackbar-multiline']
+            });
           } else {
             this.snackbar.open(
               this.translateService.instant('snackbar.booking.error'),
