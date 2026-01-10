@@ -18,6 +18,17 @@ $box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 $box-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
 $transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
 
+// ==================== CACHE STATUS ====================
+.cache-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: $text-muted;
+}
+
 // ==================== FILTERS SECTION ====================
 .filters-section {
   margin-bottom: 24px;
@@ -684,10 +695,48 @@ $transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
     }
 
     .source-percentage {
-      font-size: 12px;
-      font-weight: 500;
-      color: $info-color;
-    }
+  font-size: 12px;
+  font-weight: 500;
+  color: $info-color;
+}
+
+.cache-refresh-button {
+  background-color: $info-color;
+  color: #fff;
+  border-color: $info-color;
+
+  mat-icon {
+    color: #fff;
+  }
+
+  &:hover {
+    background-color: darken($info-color, 6%);
+    border-color: darken($info-color, 6%);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.course-note {
+  margin-bottom: 16px;
+
+  .mat-card-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: $text-secondary;
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: $info-color;
+  }
+}
   }
 }
 

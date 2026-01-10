@@ -2142,6 +2142,16 @@
   "analytics_course_id_unavailable": "ID de curso no disponible",
   "analytics_exporting_course_stats": "Exportando estadísticas de {{course}}...",
   "analytics_course_stats_exported": "Estadísticas de {{course}} exportadas con éxito",
-  "analytics_course_fallback_name": "Curso #{{id}}"
+  "analytics_course_fallback_name": "Curso #{{id}}",
+  "analytics_cache_loading_no_cache": "Cargando datos. Si no hay cache, puede tardar varios minutos.",
+  "analytics_cache_generated_at": "Datos generados:",
+  "analytics_cache_generated_at_na": "Datos generados: N/A",
+  "analytics_cache_notice_refresh": "Cache actualizada. Esta operacion puede tardar varios minutos.",
+  "analytics_cache_notice_refresh_blocked": "Cache reciente. Se usan datos guardados para evitar recalculo.",
+  "analytics_cache_notice_miss": "Datos generados ahora. Si no hay cache, la carga puede tardar varios minutos.",
+  "analytics_cache_refreshing": "Actualizando cache, esta llamada puede tardar varios minutos.",
+  "analytics_courses_includes_unpaid": "El analisis de cursos incluye reservas no pagadas.",
+  "analytics_refresh_cache": "Actualizar cache",
+  "analytics_refresh_cache_tooltip": "Forzar recarga de cache"
 }
 

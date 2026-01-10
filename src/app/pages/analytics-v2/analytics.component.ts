@@ -54,6 +54,12 @@ interface SeasonDashboardData {
     fully_paid_count?: number;
     revenue_real?: number;
   };
+  cache_metadata?: {
+    is_cached: boolean;
+    cache_status: 'hit' | 'miss' | 'refresh' | 'refresh_blocked';
+    generated_at: string | null;
+    cache_ttl_seconds: number;
+  };
   booking_sources: {
     total_bookings: number;
     source_breakdown: Array<{
@@ -242,6 +248,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ==================== DATA PROPERTIES ====================
   dashboardData: SeasonDashboardData | null = null;
+  cacheMetadata: SeasonDashboardData['cache_metadata'] | null = null;
+  cacheNoticeKey: string | null = null;
   exportFormat: 'csv' | 'excel' = 'csv';
   revenueTableData = new MatTableDataSource<any>([]);
   coursesTableData = new MatTableDataSource<any>([]);
@@ -459,13 +467,18 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ==================== DATA LOADING ====================
 
-  public loadAnalyticsData(): void {
+  public loadAnalyticsData(forceRefresh: boolean = false): void {
     this.loading = true;
     const filters = this.buildFiltersObject();
     if (!filters.school_id) {
       this.loading = false;
       this.showMessage(this.translateService.instant('analytics_school_missing'), 'warning');
       return;
+    }
+
+    if (forceRefresh) {
+      filters.refresh_cache = true;
+      this.showMessage(this.translateService.instant('analytics_cache_refreshing'), 'info');
     }
 
     // Usar principalmente el endpoint season-dashboard
@@ -497,7 +510,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       date_filter: formValue.dateFilter,
       include_test_detection: formValue.includeTestDetection,
       include_payrexx_analysis: formValue.includePayrexxAnalysis,
-      optimization_level: formValue.optimizationLevel
+      optimization_level: formValue.optimizationLevel,
+      cache_ttl: 1800,
+      lean_response: true
     };
 
     // Filtros opcionales
@@ -529,9 +544,34 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private processSeasonDashboardData(data: SeasonDashboardData): void {
 
     this.dashboardData = data;
+    this.cacheMetadata = data?.cache_metadata ?? null;
+    this.updateCacheNotice();
 
     // Actualizar datos de las tablas
     this.updateTableData();
+  }
+
+  private updateCacheNotice(): void {
+    if (!this.cacheMetadata) {
+      this.cacheNoticeKey = null;
+      return;
+    }
+
+    switch (this.cacheMetadata.cache_status) {
+      case 'hit':
+        this.cacheNoticeKey = null;
+        break;
+      case 'refresh':
+        this.cacheNoticeKey = 'analytics_cache_notice_refresh';
+        break;
+      case 'refresh_blocked':
+        this.cacheNoticeKey = 'analytics_cache_notice_refresh_blocked';
+        break;
+      case 'miss':
+      default:
+        this.cacheNoticeKey = 'analytics_cache_notice_miss';
+        break;
+    }
   }
 
   private updateTableData(): void {
@@ -1884,7 +1924,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public refreshData(): void {
-    this.loadAnalyticsData();
+    this.loadAnalyticsData(true);
   }
   private resetTabLoading(): void {
     Object.keys(this.tabLoading).forEach((key) => {
@@ -1917,8 +1957,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.apiService.get('/admin/finance/season-dashboard', [], filters).subscribe({
       next: (response) => {
-        this.dashboardData = response.data;
-        this.updateTableData();
+        this.processSeasonDashboardData(response.data);
         this.fullDashboardLoaded = true;
         this.fullDashboardLoading = false;
         this.resetTabLoading();

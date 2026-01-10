@@ -18,13 +18,29 @@
         <mat-icon>download</mat-icon>
         {{ 'export_data' | translate }}
       </button>
-      <button mat-icon-button (click)="refreshData()" matTooltip="{{ 'refresh' | translate }}">
+      <button mat-stroked-button color="primary" class="cache-refresh-button" (click)="refreshData()" [disabled]="loading"
+              matTooltip="{{ 'analytics_refresh_cache_tooltip' | translate }}">
+        <mat-icon>cached</mat-icon>
+        {{ 'analytics_refresh_cache' | translate }}
+      </button>
+      <button mat-icon-button (click)="loadAnalyticsData()" [disabled]="loading"
+              matTooltip="{{ 'refresh' | translate }}">
         <mat-icon>refresh</mat-icon>
       </button>
     </div>
   </vex-secondary-toolbar>
 
   <vex-page-layout-content class="fullwidth">
+
+    <div class="cache-status" *ngIf="cacheMetadata || loading">
+      <mat-icon class="mr-2 text-secondary">schedule</mat-icon>
+      <span *ngIf="loading && !cacheMetadata">{{ 'analytics_cache_loading_no_cache' | translate }}</span>
+      <span *ngIf="cacheMetadata">
+        <span *ngIf="cacheMetadata.generated_at">{{ 'analytics_cache_generated_at' | translate }} {{ cacheMetadata.generated_at | date:'short' }}</span>
+        <span *ngIf="!cacheMetadata.generated_at">{{ 'analytics_cache_generated_at_na' | translate }}</span>
+        <span *ngIf="cacheNoticeKey"> - {{ cacheNoticeKey | translate }}</span>
+      </span>
+    </div>
 
     <!-- Filters Section -->
     <div class="filters-section">
@@ -622,6 +638,12 @@
         <!-- Courses Analysis Tab -->
         <mat-tab label="{{ 'courses_analysis' | translate }}">
           <div class="tab-content">
+            <mat-card class="alert-card alert-info course-note">
+              <mat-card-content>
+                <mat-icon>info</mat-icon>
+                <span>{{ 'analytics_courses_includes_unpaid' | translate }}</span>
+              </mat-card-content>
+            </mat-card>
 
             <!-- Course Performance Charts -->
             <div class="charts-grid">
