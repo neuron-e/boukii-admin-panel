@@ -18,7 +18,7 @@
         <mat-icon>download</mat-icon>
         {{ 'export_data' | translate }}
       </button>
-      <button mat-stroked-button color="primary" class="cache-refresh-button" (click)="refreshData()" [disabled]="loading"
+      <button mat-stroked-button color="accent" class="cache-refresh-button" (click)="refreshData()" [disabled]="loading"
               matTooltip="{{ 'analytics_refresh_cache_tooltip' | translate }}">
         <mat-icon>cached</mat-icon>
         {{ 'analytics_refresh_cache' | translate }}
@@ -39,6 +39,8 @@
         <span *ngIf="cacheMetadata.generated_at">{{ 'analytics_cache_generated_at' | translate }} {{ cacheMetadata.generated_at | date:'short' }}</span>
         <span *ngIf="!cacheMetadata.generated_at">{{ 'analytics_cache_generated_at_na' | translate }}</span>
         <span *ngIf="cacheNoticeKey"> - {{ cacheNoticeKey | translate }}</span>
+        <span *ngIf="aggregatesMetadata?.updated_at"> - {{ 'analytics_aggregates_updated_at' | translate }} {{ aggregatesMetadata.updated_at | date:'short' }}</span>
+        <span *ngIf="aggregatesMetadata?.refresh_blocked"> - {{ 'analytics_aggregates_refresh_blocked' | translate:{ minutes: aggregatesMetadata.refresh_available_in_minutes || 0 } }}</span>
       </span>
     </div>
 

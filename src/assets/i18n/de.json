@@ -2176,6 +2176,8 @@
   "analytics_cache_loading_no_cache": "Daten werden geladen. Wenn kein Cache vorhanden ist, kann es einige Minuten dauern.",
   "analytics_cache_generated_at": "Daten erzeugt:",
   "analytics_cache_generated_at_na": "Daten erzeugt: k. A.",
+  "analytics_aggregates_updated_at": "Aggregate aktualisiert:",
+  "analytics_aggregates_refresh_blocked": "Aggregat-Refresh blockiert. Versuche es in {{minutes}} Min. erneut.",
   "analytics_cache_notice_refresh": "Cache aktualisiert. Dieser Vorgang kann einige Minuten dauern.",
   "analytics_cache_notice_refresh_blocked": "Cache ist aktuell. Gespeicherte Daten werden verwendet, um eine Neuberechnung zu vermeiden.",
   "analytics_cache_notice_miss": "Daten wurden jetzt erzeugt. Wenn kein Cache vorhanden ist, kann das Laden einige Minuten dauern.",

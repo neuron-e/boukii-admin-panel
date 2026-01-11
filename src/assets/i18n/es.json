@@ -2146,6 +2146,8 @@
   "analytics_cache_loading_no_cache": "Cargando datos. Si no hay cache, puede tardar varios minutos.",
   "analytics_cache_generated_at": "Datos generados:",
   "analytics_cache_generated_at_na": "Datos generados: N/A",
+  "analytics_aggregates_updated_at": "Agregados actualizados:",
+  "analytics_aggregates_refresh_blocked": "Refresco de agregados bloqueado. Intenta de nuevo en {{minutes}} min.",
   "analytics_cache_notice_refresh": "Cache actualizada. Esta operacion puede tardar varios minutos.",
   "analytics_cache_notice_refresh_blocked": "Cache reciente. Se usan datos guardados para evitar recalculo.",
   "analytics_cache_notice_miss": "Datos generados ahora. Si no hay cache, la carga puede tardar varios minutos.",

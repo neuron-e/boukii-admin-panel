@@ -60,6 +60,15 @@ interface SeasonDashboardData {
     generated_at: string | null;
     cache_ttl_seconds: number;
   };
+  aggregates_metadata?: {
+    updated_at: string | null;
+    age_seconds?: number | null;
+    refresh_requested?: boolean;
+    refresh_blocked?: boolean;
+    refresh_available_in_seconds?: number | null;
+    cooldown_seconds?: number;
+    date_filter?: string;
+  };
   booking_sources: {
     total_bookings: number;
     source_breakdown: Array<{
@@ -249,6 +258,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   // ==================== DATA PROPERTIES ====================
   dashboardData: SeasonDashboardData | null = null;
   cacheMetadata: SeasonDashboardData['cache_metadata'] | null = null;
+  aggregatesMetadata: any | null = null;
   cacheNoticeKey: string | null = null;
   exportFormat: 'csv' | 'excel' = 'csv';
   revenueTableData = new MatTableDataSource<any>([]);
@@ -476,10 +486,13 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    if (forceRefresh) {
-      filters.refresh_cache = true;
-      this.showMessage(this.translateService.instant('analytics_cache_refreshing'), 'info');
-    }
+      if (forceRefresh) {
+        filters.refresh_cache = true;
+        if (filters.use_aggregates) {
+          filters.refresh_aggregates = true;
+        }
+        this.showMessage(this.translateService.instant('analytics_cache_refreshing'), 'info');
+      }
 
     // Usar principalmente el endpoint season-dashboard
     this.apiService.get('/admin/finance/season-dashboard', [], filters).subscribe({
@@ -512,7 +525,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       include_payrexx_analysis: formValue.includePayrexxAnalysis,
       optimization_level: formValue.optimizationLevel,
       cache_ttl: 1800,
-      lean_response: true
+      lean_response: true,
+      use_aggregates: true
     };
 
     // Filtros opcionales
@@ -545,6 +559,13 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.dashboardData = data;
     this.cacheMetadata = data?.cache_metadata ?? null;
+    this.aggregatesMetadata = data?.aggregates_metadata ?? null;
+    if (this.aggregatesMetadata?.refresh_available_in_seconds !== null
+      && this.aggregatesMetadata?.refresh_available_in_seconds !== undefined) {
+      this.aggregatesMetadata.refresh_available_in_minutes = Math.ceil(
+        this.aggregatesMetadata.refresh_available_in_seconds / 60
+      );
+    }
     this.updateCacheNotice();
 
     // Actualizar datos de las tablas

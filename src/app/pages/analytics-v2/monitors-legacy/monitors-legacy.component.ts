@@ -49,11 +49,8 @@ interface MonitorDetailData {
 interface MonitorKPIs {
   totalWorkedHours: number;
   totalNwdHours: number;
-  totalBookingHours: number;
-  totalMonitorHours: number;
   busy: number;
   total: number;
-  totalPriceSell: number;
 }
 
 @Component({
@@ -129,7 +126,7 @@ interface MonitorKPIs {
           <mat-card-content>
             <div class="kpi-content">
               <div class="kpi-info">
-                <div class="kpi-value">{{ getTotalBookingHours() }}h</div>
+                <div class="kpi-value">{{ getTotalBookingHours() }}</div>
                 <div class="kpi-label">{{ 'course_hours' | translate }}</div>
                 <div class="kpi-change">
                   <span>+{{ kpis.totalNwdHours | number:'1.0-2'}}h {{ 'blockages' | translate }}</span>
@@ -447,18 +444,13 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
 
   // Nuevas propiedades para almacenar las respuestas de los endpoints
   private monitorBookingsResponse: any[] = [];
-  private monitorHoursResponse: any = {};
   private monitorActiveResponse: any = {};
-  private monitorTotalPriceResponse: any = {};
   filteredMonitorsData: MonitorLegacyData[] = [];
   kpis: MonitorKPIs = {
     totalWorkedHours: 0,
     totalNwdHours: 0,
-    totalBookingHours: 0,
-    totalMonitorHours: 0,
     busy: 0,
-    total: 0,
-    totalPriceSell: 0
+    total: 0
   };
 
   // ==================== COURSE TYPE COLORS CONFIGURATION ====================
@@ -698,6 +690,9 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
    */
   private formatDateWithMonthName(dateString: string): string {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
     const month = date.toLocaleString('default', { month: 'long' }).toLowerCase();
     const year = date.getFullYear();
 
@@ -737,14 +732,10 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
     try {
       const coreResults = await Promise.allSettled([
         this.loadMonitorsBookings(),
-        this.loadActiveMonitors(),
-        this.loadTotalHours(),
-        this.loadBookingsByDate(),
-        this.loadHoursByDate(),
-        this.loadHoursBySport()
+        this.loadActiveMonitors()
       ]);
 
-      const [bookings, active, hours, byDate, byCourseType, bySport] = coreResults;
+      const [bookings, active] = coreResults;
 
       if (bookings.status === 'fulfilled') {
         this.monitorBookingsResponse = bookings.value.data;
@@ -760,29 +751,6 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
         this.monitorActiveResponse = {};
       }
 
-      if (hours.status === 'fulfilled') {
-        this.monitorHoursResponse = hours.value.data;
-      } else {
-        console.error('Error loading monitor hours:', hours.reason);
-        this.monitorHoursResponse = {};
-      }
-
-      if (byCourseType.status === 'fulfilled') {
-        this.hoursTypeData = byCourseType.value.data;
-      } else if (byDate.status === 'fulfilled') {
-        this.hoursTypeData = byDate.value.data;
-      } else {
-        console.error('Error loading hours by date:', byCourseType.status === 'rejected' ? byCourseType.reason : byDate.reason);
-        this.hoursTypeData = {};
-      }
-
-      if (bySport.status === 'fulfilled') {
-        this.hoursSportData = this.transformSportData(bySport.value.data);
-      } else {
-        console.error('Error loading hours by sport:', bySport.reason);
-        this.hoursSportData = {};
-      }
-
       this.processAllData();
       this.createCharts();
     } catch (error) {
@@ -791,22 +759,12 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
       this.loading = false;
       this.cdr.detectChanges();
     }
-
-    this.loadBookingsTotal()
-      .then((total) => {
-        this.monitorTotalPriceResponse = total.data;
-        this.processKPIs();
-        this.cdr.detectChanges();
-      })
-      .catch((error) => {
-        console.error('Error loading monitor totals:', error);
-      });
   }
 
   private processMonitorsData(): void {
     this.monitorsData = this.monitorBookingsResponse.map(m => ({
       monitor: `${m.first_name}`,
-      sport: m.sport_name || this.translateService.instant('all_sports'),
+      sport: m.sport?.name || m.sport_name || this.translateService.instant('all_sports'),
       hours_collective: m.hours_collective || 0,
       hours_private: m.hours_private || 0,
       hours_activities: m.hours_activities || 0,
@@ -819,14 +777,15 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   private processKPIs(): void {
+    const totalBookingMinutes = this.getTotalBookingMinutes();
+    const totalNwdMinutes = this.getTotalNwdMinutes();
+    const totalWorkedMinutes = totalBookingMinutes + totalNwdMinutes;
+
     this.kpis = {
-      totalWorkedHours: this.monitorHoursResponse.totalWorkedHours || 0,
-      totalNwdHours: this.monitorHoursResponse.totalNwdHours || 0,
-      totalBookingHours: this.monitorHoursResponse.totalBookingHours || 0,
-      totalMonitorHours: this.monitorHoursResponse.totalMonitorHours || 0,
+      totalWorkedHours: totalWorkedMinutes / 60,
+      totalNwdHours: totalNwdMinutes / 60,
       busy: this.monitorActiveResponse.busy || 0,
-      total: this.monitorActiveResponse.total || 0,
-      totalPriceSell: this.monitorTotalPriceResponse || 0
+      total: this.monitorActiveResponse.total || 0
     };
   }
 
@@ -834,7 +793,7 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
     const result: Record<string, Record<string, number>> = {};
     Object.values(data).forEach((entry: any) => {
       const sport = entry.sport?.name || this.translateService.instant('other_label');
-      const date = entry.date || this.translateService.instant('no_date');
+      const date = entry.date || this.translateService.instant('total');
       const hours = entry.hours || 0;
 
       if (!result[date]) result[date] = {};
@@ -854,22 +813,6 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   private loadActiveMonitors(): Promise<any> {
     return this.crudService.list(
       '/admin/statistics/bookings/monitors/active',
-      1, 10000, 'desc', 'id',
-      this.buildQueryParams()
-    ).toPromise();
-  }
-
-  private loadTotalHours(): Promise<any> {
-    return this.crudService.list(
-      '/admin/statistics/bookings/monitors/hours',
-      1, 10000, 'desc', 'id',
-      this.buildQueryParams()
-    ).toPromise();
-  }
-
-  private loadBookingsTotal(): Promise<any> {
-    return this.crudService.list(
-      '/admin/statistics/total',
       1, 10000, 'desc', 'id',
       this.buildQueryParams()
     ).toPromise();
@@ -952,8 +895,15 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   getEfficiencyPercentage(): number {
-    return this.kpis.totalMonitorHours > 0 ?
-      Math.round((this.kpis.totalWorkedHours / this.kpis.totalMonitorHours) * 100) : 0;
+    const totalBookingMinutes = this.getTotalBookingMinutes();
+    const totalNwdMinutes = this.getTotalNwdMinutes();
+    const totalWorkedMinutes = totalBookingMinutes + totalNwdMinutes;
+
+    if (totalWorkedMinutes === 0) {
+      return 0;
+    }
+
+    return Math.round((totalBookingMinutes / totalWorkedMinutes) * 100);
   }
 
 /*  getAverageHourlyRate(): number {
@@ -976,13 +926,50 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
     return `${rate.toFixed(2)}`;
   }
 
-  getTotalBookingHours(): string {
-    const totalMinutes = this.monitorsData.reduce((sum, m) => {
+  private getTotalBookingMinutes(): number {
+    return this.monitorsData.reduce((sum, m) => {
       const collective = this.parseHoursToMinutes(m.hours_collective?.toString() ?? '0h 00m');
       const privateH = this.parseHoursToMinutes(m.hours_private?.toString() ?? '0h 00m');
       const activities = this.parseHoursToMinutes(m.hours_activities?.toString() ?? '0h 00m');
       return sum + collective + privateH + activities;
     }, 0);
+  }
+
+  private getTotalNwdMinutes(): number {
+    return this.monitorsData.reduce((sum, m) => {
+      return sum + this.parseHoursToMinutes(m.hours_nwd_payed?.toString() ?? '0h 00m');
+    }, 0);
+  }
+
+  private getBookingMinutesByType(): { collective: number; private: number } {
+    return this.monitorsData.reduce(
+      (acc, monitor) => {
+        acc.collective += this.parseHoursToMinutes(monitor.hours_collective?.toString() ?? '0h 00m');
+        acc.private += this.parseHoursToMinutes(monitor.hours_private?.toString() ?? '0h 00m');
+        return acc;
+      },
+      { collective: 0, private: 0 }
+    );
+  }
+
+  private getBookingMinutesBySport(): Record<string, number> {
+    const allSportsLabel = this.translateService.instant('all_sports');
+    return this.monitorsData.reduce((acc, monitor) => {
+      const sport = monitor.sport || this.translateService.instant('all_sports');
+      if (!sport || sport === allSportsLabel) {
+        return acc;
+      }
+      const minutes =
+        this.parseHoursToMinutes(monitor.hours_collective?.toString() ?? '0h 00m') +
+        this.parseHoursToMinutes(monitor.hours_private?.toString() ?? '0h 00m') +
+        this.parseHoursToMinutes(monitor.hours_activities?.toString() ?? '0h 00m');
+      acc[sport] = (acc[sport] ?? 0) + minutes;
+      return acc;
+    }, {} as Record<string, number>);
+  }
+
+  getTotalBookingHours(): string {
+    const totalMinutes = this.getTotalBookingMinutes();
 
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
@@ -1099,39 +1086,27 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   private createHoursTypeChart(): void {
-    const dates = Object.keys(this.hoursTypeData);
-
-    const traces = [
-      {
-        x: dates,
-        y: dates.map(date => this.hoursTypeData[date]?.[1] || 0),
-        mode: 'lines+markers',
-        name: this.translateService.instant('collective'),
-        line: { color: this.courseTypeColors[1] } // ✅ COLOR CONSISTENTE
-      },
-      {
-        x: dates,
-        y: dates.map(date => this.hoursTypeData[date]?.[2] || 0),
-        mode: 'lines+markers',
-        name: this.translateService.instant('private'),
-        line: { color: this.courseTypeColors[2] } // ✅ COLOR CONSISTENTE
-      },
-      {
-        x: dates,
-        y: dates.map(date => this.hoursTypeData[date]?.[3] || 0),
-        mode: 'lines+markers',
-        name: this.translateService.instant('activity'),
-        line: { color: this.courseTypeColors[3] } // ✅ COLOR CONSISTENTE
-      }
+    const totals = this.getBookingMinutesByType();
+    const labels = [
+      this.translateService.instant('collective'),
+      this.translateService.instant('private')
     ];
+    const values = [totals.collective / 60, totals.private / 60];
+
+    const traces = [{
+      x: labels,
+      y: values,
+      type: 'bar',
+      marker: { color: [this.courseTypeColors[1], this.courseTypeColors[2]] }
+    }];
 
     const layout = {
       title: this.translateService.instant('hours_distribution_by_type'),
-      xaxis: this.createTranslatedXAxisConfig(dates),
+      xaxis: { title: this.translateService.instant('course_type') },
       yaxis: { title: this.translateService.instant('hours_label') },
       paper_bgcolor: 'rgba(0,0,0,0)',
       plot_bgcolor: 'rgba(0,0,0,0)',
-      showlegend: true,
+      showlegend: false,
       height: 300
     };
 
@@ -1139,34 +1114,24 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   private createHoursSportChart(): void {
-    const dates = Object.keys(this.hoursSportData);
-    const sports: Record<string, number[]> = {};
+    const totals = this.getBookingMinutesBySport();
+    const labels = Object.keys(totals);
+    const values = labels.map(label => totals[label] / 60);
 
-    // Organizar datos por deporte
-    dates.forEach(date => {
-      const dayData = this.hoursSportData[date];
-      Object.keys(dayData).forEach(sport => {
-        if (!sports[sport]) {
-          sports[sport] = [];
-        }
-        sports[sport].push(dayData[sport]);
-      });
-    });
-
-    const traces = Object.keys(sports).map(sport => ({
-      x: dates,
-      y: sports[sport],
-      mode: 'lines+markers',
-      name: sport
-    }));
+    const traces = [{
+      x: labels,
+      y: values,
+      type: 'bar',
+      marker: { color: '#3A57A7' }
+    }];
 
     const layout = {
       title: this.translateService.instant('hours_by_sport'),
-      xaxis: this.createTranslatedXAxisConfig(dates), // ✅ CAMBIO PRINCIPAL
+      xaxis: { title: this.translateService.instant('sport') },
       yaxis: { title: this.translateService.instant('hours_label') },
       paper_bgcolor: 'rgba(0,0,0,0)',
       plot_bgcolor: 'rgba(0,0,0,0)',
-      showlegend: true,
+      showlegend: false,
       height: 300
     };
 
