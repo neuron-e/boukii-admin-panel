@@ -1,4 +1,4 @@
-﻿import {ChangeDetectorRef, Component, Inject, Optional, OnInit, OnDestroy} from '@angular/core';
+import {ChangeDetectorRef, Component, Inject, Optional, OnInit, OnDestroy} from '@angular/core';
 import {TranslateService} from '@ngx-translate/core';
 import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {BookingDialogComponent} from './components/booking-dialog/booking-dialog.component';
@@ -65,7 +65,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
 
-  // MEJORA CRÃTICA: Propiedades para persistencia de estado
+  // MEJORA CRÍTICA: Propiedades para persistencia de estado
   private autoSaveInterval: any;
   private syncSubscription: Subscription = new Subscription();
   private currentBookingId: string = '';
@@ -206,18 +206,18 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.ensureCreateRouteState();
     this.isEditMode = this.detectEditMode();
 
-    // MEJORA CRÃTICA: Inicializar sistema de persistencia
+    // MEJORA CRÍTICA: Inicializar sistema de persistencia
     this.initializePersistence();
 
     this.getDegrees();
   }
 
   ngOnInit(): void {
-    // MEJORA CRÍTICA: Verificar integridad de datos al iniciar
+    // MEJORA CR�TICA: Verificar integridad de datos al iniciar
     const integrity = this.bookingService.validateBookingDataIntegrity();
     if (!integrity.isValid) {
-      console.warn('⚠️ Datos problemáticos detectados al inicializar:', integrity.issues);
-      // Limpiar datos problemáticos
+      console.warn('?? Datos problem�ticos detectados al inicializar:', integrity.issues);
+      // Limpiar datos problem�ticos
       this.bookingService.resetBookingData();
     }
 
@@ -229,13 +229,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÃTICA: Inicializar sistema de persistencia de estado
+   * MEJORA CRÍTICA: Inicializar sistema de persistencia de estado
    */
   private initializePersistence(): void {
-    // Generar ID Ãºnico para esta sesiÃ³n de reserva
+    // Generar ID único para esta sesión de reserva
     this.currentBookingId = this.generateBookingId();
 
-    // Configurar sincronizaciÃ³n entre tabs
+    // Configurar sincronización entre tabs
     this.syncSubscription.add(
       this.persistenceService.syncUpdate$.subscribe((syncData) => {
         if (syncData && syncData.bookingId === this.currentBookingId) {
@@ -253,7 +253,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÃTICA: Intentar cargar borrador existente
+   * MEJORA CRÍTICA: Intentar cargar borrador existente
    */
   private loadDraftIfExists(): void {
     // Si estamos editando una reserva existente, usar ese ID
@@ -269,13 +269,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÃTICA: Verificar si debe cargar el borrador
+   * MEJORA CRÍTICA: Verificar si debe cargar el borrador
    */
   private shouldLoadDraft(draft: any): boolean {
     // No cargar si ya hay datos externos
     if (this.externalData?.booking) return false;
 
-    // No cargar si el borrador es muy antiguo (mÃ¡s de 1 hora)
+    // No cargar si el borrador es muy antiguo (más de 1 hora)
     const hourAgo = Date.now() - (60 * 60 * 1000);
     if (draft.timestamp < hourAgo) return false;
 
@@ -283,7 +283,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÃTICA: Mostrar diÃ¡logo de recuperaciÃ³n de borrador
+   * MEJORA CRÍTICA: Mostrar diálogo de recuperación de borrador
    */
   private showDraftRecoveryDialog(draft: any): void {
     const dialogRef = this.dialog.open(BookingDialogComponent, {
@@ -309,7 +309,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÃTICA: Cargar datos del borrador
+   * MEJORA CRÍTICA: Cargar datos del borrador
    */
   private loadDraftData(draft: any): void {
     try {
@@ -361,7 +361,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÃTICA: Restaurar datos calculados del borrador
+   * MEJORA CRÍTICA: Restaurar datos calculados del borrador
    */
   private restoreCalculatedData(data: any): void {
     if (data.mainClient) this.mainClient = data.mainClient;
@@ -373,10 +373,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (data.subtotal) this.subtotal = data.subtotal;
     if (data.normalizedDates) this.normalizedDates = data.normalizedDates;
 
-    // MEJORA CRÍTICA: Limpiar datos de bookingData que pueden causar bonos automáticos
+    // MEJORA CR�TICA: Limpiar datos de bookingData que pueden causar bonos autom�ticos
     const currentBookingData = this.bookingService.getBookingData();
     if (currentBookingData) {
-      // Resetear vouchers para evitar aplicación automática desde borradores
+      // Resetear vouchers para evitar aplicaci�n autom�tica desde borradores
       currentBookingData.vouchers = [];
       currentBookingData.price_total = 0; // OK: Reset al crear nueva reserva, backend recalculara
       currentBookingData.paid_total = 0;
@@ -386,7 +386,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÃTICA: Guardar borrador actual
+   * MEJORA CRÍTICA: Guardar borrador actual
    */
   private saveDraft(): void {
     if (!this.currentBookingId) return;
@@ -405,7 +405,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÃTICA: Recopilar datos de formularios para guardado
+   * MEJORA CRÍTICA: Recopilar datos de formularios para guardado
    */
   private collectFormData(): any {
     return {
@@ -424,7 +424,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     };
   }
 
-  // MÃ©todos auxiliares
+  // Métodos auxiliares
 
   private generateBookingId(): string {
     return `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -466,11 +466,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       this.mainClient = mainClient;
     }
 
-    // VALIDACIÃ“N PREVENTIVA: Verificar coherencia cliente-participantes
+    // VALIDACIÓN PREVENTIVA: Verificar coherencia cliente-participantes
     if (mainClient && utilizers) {
       const validationResult = this.validateClientParticipantConsistency(mainClient, utilizers);
       if (!validationResult.isValid) {
-        // Filtrar utilizers invÃ¡lidos y mostrar advertencia
+        // Filtrar utilizers inválidos y mostrar advertencia
         this.utilizers = validationResult.filteredUtilizers;
         this.snackBar.open(
           this.translateService.instant('booking.conflict.filtered', {
@@ -508,7 +508,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       }
       this.normalizeDates(createNew);
 
-      // MEJORA CRÃTICA: Marcar como cambios no guardados para persistencia
+      // MEJORA CRÍTICA: Marcar como cambios no guardados para persistencia
       this.hasUnsavedChanges = true;
     }
   }
@@ -615,10 +615,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   calculateTotal() {
     let total = 0;
-    if(!this.course) {
-      this.total = null
-      this.subtotal = null
-      this.extraPrice = null
+    const utilizerCount = Array.isArray(this.utilizers) ? this.utilizers.length : 0;
+    if (!this.course) {
+      this.total = null;
+      this.subtotal = null;
+      this.extraPrice = null;
       this.bookingService.updateBookingData({ price_total: 0 });
     } else {
       if (this.course.course_type === 1) {
@@ -632,43 +633,39 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         total = 0;
       }
 
-      // Calcular el total de los extras
-      // Calcula el total de los extras
       const dateList = Array.isArray(this.dates) ? this.dates : [];
-      const extrasTotal = dateList.reduce((acc, date) => {
+      let extrasTotal = dateList.reduce((acc, date) => {
         // Para cursos colectivos
         if (this.course.course_type === 1) {
           if (date.extras && date.extras.length) {
             const extrasPrice = date.extras.reduce((extraAcc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-              return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
+              const price = parseFloat(extra.price) || 0;
+              return extraAcc + (price * (extra.quantity || 1));
             }, 0);
             return acc + extrasPrice;
           }
-        }
-        // Para cursos privados
-        else if (this.course.course_type === 2) {
-          // AsegÃºrate de que 'utilizers' estÃ¡ definido en la fecha
+        } else if (this.course.course_type === 2) {
           if (date.utilizers && date.utilizers.length) {
-            // Sumar el total de extras de cada utilizador
             date.utilizers.forEach(utilizer => {
               if (utilizer.extras && utilizer.extras.length) {
                 const extrasPrice = utilizer.extras.reduce((extraAcc, extra) => {
-                  const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-                  return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
+                  const price = parseFloat(extra.price) || 0;
+                  return extraAcc + (price * (extra.quantity || 1));
                 }, 0);
-                acc += extrasPrice; // Suma el precio de los extras del utilizador al acumulador
+                acc += extrasPrice;
               }
             });
           }
         }
-        return acc; // Retorna el acumulador
+        return acc;
       }, 0);
 
-      // Asegurarse de que el total de extras sea un nÃºmero vÃ¡lido
+      if (this.course.course_type === 1) {
+        extrasTotal = extrasTotal * Math.max(0, utilizerCount);
+      }
+
       const validExtrasTotal = isNaN(extrasTotal) ? 0 : extrasTotal;
 
-      // Calcular el total final y asegurarse de que no sea NaN
       const totalSinExtras = total;
       total += validExtrasTotal;
 
@@ -676,14 +673,12 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         total = 0;
       }
 
-      // Formatear los resultados - mantener total como número para DecimalPipe
       this.total = parseFloat(total.toFixed(2));
       this.subtotal = parseFloat(totalSinExtras.toFixed(2));
       this.extraPrice = parseFloat(validExtrasTotal.toFixed(2));
       this.bookingService.updateBookingData({ price_total: this.total });
     }
   }
-
 
   deleteActivity(index: any) {
     this.forms.splice(index, 1);
@@ -708,56 +703,35 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   private calculatePrivatePrice() {
     let total = 0;
+    const selectedUtilizers = Array.isArray(this.utilizers) ? this.utilizers.length : 0;
 
     if (this.course.is_flexible) {
-      // Calcula el precio basado en el intervalo y el nÃºmero de utilizadores para cada fecha
+      // Calcula el precio basado en el intervalo y el numero de utilizadores para cada fecha
       this.dates.forEach((date: any) => {
-        const duration = date.duration; // DuraciÃ³n de cada fecha
-        const selectedUtilizers = this.utilizers.length; // NÃºmero de utilizadores
+        const duration = date.duration; // Duracion de cada fecha
+        const selectedUtilizersCount = selectedUtilizers; // Numero de utilizadores
 
-        // Encuentra el intervalo de duraciÃ³n que se aplica
+        // Encuentra el intervalo de duracion que se aplica
         const interval = this.course.price_range.find(range => {
-          return range.intervalo === duration; // Comparar con la duraciÃ³n de la fecha
+          return range.intervalo === duration; // Comparar con la duracion de la fecha
         });
 
         if (interval) {
-          // Intentar acceso con número y string para compatibilidad
-          const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
+          // Intentar acceso con numero y string para compatibilidad
+          const priceForPax = parseFloat(interval[selectedUtilizersCount]) || parseFloat(interval[selectedUtilizersCount.toString()]) || 0;
           total += priceForPax; // Precio por utilizador para cada fecha
         }
-
-        // Suma el precio total de los extras para cada utilizador en esta fecha
-       /* date.utilizers.forEach((utilizer: any) => {
-          if (utilizer.extras && utilizer.extras.length) {
-            const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-              return acc + price;
-            }, 0);
-            total += extrasTotal; // Suma el total de extras por cada utilizador
-          }
-        });*/
-
       });
     } else {
       // Si el curso no es flexible
       this.dates.forEach((date: any) => {
-        const dateTotal = parseFloat(this.course.price); // Precio por nÃºmero de utilizadores
-        total += dateTotal;
-        /*date.utilizers.forEach((utilizer: any) => {
-          if (utilizer.extras && utilizer.extras.length) {
-            const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-              return acc + price;
-            }, 0);
-            total += extrasTotal; // Suma el total de extras por cada utilizador
-          }
-        });*/
+        const dateTotal = parseFloat(this.course.price); // Precio por numero de utilizadores
+        total += dateTotal * Math.max(0, selectedUtilizers);
       });
     }
 
     return total;
   }
-
   private normalizeDates(createNew: boolean = false) {
     // Limpia el array normalizedDates antes de llenarlo
     this.normalizedDates = this.forms.map(form => {
@@ -817,21 +791,26 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     let courseBaseTotal = 0;
     let courseSubtotalAfterDiscount = 0;
 
+    const utilizerCount = Array.isArray(utilizers) ? utilizers.length : 0;
+
     if (course.course_type === 1) {
       const price = parseFloat(course?.price ?? '0');
       const basePrice = isNaN(price) ? 0 : price;
       if (course.is_flexible) {
-        courseBaseTotal = Math.max(0, basePrice * dates.length);
+        courseBaseTotal = Math.max(0, basePrice * dates.length * utilizerCount);
       } else {
-        courseBaseTotal = Math.max(0, basePrice);
+        courseBaseTotal = Math.max(0, basePrice * utilizerCount);
       }
-      courseSubtotalAfterDiscount = this.calculateColectivePriceForDates(course, dates);
+      courseSubtotalAfterDiscount = this.calculateColectivePriceForDates(course, dates) * utilizerCount;
     } else if (course.course_type === 2) {
       courseBaseTotal = this.calculatePrivatePriceForDates(course, dates, utilizers);
+      if (!course.is_flexible) {
+        courseBaseTotal = courseBaseTotal * utilizerCount;
+      }
       courseSubtotalAfterDiscount = courseBaseTotal;
     }
 
-    const extrasTotal = dates.reduce((acc, date) => {
+    let extrasTotal = dates.reduce((acc, date) => {
       if (date.extras && date.extras.length) {
         const extrasPrice = date.extras.reduce((extraAcc, extra) => {
           const price = parseFloat(extra.price) || 0;
@@ -854,6 +833,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return acc;
     }, 0);
 
+    if (course.course_type === 1) {
+      extrasTotal = extrasTotal * Math.max(0, utilizerCount);
+    }
+
     const discountInfo = course.is_flexible ? buildDiscountInfoListUtil(course, dates) : [];
     const discountAmount = Math.max(0, courseBaseTotal - courseSubtotalAfterDiscount);
 
@@ -866,20 +849,19 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       extrasTotal: Number(extrasTotal.toFixed(2)),
       currency: course.currency,
       discountInfo: discountInfo,
-        courseBaseTotal: Number(courseBaseTotal.toFixed(2)),
-        courseDiscountTotal: Number(discountAmount.toFixed(2))
+      courseBaseTotal: Number(courseBaseTotal.toFixed(2)),
+      courseDiscountTotal: Number(discountAmount.toFixed(2))
     };
   }
-
   /**
-   * Obtiene los descuentos del intervalo específico desde settings.intervals
+   * Obtiene los descuentos del intervalo espec�fico desde settings.intervals
    */
   private getIntervalDiscounts(intervalId: string): any[] {
     return getIntervalDiscountsUtil(this.course, intervalId);
   }
 
   /**
-   * Determina qué descuentos usar (por intervalo o globales)
+   * Determina qu� descuentos usar (por intervalo o globales)
    */
   private getApplicableDiscounts(intervalId?: string, targetCourse?: any): any[] {
     const course = targetCourse || this.course;
@@ -887,7 +869,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * Obtiene información del descuento aplicado para mostrar en la UI
+   * Obtiene informaci�n del descuento aplicado para mostrar en la UI
    */
   getAppliedDiscountInfo(selectedDatesCount: number, intervalId?: string): any {
     const info = getAppliedDiscountInfoUtil(this.course, selectedDatesCount, intervalId);
@@ -953,41 +935,21 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         });
 
         if (interval) {
-          // Intentar acceso con número y string para compatibilidad
+          // Intentar acceso con nsero y string para compatibilidad
           const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
           total += priceForPax;
         }
-
-/*        date.utilizers.forEach(utilizer => {
-          if (utilizer.extras && utilizer.extras.length) {
-            const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0;
-              return acc + price;
-            }, 0);
-            total += extrasTotal;
-          }
-        });*/
       });
     } else {
       dates.forEach((date: any) => {
         const dateTotal = parseFloat(course.price);
         total += dateTotal;
-/*        date.utilizers.forEach(utilizer => {
-          if (utilizer.extras && utilizer.extras.length) {
-            const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0;
-              return acc + price;
-            }, 0);
-            total += extrasTotal;
-          }
-        });*/
       });
     }
 
     return total;
   }
-
-  // MÃ©todo para obtener el intervalo de precios basado en la duraciÃ³n
+  // Método para obtener el intervalo de precios basado en la duración
   private getPriceInterval(duration: number) {
     const priceRanges = this.course.price_range;
     return priceRanges.find((interval: any) => {
@@ -996,7 +958,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     });
   }
 
-  // MÃ©todo para parsear la duraciÃ³n en formato de texto a minutos
+  // Método para parsear la duración en formato de texto a minutos
   private parseDuration(durationStr: string): number {
     const parts = durationStr.split(' ');
     let totalMinutes = 0;
@@ -1018,11 +980,16 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return 0;
     }
 
+    const utilizerCount = Array.isArray(this.utilizers) ? this.utilizers.length : 0;
+    if (utilizerCount <= 0) {
+      return 0;
+    }
+
     const price = parseFloat(course?.price ?? '0');
     const basePrice = isNaN(price) ? 0 : price;
 
     if (!course.is_flexible) {
-      return Math.max(0, basePrice);
+      return Math.max(0, basePrice) * utilizerCount;
     }
 
     // Agrupar fechas por intervalo
@@ -1048,27 +1015,27 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       grandTotal += discountedTotal;
     });
 
-    return Math.max(0, grandTotal);
+    return Math.max(0, grandTotal) * utilizerCount;
   }
 
   // Filtra las fechas seleccionadas y calcula el precio individual para cada fecha
   getSelectedDates(dates: any) {
     const selectedDates = dates.filter((date: any) => date.selected);
 
-    // Calcular precio individual para cada fecha según el tipo de curso
+    // Calcular precio individual para cada fecha seg�n el tipo de curso
     if (this.course?.course_type === 2 && this.course?.is_flexible && this.utilizers?.length) {
-      // PRIVADOS FLEX: Usar price_range según duración y PAX
+      // PRIVADOS FLEX: Usar price_range seg�n duraci�n y PAX
       selectedDates.forEach((date: any) => {
         const duration = date.duration;
         const selectedUtilizers = this.utilizers.length;
 
-        // Encuentra el intervalo de duración que se aplica
+        // Encuentra el intervalo de duraci�n que se aplica
         const interval = this.course.price_range?.find(range => {
           return range.intervalo === duration;
         });
 
         if (interval) {
-          // Intentar acceso con número y string para compatibilidad
+          // Intentar acceso con n�mero y string para compatibilidad
           const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
           date.price = priceForPax.toString();
           date.currency = this.course.currency || 'CHF';
@@ -1233,7 +1200,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   goToNextStep() {
-    this.step = 2;  // Cambiar al paso 2 de confirmaciÃ³n de pago
+    this.step = 2;  // Cambiar al paso 2 de confirmación de pago
   }
 
   cancelPaymentStep() {
@@ -1244,14 +1211,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.isPaid = false;  // Resetear isPaid
   }
 
-  // MÃ©todo para finalizar la reserva
+  // Método para finalizar la reserva
   finalizeBooking(): void {
     const bookingData = this.bookingService.getBookingData();
     if (!bookingData || this.isSubmitting) {
       return;
     }
 
-    // Asegurar que el total enviado incluya opcionales (p.e. seguro de cancelaciÃ³n)
+    // Asegurar que el total enviado incluya opcionales (p.e. seguro de cancelación)
     const finalPriceTotal = this.buildFinalPriceTotal(bookingData);
     bookingData.price_total = finalPriceTotal;
 
@@ -1270,9 +1237,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     const vouchersTotal = this.calculateTotalVoucherPrice();
     const safeVouchersTotal = isNaN(vouchersTotal) ? 0 : vouchersTotal;
 
-    // MEJORA CRÍTICA: Detectar y prevenir reservas con problemas de precios/bonos
+    // MEJORA CR�TICA: Detectar y prevenir reservas con problemas de precios/bonos
     if (safePriceTotal === 0 && safeVouchersTotal > 0) {
-      console.error('🚨 PROBLEMA DETECTADO: Reserva con precio 0€ pero bonos aplicados', {
+      console.error('?? PROBLEMA DETECTADO: Reserva con precio 0� pero bonos aplicados', {
         priceTotal: safePriceTotal,
         vouchersTotal: safeVouchersTotal,
         vouchers: bookingData.vouchers
@@ -1287,7 +1254,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         }
       );
 
-      // Limpiar bonos automáticos problemáticos y detener proceso
+      // Limpiar bonos autom�ticos problem�ticos y detener proceso
       bookingData.vouchers = [];
       this.bookingService.setBookingData(bookingData);
       return;
@@ -1317,7 +1284,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         (result: any) => {
           const bookingId = result.data.id;
 
-          // Manejar pagos en lÃ­nea
+          // Manejar pagos en línea
           if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
             this.crudService.post(`/admin/bookings/payments/${bookingId}`, result.data.basket)
               .subscribe(
@@ -1335,7 +1302,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                     this.snackBar.open(this.translateService.instant('snackbar.booking_detail.send_mail'),
                       this.translateService.instant('close'),
                       { duration: 1000 });
-                    // MEJORA CRÃTICA: Limpiar borrador al completar reserva exitosamente
+                    // MEJORA CRÍTICA: Limpiar borrador al completar reserva exitosamente
                     this.persistenceService.removeDraft(this.currentBookingId);
                     this.hasUnsavedChanges = false;
 
@@ -1347,7 +1314,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                   if (this.dialogRef) {
                     this.dialogRef.close();
                   }
-                  // MEJORA CRÃTICA: Incluso con error de pago, la reserva se creÃ³ exitosamente
+                  // MEJORA CRÍTICA: Incluso con error de pago, la reserva se creó exitosamente
                   this.persistenceService.removeDraft(this.currentBookingId);
                   this.hasUnsavedChanges = false;
 
@@ -1360,11 +1327,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
             if (this.dialogRef) {
               this.dialogRef.close();
             }
-            // MEJORA CRÃTICA: Limpiar borrador al completar reserva exitosamente
+            // MEJORA CRÍTICA: Limpiar borrador al completar reserva exitosamente
             this.persistenceService.removeDraft(this.currentBookingId);
             this.hasUnsavedChanges = false;
 
-            // Si no es pago online, llevar directamente a la pÃ¡gina de actualizaciÃ³n
+            // Si no es pago online, llevar directamente a la página de actualización
             this.router.navigate([`/bookings/update/${bookingId}`]);
           }
         },
@@ -1392,6 +1359,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       const parsed = typeof value === 'number' ? value : parseFloat(value ?? '0');
       return acc + (isNaN(parsed) ? 0 : parsed);
     }, 0);
+    
   }
 
   private buildFinalPriceTotal(bookingData: any): number {
@@ -1418,7 +1386,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   // Manejo elegante de errores de coherencia cliente-participantes
   handleClientParticipantConsistencyError(errorMessage: string): void {
-    // Extraer informaciÃ³n del error
+    // Extraer información del error
     const participantMatch = errorMessage.match(/participante\s+([^)]+)\s+no\s+pertenece\s+al\s+cliente\s+principal\s+([^)]+)/i);
 
     let dialogMessage = this.translateService.instant('booking.conflict.detected');
@@ -1431,7 +1399,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       });
     }
 
-    // Mostrar dialog elegante con opciones de correcciÃ³n
+    // Mostrar dialog elegante con opciones de corrección
     const dialog = this.dialog.open(ClientParticipantConflictDialogComponent, {
       width: '600px',
       disableClose: true,
@@ -1441,14 +1409,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         utilizers: this.utilizers,
         normalizedDates: this.normalizedDates,
         onResolved: (solution: any) => {
-          // Aplicar soluciÃ³n y reintentar
+          // Aplicar solución y reintentar
           this.applyConsistencySolution(solution);
         }
       }
     });
   }
 
-  // Aplicar la soluciÃ³n elegida para resolver la inconsistencia
+  // Aplicar la solución elegida para resolver la inconsistencia
   applyConsistencySolution(solution: any): void {
     const clientLocked = (this.forms && this.forms.length > 0) || (this.normalizedDates && this.normalizedDates.length > 0);
     switch (solution.action) {
@@ -1472,7 +1440,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         break;
 
       case 'remove_participants':
-        // Remover participantes problemÃ¡ticos
+        // Remover participantes problemáticos
         this.normalizedDates = this.normalizedDates.map(date => ({
           ...date,
           utilizers: date.utilizers.filter(u => !solution.participantsToRemove.includes(u.id))
@@ -1485,13 +1453,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         break;
 
       case 'create_relationship':
-        // En este caso, simplemente mostrar mensaje ya que la relaciÃ³n debe crearse manualmente
+        // En este caso, simplemente mostrar mensaje ya que la relación debe crearse manualmente
         this.snackBar.open(
           this.translateService.instant('booking.conflict.create_relationship'),
           this.translateService.instant('close'),
           { duration: 2000 }
         );
-        // Reintentar la reserva despuÃ©s de un delay
+        // Reintentar la reserva después de un delay
         setTimeout(() => {
           this.finalizeBooking();
         }, 2500);
@@ -1499,7 +1467,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     }
   }
 
-  // ValidaciÃ³n preventiva de coherencia cliente-participantes
+  // Validación preventiva de coherencia cliente-participantes
   validateClientParticipantConsistency(mainClient: any, utilizers: any[]): {
     isValid: boolean,
     filteredUtilizers: any[],
@@ -1509,17 +1477,17 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return { isValid: true, filteredUtilizers: utilizers || [], invalidCount: 0 };
     }
 
-    // Obtener IDs vÃ¡lidos: cliente principal + sus utilizers
+    // Obtener IDs válidos: cliente principal + sus utilizers
     const validClientIds = [mainClient.id];
 
-    // Agregar utilizers del cliente principal si estÃ¡n disponibles
+    // Agregar utilizers del cliente principal si están disponibles
     if (mainClient.utilizers && Array.isArray(mainClient.utilizers)) {
       mainClient.utilizers.forEach(utilizer => {
         validClientIds.push(utilizer.id);
       });
     }
 
-    // Filtrar solo utilizers vÃ¡lidos
+    // Filtrar solo utilizers válidos
     const filteredUtilizers = utilizers.filter(utilizer =>
       validClientIds.includes(utilizer.id)
     );
@@ -1534,7 +1502,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     };
   }
 
-  // FunciÃ³n para mostrar un Snackbar en caso de error
+  // Función para mostrar un Snackbar en caso de error
   showErrorSnackbar(message: string): void {
     this.snackBar.open(message, "Cerrar", {
       duration: 3000,
@@ -1542,3 +1510,19 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     });
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

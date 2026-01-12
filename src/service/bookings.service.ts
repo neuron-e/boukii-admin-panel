@@ -311,6 +311,7 @@ export class BookingService {
 
     return datePrice + extraPrice;
   }
+
   updateBookingData(partialData: Partial<BookingCreateData>) {
     const currentData = this.getBookingData();
     if (currentData) {
@@ -328,16 +329,34 @@ export class BookingService {
       groupId += 1;
       const utilizers = Array.isArray(item?.utilizers) ? item.utilizers : [];
       const dates = Array.isArray(item?.dates) ? item.dates : [];
+      const course = item?.course ?? null;
+      const courseType = course?.course_type ?? null;
+      const coursePriceRaw = parseFloat(course?.price ?? '0');
+      const coursePrice = Number.isNaN(coursePriceRaw) ? 0 : coursePriceRaw;
+
+      const resolveBasePrice = (date: any): number => {
+        if (courseType === 1) {
+          return coursePrice;
+        }
+        if (courseType === 2) {
+          if (course?.is_flexible) {
+            return 0;
+          }
+          return coursePrice;
+        }
+        return 0;
+      };
 
       utilizers.forEach(utilizer => {
         dates.forEach(date => {
+          const basePrice = resolveBasePrice(date);
           const bookingUser: any = {
             client_id: utilizer?.id ?? null,
             group_id: groupId,
             monitor_id: item?.monitor?.id ?? null,
-            price_base: parseFloat(item?.totalSinExtras ?? '0'),
-            extra_price: parseFloat(item?.extrasTotal ?? '0'),
-            price: parseFloat(String(item?.total ?? '0').replace(/[^\d.-]/g, '')),
+            price_base: basePrice,
+            extra_price: 0,
+            price: basePrice,
             currency: item?.course?.currency ?? null,
             course_id: item?.course?.id ?? null,
             course_name: item?.course?.name ?? null,
@@ -356,6 +375,7 @@ export class BookingService {
           bookingUser.course_date_id = courseDate?.id ?? null;
 
           const extras: any[] = [];
+          let extrasTotal = 0;
 
           if (item?.course?.course_type === 2) {
             const utilizerExtras = date?.utilizers?.find(u =>
@@ -365,6 +385,8 @@ export class BookingService {
             extraList.forEach(extra => {
               const extraPrice = parseFloat(extra?.price ?? '0');
               const quantity = Number(extra?.quantity ?? 1) || 1;
+              const extraLineTotal = Number.isNaN(extraPrice) ? 0 : extraPrice * quantity;
+              extrasTotal += extraLineTotal;
               extras.push({
                 course_extra_id: extra?.id ?? null,
                 name: extra?.name ?? '',
@@ -377,6 +399,8 @@ export class BookingService {
             extraList.forEach(extra => {
               const extraPrice = parseFloat(extra?.price ?? '0');
               const quantity = Number(extra?.quantity ?? 1) || 1;
+              const extraLineTotal = Number.isNaN(extraPrice) ? 0 : extraPrice * quantity;
+              extrasTotal += extraLineTotal;
               extras.push({
                 course_extra_id: extra?.id ?? null,
                 name: extra?.name ?? '',
@@ -387,6 +411,8 @@ export class BookingService {
           }
 
           bookingUser.extras = extras;
+          bookingUser.extra_price = Number(extrasTotal.toFixed(2));
+          bookingUser.price = Number((basePrice + extrasTotal).toFixed(2));
 
           if (bookingData?.school_id === 15) {
             const courseGroups = Array.isArray(courseDate?.course_groups) ? courseDate.course_groups : [];

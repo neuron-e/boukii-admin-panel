@@ -29,6 +29,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   displayTotal = 0;
   displayOutstanding = 0;
   discountCodeCourseIds: number[] | null = null;
+  private isRefreshingTotals = false;
 
   constructor(
     protected langService: LangService,
@@ -120,7 +121,6 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     // ELIMINADO (2025-11-14): this.bookingData.price_total = this.calculateTotal();
     // Razon: Causaba discrepancias entre frontend/backend y errores en pasarela de pago (ej: reserva 5608)
     
-    this.bookingService.setBookingData(this.bookingData);
     this.refreshDisplayTotals();
   }
 
@@ -347,12 +347,17 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   }
 
   private refreshDisplayTotals(): void {
+    if (this.isRefreshingTotals) {
+      return;
+    }
+    this.isRefreshingTotals = true;
     this.displayTotal = this.getFinalTotal();
     this.displayOutstanding = this.getOutstandingTotal();
     (this.bookingData as any).computed_total = this.displayTotal;
     (this.bookingData as any).computed_paid_total = Number(this.bookingData.paid_total || 0);
     (this.bookingData as any).computed_pending_amount = this.displayOutstanding;
-    this.updateBookingData();
+    this.bookingService.setBookingData(this.bookingData);
+    this.isRefreshingTotals = false;
   }
 
   private syncPriceTotalWithActivities(): void {
