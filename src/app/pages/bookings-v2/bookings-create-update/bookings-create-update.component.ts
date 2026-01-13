@@ -1364,9 +1364,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   private buildFinalPriceTotal(bookingData: any): number {
     // baseRaw ya incluye precios netos por actividad (courseSubtotalAfterDiscount)
-    const baseRaw = this.total !== null && this.total !== undefined && !isNaN(this.total)
-      ? this.total
-      : (bookingData?.price_total ?? 0);
+    const normalizedTotal = Array.isArray(this.normalizedDates) && this.normalizedDates.length
+      ? this.sumActivityTotal()
+      : null;
+    const baseRaw = Number.isFinite(normalizedTotal)
+      ? normalizedTotal
+      : (this.total !== null && this.total !== undefined && !isNaN(this.total)
+        ? this.total
+        : (bookingData?.price_total ?? 0));
     const base = typeof baseRaw === 'number' ? baseRaw : parseFloat(String(baseRaw)) || 0;
 
     const insurance = bookingData?.has_cancellation_insurance

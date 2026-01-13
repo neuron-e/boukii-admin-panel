@@ -468,7 +468,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
   }
 
   getVoucherLogs() {
-    this.crudService.list('/vouchers-logs', 1, 10000, 'desc', 'id', '&voucher_id='+this.id)
+    this.crudService.list('/vouchers-logs', 1, 10000, 'desc', 'id', '&voucher_id=' + this.id, '', null, '', ['booking'])
     .subscribe({
       next: (vl) => {
         this.logs = vl.data;

@@ -1487,6 +1487,7 @@
 
 
                 {{item.created_at | date: 'dd-MM-yyyy HH:mm'}}h: {{'ispaid' | translate}}: {{item.amount}}
+                <span *ngIf="item.booking_id"> - Reserva #{{item.booking_id}}</span>
 
 
 
@@ -1499,6 +1500,7 @@
 
 
                 {{item.created_at | date: 'dd-MM-yyyy HH:mm'}}h: {{'refund' | translate}}: {{item.amount}}
+                <span *ngIf="item.booking_id"> - Reserva #{{item.booking_id}}</span>
 
 
 

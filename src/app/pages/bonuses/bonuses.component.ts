@@ -29,8 +29,8 @@ export class BonusesComponent implements OnInit {
     { label: 'amount', property: 'quantity', type: 'currency', visible: true },
     { label: 'voucher.assigned_client', property: 'client', type: 'client', visible: true },
     { label: 'voucher.buyer', property: 'buyer_name', type: 'text', visible: true },
-    { label: 'uses', property: 'uses_count', type: 'text', visible: true },
-    { label: 'status', property: 'payed', type: 'badge', visible: true },
+    { label: 'uses', property: 'computed_uses_count', type: 'text', visible: true },
+    { label: 'status', property: 'status', type: 'badge', visible: true },
     { label: 'voucher.creation_date', property: 'created_at', type: 'date', visible: true },
     { label: 'actions', property: 'actions', type: 'button', visible: true }
   ];
@@ -84,8 +84,8 @@ export class BonusesComponent implements OnInit {
     { label: 'voucher.assigned_client', property: 'client', type: 'client', visible: true },
     { label: 'voucher.buyer', property: 'buyer_name', type: 'text', visible: true },
     { label: 'recipient', property: 'recipient_name', type: 'text', visible: true },
-    { label: 'uses', property: 'uses_count', type: 'text', visible: true },
-    { label: 'status', property: 'payed', type: 'badge', visible: true },
+    { label: 'uses', property: 'computed_uses_count', type: 'text', visible: true },
+    { label: 'status', property: 'status', type: 'badge', visible: true },
     { label: 'voucher.creation_date', property: 'created_at', type: 'date', visible: true },
     { label: 'actions', property: 'actions', type: 'button', visible: true }
   ];

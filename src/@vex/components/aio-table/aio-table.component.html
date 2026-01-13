@@ -1281,7 +1281,7 @@
 				{{'update' | translate}}
 			</span>
     </button>
-    <button *ngIf="canDelete" (click)="delete(item)" mat-menu-item>
+    <button *ngIf="canDelete && !entity.includes('vouchers')" (click)="delete(item)" mat-menu-item>
       <mat-icon svgIcon="mat:delete"></mat-icon>
       <span>
 				{{'delete_title' | translate}}
