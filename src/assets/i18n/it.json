@@ -2152,7 +2152,16 @@
   "analytics_cache_refreshing": "Aggiornamento cache, questa chiamata puo richiedere alcuni minuti.",
   "analytics_courses_includes_unpaid": "L'analisi dei corsi include le prenotazioni non pagate.",
   "analytics_refresh_cache": "Aggiorna cache",
-  "analytics_refresh_cache_tooltip": "Forza il ricaricamento della cache"
+  "analytics_refresh_cache_tooltip": "Forza il ricaricamento della cache",
+  "edit_evaluation": "Modifica valutazione",
+  "evaluation_editor_title": "Valutazione",
+  "evaluation_select": "Valutazione",
+  "evaluation_new": "Nuova valutazione",
+  "evaluation_observations": "Osservazioni",
+  "evaluation_logs": "Cronologia",
+  "evaluation_log_empty": "Nessuna modifica",
+  "update_client_level": "Aggiorna livello allievo",
+  "add_multimedia": "Aggiungi multimedia"
 }
 
 

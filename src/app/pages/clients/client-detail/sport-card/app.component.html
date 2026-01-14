@@ -12,6 +12,11 @@
             {{calculateGoalsScore()}}%
         </span>
     </div>
+    <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+        <button mat-stroked-button color="accent" (click)="user.openEvaluationEditor(level, goals, selectedSport)">
+            {{ 'edit_evaluation' | translate }}
+        </button>
+    </div>
     <div style="align-items: center">
         <div style="width: 100px;">
             <app-level-user
@@ -39,13 +44,8 @@
                 style="font-size: 12px;line-height: 16px;padding-right: 10px;">
                 <b>•</b>
                 {{goal.name}} </span>
-            <img src="assets/icons/check_green.png" class="icon24"
-                *ngIf="getDegreeScore(goal.id)>0"
-                alt>
-            <div
-                [style.backgroundColor]="getDegreeScore(goal.id)>0?getDegreeScore(goal.id)>5?'green':'yellow':'#E6E6E6'"
-                class="icon24"
-                style="border-radius: 100%;">
+            <div class="goal-status" [ngClass]="getGoalStatusClass(goal.id)">
+                {{ getGoalStatusLabel(goal.id) }}
             </div>
         </div>
         <span

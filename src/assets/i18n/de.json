@@ -2184,7 +2184,16 @@
   "analytics_cache_refreshing": "Cache wird aktualisiert, dieser Aufruf kann einige Minuten dauern.",
   "analytics_courses_includes_unpaid": "Die Kursanalyse umfasst auch unbezahlte Buchungen.",
   "analytics_refresh_cache": "Cache aktualisieren",
-  "analytics_refresh_cache_tooltip": "Cache-Neuladen erzwingen"
+  "analytics_refresh_cache_tooltip": "Cache-Neuladen erzwingen",
+  "edit_evaluation": "Bewertung bearbeiten",
+  "evaluation_editor_title": "Bewertung",
+  "evaluation_select": "Bewertung",
+  "evaluation_new": "Neue Bewertung",
+  "evaluation_observations": "Beobachtungen",
+  "evaluation_logs": "Historie",
+  "evaluation_log_empty": "Noch keine Aenderungen",
+  "update_client_level": "Schuelerlevel aktualisieren",
+  "add_multimedia": "Multimedia hinzufuegen"
 }
 
 

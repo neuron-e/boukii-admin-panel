@@ -2154,6 +2154,15 @@
   "analytics_cache_refreshing": "Actualizando cache, esta llamada puede tardar varios minutos.",
   "analytics_courses_includes_unpaid": "El analisis de cursos incluye reservas no pagadas.",
   "analytics_refresh_cache": "Actualizar cache",
-  "analytics_refresh_cache_tooltip": "Forzar recarga de cache"
+  "analytics_refresh_cache_tooltip": "Forzar recarga de cache",
+  "edit_evaluation": "Editar evaluacion",
+  "evaluation_editor_title": "Valoracion",
+  "evaluation_select": "Valoracion",
+  "evaluation_new": "Nueva valoracion",
+  "evaluation_observations": "Observaciones",
+  "evaluation_logs": "Historial",
+  "evaluation_log_empty": "Sin cambios todavia",
+  "update_client_level": "Actualizar nivel del alumno",
+  "add_multimedia": "Anadir multimedia"
 }
 

@@ -1,0 +1,83 @@
+<h2 mat-dialog-title>{{ 'evaluation_editor_title' | translate }}</h2>
+
+<mat-dialog-content class="evaluation-editor">
+  <div class="meta">
+    <div class="meta-line">
+      <span class="meta-label">{{ 'level' | translate }}:</span>
+      <span>{{ data.level?.annotation }} / {{ data.level?.name }}</span>
+    </div>
+    <div class="meta-line" *ngIf="data.sport?.name">
+      <span class="meta-label">{{ 'sport' | translate }}:</span>
+      <span>{{ data.sport?.name }}</span>
+    </div>
+  </div>
+
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>{{ 'evaluation_select' | translate }}</mat-label>
+    <mat-select [(ngModel)]="selectedEvaluationId" (selectionChange)="onEvaluationChange()">
+      <mat-option *ngIf="evaluations.length === 0" value="new">{{ 'evaluation_new' | translate }}</mat-option>
+      <mat-option *ngFor="let evaluation of evaluations" [value]="evaluation.id">
+        #{{ evaluation.id }} - {{ evaluation.created_at | date:'short' }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>{{ 'evaluation_observations' | translate }}</mat-label>
+    <textarea matInput rows="4" [(ngModel)]="observations"></textarea>
+  </mat-form-field>
+
+  <div class="section-title">{{ 'goals' | translate }}</div>
+  <div class="goal-list">
+    <div class="goal-row" *ngFor="let goal of goalStates; trackBy: trackGoalById">
+      <div class="goal-name">{{ goal.name }}</div>
+      <mat-button-toggle-group [(ngModel)]="goal.score" aria-label="Goal score" class="goal-toggle">
+        <mat-button-toggle [value]="0">0</mat-button-toggle>
+        <mat-button-toggle [value]="5">5</mat-button-toggle>
+        <mat-button-toggle [value]="10">10</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+  </div>
+
+  <div class="section-title">{{ 'multimedia' | translate }}</div>
+  <div class="file-actions">
+    <label class="file-upload">
+      <input type="file" multiple accept="image/*,video/*" (change)="onFileSelected($event)" />
+      <span>{{ 'add_multimedia' | translate }}</span>
+    </label>
+  </div>
+  <div class="file-grid" *ngIf="files.length">
+    <div class="file-card" *ngFor="let file of files; index as i">
+      <img *ngIf="file.type === 'image'" [src]="file.file" alt="file" />
+      <video *ngIf="file.type === 'video'" [src]="file.file" muted controls></video>
+      <button mat-icon-button color="warn" (click)="removeFile(file, i)">
+        <mat-icon svgIcon="mat:delete"></mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <mat-checkbox [(ngModel)]="updateClientLevel">
+    {{ 'update_client_level' | translate }}
+  </mat-checkbox>
+
+  <div class="section-title" *ngIf="hasExistingEvaluation">{{ 'evaluation_logs' | translate }}</div>
+  <div *ngIf="hasExistingEvaluation" class="logs">
+    <div *ngIf="loadingLogs">{{ 'loading' | translate }}</div>
+    <div *ngIf="!loadingLogs && logs.length === 0">{{ 'evaluation_log_empty' | translate }}</div>
+    <div *ngFor="let log of logs" class="log-row">
+      <div class="log-main">
+        <span class="log-user">{{ getLogLabel(log) }}</span>
+        <span class="log-event">{{ log.description || log.event }}</span>
+      </div>
+      <div class="log-detail" *ngIf="getLogDetails(log)">{{ getLogDetails(log) }}</div>
+      <div class="log-date">{{ log.created_at | date:'short' }}</div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="close()">{{ 'cancel' | translate }}</button>
+  <button mat-flat-button color="primary" [disabled]="saving" (click)="save()">
+    {{ 'save' | translate }}
+  </button>
+</mat-dialog-actions>

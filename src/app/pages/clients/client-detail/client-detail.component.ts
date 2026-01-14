@@ -25,6 +25,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { DateAdapter } from '@angular/material/core';
 import { switchMap } from 'rxjs/operators';
 import { SchoolService } from 'src/service/school.service';
+import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor.component';
 
 
 @Component({
@@ -1772,6 +1773,27 @@ export class ClientDetailComponent {
   close() {
     this.showDetail = false;
     this.detailData = null;
+  }
+
+  openEvaluationEditor(level: any, goals: any[], sport: any): void {
+    const evaluations = this.getEvaluationsData(level);
+    const dialogRef = this.dialog.open(EvaluationEditorComponent, {
+      width: '900px',
+      data: {
+        clientId: this.id,
+        level,
+        goals,
+        sport,
+        evaluations,
+        clientSport: this.clientSport
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((changed) => {
+      if (changed) {
+        this.getData(this.id, true).subscribe();
+      }
+    });
   }
 
   getGoalImage(goal: any): string {

@@ -41,4 +41,16 @@ export class SportCardComponent {
     if (d) return d.score
     return 0
   }
+
+  getGoalStatusLabel(goalId: any): string {
+    const score = Number(this.getDegreeScore(goalId) || 0);
+    return `${score}/10`;
+  }
+
+  getGoalStatusClass(goalId: any): string {
+    const score = Number(this.getDegreeScore(goalId) || 0);
+    if (score >= 10) return 'goal-status--done';
+    if (score >= 5) return 'goal-status--partial';
+    return 'goal-status--none';
+  }
 }

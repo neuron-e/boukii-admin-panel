@@ -2184,7 +2184,16 @@
   "analytics_cache_refreshing": "Mise a jour du cache, cet appel peut prendre plusieurs minutes.",
   "analytics_courses_includes_unpaid": "L'analyse des cours inclut les reservations non payees.",
   "analytics_refresh_cache": "Rafraichir le cache",
-  "analytics_refresh_cache_tooltip": "Forcer le rechargement du cache"
+  "analytics_refresh_cache_tooltip": "Forcer le rechargement du cache",
+  "edit_evaluation": "Modifier l evaluation",
+  "evaluation_editor_title": "Evaluation",
+  "evaluation_select": "Evaluation",
+  "evaluation_new": "Nouvelle evaluation",
+  "evaluation_observations": "Observations",
+  "evaluation_logs": "Historique",
+  "evaluation_log_empty": "Aucun changement pour l instant",
+  "update_client_level": "Mettre a jour le niveau de l eleve",
+  "add_multimedia": "Ajouter multimedia"
 }
 
 

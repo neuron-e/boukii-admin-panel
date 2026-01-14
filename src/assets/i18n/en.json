@@ -2150,6 +2150,15 @@
   "analytics_cache_refreshing": "Refreshing cache, this call may take several minutes.",
   "analytics_courses_includes_unpaid": "Course analysis includes unpaid bookings.",
   "analytics_refresh_cache": "Refresh cache",
-  "analytics_refresh_cache_tooltip": "Force cache reload"
+  "analytics_refresh_cache_tooltip": "Force cache reload",
+  "edit_evaluation": "Edit evaluation",
+  "evaluation_editor_title": "Evaluation",
+  "evaluation_select": "Evaluation",
+  "evaluation_new": "New evaluation",
+  "evaluation_observations": "Observations",
+  "evaluation_logs": "Activity log",
+  "evaluation_log_empty": "No changes yet",
+  "update_client_level": "Update client level",
+  "add_multimedia": "Add multimedia"
 }
 
