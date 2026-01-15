@@ -39,6 +39,8 @@ import { IconComponent } from 'src/@vex/components/icon/app.component';
 import { FluxUploadImgModule } from 'src/@vex/components/form/upload-img/app.module';
 import {SportCardComponent} from './sport-card/app.component';
 import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor.component';
+import { EvaluationHistoryComponent } from './evaluation-history/evaluation-history.component';
+import { MatExpansionModule } from '@angular/material/expansion';
 
 @NgModule({
   imports: [
@@ -79,9 +81,10 @@ import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor
     ComponentsModule,
     TranslateModule,
     MatProgressSpinnerModule,
-    FluxUploadImgModule
+    FluxUploadImgModule,
+    MatExpansionModule
   ],
-  declarations: [ClientDetailComponent, SportCardComponent, EvaluationEditorComponent],
+  declarations: [ClientDetailComponent, SportCardComponent, EvaluationEditorComponent, EvaluationHistoryComponent],
   exports: [ClientDetailComponent]
 })
 export class ClientDetailModule {

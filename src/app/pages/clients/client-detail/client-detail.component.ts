@@ -1,4 +1,4 @@
-import {ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild} from '@angular/core';
+import {ChangeDetectorRef, Component, OnInit, ViewChild} from '@angular/core';
 import { FormControl, UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { MatTable, _MatTableDataSource } from '@angular/material/table';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -26,6 +26,7 @@ import { DateAdapter } from '@angular/material/core';
 import { switchMap } from 'rxjs/operators';
 import { SchoolService } from 'src/service/school.service';
 import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor.component';
+import { EvaluationHistoryComponent } from './evaluation-history/evaluation-history.component';
 
 
 @Component({
@@ -86,6 +87,10 @@ export class ClientDetailComponent {
   selectedGoal = [];
   evaluations = [];
   evaluationFullfiled = [];
+  evaluationComments: {[key: number]: any[]} = {};
+  evaluationCommentsLoading: {[key: number]: boolean} = {};
+  evaluationHistory: {[key: number]: any[]} = {};
+  evaluationHistoryLoading: {[key: number]: boolean} = {};
   maxSelection = 6;
   today: Date;
   minDate: Date;
@@ -159,6 +164,7 @@ export class ClientDetailComponent {
   clients = [];
   clientSchool = [];
   goals = [];
+  sportCardGroups: Array<{ label: string; color: string; items: any[] }> = [];
   bookingUsersUnique = [];
   bonus = [];
   mainId: any;
@@ -502,6 +508,11 @@ export class ClientDetailComponent {
             sport.name = sport.sport.name;
             sport.icon_selected = sport.sport.icon_selected;
             sport.icon_unselected = sport.sport.icon_unselected;
+            sport.degrees = sport.degrees.filter((level: any) => this.isDegreeActive(level));
+            if (this.defaults?.birth_date) {
+              const age = this.calculateAge(this.defaults.birth_date);
+              sport.degrees = sport.degrees.filter((level: any) => age >= level.age_min && age <= level.age_max);
+            }
             sport.degrees.forEach(degree => {
               degree.degrees_school_sport_goals.forEach(goal => {
                 this.goals.push(goal);
@@ -516,7 +527,7 @@ export class ClientDetailComponent {
                 element.degrees = sport.degrees;
                 element.degrees = element.degrees.filter(level => {
                   const age = this.calculateAge(this.defaults.birth_date);
-                  return age >= level.age_min && age <= level.age_max;
+                  return this.isDegreeActive(level) && age >= level.age_min && age <= level.age_max;
                 });
               }
             });
@@ -526,7 +537,7 @@ export class ClientDetailComponent {
           this.schoolSports.forEach(element => {
             element.degrees = element.degrees.filter(level => {
               const age = this.calculateAge(this.defaults.birth_date);
-              return age >= level.age_min && age <= level.age_max;
+              return this.isDegreeActive(level) && age >= level.age_min && age <= level.age_max;
             });
             if (!this.sportsCurrentData.data.find((s) => s.sport_id === element.sport_id)) {
               availableSports.push(element);
@@ -1079,6 +1090,7 @@ export class ClientDetailComponent {
         });
       }
     }
+    this.sportCardGroups = this.groupSportCardsByColor(this.sportCard);
     this.coloring = false;
   }
 
@@ -1098,7 +1110,35 @@ export class ClientDetailComponent {
         this.selectedGoal.push(element);
       }
     });
+    this.sportCardGroups = this.groupSportCardsByColor(this.sportCard);
     this.coloring = false;
+  }
+
+  private isDegreeActive(level: any): boolean {
+    if (!level) return false;
+    if (level.active === 0 || level.active === false) return false;
+    if (level.status === 0 || level.status === false) return false;
+    if (level.is_active === 0 || level.is_active === false) return false;
+    return true;
+  }
+
+  private groupSportCardsByColor(cards: any[]): Array<{ label: string; color: string; items: any[] }> {
+    const groups: {[key: string]: any[]} = {};
+    cards.forEach(card => {
+      const league = card?.degree?.league || 'N/A';
+      if (!groups[league]) {
+        groups[league] = [];
+      }
+      groups[league].push(card);
+    });
+
+    return Object.keys(groups)
+      .map(label => ({
+        label,
+        color: groups[label][0]?.degree?.color || '#9ca3af',
+        items: groups[label].sort((a: any, b: any) => a.degree.degree_order - b.degree.degree_order)
+      }))
+      .sort((a, b) => a.items[0].degree.degree_order - b.items[0].degree.degree_order);
   }
 
   lightenColor(hexColor: any, percent: any) {
@@ -1534,9 +1574,11 @@ export class ClientDetailComponent {
           // Apply age filtering using the client's birth date
           if (clientData.birth_date) {
             const age = this.calculateAge(clientData.birth_date);
-            ret = element.degrees.filter(level => age >= level.age_min && age <= level.age_max);
+            ret = element.degrees.filter(level =>
+              this.isDegreeActive(level) && age >= level.age_min && age <= level.age_max
+            );
           } else {
-            ret = element.degrees;
+            ret = element.degrees.filter(level => this.isDegreeActive(level));
           }
         }
       });
@@ -1546,19 +1588,20 @@ export class ClientDetailComponent {
     if (ret.length === 0 && this.allLevels && sportId && clientData) {
       if (clientData.birth_date) {
         const age = this.calculateAge(clientData.birth_date);
-        ret = this.allLevels.filter(level => 
-          level.sport_id === sportId && 
-          age >= level.age_min && 
+        ret = this.allLevels.filter(level =>
+          level.sport_id === sportId &&
+          this.isDegreeActive(level) &&
+          age >= level.age_min &&
           age <= level.age_max
         );
       } else {
-        ret = this.allLevels.filter(level => level.sport_id === sportId);
+        ret = this.allLevels.filter(level => level.sport_id === sportId && this.isDegreeActive(level));
       }
     }
     
     // Last fallback: return all levels if we still have nothing
     if (ret.length === 0 && this.allLevels) {
-      ret = this.allLevels;
+      ret = this.allLevels.filter(level => this.isDegreeActive(level));
     }
 
     return ret;
@@ -1569,7 +1612,7 @@ export class ClientDetailComponent {
     
     // If we don't have client data or sport selection, return all levels
     if (!clientData || !clientData.birth_date || !this.detailData?.sport) {
-      return this.allLevels;
+      return this.allLevels.filter(level => this.isDegreeActive(level));
     }
     
     const age = this.calculateAge(clientData.birth_date);
@@ -1577,6 +1620,7 @@ export class ClientDetailComponent {
     // Filter all levels by sport and age
     return this.allLevels.filter(level => 
       level.sport_id === this.detailData.sport.id && 
+      this.isDegreeActive(level) &&
       age >= level.age_min && 
       age <= level.age_max
     );
@@ -1796,6 +1840,23 @@ export class ClientDetailComponent {
     });
   }
 
+  async openEvaluationHistory(level: any, goals: any[], sport: any): Promise<void> {
+    const evaluation = this.getEvaluationForLevel(level);
+    if (evaluation?.id) {
+      await this.loadEvaluationHistory(evaluation.id);
+    }
+    this.dialog.open(EvaluationHistoryComponent, {
+      width: '900px',
+      data: {
+        level,
+        sport,
+        goals,
+        evaluation,
+        history: evaluation?.id ? this.getEvaluationHistory(evaluation.id) : []
+      }
+    });
+  }
+
   getGoalImage(goal: any): string {
     let ret = '';
     if (goal.length > 0) {
@@ -1822,34 +1883,130 @@ export class ClientDetailComponent {
     return ret;
   }
 
-  @ViewChild('sliderContainer', { static: false }) sliderContainer!: ElementRef;
-  centeredCardIndex: number = 0;
-  sportCard: any[] = [];
-
-  scrollLeft(num: number) {
-    this.sliderContainer.nativeElement.scrollBy({ left: num * 300, behavior: 'smooth' });
-  }
-  onScroll() {
-    this.updateCenteredCardIndex();
+  getEvaluationForLevel(level: any): any {
+    const evaluations = this.getEvaluationsData(level);
+    if (!evaluations.length) return null;
+    return evaluations.sort((a: any, b: any) => b.id - a.id)[0];
   }
 
-  private updateCenteredCardIndex() {
-    const container = this.sliderContainer.nativeElement;
-    const containerCenter = container.scrollLeft + container.clientWidth / 2;
-
-    let closestIndex = 0;
-    let closestDistance = Infinity;
-
-    const cards = container.querySelectorAll('app-user-detail-sport-card');
-    cards.forEach((card: HTMLElement, index: number) => {
-      const cardCenter = card.offsetLeft + card.clientWidth / 2;
-      const distance = Math.abs(containerCenter - cardCenter);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
+  getGoalsNotStartedCount(goals: any[]): number {
+    if (!goals?.length) return 0;
+    let started = 0;
+    goals.forEach(goal => {
+      if (this.getDegreeScore(goal.id) > 0) {
+        started += 1;
       }
     });
-
-    this.centeredCardIndex = closestIndex;
+    return Math.max(0, goals.length - started);
   }
+
+  getMediaCounts(level: any): { images: number; videos: number } {
+    const evaluation = this.getEvaluationForLevel(level);
+    const files = evaluation?.files || [];
+    let images = 0;
+    let videos = 0;
+    files.forEach((file: any) => {
+      if (file.type === 'image') images += 1;
+      if (file.type === 'video') videos += 1;
+    });
+    return { images, videos };
+  }
+
+  getEvaluationComments(evaluationId: number): any[] {
+    return this.evaluationComments[evaluationId] || [];
+  }
+
+  async loadEvaluationComments(evaluationId: number): Promise<void> {
+    if (!evaluationId || this.evaluationCommentsLoading[evaluationId]) return;
+    this.evaluationCommentsLoading[evaluationId] = true;
+    try {
+      const response: any = await this.crudService.get(`/admin/evaluations/${evaluationId}/comments`).toPromise();
+      this.evaluationComments[evaluationId] = response.data || [];
+    } catch (error) {
+      console.error('Error loading evaluation comments:', error);
+      this.evaluationComments[evaluationId] = [];
+    } finally {
+      this.evaluationCommentsLoading[evaluationId] = false;
+    }
+  }
+
+  async addEvaluationComment(evaluationId: number, comment: string): Promise<void> {
+    if (!evaluationId || !comment?.trim()) return;
+    await this.crudService.post(`/admin/evaluations/${evaluationId}/comments`, { comment }).toPromise();
+    await this.loadEvaluationComments(evaluationId);
+  }
+
+  async addEvaluationFilesForLevel(level: any, files: File[]): Promise<void> {
+    if (!files?.length) return;
+    const evaluation = await this.ensureEvaluation(level);
+    for (const file of files) {
+      const base64 = await this.readFileAsBase64(file);
+      if (!base64) continue;
+      const payload = {
+        evaluation_id: evaluation.id,
+        name: '',
+        type: file.type.startsWith('video/') ? 'video' : 'image',
+        file: base64
+      };
+      await this.crudService.create('/evaluation-files', payload).toPromise();
+    }
+    await this.getData(this.id, true).toPromise();
+  }
+
+  getEvaluationHistory(evaluationId: number): any[] {
+    return this.evaluationHistory[evaluationId] || [];
+  }
+
+  async loadEvaluationHistory(evaluationId: number): Promise<void> {
+    if (!evaluationId || this.evaluationHistoryLoading[evaluationId]) return;
+    this.evaluationHistoryLoading[evaluationId] = true;
+    try {
+      const response: any = await this.crudService.get(`/admin/evaluations/${evaluationId}/history`).toPromise();
+      this.evaluationHistory[evaluationId] = response.data || [];
+    } catch (error) {
+      console.error('Error loading evaluation history:', error);
+      this.evaluationHistory[evaluationId] = [];
+    } finally {
+      this.evaluationHistoryLoading[evaluationId] = false;
+    }
+  }
+
+  async ensureEvaluation(level: any): Promise<any> {
+    const existing = this.getEvaluationForLevel(level);
+    if (existing) return existing;
+    const payload = {
+      client_id: this.id,
+      degree_id: level.id,
+      observations: ''
+    };
+    const response: any = await this.crudService.create('/evaluations', payload).toPromise();
+    return response.data;
+  }
+
+  async updateGoalScore(level: any, goalId: number, score: number): Promise<void> {
+    const evaluation = await this.ensureEvaluation(level);
+    const existing = this.evaluationFullfiled.find((element: any) => element.degrees_school_sport_goals_id === goalId && element.evaluation_id === evaluation.id);
+    const payload = {
+      evaluation_id: evaluation.id,
+      degrees_school_sport_goals_id: goalId,
+      score
+    };
+    if (existing?.id) {
+      await this.crudService.update('/evaluation-fulfilled-goals', payload, existing.id).toPromise();
+    } else {
+      await this.crudService.create('/evaluation-fulfilled-goals', payload).toPromise();
+    }
+    await this.getData(this.id, true).toPromise();
+  }
+
+  private readFileAsBase64(file: File): Promise<string | null> {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  sportCard: any[] = [];
 }

@@ -1,110 +1,110 @@
-<div
-    [className]="center?'card cardcenter':'card'"
-    [style.boxShadow]="border?'':'none'">
-    <div style="align-items: center">
-        <span
-            style="color: white; padding: 4px 10px;height: 24px;border-radius: 3px;font-size: 12px;line-height: 16px;"
-            [style.background]="level?.color">
-            {{level?.annotation}} /
-            {{level?.name}}
-        </span>
-        <span style="margin-left: auto;font-weight: 600;">
-            {{calculateGoalsScore()}}%
-        </span>
-    </div>
-    <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-        <button mat-stroked-button color="accent" (click)="user.openEvaluationEditor(level, goals, selectedSport)">
-            {{ 'edit_evaluation' | translate }}
-        </button>
-    </div>
-    <div style="align-items: center">
-        <div style="width: 100px;">
+<div [className]="center ? 'card cardcenter' : 'card'" [style.boxShadow]="border ? '' : 'none'">
+    <div class="card-header">
+        <div class="card-thumb">
             <app-level-user
                 [allLevels]="user.getAllLevelsBySport()"
                 [selectLevel]="level?.id"
-                [size]="100"
+                [size]="72"
                 [userImage]="user.getGoalImage(goals)">
             </app-level-user>
         </div>
-        <span *ngIf="user.getGoalImage(goals)" class="descripcion">
-           {{"medal_awarded" | translate}}
-        </span>
-        <span *ngIf="!user.getGoalImage(goals)" class="descripcion">
-            {{"achieve_all_goals" | translate}}
-        </span>
-    </div>
-    <div style="flex-direction: column;">
-        <span
-            style="color: #8B9099;font-size: 12px;font-weight: 600;line-height: 16px;">
-            {{"OBJETIVOS" | translate}}
-        </span>
-        <div *ngFor="let goal of goals"
-            style="display: flex;justify-content: space-between;align-items: center;">
-            <span
-                style="font-size: 12px;line-height: 16px;padding-right: 10px;">
-                <b>•</b>
-                {{goal.name}} </span>
-            <div class="goal-status" [ngClass]="getGoalStatusClass(goal.id)">
-                {{ getGoalStatusLabel(goal.id) }}
+        <div class="card-summary">
+            <div class="level-badge" [style.background]="level?.color">
+                {{level?.annotation}} / {{level?.name}}
             </div>
-        </div>
-        <span
-            *ngIf="goals.length === 0"
-            style="font-size: 12px; line-height: 16px;">
-            {{'no_data' | translate }}
-        </span>
-    </div>
-    <div style="flex-direction: column;">
-        <span
-            style="color: #8B9099;font-size: 12px;font-weight: 600;line-height: 16px;">
-            {{'multimedia' | translate }}
-        </span>
-<!--        <div *ngIf="user.getEvaluationsData(level).length===0"
-            style="display: flex;justify-content: space-between;">
-            <div *ngFor="let item of [1,2,3]" style="width: 72px;">
-                <img src="assets/icons/blank.png" class="icon72" alt>
-                <span style="font-size: 12px;line-height: 16px;">
-                    {{"comment_previous" | translate}}
+            <div class="progress-row">
+                <span class="progress-label">{{ 'progress' | translate }}</span>
+                <span class="progress-value">{{calculateGoalsScore()}}%</span>
+            </div>
+            <mat-progress-bar mode="determinate" [value]="calculateGoalsScore()"></mat-progress-bar>
+            <div class="summary-pills">
+                <span class="pill">{{ getGoalsNotStarted() }} {{ 'not_started' | translate }}</span>
+                <span class="pill" *ngIf="getMediaCounts().images > 0 || getMediaCounts().videos > 0">
+                    {{ getMediaCounts().images }} {{ 'photos' | translate }}
+                    <ng-container *ngIf="getMediaCounts().videos > 0"> · {{ getMediaCounts().videos }} {{ 'videos' | translate }}</ng-container>
                 </span>
             </div>
-        </div>-->
-        <span
-            *ngIf="user.getEvaluationsData(level).length === 0 || user.getEvaluationsData(level)[0].files?.length === 0"
-            style="font-size: 12px; line-height: 16px;">
-            {{'no_data' | translate }}
-        </span>
-        <div
-            style="float: left; width: 100%; border-radius: 10px;"
-            *ngFor="let item of user.getEvaluationsData(level)">
-            <ng-container
-                style="float: left; width: 25%; border-radius: 10px;"
-                *ngFor="let file of item.files">
-                <img *ngIf="file.type === 'image'"
-                    [src]="file.file"
-                    style="height: 150px;width: 150px;object-fit: cover;">
-                <video *ngIf="file.type === 'video'" width="150"
-                    heigth="150" controls>
-                    <source [src]="file.file" type="video/mp4">
-                    <source [src]="file.file" type="video/ogg">
-                </video>
-            </ng-container>
         </div>
+        <button mat-icon-button class="expand-button" (click)="toggleExpanded()">
+            <mat-icon svgIcon="mat:expand_more" *ngIf="!expanded"></mat-icon>
+            <mat-icon svgIcon="mat:expand_less" *ngIf="expanded"></mat-icon>
+        </button>
     </div>
-    <div style="flex-direction: column;">
-        <span
-            style="color: #8B9099;font-size: 12px;font-weight: 600;line-height: 16px;">
-            {{'monitor_comments' | translate }}
-        </span>
-        <span
-            *ngIf="user.getEvaluationsData(level).length === 0"
-            style="font-size: 12px;line-height: 16px;">
-            {{'no_data' | translate }}
-        </span>
-        <mat-form-field class="flex-auto"
-            style="width: 100%"
-            *ngFor="let item of user.getEvaluationsData(level)">
-            <input matInput [readonly]=true type="text"
-                [value]="item.observations">
-        </mat-form-field>
+
+    <div class="card-body" *ngIf="expanded">
+        <div class="section">
+            <div class="section-title">{{ 'level_goals' | translate }}</div>
+            <div class="goal-block" *ngFor="let goal of goals">
+                <div class="goal-item">
+                    <div class="goal-indicator" [ngClass]="getGoalStatusClass(goal.id)"></div>
+                    <div class="goal-name">{{ goal.name }}</div>
+                    <span class="goal-current">{{ getGoalStatusLabel(goal.id) }}</span>
+                    <button mat-stroked-button color="accent" class="goal-edit" (click)="startEditGoal(goal.id)">
+                        {{ 'edit' | translate }}
+                    </button>
+                </div>
+                <div class="goal-edit-panel" *ngIf="editingGoalId === goal.id">
+                    <div class="goal-edit-options">
+                        <button mat-stroked-button class="option-btn" [class.active]="editingScore === 0" (click)="setEditingScore(0)">
+                            {{ 'not_started' | translate }}
+                        </button>
+                        <button mat-stroked-button class="option-btn" [class.active]="editingScore === 5" (click)="setEditingScore(5)">
+                            {{ 'to_improve' | translate }}
+                        </button>
+                        <button mat-stroked-button class="option-btn" [class.active]="editingScore === 10" (click)="setEditingScore(10)">
+                            {{ 'achieved' | translate }}
+                        </button>
+                    </div>
+                    <div class="goal-edit-actions">
+                        <button mat-flat-button color="primary" (click)="saveGoalEdit(goal.id)">{{ 'save' | translate }}</button>
+                        <button mat-stroked-button (click)="cancelEditGoal()">{{ 'cancel' | translate }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">{{ 'monitor_comments' | translate }}</div>
+            <div class="comments-summary" *ngIf="getEvaluation()?.observations">
+                <div class="observation-label">{{ 'observations' | translate }}</div>
+                <div class="observation-text">{{ getEvaluation()?.observations }}</div>
+            </div>
+            <div class="comment-actions">
+                <mat-form-field class="comment-input" appearance="outline">
+                    <mat-label>{{ 'add_comment' | translate }}</mat-label>
+                    <input matInput [(ngModel)]="newComment">
+                </mat-form-field>
+                <button mat-flat-button color="primary" (click)="addComment()" [disabled]="savingComment">
+                    {{ 'add' | translate }}
+                </button>
+            </div>
+            <div class="upload-actions">
+                <label class="upload-button">
+                    <input type="file" multiple accept="image/*,video/*" (change)="uploadFiles($event)">
+                    <span>{{ 'upload_files' | translate }}</span>
+                </label>
+                <span *ngIf="uploadingFiles" class="uploading-text">{{ 'uploading' | translate }}</span>
+            </div>
+            <div class="comment-list">
+                <div *ngIf="getEvaluation() && user.getEvaluationComments(getEvaluation().id).length === 0" class="comment-empty">
+                    {{ 'no_comments' | translate }}
+                </div>
+                <div class="comment-item" *ngFor="let comment of user.getEvaluationComments(getEvaluation()?.id)">
+                    <div class="comment-text">{{ comment.comment }}</div>
+                    <div class="comment-date">{{ comment.created_at | date:'short' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">{{ 'history' | translate }}</div>
+            <div class="history-summary" *ngIf="getHistoryCount() > 0">
+                <span>{{ getHistoryCount() }} {{ 'history_changes' | translate }}</span>
+                <span *ngIf="getHistoryLastDate()">{{ getHistoryLastDate() | date:'short' }}</span>
+            </div>
+            <button mat-flat-button color="primary" (click)="user.openEvaluationHistory(level, goals, selectedSport)">
+                {{ 'view_history' | translate }}
+            </button>
+        </div>
     </div>
 </div>
