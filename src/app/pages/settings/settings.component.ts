@@ -141,7 +141,8 @@ export class SettingsComponent implements OnInit {
     contact_city: null,
     contact_country: null,
     contact_province: null,
-    contact_email: null
+    contact_email: null,
+    payment_link_validity_hours: 48
   };
   blockages = [];
   mockLevelData = LEVELS;
@@ -295,7 +296,8 @@ export class SettingsComponent implements OnInit {
       contact_city: [null],
       contact_country: [null],
       contact_province: [null],
-      contact_email: [null]
+      contact_email: [null],
+      payment_link_validity_hours: [48, [Validators.required, Validators.min(1), Validators.max(720)]]
     });
 
     this.seasonForm = this.fb.group({
@@ -948,6 +950,7 @@ export class SettingsComponent implements OnInit {
       contact_country: contactForm.contact_country ?? null,
       contact_province: contactForm.contact_province ?? null,
       contact_email: contactForm.contact_email ?? null,
+      payment_link_validity_hours: contactForm.payment_link_validity_hours ?? 48,
     };
 
     this.crudService.update('/schools', data, this.school.id)
@@ -1000,6 +1003,7 @@ export class SettingsComponent implements OnInit {
     this.defaultsSchoolData.contact_country = school.contact_country;
     this.defaultsSchoolData.contact_province = school.contact_province;
     this.defaultsSchoolData.contact_email = school.contact_email;
+    this.defaultsSchoolData.payment_link_validity_hours = school.payment_link_validity_hours ?? 48;
 
     this.schoolInfoForm.patchValue({
       contact_phone: school.contact_phone,
@@ -1009,7 +1013,8 @@ export class SettingsComponent implements OnInit {
       contact_city: school.contact_city,
       contact_country: school.contact_country,
       contact_province: school.contact_province,
-      contact_email: school.contact_email
+      contact_email: school.contact_email,
+      payment_link_validity_hours: school.payment_link_validity_hours ?? 48
     });
 
     const countryId = school.contact_country ? +school.contact_country : null;
