@@ -1,4 +1,4 @@
-Ôªø<vex-page-layout>
+<vex-page-layout>
   <vex-secondary-toolbar current>
   <vex-breadcrumbs [crumbs]="[
       {icon:'stats'},
@@ -250,7 +250,7 @@
                    [showTrend]="false">
                  </app-kpis-card>-->
 
-                <!-- ===== RESUMEN EJECUTIVO: VISTA GENERAL DEL NEGOCIO ===== -->
+                                <!-- ===== RESUMEN EJECUTIVO: VISTA GENERAL DEL NEGOCIO ===== -->
 
                 <!-- 1. INGRESOS TOTALES RECIBIDOS -->
                 <app-kpis-card
@@ -267,19 +267,37 @@
                   [showTrend]="false">
                 </app-kpis-card>
 
-                <!-- 2. TOTAL RESERVAS -->
+                <!-- 2. INGRESOS ESPERADOS -->
                 <app-kpis-card
                   [kpiData]="{
-        title: 'total_bookings' | translate,
-        value: dashboardData.season_info.total_bookings,
-        format: 'number',
-        icon: 'book_online',
-        color: 'primary'
+        title: ('revenue_expected' | translate),
+        value: dashboardData.executive_kpis.revenue_expected,
+        format: 'currency',
+        currency: currency,
+        icon: 'account_balance_wallet',
+        color: 'primary',
+        tooltip: ('revenue_expected_tooltip' | translate)
       }"
                   [showTrend]="false">
                 </app-kpis-card>
 
-                <!-- 3. RESERVAS PRODUCTIVAS -->
+                <!-- 3. INGRESOS PENDIENTES -->
+                <app-kpis-card
+                  [kpiData]="{
+        title: ('pending_collection_total' | translate),
+        value: dashboardData.executive_kpis.revenue_pending,
+        format: 'currency',
+        currency: currency,
+        icon: 'money_off',
+        color: 'warning',
+        tooltip: ('pending_collection_tooltip' | translate),
+        clickable: true
+      }"
+                  (cardClick)="onPendingRevenueClick()"
+                  [showTrend]="false">
+                </app-kpis-card>
+
+                <!-- 4. RESERVAS PRODUCTIVAS -->
                 <app-kpis-card
                   [kpiData]="{
         title: ('production_bookings' | translate),
@@ -291,32 +309,21 @@
                   [showTrend]="false">
                 </app-kpis-card>
 
-                <!-- 4. RESERVAS CANCELADAS -->
+                <!-- 5. RESERVAS CANCELADAS -->
                 <app-kpis-card
                   [kpiData]="{
         title: ('cancelled_bookings' | translate),
         value: dashboardData.season_info.booking_classification.cancelled_count,
         format: 'number',
         icon: 'cancel',
-        color: 'danger'
+        color: 'danger',
+        clickable: true
       }"
+                  (cardClick)="onCancelledBookingsClick()"
                   [showTrend]="false">
                 </app-kpis-card>
 
-                <!-- 5. CLIENTES (COMPRADORES) -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: ('total_clients' | translate),
-        value: dashboardData.executive_kpis.total_clients,
-        format: 'number',
-        icon: 'people',
-        color: 'info',
-        tooltip: ('total_clients_tooltip' | translate)
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!-- 6. PARTICIPANTES (√öNICOS) -->
+                <!-- 6. PARTICIPANTES (UNICOS) -->
                 <app-kpis-card
                   [kpiData]="{
         title: ('total_participants' | translate),
@@ -328,74 +335,10 @@
       }"
                   [showTrend]="false">
                 </app-kpis-card>
-
-                <!--          <app-kpis-card
-                            [kpiData]="{
-                              title: 'consistency_rate' | translate,
-                              value: dashboardData.executive_kpis.consistency_rate,
-                              format: 'percentage',
-                              trend: getTrend(dashboardData.executive_kpis.consistency_rate, 0),
-                              trendValue: getTrendValue(dashboardData.executive_kpis.consistency_rate, 0),
-                              icon: 'verified',
-                              color: dashboardData.executive_kpis.consistency_rate >= 95 ? 'success' :
-                                    dashboardData.executive_kpis.consistency_rate >= 80 ? 'warning' : 'danger'
-                            }"
-                            [showTrend]="false">
-                          </app-kpis-card>-->
               </div>
             </div>
 
-            <!-- Booking Classification Section -->
-            <div class="classification-section" *ngIf="dashboardData.season_info.booking_classification">
-              <h2 class="section-title">{{ 'booking_classification' | translate }}</h2>
-              <div class="classification-grid">
-
-                <!-- TOTAL BOOKINGS -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: 'total_bookings' | translate,
-        value: dashboardData.season_info.booking_classification.total_bookings,
-        format: 'number',
-        subtitle: ('all_bookings_analyzed' | translate),
-        icon: 'analytics',
-        color: 'primary'
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!-- RESERVAS PRODUCTIVAS -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: 'production_bookings' | translate,
-        value: dashboardData.season_info.booking_classification.production_count,
-        format: 'number',
-        subtitle: (dashboardData.season_info.booking_classification.production_revenue | currency:currency),
-        icon: 'check_circle',
-        color: 'success'
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!-- RESERVAS CANCELADAS (CLICKEABLE) -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: 'cancelled_bookings' | translate,
-        value: dashboardData.season_info.booking_classification.cancelled_count,
-        format: 'number',
-        subtitle: (dashboardData.season_info.booking_classification.cancelled_revenue | currency:currency),
-        icon: 'cancel',
-        color: 'danger',
-                clickable: true
-      }"
-                  [showTrend]="false"
-                  class="clickeable"
-                  (click)="onCancelledBookingsClick()">
-                </app-kpis-card>
-
-              </div>
-            </div>
-
-            <!-- Revenue Charts -->
+<!-- Revenue Charts -->
             <div class="charts-grid">
               <mat-card class="chart-card">
                 <mat-card-header>
@@ -418,10 +361,11 @@
               </mat-card>
             </div>
 
-            <!-- Revenue Table -->
+                        <!-- Revenue Table -->
             <mat-card class="table-card">
               <mat-card-header>
                 <mat-card-title>{{ 'revenue_details' | translate }}</mat-card-title>
+                <mat-card-subtitle>{{ 'analytics_revenue_legend' | translate }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 <div class="table-container">
@@ -431,29 +375,19 @@
                       <td mat-cell *matCellDef="let element">{{ element.month }}</td>
                     </ng-container>
 
-                    <ng-container matColumnDef="revenue">
-                      <th mat-header-cell *matHeaderCellDef>{{ 'revenue' | translate }}</th>
-                      <td mat-cell *matCellDef="let element">{{ element.revenue | currency:currency }}</td>
+                    <ng-container matColumnDef="revenueExpected">
+                      <th mat-header-cell *matHeaderCellDef>{{ 'revenue_expected' | translate }}</th>
+                      <td mat-cell *matCellDef="let element">{{ element.revenue_expected | currency:currency }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="revenueReceived">
+                      <th mat-header-cell *matHeaderCellDef>{{ 'revenue_received_total' | translate }}</th>
+                      <td mat-cell *matCellDef="let element">{{ element.revenue_received | currency:currency }}</td>
                     </ng-container>
 
                     <ng-container matColumnDef="bookings">
                       <th mat-header-cell *matHeaderCellDef>{{ 'bookings' | translate }}</th>
                       <td mat-cell *matCellDef="let element">{{ element.bookings }}</td>
-                    </ng-container>
-
-                    <ng-container matColumnDef="averageValue">
-                      <th mat-header-cell *matHeaderCellDef>{{ 'average_value' | translate }}</th>
-                      <td mat-cell *matCellDef="let element">{{ element.avg_booking_value | currency:currency }}</td>
-                    </ng-container>
-
-                    <ng-container matColumnDef="clients">
-                      <th mat-header-cell *matHeaderCellDef>{{ 'unique_clients' | translate }}</th>
-                      <td mat-cell *matCellDef="let element">{{ element.unique_clients }}</td>
-                    </ng-container>
-
-                    <ng-container matColumnDef="consistencyRate">
-                      <th mat-header-cell *matHeaderCellDef>{{ 'consistency_rate' | translate }}</th>
-                      <td mat-cell *matCellDef="let element">{{ element.consistency_rate | number:'1.0-0' }}%</td>
                     </ng-container>
 
                     <tr mat-header-row *matHeaderRowDef="revenueDisplayedColumns"></tr>
@@ -469,135 +403,7 @@
         <mat-tab label="{{ 'payment_methods' | translate }}">
           <div class="tab-content">
 
-            <!-- Resumen de Pagos - KPIs Financieros -->
-            <div class="kpis-section">
-              <h2 class="section-title">{{ 'payments_summary' | translate }}</h2>
-              <div class="kpis-grid">
-
-                <!-- ===== PRIMERA FILA: 3 KPIs PRINCIPALES ===== -->
-
-                <!-- 1. INGRESOS ESPERADOS -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: ('revenue_expected' | translate),
-        value: dashboardData.executive_kpis.revenue_expected,
-        subtitle: dashboardData.season_info.total_bookings + ' ' + ('transactions' | translate),
-        format: 'currency',
-        currency: currency,
-        icon: 'account_balance_wallet',
-        color: 'primary',
-        tooltip: ('revenue_expected_tooltip' | translate)
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!-- 2. INGRESOS REALES -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: ('revenue_real' | translate),
-        value: dashboardData.executive_kpis.revenue_real || 0,
-        subtitle: ('paid' | translate),
-        format: 'currency',
-        currency: currency,
-        icon: 'paid',
-        color: 'success',
-        tooltip: ('revenue_real_tooltip' | translate)
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!-- 3. INGRESOS TOTALES RECIBIDOS -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: ('revenue_received_total' | translate),
-        value: dashboardData.executive_kpis.revenue_received,
-        subtitle: ('paid' | translate),
-        format: 'currency',
-        currency: currency,
-        icon: 'monetization_on',
-        color: 'info',
-        tooltip: ('revenue_received_total_tooltip' | translate)
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!-- ===== SEGUNDA FILA: 4 KPIs DE DESGLOSE (CLICKEABLES) ===== -->
-
-                <!-- 4. PENDIENTES DE COBRO (CLICKEABLE) -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: ('pending_collection_total' | translate),
-        value: dashboardData.executive_kpis.unpaid_with_debt_amount || 0,
-        subtitle: ('bookings_expected_percentage' | translate:{count: (dashboardData.executive_kpis.unpaid_with_debt_count || 0), percent: getUnpaidPercentage()}),
-        format: 'currency',
-        currency: currency,
-        icon: 'money_off',
-        color: 'danger',
-        clickable: true,
-        tooltip: ('pending_collection_tooltip' | translate)
-      }"
-                  [showTrend]="false"
-                  class="clickeable"
-                  (click)="onUnpaidWithDebtClick()">
-                </app-kpis-card>
-
-                <!-- 5. SOBREPAGOS (CLICKEABLE) -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: ('overpayments' | translate),
-        value: dashboardData.executive_kpis.overpayment_amount || 0,
-        subtitle: ('bookings_expected_percentage' | translate:{count: (dashboardData.executive_kpis.overpayment_count || 0), percent: getOverpaymentPercentage()}),
-        format: 'currency',
-        currency: currency,
-        icon: 'attach_money',
-        color: 'info',
-        clickable: true,
-        tooltip: ('overpayments_tooltip' | translate)
-      }"
-                  [showTrend]="false"
-                  class="clickeable"
-                  (click)="onOverpaymentClick()">
-                </app-kpis-card>
-
-                <!-- 6. COMPLETAMENTE PAGADAS (CLICKEABLE) -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: ('fully_paid_bookings' | translate),
-        value: dashboardData.executive_kpis.fully_paid_count || 0,
-        subtitle: ('fully_paid_subtitle' | translate),
-        format: 'number',
-        icon: 'check_circle',
-        color: 'success',
-        clickable: true,
-        tooltip: ('fully_paid_tooltip' | translate)
-      }"
-                  [showTrend]="false"
-                  class="clickeable"
-                  (click)="onFullyPaidClick()">
-                </app-kpis-card>
-
-                <!-- 7. DESBALANCE NETO (CLICKEABLE) -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: ('net_imbalance' | translate),
-        value: (dashboardData.executive_kpis.unpaid_with_debt_amount || 0) - (dashboardData.executive_kpis.overpayment_amount || 0),
-        subtitle: ('net_imbalance_subtitle' | translate:{count: getTotalImbalanceCount(), percent: getNetImbalancePercentage()}),
-        format: 'currency',
-        currency: currency,
-        icon: 'account_balance',
-        color: 'warning',
-        clickable: true,
-        tooltip: ('net_imbalance_tooltip' | translate)
-      }"
-                  [showTrend]="false"
-                  class="clickeable"
-                  (click)="onPendingRevenueClick()">
-                </app-kpis-card>
-
-              </div>
-            </div>
-
-            <!-- TU C√ìDIGO ORIGINAL - Payment Methods Charts -->
+            <!-- TU C”DIGO ORIGINAL - Payment Methods Charts -->
             <div class="charts-grid">
               <mat-card class="chart-card">
                 <mat-card-header>
@@ -620,7 +426,7 @@
               </mat-card>
             </div>
 
-            <!-- TU C√ìDIGO ORIGINAL - Payment Methods Summary Cards -->
+            <!-- TU C”DIGO ORIGINAL - Payment Methods Summary Cards -->
             <div class="payment-methods-summary" *ngIf="dashboardData.payment_methods?.methods">
               <div class="payment-method-card" *ngFor="let method of dashboardData.payment_methods.methods">
                 <div class="payment-icon">
@@ -726,7 +532,7 @@
                       <th mat-header-cell *matHeaderCellDef>{{ 'actions' | translate }}</th>
                       <td mat-cell *matCellDef="let element" class="actions-cell">
 
-                        <!-- Bot√≥n principal de ver detalles -->
+                        <!-- BotÛn principal de ver detalles -->
                         <button
                           mat-raised-button
                           color="primary"
@@ -737,7 +543,7 @@
                           {{ 'details' | translate }}
                         </button>
 
-                        <!-- Men√∫ de acciones adicionales -->
+                        <!-- Men˙ de acciones adicionales -->
                         <button
                           mat-icon-button
                           [matMenuTriggerFor]="courseMenu"
@@ -821,12 +627,12 @@
                             <mat-card-header>
                               <mat-card-title>
                                 <mat-icon>person</mat-icon>
-                                An√°lisis de Monitores
+                                An·lisis de Monitores
                               </mat-card-title>
-                              <mat-card-subtitle>Pr√≥ximamente disponible</mat-card-subtitle>
+                              <mat-card-subtitle>PrÛximamente disponible</mat-card-subtitle>
                             </mat-card-header>
                             <mat-card-content>
-                              <p>La funcionalidad de an√°lisis de monitores estar√° disponible pr√≥ximamente.</p>
+                              <p>La funcionalidad de an·lisis de monitores estar· disponible prÛximamente.</p>
                               <div style="text-align: center; padding: 40px;">
                                 <mat-icon style="font-size: 64px; width: 64px; height: 64px; color: #ccc;">person</mat-icon>
                               </div>
@@ -834,7 +640,7 @@
                           </mat-card>
                         </div>-->
 
-            <!-- Aqu√≠ ir√° el componente MonitorsLegacy cuando est√© listo -->
+            <!-- AquÌ ir· el componente MonitorsLegacy cuando estÈ listo -->
 
             <app-monitors-legacy
               *ngIf="activeTab === 'monitors'"
@@ -866,5 +672,8 @@
 
   </vex-page-layout-content>
 </vex-page-layout>
+
+
+
 
 

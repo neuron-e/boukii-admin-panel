@@ -1,4 +1,4 @@
-ï»¿import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
+import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
 import {Router} from '@angular/router';
 import {TranslateService} from '@ngx-translate/core';
@@ -185,6 +185,7 @@ interface SeasonDashboardData {
       month: string;
       bookings: number;
       revenue: number;
+      revenue_received?: number;
       unique_clients: number;
       consistency_rate: number;
       avg_booking_value: number;
@@ -266,7 +267,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   public courseTypeBookingsSummary: any[] = [];
   // ==================== UI STATE ====================
   loading = false;
-  activeTab = 'revenue'; // â† AÃ‘ADIR ESTA LÃNEA
+  activeTab = 'revenue'; // ? AÑADIR ESTA LÍNEA
   activeTabIndex = 0;
   showAdvancedFilters = false;
   fullDashboardLoaded = false;
@@ -285,7 +286,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   allSports: any[] = [];
 
   // ==================== TABLE COLUMNS ====================
-  revenueDisplayedColumns: string[] = ['month', 'revenue', 'bookings', 'averageValue', 'clients', 'consistencyRate'];
+  revenueDisplayedColumns: string[] = ['month', 'revenueExpected', 'revenueReceived', 'bookings'];
   coursesDisplayedColumns: string[] = ['courseName', 'courseType', 'totalRevenue', 'totalBookings', 'averagePrice', 'participants', 'actions'];
 
   // ==================== CHART COLORS ====================
@@ -319,7 +320,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     { id: 'payments', label: 'payment_methods', icon: 'payment' },
     { id: 'courses', label: 'courses_analysis', icon: 'school' },
     { id: 'sources', label: 'booking_sources', icon: 'source' },
-    { id: 'monitors', label: 'monitors_tab', icon: 'person' } // â† NUEVA
+    { id: 'monitors', label: 'monitors_tab', icon: 'person' } // ? NUEVA
   ];
 
   // ==================== MODAL PROPERTIES ====================
@@ -344,7 +345,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadUserData();
     this.loadMasterData();
 
-    this.activeTab = this.tabs[0].id; // Inicializar con primera pestaÃ±a
+    this.activeTab = this.tabs[0].id; // Inicializar con primera pestaña
   }
 
   // ==================== LIFECYCLE METHODS ====================
@@ -355,7 +356,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    // Los grÃ¡ficos se crearÃ¡n cuando los datos estÃ©n disponibles
+    // Los gráficos se crearán cuando los datos estén disponibles
   }
 
   ngOnDestroy(): void {
@@ -372,17 +373,17 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     let startDate: string;
     let endDate: string;
 
-    // Temporada va de Noviembre a Mayo del siguiente aÃ±o
+    // Temporada va de Noviembre a Mayo del siguiente año
     if (currentMonth >= 10) {
-      // Noviembre o Diciembre â†’ temporada ACTUAL: Nov (este aÃ±o) - Mayo (aÃ±o siguiente)
+      // Noviembre o Diciembre ? temporada ACTUAL: Nov (este año) - Mayo (año siguiente)
       startDate = moment().month(10).startOf('month').format('YYYY-MM-DD');
       endDate = moment().add(1, 'year').month(4).endOf('month').format('YYYY-MM-DD');
     } else if (currentMonth <= 4) {
-      // Enero a Mayo â†’ temporada ACTUAL: Nov (aÃ±o anterior) - Mayo (este aÃ±o)
+      // Enero a Mayo ? temporada ACTUAL: Nov (año anterior) - Mayo (este año)
       startDate = moment().subtract(1, 'year').month(10).startOf('month').format('YYYY-MM-DD');
       endDate = moment().month(4).endOf('month').format('YYYY-MM-DD');
     } else {
-      // Junio a Octubre â†’ fuera de temporada, mostrar temporada MÃS RECIENTE: Nov (aÃ±o anterior) - Mayo (este aÃ±o)
+      // Junio a Octubre ? fuera de temporada, mostrar temporada MÁS RECIENTE: Nov (año anterior) - Mayo (este año)
       startDate = moment().subtract(1, 'year').month(10).startOf('month').format('YYYY-MM-DD');
       endDate = moment().month(4).endOf('month').format('YYYY-MM-DD');
     }
@@ -439,14 +440,14 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   // ==================== COLOR HELPER METHODS ====================
 
   /**
-   * ðŸŽ¨ Obtener color por tipo de curso (nÃºmero)
+   * ?? Obtener color por tipo de curso (número)
    */
   public getCourseTypeColor(courseType: number): string {
     return this.courseTypeColors[courseType] || this.chartColors.primary;
   }
 
   /**
-   * ðŸŽ¨ Obtener color por nombre de tipo de curso
+   * ?? Obtener color por nombre de tipo de curso
    */
   private getCourseTypeColorByName(typeName: string): string {
     const typeMap: { [key: string]: number } = {
@@ -465,7 +466,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * ðŸŽ¨ Obtener array de colores para grÃ¡ficos de tipos de curso
+   * ?? Obtener array de colores para gráficos de tipos de curso
    */
   private getCourseTypeColorsArray(): string[] {
     return [
@@ -501,12 +502,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.loading = false;
         this.cdr.detectChanges();
 
-        // Crear grÃ¡ficos despuÃ©s de que los datos estÃ©n listos
+        // Crear gráficos después de que los datos estén listos
         setTimeout(() => this.createChartsForTab(this.activeTab), 100);
         this.maybeLoadFullDashboard(this.activeTab);
       },
       error: (error) => {
-        console.error('âŒ Error loading analytics data:', error);
+        console.error('? Error loading analytics data:', error);
         this.loading = false;
         this.cdr.detectChanges();
       }
@@ -598,10 +599,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private updateTableData(): void {
     if (!this.dashboardData) return;
 
-    // âœ… Procesar datos de revenue con fechas formateadas
+    // ? Procesar datos de revenue con fechas formateadas
     this.revenueTableData.data = (this.dashboardData.trend_analysis?.monthly_breakdown || []).map(item => ({
       ...item,
-      month: this.formatDateWithMonthName(item.month), // âœ… FORMATEAR MES AQUÃ
+      revenue_expected: item.revenue,
+      revenue_received: item.revenue_received ?? 0,
+      month: this.formatDateWithMonthName(item.month), // ? FORMATEAR MES AQUÍ
       month_original: item.month // Mantener original para ordenamiento si es necesario
     }));
 
@@ -635,7 +638,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
           break;
       }
     } catch (error) {
-      console.error('ï¿½?O Error creating charts:', error);
+      console.error('??O Error creating charts:', error);
     }
   }
 
@@ -661,14 +664,14 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // âœ… ARREGLO: Procesar las fechas correctamente
+    // ? ARREGLO: Procesar las fechas correctamente
     const processedData = data.map(item => ({
       ...item,
       month_formatted: this.formatDateWithMonthName(item.month),
       month_original: item.month
     }));
 
-    // Usar barras si hay pocos datos (3 o menos), lÃ­neas si hay mÃ¡s
+    // Usar barras si hay pocos datos (3 o menos), líneas si hay más
     const chartType = data.length <= 3 ? 'bar' : 'scatter';
     const trace: any = {
       x: processedData.map(d => d.month_formatted),
@@ -711,15 +714,15 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private createCourseTypeRevenueChart(): void {
 
-    // VerificaciÃ³n del elemento DOM
+    // Verificación del elemento DOM
     if (!this.courseTypeRevenueChartRef?.nativeElement) {
-      console.error('âŒ Elemento DOM del grÃ¡fico no estÃ¡ disponible');
+      console.error('? Elemento DOM del gráfico no está disponible');
       return;
     }
 
-    // VerificaciÃ³n de datos principales
+    // Verificación de datos principales
     if (!this.dashboardData) {
-      console.error('âŒ dashboardData no estÃ¡ disponible');
+      console.error('? dashboardData no está disponible');
       return;
     }
 
@@ -787,16 +790,16 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         typeStats[typeName].course_count += item.courses_sold || 0;
       }
     }
-    // Verificar que tenemos datos vÃ¡lidos
+    // Verificar que tenemos datos válidos
     const hasValidData = Object.values(typeStats).some(stat => stat.revenue > 0);
 
     if (!hasValidData) {
-      console.warn('âš ï¸ No hay datos de revenue vÃ¡lidos para mostrar');
+      console.warn('?? No hay datos de revenue válidos para mostrar');
       this.showEmptyChart();
       return;
     }
 
-    // Preparar datos para el grÃ¡fico
+    // Preparar datos para el gráfico
     try {
       const labels = Object.keys(typeStats).map(type => {
         const translated = this.translateService.instant(type);
@@ -812,11 +815,11 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       // Preparar datos adicionales para mostrar bookings
       const bookingsData = Object.values(typeStats).map(stat => stat.bookings);
       const totalBookings = bookingsData.reduce((sum, bookings) => sum + bookings, 0);
-      const coursesSoldData = Object.values(typeStats).map(stat => stat.course_count); // â† NUEVA LÃNEA
+      const coursesSoldData = Object.values(typeStats).map(stat => stat.course_count); // ? NUEVA LÍNEA
       const totalRevenue = values.reduce((sum, revenue) => sum + revenue, 0);
       const totalCoursesSold = coursesSoldData.reduce((sum, courses) => sum + courses, 0);
 
-      // Configurar el grÃ¡fico
+      // Configurar el gráfico
       const revenueLabel = this.translateService.instant('revenue');
       const bookingsLabel = this.translateService.instant('bookings');
       const coursesSoldLabel = this.translateService.instant('courses_sold');
@@ -830,7 +833,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         textinfo: 'label+percent',
         texttemplate: '%{label}<br>%{percent}',
 
-        // âœ… Crear hover text manual (100% funcional)
+        // ? Crear hover text manual (100% funcional)
         hovertemplate: '%{hovertext}<extra></extra>',
         hovertext: Object.values(typeStats).map((stats: any) => {
           const typeName = this.translateService.instant(stats.typeName);
@@ -845,7 +848,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         })
       };
 
-// ðŸ”§ CAMBIO ADICIONAL: Asegurar que typeStats tenga el campo typeName
+// ?? CAMBIO ADICIONAL: Asegurar que typeStats tenga el campo typeName
 // Modifica esta parte en tu loop de procesamiento:
 
       for (const course of courses) {
@@ -855,7 +858,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
         if (!typeStats[typeName]) {
           typeStats[typeName] = {
-            typeName,        // â† ASEGURAR QUE ESTE CAMPO ESTÃ‰ AQUÃ
+            typeName,        // ? ASEGURAR QUE ESTE CAMPO ESTÉ AQUÍ
             revenue: 0,
             bookings: 0,
             participants: 0,
@@ -898,19 +901,19 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       ).then(() => {
         this.displayBookingsSummary(typeStats, totalBookings, totalRevenue, totalCoursesSold);
       }).catch(error => {
-        console.error('âŒ Error al crear el grÃ¡fico:', error);
+        console.error('? Error al crear el gráfico:', error);
       });
 
-      // Opcional: Almacenar las estadÃ­sticas para uso posterior
+      // Opcional: Almacenar las estadísticas para uso posterior
      // this.courseTypeStats = typeStats;
 
     } catch (error) {
-      console.error('âŒ Error durante la creaciÃ³n del grÃ¡fico:', error);
+      console.error('? Error durante la creación del gráfico:', error);
       this.showEmptyChart();
     }
   }
 
-  // MÃ©todo para mostrar resumen detallado de bookings y revenue
+  // Método para mostrar resumen detallado de bookings y revenue
   private displayBookingsSummary(typeStats: any, totalBookings: number, totalRevenue: number, totalCoursesSold: number): void {
 
     Object.entries(typeStats).forEach(([typeName, stats]: [string, any]) => {
@@ -921,24 +924,24 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       const avgRevenuePerCourse = stats.course_count > 0 ? (stats.revenue / stats.course_count).toFixed(2) : '0';
     });
 
-    // TambiÃ©n crear el array para uso en el template si lo necesitas
+    // También crear el array para uso en el template si lo necesitas
     this.courseTypeBookingsSummary = Object.entries(typeStats).map(([typeName, stats]: [string, any]) => ({
       type: typeName,
       typeName: this.translateService.instant(typeName),
       bookings: stats.bookings,
-      courses_sold: stats.course_count, // â† NUEVA LÃNEA
+      courses_sold: stats.course_count, // ? NUEVA LÍNEA
       revenue: stats.revenue,
       participants: stats.participants,
       revenueReceived: stats.revenue_received,
       avgRevenuePerBooking: stats.bookings > 0 ? stats.revenue / stats.bookings : 0,
-      avgRevenuePerCourse: stats.course_count > 0 ? stats.revenue / stats.course_count : 0, // â† NUEVA LÃNEA
+      avgRevenuePerCourse: stats.course_count > 0 ? stats.revenue / stats.course_count : 0, // ? NUEVA LÍNEA
       bookingPercentage: totalBookings > 0 ? (stats.bookings / totalBookings) * 100 : 0,
-      coursePercentage: totalCoursesSold > 0 ? (stats.course_count / totalCoursesSold) * 100 : 0, // â† NUEVA LÃNEA
+      coursePercentage: totalCoursesSold > 0 ? (stats.course_count / totalCoursesSold) * 100 : 0, // ? NUEVA LÍNEA
       revenuePercentage: totalRevenue > 0 ? (stats.revenue / totalRevenue) * 100 : 0
     }));
   }
 
-// MÃ©todo auxiliar para mostrar un grÃ¡fico vacÃ­o con mensaje
+// Método auxiliar para mostrar un gráfico vacío con mensaje
   private showEmptyChart(): void {
     if (!this.courseTypeRevenueChartRef?.nativeElement) return;
 
@@ -1033,7 +1036,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.topCoursesChartRef?.nativeElement || !this.dashboardData) return;
 
     const courses = this.dashboardData.courses || [];
-    console.log('ðŸ“Š [COURSES DEBUG] Total courses:', courses.length, courses);
+    console.log('?? [COURSES DEBUG] Total courses:', courses.length, courses);
 
     // Ordenar por ingresos (mayor a menor) y tomar top 10
     const topCourses = courses
@@ -1041,9 +1044,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       .slice(0, 10)
       .reverse(); // Invertir para que los mayores queden arriba
 
-    console.log('ðŸ“Š [COURSES DEBUG] Top courses for chart:', topCourses.length, topCourses);
+    console.log('?? [COURSES DEBUG] Top courses for chart:', topCourses.length, topCourses);
 
-    // âœ… APLICAR COLORES POR TIPO DE CURSO
+    // ? APLICAR COLORES POR TIPO DE CURSO
     const colors = topCourses.map(course => this.getCourseTypeColor(course.type));
 
     const revenueLabel = this.translateService.instant('revenue');
@@ -1083,13 +1086,13 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const courses = this.dashboardData.courses || [];
 
-    // Ordenar por nÃºmero de reservas (mayor a menor) y tomar top 10, luego invertir
+    // Ordenar por número de reservas (mayor a menor) y tomar top 10, luego invertir
     const topCoursesByBookings = courses
       .sort((a, b) => b.bookings - a.bookings)
       .slice(0, 10)
       .reverse(); // Invertir para que los mayores queden arriba
 
-    // âœ… APLICAR COLORES POR TIPO DE CURSO
+    // ? APLICAR COLORES POR TIPO DE CURSO
     const colors = topCoursesByBookings.map(course => this.getCourseTypeColor(course.type));
 
     const bookingsLabel = this.translateService.instant('bookings');
@@ -1198,7 +1201,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadPendingBookingsDetailed();
   }
 
-  // ðŸ“‹ CLICK EN KPI DE PENDIENTES DE COBRO (solo con deuda)
+  // ?? CLICK EN KPI DE PENDIENTES DE COBRO (solo con deuda)
   public onUnpaidWithDebtClick(): void {
     if (!this.dashboardData?.executive_kpis?.unpaid_with_debt_count ||
       this.dashboardData.executive_kpis.unpaid_with_debt_count <= 0) {
@@ -1210,7 +1213,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadUnpaidWithDebtBookings();
   }
 
-  // ðŸ“‹ CLICK EN KPI DE SOBREPAGOS
+  // ?? CLICK EN KPI DE SOBREPAGOS
   public onOverpaymentClick(): void {
     if (!this.dashboardData?.executive_kpis?.overpayment_count ||
       this.dashboardData.executive_kpis.overpayment_count <= 0) {
@@ -1222,7 +1225,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadOverpaymentBookings();
   }
 
-  // ðŸ“‹ CLICK EN KPI DE COMPLETAMENTE PAGADAS
+  // ?? CLICK EN KPI DE COMPLETAMENTE PAGADAS
   public onFullyPaidClick(): void {
     if (!this.dashboardData?.executive_kpis?.fully_paid_count ||
       this.dashboardData.executive_kpis.fully_paid_count <= 0) {
@@ -1234,7 +1237,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadFullyPaidBookings();
   }
 
-  // ðŸ“‹ CARGAR RESERVAS COMPLETAMENTE PAGADAS
+  // ?? CARGAR RESERVAS COMPLETAMENTE PAGADAS
   private loadFullyPaidBookings(): void {
     const filters = this.buildFiltersObject();
     filters.payment_category = 'fully_paid';
@@ -1265,7 +1268,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  // ðŸ“‹ CARGAR RESERVAS PENDIENTES CON DETALLE
+  // ?? CARGAR RESERVAS PENDIENTES CON DETALLE
   private loadPendingBookingsDetailed(): void {
     const filters = this.buildFiltersObject();
     filters.only_pending = true;
@@ -1337,7 +1340,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  // ðŸ“‹ CARGAR RESERVAS CON DEUDA PENDIENTE
+  // ?? CARGAR RESERVAS CON DEUDA PENDIENTE
   private loadUnpaidWithDebtBookings(): void {
     const filters = this.buildFiltersObject();
     filters.payment_category = 'unpaid_with_debt';
@@ -1369,7 +1372,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  // ðŸ“‹ CARGAR RESERVAS CON SOBREPAGO
+  // ?? CARGAR RESERVAS CON SOBREPAGO
   private loadOverpaymentBookings(): void {
     const filters = this.buildFiltersObject();
     filters.payment_category = 'overpayment';
@@ -1401,7 +1404,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  // ðŸ“Š OBTENER TOTAL DE RESERVAS CON DESBALANCE
+  // ?? OBTENER TOTAL DE RESERVAS CON DESBALANCE
   public getTotalImbalanceCount(): number {
     if (!this.dashboardData?.executive_kpis) {
       return 0;
@@ -1411,13 +1414,13 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     return unpaidCount + overpaymentCount;
   }
 
-  // ðŸ“Š OBTENER SUBTITLE FORMATEADO PARA DESBALANCES
+  // ?? OBTENER SUBTITLE FORMATEADO PARA DESBALANCES
   public getImbalanceSubtitle(): string {
     const total = this.getTotalImbalanceCount();
     return this.translateService.instant('analytics_bookings_with_imbalance', { count: total });
   }
 
-  // ðŸ“Š CALCULAR PORCENTAJE DE PAGADO (sobre lo que se debe, no sobre el total esperado)
+  // ?? CALCULAR PORCENTAJE DE PAGADO (sobre lo que se debe, no sobre el total esperado)
   public getPaymentPercentage(): number {
     if (!this.dashboardData?.executive_kpis) {
       return 0;
@@ -1430,7 +1433,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round((received / totalDue) * 100);
   }
 
-  // ðŸ“Š CALCULAR PORCENTAJE DE PENDIENTES DE COBRO
+  // ?? CALCULAR PORCENTAJE DE PENDIENTES DE COBRO
   public getUnpaidPercentage(): number {
     if (!this.dashboardData?.executive_kpis) {
       return 0;
@@ -1442,7 +1445,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round((unpaidWithDebt / expected) * 100);
   }
 
-  // ðŸ“Š CALCULAR PORCENTAJE DE SOBREPAGOS
+  // ?? CALCULAR PORCENTAJE DE SOBREPAGOS
   public getOverpaymentPercentage(): number {
     if (!this.dashboardData?.executive_kpis) {
       return 0;
@@ -1454,7 +1457,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round((overpayment / expected) * 100);
   }
 
-  // ðŸ“Š CALCULAR PORCENTAJE DE DESBALANCES NETOS
+  // ?? CALCULAR PORCENTAJE DE DESBALANCES NETOS
   public getNetImbalancePercentage(): number {
     if (!this.dashboardData?.executive_kpis) {
       return 0;
@@ -1488,7 +1491,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-// ðŸŽ¬ MANEJAR ACCIONES DEL MODAL
+// ?? MANEJAR ACCIONES DEL MODAL
   private handleModalAction(result: any): void {
     switch (result.action) {
       case 'export':
@@ -1507,7 +1510,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-// ðŸ“¤ MANEJAR EXPORTACIÃ“N DE TODAS LAS RESERVAS
+// ?? MANEJAR EXPORTACIÓN DE TODAS LAS RESERVAS
   private handleExportAllBookings(result: any): void {
     const exportType = result.type;
     const exportTypeLabel = this.translateService.instant(`analytics_export_type_${exportType}`);
@@ -1555,7 +1558,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }), 'success');
   }
 
-// ðŸ“¤ MANEJAR EXPORTACIÃ“N DE RESERVA INDIVIDUAL
+// ?? MANEJAR EXPORTACIÓN DE RESERVA INDIVIDUAL
   private handleExportSingleBooking(result: any): void {
     const booking = result.booking;
 
@@ -1574,7 +1577,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }), 'success');
   }
 
-// ðŸ‘ï¸ MANEJAR VER DETALLES DE RESERVA
+// ??? MANEJAR VER DETALLES DE RESERVA
   private handleViewBookingDetails(result: any): void {
     const booking = result.booking;
 
@@ -1586,7 +1589,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-// ðŸ“„ CREAR CSV PARA RESERVA INDIVIDUAL
+// ?? CREAR CSV PARA RESERVA INDIVIDUAL
   private createSingleBookingCsv(booking: any, type: string): string {
     let csvContent = '\xEF\xBB\xBF'; // BOM for UTF-8
 
@@ -1646,7 +1649,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     return csvContent;
   }
 
-// ðŸ’° FORMATEAR CURRENCY PARA CSV
+// ?? FORMATEAR CURRENCY PARA CSV
   private formatCurrencyForCsv(amount: number | null | undefined): string {
     if (amount === null || amount === undefined || isNaN(amount)) {
       return new Intl.NumberFormat(this.getLocale(), {
@@ -1664,7 +1667,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }).format(amount);
   }
 
-// ðŸ“… OBTENER FECHA ACTUAL COMO STRING
+// ?? OBTENER FECHA ACTUAL COMO STRING
   private getCurrentDateString(): string {
     return new Date().toISOString().split('T')[0].replace(/-/g, '');
   }
@@ -1677,7 +1680,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Crear configuraciÃ³n de eje X con fechas traducidas
+   * Crear configuración de eje X con fechas traducidas
    */
   private createTranslatedXAxisConfig(dates: string[]) {
     const translatedLabels = this.processDateLabels(dates);
@@ -1705,7 +1708,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         const year = date.format('YYYY');
         const monthNumber = date.format('MM');
 
-        // Mapear nÃºmero de mes a nombre
+        // Mapear número de mes a nombre
         const monthNames = [
           'january', 'february', 'march', 'april', 'may', 'june',
           'july', 'august', 'september', 'october', 'november', 'december'
@@ -1731,7 +1734,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-// ðŸ’¾ DESCARGAR CONTENIDO CSV
+// ?? DESCARGAR CONTENIDO CSV
   private downloadCsvContent(content: string, fileName: string): void {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
     const link = document.createElement('a');
@@ -1748,7 +1751,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-// ðŸ’¬ MOSTRAR MENSAJE AL USUARIO
+// ?? MOSTRAR MENSAJE AL USUARIO
   private showMessage(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void {
     const config = {
       duration: 4000,
@@ -1805,12 +1808,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadPendingBookings(): void {
     this.loadingPendingBookings = true;
 
-    // Simular carga de datos - esto se conectarÃ¡ al backend mÃ¡s tarde
+    // Simular carga de datos - esto se conectará al backend más tarde
     setTimeout(() => {
       this.pendingBookings = [
         {
           id: 12345,
-          client_name: 'Juan PÃ©rez',
+          client_name: 'Juan Pérez',
           client_email: 'juan@example.com',
           booking_date: '2024-12-15',
           amount: 150.00,
@@ -1819,7 +1822,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         },
         {
           id: 12346,
-          client_name: 'MarÃ­a GarcÃ­a',
+          client_name: 'María García',
           client_email: 'maria@example.com',
           booking_date: '2024-12-16',
           amount: 200.00,
@@ -1834,12 +1837,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadCancelledBookings(): void {
     this.loadingCancelledBookings = true;
 
-    // Simular carga de datos - esto se conectarÃ¡ al backend mÃ¡s tarde
+    // Simular carga de datos - esto se conectará al backend más tarde
     setTimeout(() => {
       this.cancelledBookings = [
         {
           id: 12340,
-          client_name: 'Carlos LÃ³pez',
+          client_name: 'Carlos López',
           client_email: 'carlos@example.com',
           booking_date: '2024-12-10',
           amount: 180.00,
@@ -1847,7 +1850,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         },
         {
           id: 12341,
-          client_name: 'Ana MartÃ­nez',
+          client_name: 'Ana Martínez',
           client_email: 'ana@example.com',
           booking_date: '2024-12-11',
           amount: 95.00,
@@ -1865,7 +1868,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public onEditBooking(booking: any): void {
-    // TODO: Abrir formulario de ediciÃ³n
+    // TODO: Abrir formulario de edición
   }
 
   public onExportBooking(booking: any): void {
@@ -1987,7 +1990,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.maybeLoadFullDashboard(this.activeTab);
       },
       error: (error) => {
-        console.error('ï¿½?O Error loading full analytics data:', error);
+        console.error('??O Error loading full analytics data:', error);
         this.fullDashboardLoading = false;
         this.resetTabLoading();
         this.cdr.detectChanges();
@@ -2034,7 +2037,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       },
       error: (error) => {
-        console.error('âŒ Export error:', error);
+        console.error('? Export error:', error);
         // Fallback to local export on error
         this.exportDashboardDataLocally();
       }
@@ -2055,7 +2058,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     // Check if monitors component is available
     if (!this.monitorsLegacyComponent) {
       this.showMessage(this.translateService.instant('analytics_monitors_component_unavailable'), 'warning');
-      console.error('âŒ MonitorsLegacyComponent is not available');
+      console.error('? MonitorsLegacyComponent is not available');
       return;
     }
 
@@ -2064,7 +2067,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (!monitorsData || monitorsData.length === 0) {
       this.showMessage(this.translateService.instant('analytics_no_monitors_data'), 'warning');
-      console.warn('âš ï¸ No monitors data available for export');
+      console.warn('?? No monitors data available for export');
       return;
     }
     this.showMessage(this.translateService.instant('analytics_exporting_monitors'), 'info');
@@ -2166,9 +2169,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     // Revenue by Month
     if (this.dashboardData?.trend_analysis?.monthly_breakdown?.length) {
       csvContent += `"${this.translateService.instant('analytics_revenue_by_month_title')}"\n`;
-      csvContent += `"${this.translateService.instant('month')}","${this.translateService.instant('revenue')}","${this.translateService.instant('bookings')}","${this.translateService.instant('average_value')}","${this.translateService.instant('unique_clients')}"\n`;
+      csvContent += `"${this.translateService.instant('month')}","${this.translateService.instant('revenue_expected')}","${this.translateService.instant('revenue_received_total')}","${this.translateService.instant('bookings')}"\n`;
       this.dashboardData.trend_analysis.monthly_breakdown.forEach((item: any) => {
-        csvContent += `"${this.formatDateWithMonthName(item.month)}","${this.formatCurrencyForCsv(item.revenue)}","${item.bookings}","${this.formatCurrencyForCsv(item.avg_booking_value)}","${item.unique_clients}"\n`;
+        csvContent += `"${this.formatDateWithMonthName(item.month)}","${this.formatCurrencyForCsv(item.revenue)}","${this.formatCurrencyForCsv(item.revenue_received || 0)}","${item.bookings}"\n`;
       });
       csvContent += '\n';
     }
@@ -2271,7 +2274,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       },
       error: (error) => {
-        console.error('Error exportando estadÃ­sticas del curso:', error);
+        console.error('Error exportando estadísticas del curso:', error);
         this.showMessage(this.translateService.instant('analytics_export_error'), 'error');
       }
     });
@@ -2281,7 +2284,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.exportSingleCourseStatistics(course.id, course);
   }
 
-// Agregar estos mÃ©todos al analytics.component.ts
+// Agregar estos métodos al analytics.component.ts
 
   public navigateToCourseBookings(course: any): void {
     if (course?.id) {
@@ -2297,7 +2300,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-// MÃ©todo helper para formatear monedas
+// Método helper para formatear monedas
   public formatCurrency(amount: number): string {
     if (amount === null || amount === undefined || isNaN(amount)) {
       return new Intl.NumberFormat(this.getLocale(), {
@@ -2316,7 +2319,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }).format(amount);
   }
 
-  // MÃ©todo helper para acortar nombres de curso largos
+  // Método helper para acortar nombres de curso largos
   private shortenCourseName(name: string): string {
     if (!name) return '';
     const maxLength = 45;
