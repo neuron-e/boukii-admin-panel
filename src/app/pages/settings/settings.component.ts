@@ -480,7 +480,6 @@ export class SettingsComponent implements OnInit {
               infoMessages: infoMessagesFA,
               private_min_lead_minutes: [settings?.booking?.private_min_lead_minutes ?? 30, [Validators.min(0)]],
               private_overbooking_limit: [settings?.booking?.private_overbooking_limit ?? 0, [Validators.min(0)]],
-              payment_link_validity_hours: [this.school?.payment_link_validity_hours ?? 48, [Validators.required, Validators.min(1), Validators.max(720)]],
             });
 
             // Initialize levels data source if schoolSports available
@@ -1439,7 +1438,12 @@ export class SettingsComponent implements OnInit {
 
     const settingsPayload = this.buildSettingsPayload(data);
 
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
+    this.crudService.update('/schools', {
+      name: this.school.name,
+      description: this.school.description,
+      settings: JSON.stringify(settingsPayload),
+      payment_link_validity_hours: this.school.payment_link_validity_hours ?? 48
+    }, this.school.id)
       .subscribe(() => {
 
         this.school.settings = settingsPayload;
@@ -1485,8 +1489,7 @@ export class SettingsComponent implements OnInit {
           linkedin: this.bookingForm.value.social?.linkedin || null,
         },
         private_min_lead_minutes: this.bookingForm.value.private_min_lead_minutes ?? 30,
-        private_overbooking_limit: this.bookingForm.value.private_overbooking_limit ?? 0,
-        payment_link_validity_hours: this.bookingForm.value.payment_link_validity_hours ?? 48
+        private_overbooking_limit: this.bookingForm.value.private_overbooking_limit ?? 0
       }
     }
 
@@ -1608,6 +1611,13 @@ export class SettingsComponent implements OnInit {
   updateCancelationRem(event: any) {
 
     this.cancellationRem = parseInt(event.target.value);
+  }
+
+  updatePaymentLinkValidity(event: any) {
+    const value = parseInt(event.target.value);
+    if (value >= 1 && value <= 720) {
+      this.school.payment_link_validity_hours = value;
+    }
   }
 
   get sponsorsFA(): FormArray {
