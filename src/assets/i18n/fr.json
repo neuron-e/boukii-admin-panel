@@ -1,4 +1,4 @@
-﻿{
+{
   "Additional Options": "Options supplementaires",
   "All Course Types": "[TRADUCIR FR] Todos los Tipos de Curso",
   "Allow this voucher to be transferred to another client": "[TRADUCIR FR] Permitir transferir este bono a otro cliente",
@@ -1227,7 +1227,7 @@
   "monday": "lundi",
   "money_pending_collection": "Argent en Attente d'Encaissement",
   "money_pending_collection_action": "Contacter le client pour compléter le paiement ou vérifier si des réductions sont appliquées",
-  "money_pending_collection_desc": "Il manque {{amount}}â‚¬ à encaisser pour cette réservation",
+  "money_pending_collection_desc": "Il manque {{amount}}â¬ à encaisser pour cette réservation",
   "monitor": "Moniteur",
   "monitor_analytics": "Analytics par Moniteur",
   "monitor_assignment": {
@@ -1389,7 +1389,7 @@
   "overdue_payments": "Paiements en Retard",
   "overpayment_detected": "Surpaiement Détecté",
   "overpayment_detected_action": "Vérifier si un remboursement ou crédit pour futures réservations s'applique",
-  "overpayment_detected_desc": "Le client a payé {{amount}}â‚¬ de plus",
+  "overpayment_detected_desc": "Le client a payé {{amount}}â¬ de plus",
   "overview": "Aperçu",
   "page_created": "Réservation créée depuis la page des réservations",
   "paid": "Payé",
@@ -1913,6 +1913,11 @@
   "today": "Aujourd'hui",
   "today_bookings": "Réservations",
   "today_summary": "Résumé d'Aujourd'hui",
+  "selected_date_summary": "Resume de la date",
+  "bookings_for_date": "Reservations pour la date",
+  "bookings_created_date": "Reservations creees a la date",
+  "season_summary": "Resume de saison",
+  "dashboard.alert_no_monitor": "Moniteur non assigne",
   "today_task_list": "Tâches pour aujourd'hui",
   "toggle_filters": "Basculer les Filtres",
   "top_performing_courses": "Meilleurs cours",
@@ -2075,13 +2080,11 @@
   "fully_paid_subtitle": "réservations payées exactement",
   "fully_paid_tooltip": "Réservations payées exactement (sans dette ni surpaiement)",
   "net_imbalance": "Déséquilibre net",
-  "net_imbalance_subtitle": "{{count}} réservations en déséquilibre • {{percent}}% du prévu",
+  "net_imbalance_subtitle": "{{count}} réservations en déséquilibre  {{percent}}% du prévu",
   "net_imbalance_tooltip": "Différence nette entre encaissements en attente et surpaiements",
-  "all_bookings_analyzed": "Toutes les réservations analysées",
   "total_clients_tooltip": "Nombre de clients uniques ayant effectué des réservations",
   "total_participants_tooltip": "Nombre total de participants uniques sur l'ensemble des réservations",
-  "bookings_expected_percentage": "{{count}} réservations • {{percent}}% du prévu",
-  "monitors_tab": "Moniteurs",
+  "bookings_expected_percentage": "{{count}} réservations  {{percent}}% du prévu",
   "payment_type": "Type de paiement",
   "booking_type": "Type de réservation",
   "count_label": "Nombre",
@@ -2207,7 +2210,6 @@
   "videos": "videos",
   "level_goals": "Objectifs du niveau",
   "add_comment": "Ajouter un commentaire",
-  "add": "Ajouter",
   "no_comments": "Aucun commentaire pour l instant",
   "history": "Historique des changements",
   "view_history": "Voir l historique",
@@ -2225,17 +2227,21 @@
   "history_change_observation_updated": "Observations mises à jour",
   "history_change_file_added": "Fichier ajouté",
   "history_change_file_deleted": "Fichier supprimé",
+  "history_change_comment_added": "Commentaire ajouté",
   "history_change_goal_label": "Objectif",
   "history_change_status_label": "Statut",
+  "history_change_comment_label": "Commentaire",
+  "history_change_course_label": "Cours",
   "history_change_previous_label": "Précédent",
   "history_change_new_label": "Nouveau",
   "history_change_file_label": "Fichier",
   "history_change_system": "Système",
   "history_change_generic": "Changement",
-  "history_uploaded_by": "Téléversé par"
+  "history_uploaded_by": "Téléversé par",
+  "history_role_admin": "Admin",
+  "history_role_monitor": "Moniteur",
+  "evaluation_completed_edit_title": "Niveau termine",
+  "evaluation_completed_edit_message": "Ce niveau est deja termine. Voulez-vous le modifier?",
+  "no_evaluation": "Sans evaluation"
 }
-
-
-
-
 

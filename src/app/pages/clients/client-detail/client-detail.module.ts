@@ -41,6 +41,7 @@ import {SportCardComponent} from './sport-card/app.component';
 import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor.component';
 import { EvaluationHistoryComponent } from './evaluation-history/evaluation-history.component';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { ConfirmModalModule } from '../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component.module';
 
 @NgModule({
   imports: [
@@ -82,7 +83,8 @@ import { MatExpansionModule } from '@angular/material/expansion';
     TranslateModule,
     MatProgressSpinnerModule,
     FluxUploadImgModule,
-    MatExpansionModule
+    MatExpansionModule,
+    ConfirmModalModule
   ],
   declarations: [ClientDetailComponent, SportCardComponent, EvaluationEditorComponent, EvaluationHistoryComponent],
   exports: [ClientDetailComponent]

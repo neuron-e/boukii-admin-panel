@@ -1,8 +1,10 @@
 import { Component, Inject } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiCrudService } from 'src/service/crud.service';
+import { ConfirmModalComponent } from '../../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
 
 interface EvaluationEditorDialogData {
   clientId: number;
@@ -11,6 +13,7 @@ interface EvaluationEditorDialogData {
   goals: any[];
   evaluations: any[];
   clientSport: any[];
+  levels?: any[];
 }
 
 @Component({
@@ -29,12 +32,16 @@ export class EvaluationEditorComponent {
   loadingLogs = false;
   saving = false;
   updateClientLevel = false;
+  confirmedCompletedEdit = false;
+  initialCompleted = false;
 
   constructor(
     private dialogRef: MatDialogRef<EvaluationEditorComponent>,
     @Inject(MAT_DIALOG_DATA) public data: EvaluationEditorDialogData,
     private crudService: ApiCrudService,
-    private snackbar: MatSnackBar
+    private snackbar: MatSnackBar,
+    private dialog: MatDialog,
+    private translateService: TranslateService
   ) {
     this.evaluations = [...(data.evaluations || [])].sort((a, b) => b.id - a.id);
     const latest = this.evaluations[0] || null;
@@ -58,11 +65,18 @@ export class EvaluationEditorComponent {
     if (this.saving) return;
     this.saving = true;
     try {
+      const canEdit = await this.confirmEditCompletedLevel();
+      if (!canEdit) {
+        this.saving = false;
+        return;
+      }
       const evaluationId = await this.saveEvaluation();
       await this.saveGoals(evaluationId);
       await this.saveFiles(evaluationId);
-      if (this.updateClientLevel) {
-        await this.updateClientSport();
+      if (this.isEvaluationComplete()) {
+        await this.updateClientSport(this.getNextLevelId());
+      } else if (this.updateClientLevel) {
+        await this.updateClientSport(this.data.level.id);
       }
       this.snackbar.open('Evaluation saved', 'OK', { duration: 2500 });
       this.dialogRef.close(true);
@@ -135,6 +149,7 @@ export class EvaluationEditorComponent {
     this.observations = evaluation?.observations || '';
     this.deletedFileIds = [];
     this.files = evaluation?.files ? [...evaluation.files] : [];
+    this.confirmedCompletedEdit = false;
 
     const goalsById = new Map<number, any>();
     if (evaluation?.evaluation_fulfilled_goals) {
@@ -147,10 +162,11 @@ export class EvaluationEditorComponent {
       const existing = goalsById.get(goal.id);
       return {
         ...goal,
-        score: existing ? existing.score : 0,
+        score: existing ? this.normalizeGoalScore(existing.score) : 0,
         update_id: existing ? existing.id : null
       };
     });
+    this.initialCompleted = this.isEvaluationComplete();
 
     if (this.hasExistingEvaluation) {
       this.loadLogs();
@@ -200,7 +216,7 @@ export class EvaluationEditorComponent {
       const goalPayload = {
         evaluation_id: evaluationId,
         degrees_school_sport_goals_id: goal.id,
-        score: goal.score || 0
+        score: this.normalizeGoalScore(goal.score)
       };
 
       if (goal.update_id) {
@@ -235,7 +251,7 @@ export class EvaluationEditorComponent {
     await Promise.all([...createRequests, ...deleteRequests]);
   }
 
-  private async updateClientSport(): Promise<void> {
+  private async updateClientSport(degreeId: number): Promise<void> {
     const clientSport = (this.data.clientSport || []).find((sport: any) =>
       sport.client_id === this.data.clientId && sport.sport_id === this.data.level.sport_id
     );
@@ -243,7 +259,7 @@ export class EvaluationEditorComponent {
     const payload = {
       client_id: this.data.clientId,
       sport_id: this.data.level.sport_id,
-      degree_id: this.data.level.id
+      degree_id: degreeId
     };
 
     if (clientSport?.id) {
@@ -252,6 +268,49 @@ export class EvaluationEditorComponent {
     }
 
     await firstValueFrom(this.crudService.create('/client-sports', payload));
+  }
+
+  private isEvaluationComplete(): boolean {
+    return (this.goalStates || []).length > 0 && this.goalStates.every(goal => this.normalizeGoalScore(goal.score) >= 10);
+  }
+
+  private normalizeGoalScore(score: number): number {
+    return Number(score) >= 10 ? 10 : 0;
+  }
+
+  private getOrderedLevels(): any[] {
+    const levels = this.data.levels || [];
+    return [...levels].sort((a, b) => {
+      const orderA = a.degree_order ?? a.order ?? a.id;
+      const orderB = b.degree_order ?? b.order ?? b.id;
+      return orderA - orderB;
+    });
+  }
+
+  private getNextLevelId(): number {
+    const levels = this.getOrderedLevels();
+    const currentIndex = levels.findIndex(level => level.id === this.data.level.id);
+    if (currentIndex >= 0 && levels[currentIndex + 1]) {
+      return levels[currentIndex + 1].id;
+    }
+    return this.data.level.id;
+  }
+
+  private async confirmEditCompletedLevel(): Promise<boolean> {
+    if (!this.hasExistingEvaluation || this.confirmedCompletedEdit) return true;
+    if (!this.initialCompleted) return true;
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      data: {
+        title: this.translateService.instant('evaluation_completed_edit_title'),
+        message: this.translateService.instant('evaluation_completed_edit_message')
+      }
+    });
+    const result = await firstValueFrom(dialogRef.afterClosed());
+    if (result) {
+      this.confirmedCompletedEdit = true;
+      return true;
+    }
+    return false;
   }
 
   private formatLogValue(value: any): string {

@@ -58,6 +58,16 @@
   gap: 8px;
 }
 
+:host ::ng-deep .mat-progress-bar.progress--empty .mat-progress-bar-fill::after {
+  background-color: #9ca3af !important;
+}
+:host ::ng-deep .mat-progress-bar.progress--partial .mat-progress-bar-fill::after {
+  background-color: #f59e0b !important;
+}
+:host ::ng-deep .mat-progress-bar.progress--complete .mat-progress-bar-fill::after {
+  background-color: #22c55e !important;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -231,7 +241,6 @@
 
 .comment-item {
   display: flex;
-  justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
   border: 1px solid #e5e7eb;
@@ -239,9 +248,29 @@
   background: #ffffff;
 }
 
+.comment-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
 .comment-text {
   font-size: 12px;
   color: #111827;
+}
+
+.comment-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.comment-author {
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .comment-date {

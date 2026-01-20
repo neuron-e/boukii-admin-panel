@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
 import {ClientDetailComponent} from '../client-detail.component';
 
 @Component({
@@ -7,7 +8,7 @@ import {ClientDetailComponent} from '../client-detail.component';
   styleUrls: ['./app.component.scss'],
 })
 export class SportCardComponent {
-  constructor(public user: ClientDetailComponent) { }
+  constructor(public user: ClientDetailComponent, private translateService: TranslateService) { }
   @Input() selectedSport: any
   @Input() level: any
   @Input() goals: any
@@ -67,6 +68,37 @@ export class SportCardComponent {
     return this.user.getGoalsNotStartedCount(this.goals || []);
   }
 
+  hasEvaluation(): boolean {
+    return !!this.getEvaluation()?.id;
+  }
+
+  hasEvaluationGoals(): boolean {
+    const evaluation = this.getEvaluation();
+    if (!evaluation?.id) return false;
+    return (this.user.evaluationFullfiled || []).some((item: any) => item.evaluation_id === evaluation.id);
+  }
+
+  getGoalsToImprove(): number {
+    if (!this.hasEvaluationGoals()) return 0;
+    const goals = this.goals || [];
+    let count = 0;
+    goals.forEach((goal: any) => {
+      if (this.getDegreeScore(goal.id) === 0) {
+        count += 1;
+      }
+    });
+    return count;
+  }
+
+  getGoalsNoEvaluation(): number {
+    if (this.hasEvaluationGoals()) return 0;
+    return (this.goals || []).length;
+  }
+
+  getGoalsCompleted(): number {
+    return this.user.getGoalsCompletedCount(this.goals || []);
+  }
+
   getMediaCounts(): { images: number; videos: number } {
     return this.user.getMediaCounts(this.level);
   }
@@ -117,16 +149,29 @@ export class SportCardComponent {
     }
   }
 
+  getCommentAuthor(comment: any): string {
+    const monitor = comment?.monitor;
+    if (monitor) {
+      const name = [monitor.first_name, monitor.last_name].filter(Boolean).join(' ').trim()
+        || monitor.name
+        || monitor.email
+        || '';
+      const roleLabel = this.translateService.instant('history_role_monitor');
+      if (name) return `${name} (${roleLabel})`;
+    }
+    return this.getUserDisplayLabel(comment?.user);
+  }
+
   getGoalStatusLabel(goalId: any): string {
     const score = Number(this.getDegreeScore(goalId) || 0);
-    return `${score}/10`;
+    return score >= 10
+      ? this.translateService.instant('achieved')
+      : this.translateService.instant('to_improve');
   }
 
   getGoalStatusClass(goalId: any): string {
     const score = Number(this.getDegreeScore(goalId) || 0);
-    if (score >= 10) return 'goal-status--done';
-    if (score >= 5) return 'goal-status--partial';
-    return 'goal-status--none';
+    return score >= 10 ? 'goal-status--done' : 'goal-status--partial';
   }
 
   getHistoryCount(): number {
@@ -140,5 +185,29 @@ export class SportCardComponent {
     if (!evaluation?.id) return null;
     const history = this.user.getEvaluationHistory(evaluation.id);
     return history.length ? history[0].created_at : null;
+  }
+
+  getProgressClass(): string {
+    const progress = this.calculateGoalsScore();
+    if (progress >= 100) return 'progress--complete';
+    if (progress > 0) return 'progress--partial';
+    return 'progress--empty';
+  }
+
+  private getUserDisplayLabel(user: any): string {
+    if (!user) return this.translateService.instant('history_change_system');
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+    const roleLabel = this.getUserRoleLabel(user);
+    if (name && roleLabel) return `${name} (${roleLabel})`;
+    if (name) return name;
+    if (roleLabel) return roleLabel;
+    return this.translateService.instant('history_change_system');
+  }
+
+  private getUserRoleLabel(user: any): string | null {
+    const type = user?.type;
+    if (type === 1 || type === 'admin') return this.translateService.instant('history_role_admin');
+    if (type === 3 || type === 'monitor') return this.translateService.instant('history_role_monitor');
+    return null;
   }
 }

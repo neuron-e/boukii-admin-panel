@@ -32,9 +32,8 @@
     <div class="goal-row" *ngFor="let goal of goalStates; trackBy: trackGoalById">
       <div class="goal-name">{{ goal.name }}</div>
       <mat-button-toggle-group [(ngModel)]="goal.score" aria-label="Goal score" class="goal-toggle">
-        <mat-button-toggle [value]="0">0</mat-button-toggle>
-        <mat-button-toggle [value]="5">5</mat-button-toggle>
-        <mat-button-toggle [value]="10">10</mat-button-toggle>
+        <mat-button-toggle [value]="0">{{ 'to_improve' | translate }}</mat-button-toggle>
+        <mat-button-toggle [value]="10">{{ 'achieved' | translate }}</mat-button-toggle>
       </mat-button-toggle-group>
     </div>
   </div>

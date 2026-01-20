@@ -38,9 +38,7 @@ export class EvaluationHistoryComponent implements OnInit {
   }
 
   getStatusLabel(score: number): string {
-    if (score >= 10) return 'achieved';
-    if (score >= 5) return 'to_improve';
-    return 'not_started';
+    return score >= 10 ? 'achieved' : 'to_improve';
   }
 
   getChangeClass(type: string): string {
@@ -53,6 +51,8 @@ export class EvaluationHistoryComponent implements OnInit {
         return 'change--goal';
       case 'observation_updated':
         return 'change--note';
+      case 'comment_added':
+        return 'change--note';
       case 'file_added':
       case 'file_deleted':
         return 'change--file';
@@ -61,13 +61,30 @@ export class EvaluationHistoryComponent implements OnInit {
     }
   }
 
-  getUserLabel(user: any): string {
+  getUserLabel(user: any, monitor?: any): string {
+    if (monitor) {
+      const name = [monitor.first_name, monitor.last_name].filter(Boolean).join(' ').trim()
+        || monitor.name
+        || monitor.email
+        || '';
+      const roleLabel = this.translate.instant('history_role_monitor');
+      if (name) return `${name} (${roleLabel})`;
+    }
+
     if (!user) {
       return this.translate.instant('history_change_system');
     }
 
-    const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
-    return name || user.username || user.email || this.translate.instant('history_change_system');
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim()
+      || user.name
+      || user.username
+      || user.email
+      || '';
+    const roleLabel = this.getUserRoleLabel(user);
+    if (name && roleLabel) return `${name} (${roleLabel})`;
+    if (name) return name;
+    if (roleLabel) return roleLabel;
+    return this.translate.instant('history_change_system');
   }
 
   getMediaUploader(file: any): string {
@@ -137,6 +154,14 @@ export class EvaluationHistoryComponent implements OnInit {
         });
         break;
       }
+      case 'comment_added': {
+        titleKey = 'history_change_comment_added';
+        details.push({
+          labelKey: 'history_change_comment_label',
+          value: this.formatObservation(payload.comment)
+        });
+        break;
+      }
       case 'file_added': {
         titleKey = 'history_change_file_added';
         details.push({
@@ -157,6 +182,13 @@ export class EvaluationHistoryComponent implements OnInit {
         break;
     }
 
+    if (payload.course_name) {
+      details.push({
+        labelKey: 'history_change_course_label',
+        value: payload.course_name
+      });
+    }
+
     return {
       id: entry?.id,
       type: entry?.type,
@@ -164,12 +196,19 @@ export class EvaluationHistoryComponent implements OnInit {
       contextLabel,
       details: details.length ? details : [],
       date: entry?.created_at,
-      userLabel: this.getUserLabel(entry?.user)
+      userLabel: this.getUserLabel(entry?.user, entry?.monitor)
     };
   }
 
   private getStatusText(score: number): string {
     return this.translate.instant(this.getStatusLabel(score ?? 0));
+  }
+
+  private getUserRoleLabel(user: any): string | null {
+    const type = user?.type;
+    if (type === 1 || type === 'admin') return this.translate.instant('history_role_admin');
+    if (type === 3 || type === 'monitor') return this.translate.instant('history_role_monitor');
+    return null;
   }
 
   private getGoalName(goalId: number): string {

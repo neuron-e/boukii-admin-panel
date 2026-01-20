@@ -594,7 +594,7 @@
                           <div style="float: left; width:100%;margin: 2% 0 0 0;">
 
 
-                            <mat-progress-bar [value]="calculateGoalsScore()"
+                            <mat-progress-bar [value]="calculateGoalsScore()" [ngClass]="getProgressClass(calculateGoalsScore())"
                               [color]="selectedSport?.level?.color" mode="determinate"></mat-progress-bar>
 
 
@@ -2303,7 +2303,7 @@
 
 
                   <div style="float: left; width:100%;margin: 2% 0 0 0;">
-                    <mat-progress-bar [value]="calculateGoalsScore()"
+                    <mat-progress-bar [value]="calculateGoalsScore()" [ngClass]="getProgressClass(calculateGoalsScore())"
                       [color]="selectedSport?.level?.color" mode="determinate"></mat-progress-bar>
 
 

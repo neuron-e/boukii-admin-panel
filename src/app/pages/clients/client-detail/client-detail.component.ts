@@ -1296,21 +1296,22 @@ export class ClientDetailComponent {
 
 
   calculateGoalsScore() {
-    let ret = 0;
     if (this.selectedSport?.level) {
       const goals = this.goals.filter((g) => g.degree_id == this.selectedSport.level.id);
+      if (!goals.length) return 0;
       const maxPoints = goals.length * 10;
+      let ret = 0;
       for (const goal of goals) {
         this.evaluationFullfiled.forEach(element => {
           if (element.degrees_school_sport_goals_id === goal.id) {
-            ret += element.score;
+            ret += this.normalizeGoalScore(element.score);
           }
         });
-        ret = ret > maxPoints ? maxPoints : ret
-        return (ret / maxPoints) * 100;
       }
+      ret = ret > maxPoints ? maxPoints : ret;
+      return Math.round((ret / maxPoints) * 100);
     }
-    return ret;
+    return 0;
   }
 
   getDegrees() {
@@ -1322,7 +1323,7 @@ export class ClientDetailComponent {
 
   getDegreeScore(goal: any) {
     const d = this.evaluationFullfiled.find(element => element.degrees_school_sport_goals_id === goal)
-    if (d) return d.score
+    if (d) return this.normalizeGoalScore(d.score)
     return 0
   }
 
@@ -1821,6 +1822,8 @@ export class ClientDetailComponent {
 
   openEvaluationEditor(level: any, goals: any[], sport: any): void {
     const evaluations = this.getEvaluationsData(level);
+    const sportId = sport?.sport_id || sport?.id;
+    const levels = sportId ? this.allLevels.filter(item => item.sport_id === sportId) : [];
     const dialogRef = this.dialog.open(EvaluationEditorComponent, {
       width: '900px',
       data: {
@@ -1829,7 +1832,8 @@ export class ClientDetailComponent {
         goals,
         sport,
         evaluations,
-        clientSport: this.clientSport
+        clientSport: this.clientSport,
+        levels
       }
     });
 
@@ -1891,13 +1895,24 @@ export class ClientDetailComponent {
 
   getGoalsNotStartedCount(goals: any[]): number {
     if (!goals?.length) return 0;
-    let started = 0;
+    let completed = 0;
     goals.forEach(goal => {
-      if (this.getDegreeScore(goal.id) > 0) {
-        started += 1;
+      if (this.getDegreeScore(goal.id) >= 10) {
+        completed += 1;
       }
     });
-    return Math.max(0, goals.length - started);
+    return Math.max(0, goals.length - completed);
+  }
+
+  getGoalsCompletedCount(goals: any[]): number {
+    if (!goals?.length) return 0;
+    let completed = 0;
+    goals.forEach(goal => {
+      if (this.getDegreeScore(goal.id) >= 10) {
+        completed += 1;
+      }
+    });
+    return completed;
   }
 
   getMediaCounts(level: any): { images: number; videos: number } {
@@ -1986,10 +2001,11 @@ export class ClientDetailComponent {
   async updateGoalScore(level: any, goalId: number, score: number): Promise<void> {
     const evaluation = await this.ensureEvaluation(level);
     const existing = this.evaluationFullfiled.find((element: any) => element.degrees_school_sport_goals_id === goalId && element.evaluation_id === evaluation.id);
+    const normalizedScore = this.normalizeGoalScore(score);
     const payload = {
       evaluation_id: evaluation.id,
       degrees_school_sport_goals_id: goalId,
-      score
+      score: normalizedScore
     };
     if (existing?.id) {
       await this.crudService.update('/evaluation-fulfilled-goals', payload, existing.id).toPromise();
@@ -2009,4 +2025,14 @@ export class ClientDetailComponent {
   }
 
   sportCard: any[] = [];
+
+  getProgressClass(progress: number): string {
+    if (progress >= 100) return 'progress--complete';
+    if (progress > 0) return 'progress--partial';
+    return 'progress--empty';
+  }
+
+  private normalizeGoalScore(score: number): number {
+    return Number(score) >= 10 ? 10 : 0;
+  }
 }

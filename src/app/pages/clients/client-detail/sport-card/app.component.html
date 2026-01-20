@@ -16,9 +16,15 @@
                 <span class="progress-label">{{ 'progress' | translate }}</span>
                 <span class="progress-value">{{calculateGoalsScore()}}%</span>
             </div>
-            <mat-progress-bar mode="determinate" [value]="calculateGoalsScore()"></mat-progress-bar>
+            <mat-progress-bar mode="determinate" [value]="calculateGoalsScore()" [ngClass]="getProgressClass()"></mat-progress-bar>
             <div class="summary-pills">
-                <span class="pill">{{ getGoalsNotStarted() }} {{ 'not_started' | translate }}</span>
+                <span class="pill" *ngIf="getGoalsNoEvaluation() > 0">
+                    {{ getGoalsNoEvaluation() }} {{ 'no_evaluation' | translate }}
+                </span>
+                <span class="pill" *ngIf="getGoalsNoEvaluation() === 0">
+                    {{ getGoalsToImprove() }} {{ 'to_improve' | translate }}
+                </span>
+                <span class="pill">{{ getGoalsCompleted() }} {{ 'achieved' | translate }}</span>
                 <span class="pill" *ngIf="getMediaCounts().images > 0 || getMediaCounts().videos > 0">
                     {{ getMediaCounts().images }} {{ 'photos' | translate }}
                     <ng-container *ngIf="getMediaCounts().videos > 0"> · {{ getMediaCounts().videos }} {{ 'videos' | translate }}</ng-container>
@@ -46,9 +52,6 @@
                 <div class="goal-edit-panel" *ngIf="editingGoalId === goal.id">
                     <div class="goal-edit-options">
                         <button mat-stroked-button class="option-btn" [class.active]="editingScore === 0" (click)="setEditingScore(0)">
-                            {{ 'not_started' | translate }}
-                        </button>
-                        <button mat-stroked-button class="option-btn" [class.active]="editingScore === 5" (click)="setEditingScore(5)">
                             {{ 'to_improve' | translate }}
                         </button>
                         <button mat-stroked-button class="option-btn" [class.active]="editingScore === 10" (click)="setEditingScore(10)">
@@ -78,21 +81,26 @@
                     {{ 'add' | translate }}
                 </button>
             </div>
+            <div class="comment-list">
+                <div *ngIf="getEvaluation() && user.getEvaluationComments(getEvaluation().id).length === 0" class="comment-empty">
+                    {{ 'no_comments' | translate }}
+                </div>
+                <div class="comment-item" *ngFor="let comment of user.getEvaluationComments(getEvaluation()?.id)">
+                    <div class="comment-main">
+                        <div class="comment-text">{{ comment.comment }}</div>
+                        <div class="comment-meta">
+                            <span class="comment-author">{{ getCommentAuthor(comment) }}</span>
+                            <span class="comment-date">{{ comment.created_at | date:'short' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="upload-actions">
                 <label class="upload-button">
                     <input type="file" multiple accept="image/*,video/*" (change)="uploadFiles($event)">
                     <span>{{ 'upload_files' | translate }}</span>
                 </label>
                 <span *ngIf="uploadingFiles" class="uploading-text">{{ 'uploading' | translate }}</span>
-            </div>
-            <div class="comment-list">
-                <div *ngIf="getEvaluation() && user.getEvaluationComments(getEvaluation().id).length === 0" class="comment-empty">
-                    {{ 'no_comments' | translate }}
-                </div>
-                <div class="comment-item" *ngFor="let comment of user.getEvaluationComments(getEvaluation()?.id)">
-                    <div class="comment-text">{{ comment.comment }}</div>
-                    <div class="comment-date">{{ comment.created_at | date:'short' }}</div>
-                </div>
             </div>
         </div>
 
