@@ -2,15 +2,13 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { Router } from '@angular/router';
 import * as moment from 'moment';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, forkJoin, takeUntil } from 'rxjs';
 import { TableColumn } from '../../../../@vex/interfaces/table-column.interface';
 import { defaultChartOptions } from '../../../../@vex/utils/default-chart-options';
 import { DashboardService } from '../../../services/dashboard.service';
 import {
   DashboardMetrics,
-  CriticalAlerts,
   RevenueMetrics,
-  OccupancyData,
   BookingActivity
 } from '../../../interfaces/dashboard-metrics.interface';
 
@@ -24,6 +22,7 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
 
   // Dashboard data
   dashboardMetrics: DashboardMetrics | null = null;
+  seasonSummary: any = null;
   loading = true;
   user: any;
   date = moment();
@@ -91,27 +90,31 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
   loadDashboardData(): void {
     this.loading = true;
 
-    this.dashboardService.getDashboardMetrics(this.date)
+    forkJoin({
+      metrics: this.dashboardService.getDashboardMetrics(this.date),
+      seasonSummary: this.dashboardService.getSeasonSummary(this.date)
+    })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (metrics) => {
+        next: ({ metrics, seasonSummary }) => {
           this.dashboardMetrics = metrics;
-          this.updateChartData(metrics);
+          this.seasonSummary = seasonSummary;
           this.loading = false;
         },
         error: (error) => {
           console.error('Error loading dashboard metrics:', error);
           this.loading = false;
-          // Crear datos mínimos para evitar cajas vacías
+          // Crear datos minimos para evitar cajas vacias
           this.dashboardMetrics = {
             alertas: { reservasHuerfanas: 0, cursosSinMonitor: 0, pagosPendientes: 0, conflictosHorarios: 0, capacidadCritica: 0 },
             revenue: { ingresosHoy: 0, ingresosSemana: 0, ingresosMes: 0, tendencia: 'stable', comparacionPeriodoAnterior: 0, moneda: 'EUR' },
             ocupacion: { cursosPrivados: { ocupados: 0, disponibles: 0, porcentaje: 0 }, cursosColectivos: { ocupados: 0, disponibles: 0, porcentaje: 0 }, total: { ocupados: 0, disponibles: 0, porcentaje: 0 } },
             proximasActividades: { proximasHoras: [], alertasCapacidad: [], monitorPendiente: [] },
             tendencias: { reservasUltimos30Dias: [0, 0, 0, 0, 0, 0, 0], fechas: ['L', 'M', 'X', 'J', 'V', 'S', 'D'], comparacionPeriodoAnterior: { reservas: 0, ingresos: 0 } },
-            quickStats: { reservasHoy: 0, ingresosHoy: 0, ocupacionActual: 0, alertasCriticas: 0 },
+            quickStats: { reservasDia: 0, reservasCreadasDia: 0, ingresosHoy: 0, ocupacionActual: 0, alertasCriticas: 0 },
             lastUpdated: new Date().toISOString()
           };
+          this.seasonSummary = null;
         }
       });
   }
@@ -125,28 +128,14 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Actualiza los datos de los gráficos
+   * Actualiza los datos de los graficos
    */
   private updateChartData(metrics: DashboardMetrics): void {
-    // Gráfico de tendencias
-    this.revenueChartSeries = [
-      {
-        name: this.translateService.instant('bookings'),
-        data: metrics.tendencias.reservasUltimos30Dias
-      }
-    ];
-
-    // Actualizar opciones de gráficos con nuevos datos
-    this.trendChartOptions = {
-      ...this.trendChartOptions,
-      xaxis: {
-        categories: metrics.tendencias.fechas
-      }
-    };
+    // Charts removed from dashboard layout
   }
 
   /**
-   * Inicializa las configuraciones de los gráficos
+   * Inicializa las configuraciones de los graficos
    */
   private initializeChartOptions(): void {
     this.occupancyChartOptions = defaultChartOptions({
@@ -185,31 +174,13 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
   }
 
   // Getters para facilitar el acceso a datos en el template
-  get criticalAlerts(): CriticalAlerts | null {
-    return this.dashboardMetrics?.alertas || null;
-  }
 
   get revenue(): RevenueMetrics | null {
     return this.dashboardMetrics?.revenue || null;
   }
 
-  get occupancy(): OccupancyData | null {
-    return this.dashboardMetrics?.ocupacion || null;
-  }
-
   get upcomingActivities(): BookingActivity[] {
     return this.dashboardMetrics?.proximasActividades.proximasHoras || [];
-  }
-
-  get totalAlerts(): number {
-    const alerts = this.criticalAlerts;
-    if (!alerts) return 0;
-
-    return alerts.reservasHuerfanas +
-           alerts.cursosSinMonitor +
-           alerts.pagosPendientes +
-           alerts.conflictosHorarios +
-           alerts.capacidadCritica;
   }
 
   // Métodos de navegación
@@ -263,7 +234,7 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
     const activeSchool = Array.isArray(this.user?.schools)
       ? this.user.schools.find((school: any) => school?.active === true) || this.user.schools[0]
       : null;
-    const currency = this.revenue?.moneda || activeSchool?.currency || this.user?.schools?.[0]?.currency || 'EUR';
+    const currency = this.revenue?.moneda || this.seasonSummary?.currency || activeSchool?.currency || this.user?.schools?.[0]?.currency || 'EUR';
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: currency
@@ -277,6 +248,17 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
   getLastUpdated(): string {
     if (!this.dashboardMetrics?.lastUpdated) return '';
     return moment(this.dashboardMetrics.lastUpdated).format('HH:mm');
+  }
+
+  formatDateLabel(date: moment.Moment): string {
+    return date.format('DD/MM/YYYY');
+  }
+
+  getSeasonDateRange(): string {
+    if (!this.seasonSummary?.season) {
+      return '';
+    }
+    return `${this.seasonSummary.season.start_date} - ${this.seasonSummary.season.end_date}`;
   }
 
   // Quick actions

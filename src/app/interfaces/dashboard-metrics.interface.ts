@@ -41,6 +41,7 @@ export interface BookingActivity {
   type: 'private' | 'collective';
   status: 'confirmed' | 'pending' | 'warning';
   monitor?: string;
+  participantsCount?: number;
 }
 
 export interface UpcomingActivities {
@@ -68,7 +69,8 @@ export interface TrendData {
 }
 
 export interface QuickStats {
-  reservasHoy: number;
+  reservasDia: number;
+  reservasCreadasDia: number;
   ingresosHoy: number;
   ocupacionActual: number;
   alertasCriticas: number;

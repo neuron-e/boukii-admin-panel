@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, forkJoin, of } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, switchMap } from 'rxjs/operators';
 import { ApiCrudService } from '../../service/crud.service';
 import {
   DashboardMetrics,
@@ -45,6 +45,64 @@ export class DashboardService {
         console.error('Error obteniendo métricas del dashboard:', error);
         return of(this.getEmptyMetrics());
       })
+    );
+  }
+
+  getSeasonSummary(selectedDate: moment.Moment = moment()): Observable<any> {
+    const activeSchool = Array.isArray(this.user?.schools)
+      ? this.user.schools.find((school: any) => school?.active === true) || this.user.schools[0]
+      : null;
+    const schoolId = activeSchool?.id;
+
+    if (!schoolId) {
+      return of(null);
+    }
+
+    return this.getActiveSeasonForDate(selectedDate, schoolId).pipe(
+      switchMap(season => {
+        const filters: any = { school_id: schoolId };
+        if (season?.start_date && season?.end_date) {
+          filters.start_date = season.start_date;
+          filters.end_date = season.end_date;
+        }
+        return this.crudService.get('/admin/finance/season-dashboard', [], filters).pipe(
+          map((response: any) => {
+            if (!response?.success) {
+              return null;
+            }
+            return {
+              season: season,
+              currency: activeSchool?.currency || 'EUR',
+              executiveKpis: response.data?.executiveKpis || null
+            };
+          }),
+          catchError(() => of(null))
+        );
+      }),
+      catchError(() => of(null))
+    );
+  }
+
+  private getActiveSeasonForDate(date: moment.Moment, schoolId: number): Observable<any> {
+    return this.crudService.list('/seasons', 1, 1000, 'desc', 'id', `&school_id=${schoolId}&is_active=1`).pipe(
+      map((response: any) => {
+        const seasons = response?.data || [];
+        if (!seasons.length) {
+          return null;
+        }
+
+        const target = date.format('YYYY-MM-DD');
+        const matching = seasons.find((season: any) => {
+          return season?.start_date <= target && season?.end_date >= target;
+        });
+
+        if (matching) {
+          return matching;
+        }
+
+        return seasons[0];
+      }),
+      catchError(() => of(null))
     );
   }
 
@@ -250,7 +308,8 @@ export class DashboardService {
       ingresos: this.getRevenueForPeriod(dateStr, dateStr, schoolId)
     }).pipe(
       map(data => ({
-        reservasHoy: data.reservas,
+        reservasDia: data.reservas,
+        reservasCreadasDia: data.reservas,
         ingresosHoy: data.ingresos,
         ocupacionActual: 0, // Se calculará desde ocupacion
         alertasCriticas: 0  // Se calculará desde alertas
@@ -348,7 +407,8 @@ export class DashboardService {
         comparacionPeriodoAnterior: { reservas: 0, ingresos: 0 }
       },
       quickStats: {
-        reservasHoy: 0,
+        reservasDia: 0,
+        reservasCreadasDia: 0,
         ingresosHoy: 0,
         ocupacionActual: 0,
         alertasCriticas: 0

@@ -200,6 +200,8 @@ export class MonitorDetailComponent {
   showBlockTimeline: boolean = false;
   idBlockTimeline: any;
   blockDetailTimeline: any;
+  notifications: any[] = [];
+  loadingNotifications: boolean = false;
 
   showEditBlock: boolean = false;
   allHoursDay: boolean = false;
@@ -446,6 +448,7 @@ export class MonitorDetailComponent {
             //await this.calculateTaskPositions();
             this.loadBookings(this.currentDate);
             this.loading = false;
+            this.loadNotifications();
 
           });
 
@@ -453,6 +456,33 @@ export class MonitorDetailComponent {
 
     //Planificador
 
+  }
+
+  loadNotifications() {
+    this.loadingNotifications = true;
+    this.crudService.get(`/admin/monitors/${this.id}/notifications`, [], { perPage: 50 })
+      .subscribe({
+        next: (response) => {
+          const raw = response?.data;
+          this.notifications = Array.isArray(raw) ? raw : (raw?.data || []);
+          this.loadingNotifications = false;
+        },
+        error: () => {
+          this.loadingNotifications = false;
+        }
+      });
+  }
+
+  markNotificationRead(item: any) {
+    if (!item?.id) {
+      return;
+    }
+    this.crudService.post(`/admin/monitors/${this.id}/notifications/${item.id}/read`, {})
+      .subscribe({
+        next: () => {
+          item.read_at = new Date().toISOString();
+        }
+      });
   }
 
   onDateChange(event: any) {

@@ -26,7 +26,6 @@
         </div>
       </div>
     </div>
-
     <!-- Dashboard content -->
     <div *ngIf="!loading && dashboardMetrics" class="p-6">
 
@@ -41,50 +40,29 @@
           </vex-widget-assistant>
         </div>
 
-        <!-- Quick Stats del día -->
+        <!-- Quick Stats del dia -->
         <div class="card">
           <div class="p-6">
             <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'today_summary' | translate }}</h3>
-              <mat-icon class="text-primary">today</mat-icon>
+              <div>
+                <h3 class="headline">{{ 'selected_date_summary' | translate }}</h3>
+                <div class="text-xs text-secondary">{{ formatDateLabel(date) }}</div>
+              </div>
+              <mat-icon class="text-primary">event</mat-icon>
             </div>
 
             <div class="space-y-4">
-              <!-- Reservas de hoy -->
               <div class="flex justify-between items-center">
-                <span class="body-2 text-secondary">{{ 'bookings_today' | translate }}</span>
+                <span class="body-2 text-secondary">{{ 'bookings_for_date' | translate }}</span>
                 <span class="subheading-2 font-medium text-primary">
-                  {{ dashboardMetrics.quickStats.reservasHoy }}
+                  {{ dashboardMetrics.quickStats.reservasDia }}
                 </span>
               </div>
 
-              <!-- Ingresos de hoy -->
               <div class="flex justify-between items-center">
-                <span class="body-2 text-secondary">{{ 'revenue_today' | translate }}</span>
-                <span class="subheading-2 font-medium text-green-600">
-                  {{ formatCurrency(dashboardMetrics.quickStats.ingresosHoy) }}
-                </span>
-              </div>
-
-              <!-- Ocupación actual -->
-              <div class="flex justify-between items-center">
-                <span class="body-2 text-secondary">{{ 'occupancy' | translate }}</span>
+                <span class="body-2 text-secondary">{{ 'bookings_created_date' | translate }}</span>
                 <span class="subheading-2 font-medium text-blue-600">
-                  {{ formatPercentage(occupancy?.total.porcentaje || 0) }}
-                </span>
-              </div>
-
-              <!-- Alertas críticas -->
-              <div class="flex justify-between items-center"
-                   [class.cursor-pointer]="totalAlerts > 0"
-                   (click)="totalAlerts > 0 && navigateToBookings()">
-                <span class="body-2 text-secondary">{{ 'critical_alerts' | translate }}</span>
-                <span class="subheading-2 font-medium"
-                      [class.text-red-600]="totalAlerts > 0"
-                      [class.text-green-600]="totalAlerts === 0">
-                  <mat-icon class="inline-block w-4 h-4 mr-1"
-                           *ngIf="totalAlerts > 0">warning</mat-icon>
-                  {{ totalAlerts }}
+                  {{ dashboardMetrics.quickStats.reservasCreadasDia }}
                 </span>
               </div>
             </div>
@@ -92,139 +70,58 @@
         </div>
       </div>
 
-      <!-- ROW 2: Métricas Críticas de Negocio -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-
-        <!-- 🚨 Alertas Críticas -->
-        <vex-widget-quick-value-center
-          [value]="totalAlerts.toString()"
-          [bg]="totalAlerts > 0 ? '#fef2f2' : '#f0fdf4'"
-          [valueColor]="totalAlerts > 0 ? '#dc2626' : '#16a34a'"
-          icon="mat:warning"
-          [label]="'critical_alerts'"
-          [label_secondary]="'requires_attention'"
-          (click)="totalAlerts > 0 && navigateToBookings()">
-        </vex-widget-quick-value-center>
-
-        <!-- 💰 Ingresos del Mes -->
-        <vex-widget-quick-value-center
-          [value]="formatCurrency(revenue?.ingresosMes || 0)"
-          [bg]="'#f0fdf4'"
-          [valueColor]="'#059669'"
-          [icon]="getTrendIcon(revenue?.tendencia || 'stable')"
-          [label]="'monthly_revenue'"
-          [label_secondary]="'current_month'"
-          (click)="navigateToAnalytics()">
-        </vex-widget-quick-value-center>
-
-        <!-- 📊 Ocupación Privados -->
-        <vex-widget-quick-value-center
-          [value]="formatPercentage(occupancy?.cursosPrivados.porcentaje || 0)"
-          [bg]="'#eff6ff'"
-          [valueColor]="'#2563eb'"
-          icon="mat:person"
-          [label]="'private_courses'"
-          [label_secondary]="'occupancy_rate'"
-          (click)="navigateToCourses()">
-        </vex-widget-quick-value-center>
-
-        <!-- 📊 Ocupación Colectivos -->
-        <vex-widget-quick-value-center
-          [value]="formatPercentage(occupancy?.cursosColectivos.porcentaje || 0)"
-          [bg]="'#fffbeb'"
-          [valueColor]="'#d97706'"
-          icon="mat:group"
-          [label]="'collective_courses'"
-          [label_secondary]="'occupancy_rate'"
-          (click)="navigateToCourses()">
-        </vex-widget-quick-value-center>
-      </div>
-
-      <!-- ROW 3: Análisis Operativo -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-        <!-- Gráfico de Tendencias de Reservas -->
-        <div class="card">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'booking_trends' | translate }}</h3>
-              <span class="body-2 text-secondary">{{ 'last_30_days' | translate }}</span>
-            </div>
-
-            <vex-chart
-              [options]="trendChartOptions"
-              [series]="revenueChartSeries"
-              class="chart">
-            </vex-chart>
+      <!-- ROW 2: Resumen de Temporada -->
+      <div class="card mb-6" *ngIf="seasonSummary?.executiveKpis">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="headline">{{ 'season_summary' | translate }}</h3>
+            <span class="text-xs text-secondary">{{ getSeasonDateRange() }}</span>
           </div>
-        </div>
+          <div class="text-xs text-secondary mb-4" *ngIf="seasonSummary?.season?.name">
+            {{ seasonSummary.season.name }}
+          </div>
 
-        <!-- KPIs de Rendimiento -->
-        <div class="card">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'performance_kpis' | translate }}</h3>
-              <mat-icon class="text-primary">analytics</mat-icon>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="flex justify-between items-center">
+              <span class="body-2 text-secondary">{{ 'total_bookings' | translate }}</span>
+              <span class="subheading-2 font-medium">{{ seasonSummary.executiveKpis.totalBookings || 0 }}</span>
             </div>
-
-            <div class="space-y-6">
-              <!-- Ocupación Total -->
-              <div>
-                <div class="flex justify-between items-center mb-2">
-                  <span class="body-2">{{ 'total_occupancy' | translate }}</span>
-                  <span class="subheading-2 font-medium">
-                    {{ formatPercentage(occupancy?.total.porcentaje || 0) }}
-                  </span>
-                </div>
-                <mat-progress-bar
-                  mode="determinate"
-                  [value]="occupancy?.total.porcentaje || 0"
-                  class="h-2 rounded">
-                </mat-progress-bar>
-              </div>
-
-              <!-- Cursos Privados -->
-              <div>
-                <div class="flex justify-between items-center mb-2">
-                  <span class="body-2">{{ 'private_courses' | translate }}</span>
-                  <span class="body-2 text-secondary">
-                    {{ occupancy?.cursosPrivados.ocupados || 0 }} /
-                    {{ (occupancy?.cursosPrivados.ocupados || 0) + (occupancy?.cursosPrivados.disponibles || 0) }}
-                  </span>
-                </div>
-                <mat-progress-bar
-                  mode="determinate"
-                  [value]="occupancy?.cursosPrivados.porcentaje || 0"
-                  color="primary"
-                  class="h-2 rounded">
-                </mat-progress-bar>
-              </div>
-
-              <!-- Cursos Colectivos -->
-              <div>
-                <div class="flex justify-between items-center mb-2">
-                  <span class="body-2">{{ 'collective_courses' | translate }}</span>
-                  <span class="body-2 text-secondary">
-                    {{ occupancy?.cursosColectivos.ocupados || 0 }} /
-                    {{ (occupancy?.cursosColectivos.ocupados || 0) + (occupancy?.cursosColectivos.disponibles || 0) }}
-                  </span>
-                </div>
-                <mat-progress-bar
-                  mode="determinate"
-                  [value]="occupancy?.cursosColectivos.porcentaje || 0"
-                  color="accent"
-                  class="h-2 rounded">
-                </mat-progress-bar>
-              </div>
+            <div class="flex justify-between items-center">
+              <span class="body-2 text-secondary">{{ 'total_clients' | translate }}</span>
+              <span class="subheading-2 font-medium">{{ seasonSummary.executiveKpis.totalClients || 0 }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="body-2 text-secondary">{{ 'total_participants' | translate }}</span>
+              <span class="subheading-2 font-medium">{{ seasonSummary.executiveKpis.totalParticipants || 0 }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="body-2 text-secondary">{{ 'revenue_expected' | translate }}</span>
+              <span class="subheading-2 font-medium text-green-600">{{ formatCurrency(seasonSummary.executiveKpis.revenueExpected || 0) }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="body-2 text-secondary">{{ 'revenue_received' | translate }}</span>
+              <span class="subheading-2 font-medium text-green-600">{{ formatCurrency(seasonSummary.executiveKpis.revenueReceived || 0) }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="body-2 text-secondary">{{ 'revenue_pending' | translate }}</span>
+              <span class="subheading-2 font-medium text-orange-600">{{ formatCurrency(seasonSummary.executiveKpis.revenuePending || 0) }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="body-2 text-secondary">{{ 'collection_efficiency' | translate }}</span>
+              <span class="subheading-2 font-medium">{{ formatPercentage(seasonSummary.executiveKpis.collectionEfficiency || 0) }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="body-2 text-secondary">{{ 'average_booking_value' | translate }}</span>
+              <span class="subheading-2 font-medium">{{ formatCurrency(seasonSummary.executiveKpis.averageBookingValue || 0) }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ROW 4: Actividades Próximas y Alertas Detalladas -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <!-- ROW 3: Actividades Proximas -->
+      <div class="grid grid-cols-1 gap-6 mb-6">
 
-        <!-- Lista de Próximas Actividades -->
+        <!-- Lista de Proximas Actividades -->
         <div class="card">
           <div class="p-6">
             <div class="flex items-center justify-between mb-4">
@@ -257,8 +154,12 @@
                     <span class="text-sm text-secondary">{{ activity.time }}</span>
                   </div>
                   <div class="text-sm text-secondary truncate">{{ activity.courseName }}</div>
+                  <div class="text-xs text-secondary" *ngIf="activity.participantsCount">{{ 'participants' | translate }}: {{ activity.participantsCount }}</div>
                   <div class="text-xs" [ngClass]="getStatusColor(activity.status)" *ngIf="activity.monitor">
                     {{ activity.monitor }}
+                  </div>
+                  <div class="text-xs text-orange-600" *ngIf="activity.status === 'warning'">
+                    {{ 'dashboard.alert_no_monitor' | translate }}
                   </div>
                 </div>
 
@@ -274,94 +175,6 @@
                 <p>{{ 'no_activities_scheduled' | translate }}</p>
               </div>
             </ng-template>
-          </div>
-        </div>
-
-        <!-- Panel de Alertas Detalladas -->
-        <div class="card">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'system_alerts' | translate }}</h3>
-              <mat-icon class="text-primary">notifications</mat-icon>
-            </div>
-
-            <div class="space-y-3">
-              <!-- Reservas Huérfanas -->
-              <div class="flex items-center justify-between p-3 rounded-lg"
-                   [class.bg-red-50]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
-                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
-                   (click)="criticalAlerts && criticalAlerts.reservasHuerfanas > 0 && navigateToOrphanedBookings()">
-                <div class="flex items-center">
-                  <mat-icon class="mr-3"
-                           [class.text-red-600]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
-                           [class.text-green-600]="!criticalAlerts || criticalAlerts.reservasHuerfanas === 0">
-                    {{ criticalAlerts && criticalAlerts.reservasHuerfanas > 0 ? 'error_outline' : 'check_circle' }}
-                  </mat-icon>
-                  <span class="body-2">{{ 'orphaned_bookings' | translate }}</span>
-                </div>
-                <span class="subheading-2 font-medium"
-                      [class.text-red-600]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0">
-                  {{ criticalAlerts?.reservasHuerfanas || 0 }}
-                </span>
-              </div>
-
-              <!-- Cursos sin Monitor -->
-              <div class="flex items-center justify-between p-3 rounded-lg"
-                   [class.bg-orange-50]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
-                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
-                   (click)="criticalAlerts && criticalAlerts.cursosSinMonitor > 0 && navigateToBookings()">
-                <div class="flex items-center">
-                  <mat-icon class="mr-3"
-                           [class.text-orange-600]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
-                           [class.text-green-600]="!criticalAlerts || criticalAlerts.cursosSinMonitor === 0">
-                    {{ criticalAlerts && criticalAlerts.cursosSinMonitor > 0 ? 'person_off' : 'check_circle' }}
-                  </mat-icon>
-                  <span class="body-2">{{ 'courses_without_monitor' | translate }}</span>
-                </div>
-                <span class="subheading-2 font-medium"
-                      [class.text-orange-600]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0">
-                  {{ criticalAlerts?.cursosSinMonitor || 0 }}
-                </span>
-              </div>
-
-              <!-- Pagos Pendientes -->
-              <div class="flex items-center justify-between p-3 rounded-lg"
-                   [class.bg-yellow-50]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
-                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
-                   (click)="criticalAlerts && criticalAlerts.pagosPendientes > 0 && navigateToBookings()">
-                <div class="flex items-center">
-                  <mat-icon class="mr-3"
-                           [class.text-yellow-600]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
-                           [class.text-green-600]="!criticalAlerts || criticalAlerts.pagosPendientes === 0">
-                    {{ criticalAlerts && criticalAlerts.pagosPendientes > 0 ? 'payment' : 'check_circle' }}
-                  </mat-icon>
-                  <span class="body-2">{{ 'pending_payments' | translate }}</span>
-                </div>
-                <span class="subheading-2 font-medium"
-                      [class.text-yellow-600]="criticalAlerts && criticalAlerts.pagosPendientes > 0">
-                  {{ criticalAlerts?.pagosPendientes || 0 }}
-                </span>
-              </div>
-
-              <!-- Capacidad Crítica -->
-              <div class="flex items-center justify-between p-3 rounded-lg"
-                   [class.bg-blue-50]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
-                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
-                   (click)="criticalAlerts && criticalAlerts.capacidadCritica > 0 && navigateToCourses()">
-                <div class="flex items-center">
-                  <mat-icon class="mr-3"
-                           [class.text-blue-600]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
-                           [class.text-green-600]="!criticalAlerts || criticalAlerts.capacidadCritica === 0">
-                    {{ criticalAlerts && criticalAlerts.capacidadCritica > 0 ? 'trending_up' : 'check_circle' }}
-                  </mat-icon>
-                  <span class="body-2">{{ 'critical_capacity' | translate }}</span>
-                </div>
-                <span class="subheading-2 font-medium"
-                      [class.text-blue-600]="criticalAlerts && criticalAlerts.capacidadCritica > 0">
-                  {{ criticalAlerts?.capacidadCritica || 0 }}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
