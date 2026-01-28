@@ -44,6 +44,19 @@ export class AuthService extends ApiService {
           localStorage.setItem('boukiiUserToken', JSON.stringify(user.data.token));
           this.user = user.data.user;
 
+          const isSuperadmin = this.user?.type === 'superadmin' || this.user?.type === 4;
+          if (isSuperadmin) {
+            this.configService.updateConfig({
+              sidenav: {
+                imageUrl: '',
+                title: 'Superadmin',
+                showCollapsePin: false
+              }
+            });
+            this.router.navigate(['/superadmin/dashboard']);
+            return;
+          }
+
           setTimeout(() => {
             this.schoolService.getSchoolData(this.user, true)
             .subscribe((data) => {

@@ -1,0 +1,38 @@
+<div class="schools-page">
+  <div class="header">
+    <div>
+      <h2>Schools</h2>
+      <p>Manage all schools that are part of Boukii.</p>
+    </div>
+    <button mat-raised-button color="primary" routerLink="create">New school</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
+  </div>
+
+  <table mat-table [dataSource]="schools" class="mat-elevation-z2" *ngIf="!loading">
+
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>Name</th>
+      <td mat-cell *matCellDef="let school">{{ school.name }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="contact_email">
+      <th mat-header-cell *matHeaderCellDef>Email</th>
+      <td mat-cell *matCellDef="let school">{{ school.contact_email || '-' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="active">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let school">
+        <span [class.active]="school.active" [class.inactive]="!school.active">
+          {{ school.active ? 'Active' : 'Inactive' }}
+        </span>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="columns"></tr>
+    <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+  </table>
+</div>

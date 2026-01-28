@@ -228,6 +228,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       pageSize = 10000; // Large number to load all records
     }
 
+    pageSize = this.getCappedPageSize(pageSize);
     this.pageSize = pageSize;
     if (!all) {
       if (this.entity.includes('booking')) {
@@ -377,6 +378,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
    * We are simulating this request here.
    */
   getFilteredData(pageIndex: number, pageSize: number, filter: any) {
+    pageSize = this.getCappedPageSize(pageSize);
     const requestKey = [
       this.entity,
       pageIndex,
@@ -442,7 +444,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   onPageChange(event: PageEvent) {
     // La API puede esperar la primera página como 1, no como 0.
-    this.getData(event.pageIndex + 1, event.pageSize);
+    this.getData(event.pageIndex + 1, this.getCappedPageSize(event.pageSize));
   }
 
   sortData(sort: Sort) {
@@ -1696,6 +1698,13 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     return `${remaining}min`;
+  }
+
+  private getCappedPageSize(pageSize: number): number {
+    if (this.entity && this.entity.includes('/admin/bookings/table')) {
+      return Math.min(pageSize, 50);
+    }
+    return pageSize;
   }
 
   private ensureArray<T = any>(value: any): T[] {

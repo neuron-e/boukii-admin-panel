@@ -1,0 +1,45 @@
+.superadmin-shell {
+  display: flex;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f1117 0%, #1f2530 100%);
+  color: #fff;
+}
+
+.side-nav {
+  width: 220px;
+  padding: 32px 24px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 9, 13, 0.85);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.side-nav .brand {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.side-nav nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-nav a {
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.side-nav a.active {
+  background: #ff2e6d;
+  color: white;
+}
+
+.content {
+  flex: 1;
+  padding: 32px;
+}

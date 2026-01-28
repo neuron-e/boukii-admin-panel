@@ -3,6 +3,7 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 import { CustomLayoutComponent } from './custom-layout/custom-layout.component';
 import { VexRoutes } from '../@vex/interfaces/vex-route.interface';
 import { AuthGuard } from './auth.guard';
+import { SuperadminGuard } from './superadmin.guard';
 
 const childrenRoutes: VexRoutes = [
   {
@@ -112,6 +113,11 @@ const childrenRoutes: VexRoutes = [
         loadChildren: () => import('./pages/chrono/chrono.module').then(m => m.ChronoModule),
         canActivate: [AuthGuard],
       },
+      {
+        path: 'superadmin',
+        loadChildren: () => import('./pages/superadmin/superadmin.module').then(m => m.SuperadminModule),
+        canActivate: [SuperadminGuard]
+      }
     ]
   }
 ];
