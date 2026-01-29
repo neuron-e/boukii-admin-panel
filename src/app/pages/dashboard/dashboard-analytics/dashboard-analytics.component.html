@@ -94,7 +94,7 @@
             <div class="system-cards-row">
               <!-- Pending Payments -->
               <div class="system-metric-card clickable" (click)="openSystemDetails('pending_payments')">
-                <span class="status-dot status-orange"></span>
+                <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.pending_payments || 0)"></span>
                 <mat-icon class="card-icon">credit_card</mat-icon>
                 <span class="card-label">{{ 'dashboard.pending_payments' | translate | uppercase }}</span>
                 <strong class="card-value">{{ systemStats()?.pending_payments || 0 }}</strong>
@@ -102,7 +102,7 @@
 
               <!-- Course Overbooking -->
               <div class="system-metric-card clickable" (click)="openSystemDetails('overbooked_groups')">
-                <span class="status-dot status-orange"></span>
+                <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.overbookings || 0)"></span>
                 <mat-icon class="card-icon">warning</mat-icon>
                 <span class="card-label">{{ 'dashboard.course_overbooking' | translate | uppercase }}</span>
                 <strong class="card-value">{{ systemStats()?.overbookings || 0 }}</strong>
@@ -110,7 +110,7 @@
 
               <!-- Unassigned Courses -->
               <div class="system-metric-card clickable" (click)="openSystemDetails('unassigned_all')">
-                <span class="status-dot status-orange"></span>
+                <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.unassigned_courses || 0)"></span>
                 <mat-icon class="card-icon">assignment</mat-icon>
                 <span class="card-label">{{ 'dashboard.unassigned_courses' | translate | uppercase }}</span>
                 <strong class="card-value">{{ systemStats()?.unassigned_courses || 0 }}</strong>
@@ -118,7 +118,7 @@
 
               <!-- Free Monitors -->
               <div class="system-metric-card">
-                <span class="status-dot status-orange"></span>
+                <span class="status-dot" [ngClass]="getStatusDotClass(operations()?.free_monitors || 0)"></span>
                 <mat-icon class="card-icon">people</mat-icon>
                 <span class="card-label">{{ 'dashboard.free_monitors' | translate | uppercase }}</span>
                 <strong class="card-value">{{ operations()?.free_monitors || 0 }}</strong>
@@ -262,7 +262,7 @@
                 <span class="caption" *ngIf="card.caption">{{ card.caption }}</span>
               </div>
 
-              <div class="badge-row" *ngIf="card.badges?.length">
+              <div class="badge-row" *ngIf="card.badges?.length" [matTooltip]="card.tooltip || ''" [matTooltipDisabled]="!card.tooltip">
                 <span class="badge" [ngClass]="badge.tone" *ngFor="let badge of card.badges">
                   <img *ngIf="badge.iconUrl; else badgeIcon" [src]="badge.iconUrl" [alt]="badge.label || ''" />
                   <ng-template #badgeIcon>
@@ -351,7 +351,13 @@
 
                 <div class="course-row" *ngFor="let course of groupCourses().data">
                 <div class="course-row-header">
-                  <span>{{ course.course_name }}</span>
+                  <span class="course-row-title">
+                    <span class="course-type-icon group">
+                      <img *ngIf="course.course_icon; else groupCourseFallback" [src]="course.course_icon" alt="" />
+                      <ng-template #groupCourseFallback>G</ng-template>
+                    </span>
+                    {{ course.course_name }}
+                  </span>
                 </div>
                 <div class="course-row-meta">
                   <span>{{ 'dashboard.groups' | translate }}: <strong>{{ course.groups_count }}</strong></span>
@@ -420,7 +426,13 @@
 
                 <div class="course-row private-row" *ngFor="let course of privateCourses().data">
                   <div class="course-row-header">
-                    <span>{{ course.course_name }}</span>
+                    <span class="course-row-title">
+                      <span class="course-type-icon private">
+                        <img *ngIf="course.course_icon; else privateCourseFallback" [src]="course.course_icon" alt="" />
+                        <ng-template #privateCourseFallback>P</ng-template>
+                      </span>
+                      {{ course.course_name }}
+                    </span>
                     <span class="course-tag" [class.unpaid]="!course.is_paid">
                       {{ course.is_paid ? ('common.paid' | translate) : ('common.unpaid' | translate) }}
                     </span>
@@ -446,14 +458,14 @@
 
       <!-- ========== 7-DAY FORECAST SECTION ========== -->
       <section class="forecast-section" *ngIf="forecastDays().length > 0">
-        <div class="section-header">
-          <div>
-            <h3>{{ 'dashboard.seven_day_forecast' | translate }}</h3>
-            <p>{{ 'dashboard.forecast_subtitle' | translate }}</p>
+        <div class="card forecast-card">
+          <div class="forecast-card-header">
+            <div>
+              <h3>{{ 'dashboard.seven_day_forecast' | translate }}</h3>
+              <p>{{ 'dashboard.forecast_subtitle' | translate }}</p>
+            </div>
           </div>
-        </div>
 
-        <div class="card">
           <div class="forecast-list">
             <div class="forecast-row" *ngFor="let day of forecastDays()">
               <div class="forecast-date">

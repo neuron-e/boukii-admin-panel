@@ -37,6 +37,7 @@ interface TodaysOperationCard {
   isOccupancy?: boolean;
   occupancyPercent?: number;
   badges?: Array<{ icon?: string; iconUrl?: string; value: number; tone?: 'orange' | 'green' | 'purple'; label?: string }>;
+  tooltip?: string;
 }
 
 interface CommercialCard {
@@ -461,6 +462,10 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
     ];
   }
 
+  getStatusDotClass(value: number | null | undefined): string {
+    return value === 0 ? 'status-green' : 'status-orange';
+  }
+
   get adminSummaryStats(): AdminStat[] {
     const stats = this.systemStats();
     if (!stats) return [];
@@ -491,8 +496,8 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
     const ops = this.operations();
     if (!ops) return [];
 
-    const groupBadges = this.buildSportBadges(ops.group_courses_sports);
-    const privateBadges = this.buildSportBadges(ops.private_courses_sports);
+    const groupBadges = this.buildSportBadges(ops.group_courses_sports, 'orange');
+    const privateBadges = this.buildSportBadges(ops.private_courses_sports, 'green');
     const freeMonitorBadges = this.buildSportBadges(ops.free_monitors_sports);
     const assignedBadges: TodaysOperationCard['badges'] = [
       {
@@ -509,11 +514,18 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
 
     return [
       {
+        icon: 'calendar_today',
+        label: this.translate.instant('dashboard.courses_today'),
+        value: ops.courses_today,
+        caption: this.translate.instant('dashboard.total_scheduled')
+      },
+      {
         icon: 'groups',
         label: this.translate.instant('dashboard.group_course_groups'),
         value: ops.group_courses,
         caption: this.translate.instant('dashboard.scheduled_today'),
-        badges: groupBadges
+        badges: groupBadges,
+        tooltip: this.translate.instant('dashboard.group_courses_tooltip')
       },
       {
         icon: 'person',
@@ -525,9 +537,8 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
       {
         icon: 'person_add',
         label: this.translate.instant('dashboard.assigned_monitors'),
-        value: ops.assigned_monitors,
-        caption: this.translate.instant('dashboard.active_now')
-        ,
+        value: ops.assigned_courses ?? ops.assigned_monitors,
+        caption: this.translate.instant('dashboard.active_now'),
         badges: assignedBadges
       },
       {
@@ -544,27 +555,20 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
         label: this.translate.instant('dashboard.participants'),
         value: ops.unique_participants ?? 0,
         caption: this.translate.instant('dashboard.unique_participants')
-      },
-      {
-        icon: 'calendar_today',
-        label: this.translate.instant('dashboard.courses_today'),
-        value: ops.courses_today,
-        caption: this.translate.instant('dashboard.total_scheduled')
       }
     ];
   }
 
-  private buildSportBadges(items?: SportBreakdown[]): TodaysOperationCard['badges'] {
+  private buildSportBadges(items?: SportBreakdown[], tone: 'orange' | 'green' | 'purple' = 'orange'): TodaysOperationCard['badges'] {
     if (!items || items.length === 0) {
       return undefined;
     }
-    const tones: Array<'orange' | 'green' | 'purple'> = ['orange', 'green', 'purple'];
     return items
       .filter((item) => item.count > 0)
-      .map((item, index) => ({
+      .map((item) => ({
         iconUrl: item.icon,
         value: item.count,
-        tone: tones[index % tones.length],
+        tone,
         label: item.sport_name
       }));
   }

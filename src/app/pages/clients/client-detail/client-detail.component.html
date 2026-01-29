@@ -414,71 +414,28 @@
 
 
             <div *ngIf="showPersonalInfo" class="px-6 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="py-3 flex items-center">
+              <div class="py-3 flex items-start">
                 <div @scaleIn
                      class="w-10 h-10 rounded-full bg-primary-600/10 text-primary-600 ltr:mr-3 rtl:ml-3 flex items-center justify-center">
                   <mat-icon class="icon-sm" svgIcon="logo:task"></mat-icon>
                 </div>
 
-
                 <div @fadeInRight>
                   <p class="m-0 caption text-hint">
-                    {{'observation_school'|
-                    translate }}
+                    {{'client_observations' | translate}}
                   </p>
-                  <p class="m-0 body-1">
-                    {{defaultsObservations?.notes ||
-                  ('not_assigned' | translate)}}
-                  </p>
+                  <div class="m-0 body-1" *ngIf="observationHistory.length; else noObservations">
+                    <div *ngFor="let obs of observationHistory" style="white-space: pre-line;">
+                      {{ obs }}
+                    </div>
+                  </div>
+                  <ng-template #noObservations>
+                    <p class="m-0 body-1">
+                      {{ 'not_assigned' | translate }}
+                    </p>
+                  </ng-template>
                 </div>
-
-
               </div>
-
-
-              <div class="py-3 flex items-center">
-                <div @scaleIn
-                     class="w-10 h-10 rounded-full bg-primary-600/10 text-primary-600 ltr:mr-3 rtl:ml-3 flex items-center justify-center">
-                  <mat-icon class="icon-sm" svgIcon="logo:task"></mat-icon>
-                </div>
-
-
-                <div @fadeInRight>
-                  <p class="m-0 caption text-hint">
-                    {{'observation_general' |
-                    translate}}
-                  </p>
-                  <p class="m-0 body-1">
-                    {{defaultsObservations?.general ||
-                  ('not_assigned' | translate)}}
-                  </p>
-                </div>
-
-
-              </div>
-
-              <div class="py-3 flex items-center">
-                <div @scaleIn
-                     class="w-10 h-10 rounded-full bg-primary-600/10 text-primary-600 ltr:mr-3 rtl:ml-3 flex items-center justify-center">
-                  <mat-icon class="icon-sm" svgIcon="logo:task"></mat-icon>
-                </div>
-
-
-                <div @fadeInRight>
-                  <p class="m-0 caption text-hint">
-                    {{'historical' |
-                    translate}}
-                  </p>
-                  <p class="m-0 body-1">
-                    {{defaultsObservations?.historical ||
-                  ('not_assigned' | translate)}}
-                  </p>
-                </div>
-
-
-              </div>
-
-
             </div>
           </div>
         </div>
@@ -661,10 +618,7 @@
                               style="height: 150px;width: 150px;object-fit: cover;">
 
 
-                            <video *ngIf="file.type === 'video'" width="150" heigth="150" controls>
-                              <source [src]="file.file" type="video/mp4">
-                              <source [src]="file.file" type="video/ogg">
-                            </video>
+                            <video *ngIf="file.type === 'video'" [src]="file.file" width="150" height="150" controls playsinline></video>
 
 
                           </ng-container>
@@ -1758,131 +1712,16 @@
                 </mat-form-field>
               </div>
 
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>Email</mat-label>
-                  <input formControlName="email" matInput required
-                         type="mail">
-                  <mat-icon class="mr-2" matPrefix>
-                    main
-                  </mat-icon>
-                </mat-form-field>
-
-
-                <!-- <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>{{'username' | translate }}</mat-label>
-                  <input formControlName="username" matInput type="text"
-                    [(ngModel)]="defaultsUser.username">
-                  <mat-icon class="mr-2" matPrefix
-                    svgIcon="logo:task"></mat-icon>
-                </mat-form-field> -->
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>Password</mat-label>
-                  <input formControlName="password" matInput
-                         type="password">
-                  <mat-icon class="mr-2" matPrefix svgIcon="logo:lock"></mat-icon>
-                </mat-form-field>
-              </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <div style="float:right">
-                  {{'active' |translate}}
-                  <mat-slide-toggle [checked]="checkClientStatus(clientSchool)"
-                                    (change)="setActive($event)"></mat-slide-toggle>
-                </div>
-              </div>
-              <div class="actions flex items-center justify-end gap-2">
-                <button (click)="editing = false; selectedTabIndex = 0" mat-button type="button">
-                  {{'cancel' |
-                  translate }}
-                </button>
-                <button (click)="goTo('/clients')" mat-button type="button">
-                  {{'go_list' | translate }}
-                </button>
-                <button [disabled]="formInfoAccount.invalid" (click)="save()" color="primary"
-                        mat-raised-button>
-                  {{'save' | translate}}
-                </button>
-                <button [disabled]="formInfoAccount.invalid" color="primary" mat-raised-button
-                        matStepperNext>
-                  {{'next' | translate}}
-                </button>
-              </div>
-            </form>
-          </mat-step>
-          <mat-step [stepControl]="formPersonalInfo">
-            <form [formGroup]="formPersonalInfo">
-              <ng-template matStepLabel>
-                {{'personal_data' | translate
-                }}
-              </ng-template>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0;">
-
-
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>{{'birth_date' | translate}}</mat-label>
-                  <input type="date" matInput class="flex-auto" formControlName="fromDate" [max]="minDate" required>
-                  <mat-error *ngIf="formPersonalInfo.controls?.fromDate?.errors?.['required']">
-                    {{'clients.creation.errors.monitor_date' | translate }}
-                  </mat-error>
-                </mat-form-field>
-
-
-              </div>
-
-
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                 <mat-form-field appearance="outline" class="flex-auto">
                   <mat-label>
-                    {{'phone' | translate }}
+                    {{'client_observations' | translate}}
                   </mat-label>
-
-
-                  <input formControlName="phone" matInput type="tel">
-                  <mat-icon class="mr-2" matPrefix>
-                    phone
-                  </mat-icon>
-                </mat-form-field>
-
-
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'mobile' | translate }}
-                  </mat-label>
-                  <input formControlName="mobile" matInput required
-                         type="tel">
-                  <mat-icon class="mr-2" matPrefix>
-                    phone
-                  </mat-icon>
+                  <textarea formControlName="observation"
+                            matInput></textarea>
                 </mat-form-field>
               </div>
 
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'address' | translate }}
-                  </mat-label>
-
-
-                  <input formControlName="address" matInput
-                         type="text">
-                  <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
-                </mat-form-field>
-
-
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'cp' | translate }}
-                  </mat-label>
-                  <input formControlName="postalCode" matInput type="text">
-                  <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
-                </mat-form-field>
-              </div>
 
 
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
@@ -2173,31 +2012,9 @@
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                 <mat-form-field appearance="outline" class="flex-auto">
                   <mat-label>
-                    {{'observation_general' |translate}}
+                    {{'client_observations' | translate}}
                   </mat-label>
-                  <textarea formControlName="summary"
-                            matInput></textarea>
-                </mat-form-field>
-              </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'observation_school' |translate}}
-                  </mat-label>
-                  <textarea formControlName="notes"
-                            matInput></textarea>
-                </mat-form-field>
-              </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'historical' | translate }}
-                  </mat-label>
-                  <textarea formControlName="hitorical"
+                  <textarea formControlName="observation"
                             matInput></textarea>
                 </mat-form-field>
               </div>

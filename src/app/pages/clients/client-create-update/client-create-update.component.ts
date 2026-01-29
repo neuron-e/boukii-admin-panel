@@ -89,9 +89,7 @@ export class ClientCreateUpdateComponent implements OnInit {
   }
 
   defaultsObservations = {
-    general: null,
     notes: null,
-    historical: null,
     client_id: null,
     school_id: null
   }
@@ -147,9 +145,7 @@ export class ClientCreateUpdateComponent implements OnInit {
 
     this.formSportInfo = this.fb.group({
       sportName: [''],
-      summary: [''],
-      notes: [''],
-      hitorical: ['']
+      observation: ['']
     });
 
     this.filteredCountries = this.myControlCountries.valueChanges.pipe(
@@ -429,7 +425,6 @@ export class ClientCreateUpdateComponent implements OnInit {
           }));
 
         const dependentRequests = [
-          this.crudService.create('/client-observations', this.defaultsObservations),
           this.crudService.create('/clients-schools', {
             client_id: clientId,
             school_id: schoolId,
@@ -439,6 +434,9 @@ export class ClientCreateUpdateComponent implements OnInit {
           }),
           ...sportsPayloads.map(payload => this.crudService.create('/client-sports', payload))
         ];
+        if (this.defaultsObservations.notes) {
+          dependentRequests.push(this.crudService.create('/client-observations', this.defaultsObservations));
+        }
 
         return forkJoin(dependentRequests).pipe(
           tap(() => {
@@ -494,6 +492,7 @@ export class ClientCreateUpdateComponent implements OnInit {
   private preparePayloads() {
     const accountValues = this.formInfoAccount.value;
     const personalValues = this.formPersonalInfo.value;
+    const sportValues = this.formSportInfo.value;
 
     this.defaults.first_name = accountValues?.name;
     this.defaults.last_name = accountValues?.surname;
@@ -511,6 +510,7 @@ export class ClientCreateUpdateComponent implements OnInit {
     if ((this.defaults as any).hasOwnProperty('is_vip')) {
       delete (this.defaults as any).is_vip;
     }
+    this.defaultsObservations.notes = (sportValues?.observation || '').trim() || null;
     this.setLanguages();
   }
 

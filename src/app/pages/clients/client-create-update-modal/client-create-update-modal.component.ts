@@ -88,9 +88,7 @@ export class ClientCreateUpdateModalComponent implements OnInit {
   }
 
   defaultsObservations = {
-    general: null,
     notes: null,
-    historical: null,
     client_id: null,
     school_id: null
   }
@@ -147,9 +145,7 @@ export class ClientCreateUpdateModalComponent implements OnInit {
 
     this.formSportInfo = this.fb.group({
       sportName: [''],
-      summary: [''],
-      notes: [''],
-      hitorical: [''],
+      observation: [''],
       acceptsNewsletter: [false]
     });
 
@@ -386,7 +382,13 @@ export class ClientCreateUpdateModalComponent implements OnInit {
 
             this.defaultsObservations.client_id = client.data.id;
             this.defaultsObservations.school_id = this.user.schools[0].id;
-            this.crudService.create('/client-observations', this.defaultsObservations).subscribe((obs) => { })
+            const observationNote = (this.formSportInfo.get('observation')?.value || '').trim();
+            if (observationNote) {
+              this.crudService.create('/client-observations', {
+                ...this.defaultsObservations,
+                notes: observationNote
+              }).subscribe(() => { });
+            }
             this.crudService.create('/clients-schools', {
               client_id: client.data.id,
               school_id: this.user.schools[0].id,

@@ -133,12 +133,12 @@ export class ClientDetailComponent {
 
   defaultsObservations = {
     id: null,
-    general: '',
     notes: '',
-    historical: '',
     client_id: null,
     school_id: null
   }
+  observationHistory: string[] = [];
+  newObservationNote = '';
 
   defaultsUser = {
     id: null,
@@ -266,9 +266,7 @@ export class ClientDetailComponent {
       });
 
       this.formOtherInfo = this.fb.group({
-        summary: [''],
-        notes: [''],
-        hitorical: ['']
+        observation: ['']
       });
 
     }));
@@ -321,18 +319,16 @@ export class ClientDetailComponent {
               this.evaluationFullfiled.push(element);
             });
           });
-          if (data.data.observations.length > 0) {
-            this.defaultsObservations = data.data.observations[0];
-          } else {
-            this.defaultsObservations = {
-              id: null,
-              general: '',
-              notes: '',
-              historical: '',
-              client_id: null,
-              school_id: null
-            };
-          }
+          const observations = Array.isArray(data.data.observations) ? data.data.observations : [];
+          this.observationHistory = observations
+            .map((obs: any) => this.normalizeObservationText(obs))
+            .filter((text: string) => text.length > 0);
+          this.defaultsObservations = {
+            id: null,
+            notes: '',
+            client_id: null,
+            school_id: null
+          };
           this.currentImage = data.data.image;
           if (!onChangeUser) {
             this.mainClient = data.data;
@@ -441,9 +437,7 @@ export class ClientDetailComponent {
     }
 
     this.formOtherInfo.patchValue({
-      summary: this.defaultsObservations?.general || '',
-      notes: this.defaultsObservations?.notes || '',
-      hitorical: this.defaultsObservations?.historical || ''
+      observation: ''
     }, { emitEvent: false });
   }
 
@@ -491,9 +485,7 @@ export class ClientDetailComponent {
 
     if (this.formOtherInfo) {
       const other = this.formOtherInfo.getRawValue();
-      this.defaultsObservations.general = other.summary || '';
-      this.defaultsObservations.notes = other.notes || '';
-      this.defaultsObservations.historical = other.hitorical || '';
+      this.newObservationNote = (other.observation || '').trim();
     }
   }
 
@@ -937,6 +929,24 @@ export class ClientDetailComponent {
     return `${year}-${month}-${day}`;
   };
 
+  private normalizeObservationText(obs: any): string {
+    if (!obs) return '';
+    const parts: string[] = [];
+    const notes = (obs.notes || '').trim();
+    const general = (obs.general || '').trim();
+    const historical = (obs.historical || '').trim();
+    if (notes) {
+      parts.push(notes);
+    }
+    if (general) {
+      parts.push(`General: ${general}`);
+    }
+    if (historical) {
+      parts.push(`Historial: ${historical}`);
+    }
+    return parts.join('\n').trim();
+  }
+
   save() {
     this.syncFormsToModel();
     this.setLanguages();
@@ -963,8 +973,12 @@ export class ClientDetailComponent {
             this.snackbar.open(this.translateService.instant('snackbar.client.update'), 'OK', { duration: 3000 });
             this.defaultsObservations.client_id = client.data.id;
             this.defaultsObservations.school_id = this.user.schools[0].id;
-            if (this.defaultsObservations.id) this.crudService.update('/client-observations', this.defaultsObservations, this.defaultsObservations.id).subscribe(() => { })
-            else this.crudService.create('/client-observations', this.defaultsObservations).subscribe(() => { })
+            if (this.newObservationNote) {
+              this.crudService.create('/client-observations', {
+                ...this.defaultsObservations,
+                notes: this.newObservationNote
+              }).subscribe(() => { });
+            }
             this.sportsData.data.forEach(element => {
               this.crudService.create('/client-sports', {
                 client_id: client.data.id,

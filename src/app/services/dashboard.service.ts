@@ -28,6 +28,7 @@ export interface TodayOperations {
   courses_today: number;
   group_courses: number;
   private_courses: number;
+  assigned_courses?: number;
   assigned_monitors: number;
   assigned_monitors_group?: number;
   assigned_monitors_private?: number;
@@ -50,6 +51,7 @@ export interface SportBreakdown {
 export interface GroupCourse {
   course_id: number;
   course_name: string;
+  course_icon?: string | null;
   groups_count: number;
   assigned_monitors: number;
   participants: number;
@@ -64,6 +66,7 @@ export interface GroupCourse {
 export interface PrivateCourse {
   id: number;
   course_name: string;
+  course_icon?: string | null;
   client_name?: string;
   monitor_name?: string;
   is_paid: boolean;
