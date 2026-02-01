@@ -362,3 +362,14 @@ button {
     margin-top: 6px;
   }
 }
+
+
+.students-load-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.text-button mat-progress-spinner {
+  display: inline-flex;
+}

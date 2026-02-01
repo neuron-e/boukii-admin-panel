@@ -12,15 +12,18 @@
 			[route]="'courses'" [createComponent]="createComponent" [canDelete]="false" [canDeactivate]="true"
 			[ngClass]="{'table-show-detail': this.showDetail}" [sectionIcon]="icon" [canDuplicate]="true"
 			[withHeader]="false" [showDetail]="showDetail"
-			[with]="['user', 'sport', 'courseDates.courseGroups.courseSubgroups', 'courseDates.courseSubgroups',
-			 'bookingUsersActive.client', 'bookingUsersActive.courseSubgroup', 'bookingUsersActive.monitor']"
+			[with]="['sport', 'station']"
 			[updatePage]="'detail'" [filterColumn]="'school_id'" [filterField]="user.schools[0].id"
 			(showDetailEvent)="showDetailEvent($event)"></vex-aio-table>
 	</vex-page-layout-content>
 
 	<vex-page-layout-content *ngIf="showDetail" class="fullwidth col-right">
-		<vex-course-detail-card [courseFormGroup]="courses.courseFormGroup" (open)="goTo('courses/detail/'+$event)"
-			(close)="showDetail=!showDetail">
+		<div *ngIf="loadingDetail" class="detail-loader">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    </div>
+		<vex-course-detail-card *ngIf="!loadingDetail" [courseFormGroup]="courses.courseFormGroup"
+      [showLoadStudents]="lightDetail" [loadingStudents]="loadingStudents" (loadStudents)="loadBookingUsers()"
+      (open)="goTo('courses/detail/'+$event)" (close)="showDetail=!showDetail">
 		</vex-course-detail-card>
 	</vex-page-layout-content>
 </vex-page-layout>

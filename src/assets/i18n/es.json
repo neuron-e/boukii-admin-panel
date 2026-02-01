@@ -2348,5 +2348,6 @@
   "common.total": "Total",
   "common.unpaid": "No pagado",
   "dashboard.group_course_groups": "Grupos de cursos colectivos",
-  "dashboard.weather": "Tiempo"
+  "dashboard.weather": "Tiempo",
+  "load_students": "Cargar alumnos"
 }

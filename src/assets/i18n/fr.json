@@ -2378,5 +2378,6 @@
   "dashboard.weather": "M?t?o",
   "dashboard.system_administration": "Syst?me et administration",
   "dashboard.background_tasks_status": "T?ches de fond et ?tat du syst?me",
-  "dashboard.course_overbooking": "Surbooking des cours"
+  "dashboard.course_overbooking": "Surbooking des cours",
+  "load_students": "Charger les ?l?ves"
 }

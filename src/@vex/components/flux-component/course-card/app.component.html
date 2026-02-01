@@ -306,6 +306,14 @@
             </p>
           </div>
 
+          <div class="expand-buttons" *ngIf="showLoadStudents">
+            <button type="button" class="text-button" (click)="loadStudents.emit()" [disabled]="loadingStudents">
+              <mat-icon>groups</mat-icon>
+              <span *ngIf="!loadingStudents">{{'load_students' | translate}}</span>
+              <mat-progress-spinner *ngIf="loadingStudents" diameter="16" mode="indeterminate"></mat-progress-spinner>
+            </button>
+          </div>
+
           <!-- Botones para expandir/colapsar todos los intervalos -->
           <div class="expand-buttons" *ngIf="groupedCourseDates.size > 1">
             <button type="button" (click)="expandAllIntervals()" class="text-button">

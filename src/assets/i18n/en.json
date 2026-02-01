@@ -2344,5 +2344,6 @@
   "common.total": "Total",
   "common.unpaid": "Unpaid",
   "dashboard.group_course_groups": "Group course groups",
-  "dashboard.weather": "Weather"
+  "dashboard.weather": "Weather",
+  "load_students": "Load students"
 }

@@ -33,7 +33,8 @@ import { ComponenteSelectModule } from 'src/@vex/components/form/select/app.modu
 import { CourseOpcionComponent } from './components/opcion/opcion.component';
 import { CourseStatisticsComponent } from './course-statistics/course-statistics.component';
 import {MatTooltipModule} from '@angular/material/tooltip';
-import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ConfirmDialogModule } from 'src/@vex/components/confirm-dialog/confirm-dialog.module';
 
 @NgModule({
@@ -75,6 +76,7 @@ import { ConfirmDialogModule } from 'src/@vex/components/confirm-dialog/confirm-
     CourseOpcionComponent,
     MatTooltipModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
     ConfirmDialogModule
   ]
 })

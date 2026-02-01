@@ -308,8 +308,13 @@
         </button>
       </div>
       </ng-container>
-      <table #dataTable *ngIf="!loading" [dataSource]="dataSource" (matSortChange)="sortData($event)" @stagger
-             class="w-full" mat-table matSort>
+        <div class="table-loader" *ngIf="loading">
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <div class="table-loader-label">{{ 'common.loading' | translate }}</div>
+        </div>
+
+        <table #dataTable *ngIf="!loading" [dataSource]="dataSource" (matSortChange)="sortData($event)" @stagger
+               class="w-full" mat-table matSort>
 
         <!-- - Note that these columns can be defined in any order.
               The actual rendered columns are set as a property on the row definition" -->

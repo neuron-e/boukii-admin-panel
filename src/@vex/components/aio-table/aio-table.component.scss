@@ -95,6 +95,18 @@ th {
   display: flex;
   gap: 32px;
 }
+
+.table-loader {
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.table-loader-label {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
 .filter-container-column {
   display: flex;
   flex-direction: column;

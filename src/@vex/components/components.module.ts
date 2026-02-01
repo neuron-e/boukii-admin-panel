@@ -13,6 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import {MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBarModule} from '@angular/material/snack-bar';
 import { AioTableComponent } from './aio-table/aio-table.component';
 import { LayoutModule } from '@angular/cdk/layout';
@@ -55,6 +56,7 @@ import { ComponenteButtonModule } from './form/button/app.module';
     LayoutModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
     BookingsCreateUpdateModule,
     CoursesCreateUpdateModule,
     MatAutocompleteModule,

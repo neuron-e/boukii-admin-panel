@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { forkJoin } from 'rxjs';
 import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import { CoursesCreateUpdateComponent } from './courses-create-update/courses-create-update.component';
 import { ApiCrudService } from 'src/service/crud.service';
@@ -9,6 +10,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import jsPDF from 'jspdf';
 import * as QRCode from 'qrcode';
 import { CoursesService } from 'src/service/courses.service';
+import { finalize } from 'rxjs/operators';
 
 
 @Component({
@@ -20,6 +22,9 @@ import { CoursesService } from 'src/service/courses.service';
 export class CoursesComponent {
 
   showDetail: boolean = false;
+  lightDetail: boolean = true;
+  loadingStudents: boolean = false;
+  loadingDetail: boolean = false;
   detailData: any;
   selectedLevel: any;
   imagePath = 'https://api.boukii.com/storage/icons/collectif_ski2x.png';
@@ -64,69 +69,40 @@ export class CoursesComponent {
     const shouldProcess = event.showDetail || (!event.showDetail && this.detailData !== null && this.detailData.id !== event.item.id);
 
     if (shouldProcess) {
-      this.detailData = event.item;
-      this.groupedByColor = {};
-      this.colorKeys = [];
-
-      if (this.detailData.course_type == 1) {
-        this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id=' + this.detailData.sport_id)
-          .subscribe((data) => {
-            this.detailData.degrees = [];
-            data.data.forEach((element: any) => {
-              if (element.active) this.detailData.degrees.push({ ...element, Subgrupo: this.getSubGroups(element.id) });
-            });
-            this.detailData.degrees.forEach((level: any) => {
-              if (!this.groupedByColor[level.color]) this.groupedByColor[level.color] = [];
-              level.active = false;
-              this.detailData.course_dates.forEach((cs: any) => {
-                if(cs.course_groups) {
-                  cs.course_groups.forEach((group: any) => {
-                    if (group.degree_id === level.id) {
-                      level.active = true;
-                      level.old = true;
-                    }
-                    level.visible = false;
-                  });
-                }
-              });
-              this.groupedByColor[level.color].push(level);
-            });
-            this.colorKeys = Object.keys(this.groupedByColor);
-            //this.crudService.list('/stations', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id)
-            //  .subscribe((st: any) => {
-            //    st.data.forEach((element: any) => {
-            //      if (element.id === this.detailData.station_id) this.detailData.station = element
-            //    });
-            //  })
-            // Load booking users for the detail view - only active bookings (status = 1)
-            this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&status=1&with[]=client')
-            .subscribe((bookingUser: any) => {
-                this.detailData.booking_users_active = bookingUser.data || [];
-                this.detailData.booking_users = bookingUser.data || [];
-                this.detailData.users = bookingUser.data || [];
-                this.courses.settcourseFormGroup(this.detailData)
-                this.showDetail = true;
-              });
-            // Remove the original settcourseFormGroup call since it now happens in the booking users callback
-          });
-      } else  {
+      this.lightDetail = true;
+      this.loadingStudents = false;
+      const courseId = event?.item?.id;
+      if (!courseId) {
+        this.detailData = event.item;
+        this.loadingDetail = false;
         this.showDetail = true;
+        return;
+      }
 
-        // For course previews, we also need to load degrees and booking users for collective courses
+      this.showDetail = true;
+      this.loadingDetail = true;
+
+      this.crudService.get('/admin/courses/' + courseId)
+        .pipe(finalize(() => {
+          this.loadingDetail = false;
+        }))
+        .subscribe((course) => {
+        this.detailData = course?.data || event.item;
+        this.groupedByColor = {};
+        this.colorKeys = [];
+
         if (this.detailData.course_type === 1) {
-          // Load degrees first
           this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id=' + this.detailData.sport_id)
-            .subscribe((degreesData) => {
+            .subscribe((data) => {
               this.detailData.degrees = [];
-              degreesData.data.forEach((element: any) => {
-                if (element.active) this.detailData.degrees.push({ ...element, Subgrupo: this.getSubGroups(element.id) });
+              data.data.forEach((element: any) => {
+                if (element.active) this.detailData.degrees.push({ ...element, Subgrupo: this.lightDetail ? 0 : this.getSubGroups(element.id) });
               });
-
-              // Set up degrees with course groups relation like in detail view
               this.detailData.degrees.forEach((level: any) => {
+                if (!this.groupedByColor[level.color]) this.groupedByColor[level.color] = [];
                 level.active = false;
                 this.detailData.course_dates.forEach((cs: any) => {
-                  if(cs.course_groups) {
+                  if (cs.course_groups) {
                     cs.course_groups.forEach((group: any) => {
                       if (group.degree_id === level.id) {
                         level.active = true;
@@ -136,21 +112,31 @@ export class CoursesComponent {
                     });
                   }
                 });
+                this.groupedByColor[level.color].push(level);
               });
-
-              // Now load booking users
-              this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&status=1&with[]=client')
-                .subscribe((bookingUser) => {
-                  this.detailData.booking_users_active = bookingUser.data || [];
-                  this.detailData.booking_users = bookingUser.data || [];
-                  this.detailData.users = bookingUser.data || [];
-                  this.courses.settcourseFormGroup(this.detailData, true);
-                });
+              this.colorKeys = Object.keys(this.groupedByColor);
+              if (this.lightDetail) {
+                this.detailData.booking_users_active = [];
+                this.detailData.booking_users = [];
+                this.detailData.users = [];
+                this.courses.settcourseFormGroup(this.detailData);
+                this.showDetail = true;
+              } else {
+                this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + this.detailData.id + '&status=1&with[]=client')
+                  .subscribe((bookingUser: any) => {
+                    this.detailData.booking_users_active = bookingUser.data || [];
+                    this.detailData.booking_users = bookingUser.data || [];
+                    this.detailData.users = bookingUser.data || [];
+                    this.courses.settcourseFormGroup(this.detailData);
+                    this.showDetail = true;
+                  });
+              }
             });
         } else {
           this.courses.settcourseFormGroup(this.detailData, true);
+          this.showDetail = true;
         }
-      }
+      });
 
     } else {
       this.showDetail = event.showDetail;
@@ -209,35 +195,74 @@ export class CoursesComponent {
 
   getMaxStudents(levelId: any) {
     let ret = 0;
-    this.detailData.course_dates[0].course_groups.forEach(group => {
-      if (group.degree_id === levelId) group.course_subgroups.forEach(sb => ret = ret + sb.max_participants);
+    const dates = Array.isArray(this.detailData?.course_dates) ? this.detailData.course_dates : [];
+    const firstDate = dates[0];
+    const groups = firstDate?.course_groups || [];
+    groups.forEach(group => {
+      if (group.degree_id === levelId) (group.course_subgroups || []).forEach(sb => ret = ret + (sb.max_participants || 0));
     });
     return ret;
   }
 
   getGroups(levelId: any) {
     let ret = 0;
-    this.detailData.course_dates.forEach(courseDate => {
-      courseDate.course_groups.forEach(group => {
-        if (group.degree_id === levelId) ret = group.course_subgroups.length
+    const dates = Array.isArray(this.detailData?.course_dates) ? this.detailData.course_dates : [];
+    dates.forEach(courseDate => {
+      const groups = courseDate?.course_groups || [];
+      groups.forEach(group => {
+        if (group.degree_id === levelId) ret = (group.course_subgroups || []).length;
       });
     }); return ret;
   }
 
   getSubGroups(levelId: any) {
     let ret = 0;
-    this.detailData.course_dates.forEach(courseDate => {
+    const dates = Array.isArray(this.detailData?.course_dates) ? this.detailData.course_dates : [];
+    dates.forEach(courseDate => {
       let find = false;
-      if(courseDate.course_groups) {
-        courseDate.course_groups.forEach(group => {
+      const groups = courseDate?.course_groups || [];
+      if (groups.length) {
+        groups.forEach(group => {
           if (group.degree_id === levelId && !find) {
-            ret = group.course_subgroups[0]?.max_participants;
+            ret = (group.course_subgroups || [])[0]?.max_participants;
             find = true;
           }
         });
       }
     });
     return ret;
+  }
+
+  loadBookingUsers() {
+    if (this.loadingStudents || !this.detailData?.id) {
+      return;
+    }
+    this.loadingStudents = true;
+    const courseId = this.detailData.id;
+    forkJoin({
+      course: this.crudService.get('/admin/courses/' + courseId + '?light=1&include_groups=1&include_availability=0'),
+      bookingUsers: this.crudService.list('/booking-users', 1, 10000, 'desc', 'id', '&school_id=' + this.detailData.school_id + '&course_id=' + courseId + '&status=1&with[]=client')
+    }).subscribe({
+      next: (payload: any) => {
+        const courseData = payload?.course?.data || payload?.course?.data === null ? payload.course.data : (payload?.course?.data ?? payload?.course);
+        if (courseData) {
+          this.detailData = { ...this.detailData, ...courseData };
+        }
+        const bookingUser = payload?.bookingUsers;
+        const users = bookingUser?.data || bookingUser?.data === null ? bookingUser.data : (bookingUser?.data ?? bookingUser);
+        this.detailData.booking_users_active = users || [];
+        this.detailData.booking_users = users || [];
+        this.detailData.users = users || [];
+        this.lightDetail = false;
+        this.courses.settcourseFormGroup(this.detailData);
+      },
+      error: () => {
+        this.loadingStudents = false;
+      },
+      complete: () => {
+        this.loadingStudents = false;
+      }
+    });
   }
 
   goTo(route: string) {
@@ -248,8 +273,14 @@ export class CoursesComponent {
   selectGroup(level: any) {
     this.selectedGroup = [];
     this.selectedLevel = level;
-    const item = this.detailData.course_dates[0].course_groups.find((g) => g.degree_id === level.id);
-    if (item) this.selectedGroup = item.course_subgroups;
+    const dates = Array.isArray(this.detailData?.course_dates) ? this.detailData.course_dates : [];
+    const firstDate = dates[0];
+    const groups = firstDate?.course_groups || [];
+    const item = groups.find((g) => g.degree_id === level.id);
+    if (item) this.selectedGroup = item.course_subgroups || [];
+    if (this.lightDetail) {
+      return;
+    }
     this.selectedGroup.forEach(element => this.crudService.list('/booking-users', 1, 10000, 'asc', 'id', '&course_subgroup_id=' + element.id + '&status=1')
       .subscribe((data) => {
         const bookings = Array.isArray(data.data) ? data.data : [];

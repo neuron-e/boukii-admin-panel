@@ -60,61 +60,71 @@ export class CoursesComponent {
   showDetailEvent(event: any) {
 
     if (event.showDetail || (!event.showDetail && this.detailData !== null && this.detailData.id !== event.item.id)) {
-      this.detailData = event.item;
+      const courseId = event?.item?.id;
+      if (!courseId) {
+        this.detailData = event.item;
+        this.showDetail = true;
+        return;
+      }
 
-      this.groupedByColor = {};
-      this.colorKeys= [];
-      this.crudService.list('/degrees', 1, 10000,'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id='+ this.detailData.sport_id)
-        .subscribe((data) => {
-          this.detailData.degrees = [];
-          data.data.forEach(element => {
-            if(element.active) {
-              this.detailData.degrees.push(element);
-            }
-          });
+      this.crudService.get('/admin/courses/' + courseId)
+        .subscribe((course) => {
+          this.detailData = course?.data || event.item;
+          this.groupedByColor = {};
+          this.colorKeys= [];
 
-
-           this.detailData.degrees.forEach(level => {
-            if (!this.groupedByColor[level.color]) {
-              this.groupedByColor[level.color] = [];
-            }
-            level.active = false;
-
-
-            this.detailData.course_dates.forEach(cs => {
-              cs.course_groups.forEach(group => {
-                if (group.degree_id === level.id) {
-                  level.active = true;
-                  level.old = true;
+          this.crudService.list('/degrees', 1, 10000,'asc', 'degree_order', '&school_id=' + this.detailData.school_id + '&sport_id='+ this.detailData.sport_id)
+            .subscribe((data) => {
+              this.detailData.degrees = [];
+              data.data.forEach(element => {
+                if(element.active) {
+                  this.detailData.degrees.push(element);
                 }
-                level.visible = false;
               });
-            });
-            this.groupedByColor[level.color].push(level);
-          });
 
-          this.colorKeys = Object.keys(this.groupedByColor);
-          this.showDetail = true;
+
+               this.detailData.degrees.forEach(level => {
+                if (!this.groupedByColor[level.color]) {
+                  this.groupedByColor[level.color] = [];
+                }
+                level.active = false;
+
+
+                this.detailData.course_dates.forEach(cs => {
+                  cs.course_groups.forEach(group => {
+                    if (group.degree_id === level.id) {
+                      level.active = true;
+                      level.old = true;
+                    }
+                    level.visible = false;
+                  });
+                });
+                this.groupedByColor[level.color].push(level);
+              });
+
+              this.colorKeys = Object.keys(this.groupedByColor);
+              this.showDetail = true;
+            });
+
+            this.crudService.list('/stations', 1, 10000,  'desc', 'id', '&school_id=' + this.detailData.school_id)
+              .subscribe((st) => {
+                st.data.forEach(element => {
+                  if (element.id === this.detailData.station_id) {
+                    this.detailData.station = element;
+                  }
+                });
+              })
+            this.crudService.list('/booking-users', 1, 10000,
+              'desc', 'id',
+              '&school_id=' + this.detailData.school_id + '&course_id='+ this.detailData.id,
+              null, null, null, ['courseDate'])
+              .subscribe((bookingUser) => {
+                this.detailData.users = [];
+                this.detailData.users = bookingUser.data;
+                this.showDetail = true;
+
+              })
         });
-
-        this.crudService.list('/stations', 1, 10000,  'desc', 'id', '&school_id=' + this.detailData.school_id)
-          .subscribe((st) => {
-            st.data.forEach(element => {
-              if (element.id === this.detailData.station_id) {
-                this.detailData.station = element;
-              }
-            });
-          })
-        this.crudService.list('/booking-users', 1, 10000,
-          'desc', 'id',
-          '&school_id=' + this.detailData.school_id + '&course_id='+ this.detailData.id,
-          null, null, null, ['courseDate'])
-          .subscribe((bookingUser) => {
-            this.detailData.users = [];
-            this.detailData.users = bookingUser.data;
-            this.showDetail = true;
-
-          })
     } else {
       this.showDetail = event.showDetail;
     }

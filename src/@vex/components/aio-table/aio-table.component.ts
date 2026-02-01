@@ -379,6 +379,9 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
    */
   getFilteredData(pageIndex: number, pageSize: number, filter: any) {
     pageSize = this.getCappedPageSize(pageSize);
+    const availabilityFilter = this.entity && this.entity.includes('/admin/courses') && pageSize >= 25
+      ? '&include_availability=0&light=1'
+      : (this.entity && this.entity.includes('/admin/courses') ? '&light=1' : '');
     const requestKey = [
       this.entity,
       pageIndex,
@@ -406,7 +409,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       pageSize,
       this.Sort.direction,
       this.backendOrderColumn,
-      this.searchCtrl.value + filter + '&school_id=' + this.user.schools[0].id + this.search +
+      this.searchCtrl.value + filter + availabilityFilter + '&school_id=' + this.user.schools[0].id + this.search +
       (this.filterField !== null ? '&' + this.filterColumn + '=' + this.filterField : ''),
       '',
       null,
@@ -1239,20 +1242,40 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     return formattedDuration.trim();
   }
 
-  countActives = (dates: any): number => dates.filter((objeto: any) => objeto.active === 1 || objeto.active === true).length;
+  countActives = (dates: any): number => {
+    if (!dates) return 0;
+    if (Array.isArray(dates)) {
+      return dates.filter((objeto: any) => objeto.active === 1 || objeto.active === true).length;
+    }
+    if (typeof dates === 'object') {
+      return Number(dates.count ?? dates.total ?? 0);
+    }
+    return 0;
+  };
 
-  findFirstActive(dates: any[]) {
-    if (dates.length > 0) {
-      let min = dates.find((objeto: any) => objeto.active === 1 || objeto.active === true);
-      let max = dates.slice().reverse().find((objeto: any) => objeto.active === 1 || objeto.active === true);
+  findFirstActive(dates: any) {
+    if (!dates) {
+      return { min: null, max: null };
+    }
+    if (Array.isArray(dates)) {
+      if (dates.length === 0) {
+        return { min: null, max: null };
+      }
+      const min = dates.find((objeto: any) => objeto.active === 1 || objeto.active === true);
+      const max = dates.slice().reverse().find((objeto: any) => objeto.active === 1 || objeto.active === true);
 
       return {
         min: min ? min.date : null,
         max: max ? max.date : null
       };
-    } else {
-      return { min: null, max: null };
     }
+    if (typeof dates === 'object') {
+      return {
+        min: dates.min ?? dates.min_date ?? null,
+        max: dates.max ?? dates.max_date ?? null
+      };
+    }
+    return { min: null, max: null };
   }
 
   /* EXPORT QR */

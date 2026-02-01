@@ -2346,5 +2346,6 @@
   "dashboard.weather": "Meteo",
   "dashboard.system_administration": "Sistema e amministrazione",
   "dashboard.background_tasks_status": "Attivit? in background e stato del sistema",
-  "dashboard.course_overbooking": "Corsi in overbooking"
+  "dashboard.course_overbooking": "Corsi in overbooking",
+  "load_students": "Carica allievi"
 }
