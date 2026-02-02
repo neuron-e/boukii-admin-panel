@@ -1713,18 +1713,6 @@
               </div>
 
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'client_observations' | translate}}
-                  </mat-label>
-                  <textarea formControlName="observation"
-                            matInput></textarea>
-                </mat-form-field>
-              </div>
-
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                 <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
                   <mat-label>
                     {{'country' | translate }}
@@ -1793,9 +1781,87 @@
                         mat-raised-button>
                   {{'save' | translate}}
                 </button>
-                <button [disabled]="formPersonalInfo.invalid" color="primary" mat-raised-button
+                <button [disabled]="formInfoAccount.invalid" color="primary" mat-raised-button
                         matStepperNext>
                   {{'next' |translate}}
+                </button>
+              </div>
+            </form>
+          </mat-step>
+
+
+          <mat-step [stepControl]="formPersonalInfo">
+            <form [formGroup]="formPersonalInfo">
+              <ng-template matStepLabel>
+                {{'personal_data' | translate}}
+              </ng-template>
+
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0;">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'birth_date' | translate}}
+                  </mat-label>
+                  <input formControlName="fromDate" matInput type="date" [max]="minDate" required>
+                  <mat-icon class="mr-2" matPrefix svgIcon="mat:calendar_today"></mat-icon>
+                </mat-form-field>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'phone' | translate}}
+                  </mat-label>
+                  <input formControlName="phone" matInput type="tel">
+                  <mat-icon class="mr-2" matPrefix>phone</mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'mobile' | translate}}
+                  </mat-label>
+                  <input formControlName="mobile" matInput required type="tel">
+                  <mat-icon class="mr-2" matPrefix>phone</mat-icon>
+                  <mat-error *ngIf="formPersonalInfo.controls?.mobile?.errors?.['required']">
+                    {{'clients.creation.errors.mobile' | translate}}
+                  </mat-error>
+                </mat-form-field>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'address' | translate}}
+                  </mat-label>
+                  <input formControlName="address" matInput type="text">
+                  <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'cp' | translate}}
+                  </mat-label>
+                  <input formControlName="postalCode" matInput type="text">
+                  <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
+                </mat-form-field>
+              </div>
+
+              <div class="actions flex items-center justify-end gap-2">
+                <button (click)="editing = false; selectedTabIndex = 0" mat-button type="button">
+                  {{'cancel' | translate}}
+                </button>
+                <button (click)="goTo('/clients')" mat-button type="button">
+                  {{'go_list' | translate}}
+                </button>
+                <button [disabled]="formInfoAccount.invalid" (click)="save()" color="primary"
+                        mat-raised-button>
+                  {{'save' | translate}}
+                </button>
+                <button mat-button matStepperPrevious type="button">
+                  {{'back' | translate}}
+                </button>
+                <button [disabled]="formPersonalInfo.invalid" color="primary" mat-raised-button
+                        matStepperNext>
+                  {{'next' | translate}}
                 </button>
               </div>
             </form>
@@ -1991,7 +2057,7 @@
                 <button (click)="goTo('/clients')" mat-button type="button">
                   {{'go_list' | translate }}
                 </button>
-                <button [disabled]="formPersonalInfo.invalid" color="primary" mat-raised-button>
+                <button [disabled]="formSportInfo.invalid" color="primary" mat-raised-button>
                   {{'save' |translate}}
                 </button>
               </div>
@@ -2048,7 +2114,7 @@
                 <button (click)="goTo('/clients')" mat-button type="button">
                   {{'go_list' | translate }}
                 </button>
-                <button [disabled]="formPersonalInfo.invalid" (click)="save()" color="primary"
+                <button [disabled]="formOtherInfo.invalid" (click)="save()" color="primary"
                         mat-raised-button>
                   {{'save' | translate}}
                 </button>
