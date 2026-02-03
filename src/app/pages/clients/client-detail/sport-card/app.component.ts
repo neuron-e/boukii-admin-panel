@@ -17,7 +17,7 @@ export class SportCardComponent {
   @Input() center: boolean = false
   expanded = false;
   editingGoalId: number | null = null;
-  editingScore = 0;
+  editingScore: number | null = 0;
   newComment = '';
   savingComment = false;
   uploadingFiles = false;
@@ -44,9 +44,9 @@ export class SportCardComponent {
   }
 
   getDegreeScore(goal: any) {
-    const d = this.user.evaluationFullfiled.find((element: any) => element.degrees_school_sport_goals_id === goal)
-    if (d) return d.score
-    return 0
+    const d = this.user.evaluationFullfiled.find((element: any) => element.degrees_school_sport_goals_id === goal);
+    if (d) return d.score;
+    return null;
   }
 
   toggleExpanded(): void {
@@ -114,11 +114,15 @@ export class SportCardComponent {
   }
 
   async saveGoalEdit(goalId: number): Promise<void> {
-    await this.user.updateGoalScore(this.level, goalId, this.editingScore);
+    if (this.editingScore === null || this.editingScore === undefined) {
+      await this.user.clearGoalScore(this.level, goalId);
+    } else {
+      await this.user.updateGoalScore(this.level, goalId, this.editingScore);
+    }
     this.cancelEditGoal();
   }
 
-  setEditingScore(score: number): void {
+  setEditingScore(score: number | null): void {
     this.editingScore = score;
   }
 
@@ -163,15 +167,32 @@ export class SportCardComponent {
   }
 
   getGoalStatusLabel(goalId: any): string {
-    const score = Number(this.getDegreeScore(goalId) || 0);
-    return score >= 10
+    const score = this.getDegreeScore(goalId);
+    if (score === null || score === undefined) {
+      return this.translateService.instant('not_started');
+    }
+    const normalized = Number(score || 0);
+    return normalized >= 10
       ? this.translateService.instant('achieved')
       : this.translateService.instant('to_improve');
   }
 
   getGoalStatusClass(goalId: any): string {
-    const score = Number(this.getDegreeScore(goalId) || 0);
-    return score >= 10 ? 'goal-status--done' : 'goal-status--partial';
+    const score = this.getDegreeScore(goalId);
+    if (score === null || score === undefined) {
+      return 'goal-status--none';
+    }
+    const normalized = Number(score || 0);
+    return normalized >= 10 ? 'goal-status--done' : 'goal-status--partial';
+  }
+
+  isGoalClearable(goalId: number): boolean {
+    return this.getDegreeScore(goalId) !== null && this.getDegreeScore(goalId) !== undefined;
+  }
+
+  async clearGoalScore(goalId: number): Promise<void> {
+    if (!this.isGoalClearable(goalId)) return;
+    await this.user.clearGoalScore(this.level, goalId);
   }
 
   getHistoryCount(): number {

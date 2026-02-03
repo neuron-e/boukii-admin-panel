@@ -2029,6 +2029,15 @@ export class ClientDetailComponent {
     await this.getData(this.id, true).toPromise();
   }
 
+  async clearGoalScore(level: any, goalId: number): Promise<void> {
+    const evaluation = this.getEvaluationForLevel(level);
+    if (!evaluation?.id) return;
+    const existing = this.evaluationFullfiled.find((element: any) => element.degrees_school_sport_goals_id === goalId && element.evaluation_id === evaluation.id);
+    if (!existing?.id) return;
+    await this.crudService.delete('/evaluation-fulfilled-goals', existing.id).toPromise();
+    await this.getData(this.id, true).toPromise();
+  }
+
   private readFileAsBase64(file: File): Promise<string | null> {
     return new Promise(resolve => {
       const reader = new FileReader();

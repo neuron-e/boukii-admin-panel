@@ -44,13 +44,18 @@
                 <div class="goal-item">
                     <div class="goal-indicator" [ngClass]="getGoalStatusClass(goal.id)"></div>
                     <div class="goal-name">{{ goal.name }}</div>
-                    <span class="goal-current">{{ getGoalStatusLabel(goal.id) }}</span>
+                    <span class="goal-current" [class.goal-current--clickable]="isGoalClearable(goal.id)" (click)="clearGoalScore(goal.id)">
+                        {{ getGoalStatusLabel(goal.id) }}
+                    </span>
                     <button mat-stroked-button color="accent" class="goal-edit" (click)="startEditGoal(goal.id)">
                         {{ 'edit' | translate }}
                     </button>
                 </div>
                 <div class="goal-edit-panel" *ngIf="editingGoalId === goal.id">
                     <div class="goal-edit-options">
+                        <button mat-stroked-button class="option-btn" [class.active]="editingScore === null" (click)="setEditingScore(null)">
+                            {{ 'not_started' | translate }}
+                        </button>
                         <button mat-stroked-button class="option-btn" [class.active]="editingScore === 0" (click)="setEditingScore(0)">
                             {{ 'to_improve' | translate }}
                         </button>

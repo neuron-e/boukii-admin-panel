@@ -1465,16 +1465,7 @@
                       </div>
                     </div>
 
-                    <div class="list-inner-holder">
-                      <div class="col-left">
-                        <mat-slide-toggle [disabled]="true"
-                                          [checked]="detailData?.has_boukii_care"></mat-slide-toggle>
-                        Boukii Care
-                      </div>
-                      <div class="col-right">
-                        {{detailData?.price_boukii_care | number:'0.2-2'}} {{detailData?.currency}}
-                      </div>
-                    </div>
+                    <div class="list-inner-holder" *ngIf="false"></div>
 
                     <div class="list-inner-holder">
                       <div class="col-left">
@@ -1690,6 +1681,15 @@
                                    (upload)="formInfoAccount.patchValue({image:$event});defaults.image=$event;defaultsUser.image=$event;imagePreviewUrl=$event"
                                    [edit]="true" [width]="200" [height]="200" [roundCropper]="true">
               </vex-flux-upload-img>
+
+              <div class="flex items-center justify-end" style="margin: 8px 0 4px 0;">
+                {{'active' | translate}}
+                <mat-slide-toggle
+                  [(ngModel)]="defaultsUser.active"
+                  [ngModelOptions]="{standalone: true}"
+                  style="margin-left: 8px;">
+                </mat-slide-toggle>
+              </div>
 
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0;">
                 <mat-form-field appearance="outline" class="flex-auto">
