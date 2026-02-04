@@ -39,7 +39,6 @@
               <div>
                 <h1 class="welcome-title">{{ 'dashboard.welcome_back' | translate }}, {{ userName }}!</h1>
                 <mat-form-field appearance="outline" class="date-picker" color="primary">
-                  <mat-icon matPrefix>event</mat-icon>
                   <input
                     matInput
                     [matDatepicker]="dashboardDatepicker"
@@ -96,7 +95,10 @@
               <div class="system-metric-card clickable" (click)="openSystemDetails('pending_payments')">
                 <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.pending_payments || 0)"></span>
                 <mat-icon class="card-icon">credit_card</mat-icon>
-                <span class="card-label">{{ 'dashboard.pending_payments' | translate | uppercase }}</span>
+                <span class="card-label">
+                  {{ 'dashboard.pending_payments' | translate | uppercase }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.pending_payments' | translate">info</mat-icon>
+                </span>
                 <strong class="card-value">{{ systemStats()?.pending_payments || 0 }}</strong>
               </div>
 
@@ -104,7 +106,10 @@
               <div class="system-metric-card clickable" (click)="openSystemDetails('overbooked_groups')">
                 <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.overbookings || 0)"></span>
                 <mat-icon class="card-icon">warning</mat-icon>
-                <span class="card-label">{{ 'dashboard.course_overbooking' | translate | uppercase }}</span>
+                <span class="card-label">
+                  {{ 'dashboard.course_overbooking' | translate | uppercase }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.overbookings' | translate">info</mat-icon>
+                </span>
                 <strong class="card-value">{{ systemStats()?.overbookings || 0 }}</strong>
               </div>
 
@@ -112,7 +117,10 @@
               <div class="system-metric-card clickable" (click)="openSystemDetails('unassigned_all')">
                 <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.unassigned_courses || 0)"></span>
                 <mat-icon class="card-icon">assignment</mat-icon>
-                <span class="card-label">{{ 'dashboard.unassigned_courses' | translate | uppercase }}</span>
+                <span class="card-label">
+                  {{ 'dashboard.unassigned_courses' | translate | uppercase }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.unassigned_courses' | translate">info</mat-icon>
+                </span>
                 <strong class="card-value">{{ systemStats()?.unassigned_courses || 0 }}</strong>
               </div>
 
@@ -120,7 +128,10 @@
               <div class="system-metric-card">
                 <span class="status-dot" [ngClass]="getStatusDotClass(operations()?.free_monitors || 0)"></span>
                 <mat-icon class="card-icon">people</mat-icon>
-                <span class="card-label">{{ 'dashboard.free_monitors' | translate | uppercase }}</span>
+                <span class="card-label">
+                  {{ 'dashboard.free_monitors' | translate | uppercase }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.free_monitors' | translate">info</mat-icon>
+                </span>
                 <strong class="card-value">{{ operations()?.free_monitors || 0 }}</strong>
               </div>
             </div>
@@ -258,17 +269,23 @@
               <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
               <div class="card-content">
                 <span class="value">{{ card.value }}</span>
-                <span class="label">{{ card.label }}</span>
+                <span class="label" [attr.title]="card.tooltip || card.label">
+                  {{ card.label }}
+                  <span class="info-icon info-icon--wrapper" [matTooltip]="card.tooltip || card.label">
+                    <mat-icon [attr.title]="card.tooltip || card.label">info</mat-icon>
+                  </span>
+                </span>
                 <span class="caption" *ngIf="card.caption">{{ card.caption }}</span>
               </div>
 
-              <div class="badge-row" *ngIf="card.badges?.length" [matTooltip]="card.tooltip || ''" [matTooltipDisabled]="!card.tooltip">
+              <div class="badge-row" *ngIf="card.badges?.length">
                 <span class="badge" [ngClass]="badge.tone" *ngFor="let badge of card.badges">
                   <img *ngIf="badge.iconUrl; else badgeIcon" [src]="badge.iconUrl" [alt]="badge.label || ''" />
                   <ng-template #badgeIcon>
                     <mat-icon>{{ badge.icon }}</mat-icon>
                   </ng-template>
-                  <span>{{ badge.value }}</span>
+                  <span class="badge-label" *ngIf="badge.label">{{ badge.label }}</span>
+                  <span class="badge-value">{{ badge.value }}</span>
                 </span>
               </div>
 
@@ -289,7 +306,10 @@
 
           <div class="capacity-overall dark-bar">
             <div class="capacity-header">
-              <span class="capacity-label">{{ 'dashboard.overall_capacity_usage' | translate }}</span>
+              <span class="capacity-label">
+                {{ 'dashboard.overall_capacity_usage' | translate }}
+                <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.overall_capacity' | translate">info</mat-icon>
+              </span>
               <span class="capacity-value">{{ overallCapacityPercent }}%</span>
             </div>
             <mat-progress-bar
@@ -311,17 +331,26 @@
 
               <div class="column-stats">
                 <div class="stat">
-                  <span class="stat-label">{{ 'dashboard.participants' | translate }}</span>
+                  <span class="stat-label">
+                    {{ 'dashboard.participants' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_participants' | translate">info</mat-icon>
+                  </span>
                   <span class="stat-value">{{ totalGroupParticipants }}</span>
                 </div>
                 <div class="stat">
-                  <span class="stat-label">{{ 'dashboard.groups' | translate }}</span>
+                  <span class="stat-label">
+                    {{ 'dashboard.groups' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_groups' | translate">info</mat-icon>
+                  </span>
                   <span class="stat-value">{{ groupSummary()?.groups ?? groupCourses().meta.total }}</span>
                 </div>
               </div>
 
               <div class="panel-spot-summary">
-                <span class="panel-spot-label">{{ 'dashboard.spots_sold_available' | translate }}</span>
+                <span class="panel-spot-label">
+                  {{ 'dashboard.spots_sold_available' | translate }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_spots' | translate">info</mat-icon>
+                </span>
                 <div class="panel-spot-value">
                   <span>{{ (groupSummary()?.spots_sold ?? 0) | number:'1.0-1' }}</span>
                   <span class="panel-spot-sep">/</span>
@@ -332,14 +361,18 @@
 
               <div class="panel-bar">
                 <div class="panel-bar-header">
-                  <span class="panel-bar-label">{{ 'dashboard.capacity_usage' | translate }}</span>
+                  <span class="panel-bar-label">
+                    {{ 'dashboard.capacity_usage' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_capacity_usage' | translate">info</mat-icon>
+                  </span>
                   <span class="panel-bar-percent">{{ groupCapacityUsage }}%</span>
                 </div>
                 <mat-progress-bar mode="determinate" [value]="groupCapacityUsage" class="panel-progress"></mat-progress-bar>
               </div>
 
               <div class="panel-remaining">
-                {{ (groupSummary()?.spots_remaining ?? 0) | number:'1.0-1' }} {{ 'dashboard.spots_remaining' | translate }}
+                <span>{{ (groupSummary()?.spots_remaining ?? 0) | number:'1.0-1' }} {{ 'dashboard.spots_remaining' | translate }}</span>
+                <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_spots_remaining' | translate">info</mat-icon>
               </div>
 
               <div class="panel-subtitle">{{ 'dashboard.todays_group_courses' | translate }}</div>
@@ -385,17 +418,26 @@
 
               <div class="column-stats">
                 <div class="stat">
-                  <span class="stat-label">{{ 'dashboard.participants' | translate }}</span>
+                  <span class="stat-label">
+                    {{ 'dashboard.participants' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_participants' | translate">info</mat-icon>
+                  </span>
                   <span class="stat-value">{{ totalPrivateLessons }}</span>
                 </div>
                 <div class="stat">
-                  <span class="stat-label">{{ 'dashboard.courses_today' | translate }}</span>
+                  <span class="stat-label">
+                    {{ 'dashboard.courses_today' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_courses_today' | translate">info</mat-icon>
+                  </span>
                   <span class="stat-value">{{ privateSummary()?.courses_today ?? privateCourses().meta.total }}</span>
                 </div>
               </div>
 
               <div class="panel-spot-summary">
-                <span class="panel-spot-label">{{ 'dashboard.hours_sold_available' | translate }}</span>
+                <span class="panel-spot-label">
+                  {{ 'dashboard.hours_sold_available' | translate }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_hours' | translate">info</mat-icon>
+                </span>
                 <div class="panel-spot-value">
                   <span>{{ (privateSummary()?.hours_sold ?? 0) | number:'1.0-1' }}</span>
                   <span class="panel-spot-sep">/</span>
@@ -407,14 +449,18 @@
 
               <div class="panel-bar">
                 <div class="panel-bar-header">
-                  <span class="panel-bar-label">{{ 'dashboard.capacity_usage' | translate }}</span>
+                  <span class="panel-bar-label">
+                    {{ 'dashboard.capacity_usage' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_capacity_usage' | translate">info</mat-icon>
+                  </span>
                   <span class="panel-bar-percent">{{ privateCapacityUsage }}%</span>
                 </div>
                 <mat-progress-bar mode="determinate" [value]="privateCapacityUsage" class="panel-progress"></mat-progress-bar>
               </div>
 
               <div class="panel-remaining">
-                {{ (privateSummary()?.hours_remaining ?? 0) | number:'1.0-1' }} {{ 'dashboard.hours_remaining' | translate }}
+                <span>{{ (privateSummary()?.hours_remaining ?? 0) | number:'1.0-1' }} {{ 'dashboard.hours_remaining' | translate }}</span>
+                <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_hours_remaining' | translate">info</mat-icon>
               </div>
 
               <div class="panel-subtitle">{{ 'dashboard.todays_private_lessons' | translate }}</div>
@@ -507,19 +553,21 @@
                   <span class="metric-value">{{ day.unpaid }}</span>
                 </div>
                 <div class="forecast-metric">
-                  <span class="metric-label">{{ 'dashboard.revenue' | translate }}</span>
+                  <span class="metric-label">{{ 'dashboard.revenue_estimate' | translate }}</span>
                   <span class="metric-value">{{ formatCurrency(day.expected_revenue, forecastCurrency()) }}</span>
                 </div>
-              </div>
-
-              <div class="forecast-track-container">
-                <div class="forecast-track">
-                  <div
-                    class="forecast-track-fill"
-                    [style.width.%]="getForecastPercent(day)"
-                  ></div>
+                <div class="forecast-metric forecast-metric--occupancy">
+                  <div class="forecast-track-header">
+                    <span class="forecast-track-label">{{ 'dashboard.occupancy' | translate }}</span>
+                    <span class="forecast-percent">{{ getForecastPercent(day) | number: '1.0-0' }}%</span>
+                  </div>
+                  <div class="forecast-track">
+                    <div
+                      class="forecast-track-fill"
+                      [style.width.%]="getForecastPercent(day)"
+                    ></div>
+                  </div>
                 </div>
-                <span class="forecast-percent">{{ getForecastPercent(day) | number: '1.0-0' }}%</span>
               </div>
             </div>
           </div>

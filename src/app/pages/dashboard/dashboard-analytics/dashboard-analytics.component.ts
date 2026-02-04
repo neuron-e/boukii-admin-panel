@@ -498,7 +498,8 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
 
     const groupBadges = this.buildSportBadges(ops.group_courses_sports, 'orange');
     const privateBadges = this.buildSportBadges(ops.private_courses_sports, 'green');
-    const freeMonitorBadges = this.buildSportBadges(ops.free_monitors_sports);
+    const privateCoursesValue = Math.max(ops.private_courses ?? 0, this.privateSummary()?.courses_today ?? 0);
+    const freeMonitorBadges = this.buildSportBadges(ops.free_monitors_sports, 'purple');
     const assignedBadges: TodaysOperationCard['badges'] = [
       {
         icon: 'groups',
@@ -517,7 +518,8 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
         icon: 'calendar_today',
         label: this.translate.instant('dashboard.courses_today'),
         value: ops.courses_today,
-        caption: this.translate.instant('dashboard.total_scheduled')
+        caption: this.translate.instant('dashboard.total_scheduled'),
+        tooltip: this.translate.instant('dashboard.tooltip.courses_today')
       },
       {
         icon: 'groups',
@@ -525,21 +527,23 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
         value: ops.group_courses,
         caption: this.translate.instant('dashboard.scheduled_today'),
         badges: groupBadges,
-        tooltip: this.translate.instant('dashboard.group_courses_tooltip')
+        tooltip: this.translate.instant('dashboard.tooltip.group_courses')
       },
       {
         icon: 'person',
         label: this.translate.instant('dashboard.private_courses'),
-        value: ops.private_courses,
+        value: privateCoursesValue,
         caption: this.translate.instant('dashboard.scheduled_today'),
-        badges: privateBadges
+        badges: privateBadges,
+        tooltip: this.translate.instant('dashboard.tooltip.private_courses')
       },
       {
         icon: 'person_add',
         label: this.translate.instant('dashboard.assigned_monitors'),
         value: ops.assigned_courses ?? ops.assigned_monitors,
         caption: this.translate.instant('dashboard.active_now'),
-        badges: assignedBadges
+        badges: assignedBadges,
+        tooltip: this.translate.instant('dashboard.tooltip.assigned_monitors')
       },
       {
         icon: 'person_off',
@@ -548,13 +552,15 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
         caption: ops.free_monitors_hours !== undefined
           ? `${ops.free_monitors_hours}h ${this.translate.instant('dashboard.hours_available')}`
           : this.translate.instant('dashboard.available_now'),
-        badges: freeMonitorBadges
+        badges: freeMonitorBadges,
+        tooltip: this.translate.instant('dashboard.tooltip.free_monitors')
       },
       {
         icon: 'trending_up',
         label: this.translate.instant('dashboard.participants'),
         value: ops.unique_participants ?? 0,
-        caption: this.translate.instant('dashboard.unique_participants')
+        caption: this.translate.instant('dashboard.unique_participants'),
+        tooltip: this.translate.instant('dashboard.tooltip.participants')
       }
     ];
   }
@@ -564,7 +570,6 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
       return undefined;
     }
     return items
-      .filter((item) => item.count > 0)
       .map((item) => ({
         iconUrl: item.icon,
         value: item.count,
@@ -614,11 +619,13 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
     return this.privateSummary()?.usage_percent ?? this.overallCapacityPercent;
   }
 
-  formatCurrency(amount: number, currency = 'CHF'): string {
+  formatCurrency(amount: number | string, currency = 'CHF'): string {
+    const safeAmount = Number(amount);
+    const normalized = Number.isFinite(safeAmount) ? safeAmount : 0;
     return new Intl.NumberFormat('de-CH', {
       style: 'currency',
       currency
-    }).format(amount);
+    }).format(normalized);
   }
 
   formatWeatherDate(day: WeatherDay): string {
@@ -685,6 +692,9 @@ formatWeatherTime(dateStr: string): string {    try {      const date = new Date
   }
 
   getForecastPercent(day: ForecastDay): number {
+    if (day.occupancy_percent !== undefined && day.occupancy_percent !== null) {
+      return day.occupancy_percent;
+    }
     const max = this.getForecastMaxRevenue();
     return max > 0 ? (day.expected_revenue / max) * 100 : 0;
   }

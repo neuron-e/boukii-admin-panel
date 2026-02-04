@@ -115,6 +115,43 @@
   font-size: 0.85rem;
 }
 
+.info-icon {
+  font-size: 1rem;
+  width: 1rem;
+  height: 1rem;
+  margin-left: 0.35rem;
+  color: #9ca3af;
+  vertical-align: middle;
+  cursor: help;
+  pointer-events: auto;
+}
+
+.info-icon--wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+}
+
+.info-icon--wrapper mat-icon {
+  font-size: 1rem;
+  width: 1rem;
+  height: 1rem;
+}
+
+.system-metric-card .card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.panel-remaining {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
@@ -260,6 +297,9 @@
     letter-spacing: 0.08em;
     color: var(--dashboard-muted);
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 
   .value {
@@ -375,6 +415,18 @@
     color: #ffffff;
   }
 
+  .badge-label {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .badge-value {
+    font-weight: 700;
+  }
+
   &.orange {
     background: #d97706;
   }
@@ -415,18 +467,8 @@
 }
 
 /* ========== Forecast Enhancements ========== */
-.forecast-track-container {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.forecast-percent {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #4b5563;
-  min-width: 45px;
-  text-align: right;
+.forecast-metric--occupancy {
+  width: 100%;
 }
 
  
@@ -464,14 +506,6 @@
     grid-template-columns: 1fr;
   }
 
-  .forecast-track-container {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .forecast-percent {
-    align-self: flex-end;
-  }
 }
 
 
@@ -871,8 +905,8 @@
 
 .forecast-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr) minmax(220px, 1fr);
-  align-items: center;
+  grid-template-columns: minmax(140px, 1fr) minmax(0, 4fr);
+  align-items: start;
   gap: 1rem;
   padding: 0.85rem 1rem;
   border-radius: 0.75rem;
@@ -888,11 +922,11 @@
 
 .forecast-metrics {
   display: grid;
-  grid-template-columns: repeat(9, minmax(90px, 1fr));
+  grid-template-columns: repeat(9, minmax(90px, 1fr)) minmax(180px, 1.4fr);
   gap: 0.5rem 0.75rem;
   color: #4b5563;
-  text-align: center;
-  justify-items: center;
+  text-align: left;
+  justify-items: start;
 }
 
 .forecast-metric {
@@ -900,7 +934,7 @@
   flex-direction: column;
   gap: 0.2rem;
   min-width: 0;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .forecast-metric .metric-label {
@@ -911,7 +945,39 @@
   min-height: 2.1rem;
   display: flex;
   align-items: center;
-  text-align: center;
+  text-align: left;
+}
+
+.forecast-track-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  align-self: start;
+}
+
+.forecast-track-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.forecast-track-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  min-height: 2.1rem;
+  display: flex;
+  align-items: center;
+}
+
+.forecast-percent {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
 }
 
 .forecast-metric .metric-value {
@@ -1470,6 +1536,7 @@
   display: grid;
   gap: 0;
   padding: 0;
+  max-height: 85vh;
 }
 
 .system-detail-modal .modal-header {
@@ -1559,6 +1626,8 @@
 
 .system-detail-body {
   padding: 1.25rem 1.5rem 1.5rem;
+  max-height: 70vh;
+  overflow: auto;
 }
 
 .system-detail-section .section-title {

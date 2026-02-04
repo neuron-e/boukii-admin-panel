@@ -97,6 +97,7 @@ export interface ForecastDay {
   unassigned?: number;
   free_monitors?: number;
   unpaid?: number;
+  occupancy_percent?: number;
 }
 
 export interface ForecastResponse {
