@@ -140,6 +140,47 @@
   height: 1rem;
 }
 
+.ops-tooltip {
+  position: relative;
+}
+
+.ops-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: 135%;
+  transform: translateX(-50%);
+  background: #111827;
+  color: #ffffff;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 40;
+}
+
+.ops-tooltip::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 115%;
+  transform: translateX(-50%);
+  border-width: 5px 5px 0 5px;
+  border-style: solid;
+  border-color: #111827 transparent transparent transparent;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 40;
+}
+
+.ops-tooltip:hover::after,
+.ops-tooltip:hover::before {
+  opacity: 1;
+}
+
 .system-metric-card .card-label {
   display: inline-flex;
   align-items: center;
@@ -903,12 +944,22 @@
   }
 }
 
+.forecast-loading {
+  padding: 0 1.5rem;
+}
+
+.forecast-empty {
+  padding: 1.5rem 1.5rem 2rem;
+  text-align: center;
+  color: #7a7a7a;
+}
+
 .forecast-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(0, 4fr);
+  grid-template-columns: minmax(110px, 0.7fr) minmax(0, 5fr);
   align-items: start;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
   border-radius: 0.75rem;
   background: #f8fafc;
   border: 1px solid #eef1f6;
@@ -920,21 +971,26 @@
   font-size: 0.75rem;
 }
 
+.forecast-date strong {
+  display: block;
+  font-size: 0.85rem;
+}
+
 .forecast-metrics {
   display: grid;
-  grid-template-columns: repeat(9, minmax(90px, 1fr)) minmax(180px, 1.4fr);
-  gap: 0.5rem 0.75rem;
+  grid-template-columns: repeat(9, minmax(78px, 1fr)) minmax(150px, 1.2fr);
+  gap: 0.35rem 0.6rem;
   color: #4b5563;
   text-align: left;
   justify-items: start;
 }
 
 .forecast-metric {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 2.2rem auto;
   gap: 0.2rem;
   min-width: 0;
-  align-items: flex-start;
+  align-items: start;
 }
 
 .forecast-metric .metric-label {
@@ -942,9 +998,10 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #9ca3af;
-  min-height: 2.1rem;
+  line-height: 1.1rem;
+  min-height: 2.2rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   text-align: left;
 }
 
@@ -984,6 +1041,7 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: #111827;
+  align-self: start;
 }
 
 .forecast-track {

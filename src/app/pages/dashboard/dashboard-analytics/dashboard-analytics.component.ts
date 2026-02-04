@@ -65,6 +65,7 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
   selectedDate = signal<Date>(new Date());
 
   loading = signal<boolean>(false);
+  loadingForecast = signal<boolean>(false);
 
   groupPage = signal<number>(1);
   privatePage = signal<number>(1);
@@ -103,7 +104,6 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
       system: this.dashboardService.getSystemStats(dateParam),
       operations: this.dashboardService.getOperations(dateParam),
       courses: this.dashboardService.getCourses(this.groupPage(), this.privatePage(), this.perPage, dateParam),
-      forecast: this.dashboardService.getForecast(7, dateParam),
       weather: this.dashboardService.getWeatherSummary(dateParam)
     })
       .pipe(finalize(() => this.loading.set(false)))
@@ -115,14 +115,14 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
           this.privateCourses.set(results.courses.private_courses);
           this.groupSummary.set(results.courses.group_summary ?? null);
           this.privateSummary.set(results.courses.private_summary ?? null);
-          this.forecastDays.set(results.forecast.forecast);
-          this.forecastCurrency.set(results.forecast.currency);
           this.weatherDays.set(results.weather.forecast);
         },
         error: (err) => {
           console.error('Dashboard refresh error:', err);
         }
       });
+
+    this.loadForecast(dateParam);
   }
 
   loadCourses(): void {
@@ -240,6 +240,23 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
     if (!event.value) return;
     this.selectedDate.set(event.value);
     this.refreshAll();
+  }
+
+  private loadForecast(dateParam: string): void {
+    this.loadingForecast.set(true);
+    this.dashboardService
+      .getForecast(7, dateParam)
+      .pipe(finalize(() => this.loadingForecast.set(false)))
+      .subscribe({
+        next: (response) => {
+          this.forecastDays.set(response.forecast ?? []);
+          this.forecastCurrency.set(response.currency ?? 'CHF');
+        },
+        error: (err) => {
+          console.error('Forecast load error:', err);
+          this.forecastDays.set([]);
+        }
+      });
   }
 
   onGroupScroll(event: Event): void {
@@ -364,6 +381,7 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
       overbooked_groups: 'dashboard.overbooked_groups',
       unassigned_groups: 'dashboard.unassigned_group_subgroups',
       unassigned_private: 'dashboard.unassigned_private_sessions',
+      free_monitors: 'dashboard.free_monitors',
       unassigned_all: 'dashboard.unassigned_courses'
     };
     return this.translate.instant(map[type]);
@@ -410,6 +428,9 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
 
     if (type === 'unassigned_private') {
       return item.client_name ? item.client_name : item.course_name ?? '';
+    }
+    if (type === 'free_monitors') {
+      return item.monitor_name ? item.monitor_name : item.client_name ?? '';
     }
 
     return item.course_name ?? '';
@@ -500,6 +521,12 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
     const privateBadges = this.buildSportBadges(ops.private_courses_sports, 'green');
     const privateCoursesValue = Math.max(ops.private_courses ?? 0, this.privateSummary()?.courses_today ?? 0);
     const freeMonitorBadges = this.buildSportBadges(ops.free_monitors_sports, 'purple');
+    const groupParticipants = this.groupSummary()?.participants ?? 0;
+    const privateParticipants = this.privateSummary()?.participants ?? 0;
+    const participantBadges: TodaysOperationCard['badges'] = [
+      { icon: 'groups', value: groupParticipants, tone: 'orange', label: this.translate.instant('dashboard.group_courses') },
+      { icon: 'person', value: privateParticipants, tone: 'green', label: this.translate.instant('dashboard.private_courses') }
+    ];
     const assignedBadges: TodaysOperationCard['badges'] = [
       {
         icon: 'groups',
@@ -560,6 +587,7 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
         label: this.translate.instant('dashboard.participants'),
         value: ops.unique_participants ?? 0,
         caption: this.translate.instant('dashboard.unique_participants'),
+        badges: participantBadges,
         tooltip: this.translate.instant('dashboard.tooltip.participants')
       }
     ];

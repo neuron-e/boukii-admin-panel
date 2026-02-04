@@ -29,6 +29,7 @@ import localeDe from "@angular/common/locales/de";
 import localeFr from "@angular/common/locales/fr";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { MonitorEventsService } from "src/service/monitor-events.service";
+import { DateAdapter } from "@angular/material/core";
 
 @Component({
   selector: "vex-root",
@@ -59,6 +60,7 @@ export class AppComponent {
     private schoolService: SchoolService,
     private snackBar: MatSnackBar,
     private monitorEventsService: MonitorEventsService,
+    private dateAdapter: DateAdapter<Date>,
     private readonly matIconRegistry: MatIconRegistry,
     private readonly domSanitizer: DomSanitizer) {
     for (const locale of this.locales) registerLocaleData(locale.locale, locale.lan)
@@ -96,6 +98,12 @@ export class AppComponent {
         this.translateService.currentLang = this.locales[0].lan;
       }
     }
+
+    this.dateAdapter.getFirstDayOfWeek = () => 1;
+    this.setDateAdapterLocale(this.translateService.currentLang);
+    this.translateService.onLangChange.subscribe((event) => {
+      this.setDateAdapterLocale(event.lang);
+    });
     setTimeout(() => {
       if (this.user) {
         this.schoolService.getSchoolData().subscribe((data) => {
@@ -355,6 +363,21 @@ export class AppComponent {
         ],
       },
     ];
+  }
+
+  private setDateAdapterLocale(lang: string): void {
+    const normalized = lang || 'en';
+    const localeMap: Record<string, string> = {
+      en: 'en-GB',
+      'en-GB': 'en-GB',
+      es: 'es',
+      fr: 'fr',
+      de: 'de',
+      it: 'it-IT'
+    };
+    const locale = localeMap[normalized] ?? normalized;
+    this.dateAdapter.setLocale(locale);
+    Settings.defaultLocale = locale;
   }
 
 

@@ -856,7 +856,9 @@
   "custom_period": "Période Personnalisée",
   "custom_range": "Plage Personnalisée",
   "daily_analysis": "Analyse Quotidienne",
-  "dashboard": "Tableau de Bord",
+  "dashboard": {
+    "sports": "Sports"
+  },
   "data": "Données",
   "date": "Date",
   "date_creation_method": "Méthode de création des dates disponibles",
@@ -2405,4 +2407,3 @@
   "dashboard.course_overbooking": "Surbooking des cours",
   "load_students": "Charger les ?l?ves"
 }
-

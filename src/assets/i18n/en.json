@@ -847,7 +847,9 @@
   "custom_period": "Custom Period",
   "custom_range": "Custom Range",
   "daily_analysis": "Daily Analysis",
-  "dashboard": "Dashboard",
+  "dashboard": {
+    "sports": "Sports"
+  },
   "data": "Data",
   "date": "Date",
   "date_creation_method": "Available dates creation method",

@@ -847,7 +847,9 @@
   "custom_period": "Periodo Personalizzato",
   "custom_range": "Intervallo Personalizzato",
   "daily_analysis": "Analisi Giornaliera",
-  "dashboard": "Dashboard",
+  "dashboard": {
+    "sports": "Sport"
+  },
   "data": "Dati",
   "date": "Data",
   "date_creation_method": "Método de creación de fechas disponibles",
@@ -2373,4 +2375,3 @@
   "dashboard.course_overbooking": "Corsi in overbooking",
   "load_students": "Carica allievi"
 }
-

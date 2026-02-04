@@ -135,11 +135,13 @@ export type SystemDetailType =
   | 'overbooked_groups'
   | 'unassigned_groups'
   | 'unassigned_private'
+  | 'free_monitors'
   | 'unassigned_all';
 
 export interface SystemDetailItem {
   booking_id?: number;
   client_name?: string | null;
+  monitor_name?: string | null;
   participants?: number;
   total_due?: number;
   course_name?: string;

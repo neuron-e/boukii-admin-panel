@@ -125,7 +125,7 @@
               </div>
 
               <!-- Free Monitors -->
-              <div class="system-metric-card">
+              <div class="system-metric-card clickable" (click)="openSystemDetails('free_monitors')">
                 <span class="status-dot" [ngClass]="getStatusDotClass(operations()?.free_monitors || 0)"></span>
                 <mat-icon class="card-icon">people</mat-icon>
                 <span class="card-label">
@@ -245,6 +245,21 @@
                       </tr>
                     </tbody>
                   </table>
+
+                  <table *ngIf="section.type === 'free_monitors'">
+                    <thead>
+                      <tr>
+                        <th>{{ 'dashboard.monitor' | translate }}</th>
+                        <th>{{ 'dashboard.sports' | translate }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let item of section.items">
+                        <td>{{ item.monitor_name || item.client_name || '-' }}</td>
+                        <td>{{ item.course_name || '-' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                   </div>
                 </div>
               </div>
@@ -271,8 +286,8 @@
                 <span class="value">{{ card.value }}</span>
                 <span class="label" [attr.title]="card.tooltip || card.label">
                   {{ card.label }}
-                  <span class="info-icon info-icon--wrapper" [matTooltip]="card.tooltip || card.label">
-                    <mat-icon [attr.title]="card.tooltip || card.label">info</mat-icon>
+                  <span class="info-icon info-icon--wrapper ops-tooltip" [attr.data-tooltip]="card.tooltip || card.label">
+                    <mat-icon>info</mat-icon>
                   </span>
                 </span>
                 <span class="caption" *ngIf="card.caption">{{ card.caption }}</span>
@@ -503,7 +518,7 @@
       </section>
 
       <!-- ========== 7-DAY FORECAST SECTION ========== -->
-      <section class="forecast-section" *ngIf="forecastDays().length > 0">
+      <section class="forecast-section">
         <div class="card forecast-card">
           <div class="forecast-card-header">
             <div>
@@ -512,7 +527,14 @@
             </div>
           </div>
 
-          <div class="forecast-list">
+          <div class="forecast-loading" *ngIf="loadingForecast()">
+            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          </div>
+
+          <div class="forecast-list" *ngIf="!loadingForecast()">
+            <div class="forecast-empty" *ngIf="forecastDays().length === 0">
+              {{ 'dashboard.no_records' | translate }}
+            </div>
             <div class="forecast-row" *ngFor="let day of forecastDays()">
               <div class="forecast-date">
                 <strong>{{ formatForecastLabel(day) }}</strong>
