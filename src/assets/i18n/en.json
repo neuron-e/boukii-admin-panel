@@ -2378,8 +2378,7 @@
   "common.unpaid": "Unpaid",
   "dashboard.group_course_groups": "Group course groups",
   "dashboard.weather": "Weather",
-  "load_students": "Load students"
-,
+  "load_students": "Load students",
   "bonus.error_buyer_required": "Buyer is required",
   "bonus.error_recipient_required": "Recipient is required",
   "buyer": "Buyer",
@@ -2423,5 +2422,9 @@
   "error.select_at_least_one_course": "Select at least one course",
   "error.update_failed": "Update failed",
   "discount.edit_discount": "Edit Discount Code",
-  "discount.new_discount": "New Discount Code"
+  "discount.new_discount": "New Discount Code",
+  "Configuration": "Configuration",
+  "Gift Message": "Gift Message",
+  "Select Template": "Select Template",
+  "Template and Message": "Template and Message"
 }
