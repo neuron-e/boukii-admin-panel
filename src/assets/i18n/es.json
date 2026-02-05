@@ -2379,11 +2379,7 @@
   "common.unpaid": "No pagado",
   "dashboard.group_course_groups": "Grupos de cursos colectivos",
   "dashboard.weather": "Tiempo",
-  "load_students": "Cargar alumnos"
-,
-  "dashboard": {
-      "sports": "Deportes"
-  },
+  "load_students": "Cargar alumnos",
   "Configuration": "Configuración",
   "Gift Message": "Mensaje de Regalo",
   "Select Template": "Seleccionar Plantilla",
