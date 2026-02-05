@@ -1723,6 +1723,34 @@
               </div>
 
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'email' | translate }}
+                  </mat-label>
+                  <input formControlName="email" matInput required type="email">
+                  <mat-icon class="mr-2" matPrefix svgIcon="mat:mail"></mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'username' | translate }}
+                  </mat-label>
+                  <input formControlName="username" matInput type="text">
+                  <mat-icon class="mr-2" matPrefix svgIcon="mat:person"></mat-icon>
+                </mat-form-field>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'password' | translate }}
+                  </mat-label>
+                  <input formControlName="password" matInput type="password" autocomplete="new-password">
+                  <mat-icon class="mr-2" matPrefix svgIcon="mat:lock"></mat-icon>
+                </mat-form-field>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                 <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
                   <mat-label>
                     {{'country' | translate }}
