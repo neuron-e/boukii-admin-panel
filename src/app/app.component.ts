@@ -85,19 +85,19 @@ export class AppComponent {
       });
     }
     const lang = sessionStorage.getItem('lang');
+    let selectedLang: string;
     if (lang && lang.length > 0) {
-      this.translateService.setDefaultLang(lang);
-      this.translateService.currentLang = lang;
+      selectedLang = lang;
     } else {
       if (this.locales.find((a: any) => a.lan === navigator.language.split('-')[0])) {
-        this.translateService.setDefaultLang(navigator.language.split('-')[0]);
-        this.translateService.currentLang = navigator.language.split('-')[0];
-        sessionStorage.setItem('lang', navigator.language.split("-")[0]);
+        selectedLang = navigator.language.split('-')[0];
+        sessionStorage.setItem('lang', selectedLang);
       } else {
-        this.translateService.setDefaultLang(this.locales[0].lan);
-        this.translateService.currentLang = this.locales[0].lan;
+        selectedLang = this.locales[0].lan;
       }
     }
+    this.translateService.setDefaultLang(selectedLang);
+    this.translateService.use(selectedLang);
 
     this.dateAdapter.getFirstDayOfWeek = () => 1;
     this.setDateAdapterLocale(this.translateService.currentLang);
