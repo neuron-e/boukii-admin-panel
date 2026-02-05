@@ -1,4 +1,4 @@
-import {Component, AfterViewInit, HostListener, OnDestroy, OnInit} from '@angular/core';
+import {Component, AfterViewInit, HostListener, Input, OnDestroy, OnInit} from '@angular/core';
 import {
   addDays,
   addMonths,
@@ -21,6 +21,7 @@ import {LEVELS} from 'src/app/static-data/level-data';
 import {MOCK_COUNTRIES} from 'src/app/static-data/countries-data';
 import {MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {ConfirmModalComponent} from '../monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
+import {GroupedBlockDeleteDialogComponent} from './grouped-block-delete-dialog/grouped-block-delete-dialog.component';
 import {CalendarEditComponent} from '../monitors/monitor-detail/calendar/calendar-edit/calendar-edit.component';
 import * as moment from 'moment';
 import 'moment/locale/fr';
@@ -31,7 +32,7 @@ import {
 } from './course-user-transfer-timeline/course-user-transfer-timeline.component';
 import {TranslateService} from '@ngx-translate/core';
 import {ConfirmUnmatchMonitorComponent} from './confirm-unmatch-monitor/confirm-unmatch-monitor.component';
-import {firstValueFrom, Observable, of, Subject} from 'rxjs';
+import {firstValueFrom, forkJoin, Observable, of, Subject} from 'rxjs';
 import {map, startWith, takeUntil} from 'rxjs/operators';
 import {FormControl} from '@angular/forms';
 import {DateAdapter} from '@angular/material/core';
@@ -76,6 +77,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
   loadingMonitors = true;
   loading = true;
+  deletingGroupedBlocks = false;
 
   tasksCalendarStyle: any[];
   filteredTasks: any[];
@@ -168,6 +170,8 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   monitorAssignmentDates: { value: string, label: string }[] = [];
   monitorSearchTerm: string = '';
   hasApiAvailability = false;
+  @Input() filterCourseId: number | null = null;
+  private assignmentBookingUsersCache = new Map<number, any[]>();
 
   constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private dialog: MatDialog, public translateService: TranslateService,
     private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router,
@@ -709,17 +713,17 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       });
     });
 
-    //Saved object to filter
-    if (this.filterBookingUser && !allBookingUsers.some(user => user.id === this.filterBookingUser.id)) {
-      allBookingUsers.push(this.filterBookingUser);
-    }
+      //Saved object to filter
+      if (this.filterBookingUser && !allBookingUsers.some(user => user.id === this.filterBookingUser.id)) {
+        allBookingUsers.push(this.filterBookingUser);
+      }
 
     allBookingUsers.sort((a, b) => a.first_name.localeCompare(b.first_name));
     this.allBookingUsers = allBookingUsers;
 
-    //filter the bookings if bookinguser
-    if (this.filterBookingUser && this.filterBookingUser.id) {
-      const filteredBookings = allBookings.filter(booking => {
+      //filter the bookings if bookinguser
+      if (this.filterBookingUser && this.filterBookingUser.id) {
+        const filteredBookings = allBookings.filter(booking => {
         let usersToCheck = [];
         if (booking.course.course_type === 2 || booking.course.course_type === 3) {
           usersToCheck = booking.bookings_clients.map(clientObj => clientObj.client);
@@ -728,16 +732,42 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         }
 
         return usersToCheck.some(user => user.id === this.filterBookingUser.id);
-      });
+        });
 
-      allBookings = filteredBookings;
-    }
+        allBookings = filteredBookings;
+      }
 
-    //Convert them into TASKS
+      if (this.filterCourseId) {
+        const targetId = Number(this.filterCourseId);
+        allBookings = allBookings.filter(booking => {
+          const resolvedCourseId =
+            booking?.course_id ??
+            booking?.course?.id ??
+            booking?.course_group?.course_id ??
+            booking?.courseGroup?.course_id ??
+            booking?.course_group?.course?.id ??
+            booking?.courseGroup?.course?.id ??
+            null;
+          return Number(resolvedCourseId) === targetId;
+        });
+      }
+
+      if (this.filterBookingUser && this.filterBookingUser.id) {
+        const monitorIds = new Set<number | null>();
+        allBookings.forEach(booking => {
+          const monitorId = booking?.monitor_id ?? null;
+          monitorIds.add(monitorId);
+        });
+        this.filteredMonitors = this.filteredMonitors.filter(monitor => monitorIds.has(monitor?.id ?? null));
+        this.allMonitorsTimeline = this.allMonitorsTimeline.filter(monitor => monitorIds.has(monitor?.id ?? null));
+        this.allMonitors = this.allMonitors.filter(monitor => monitorIds.has(monitor?.id ?? null));
+      }
+
+      //Convert them into TASKS
 
     allBookings.forEach(booking => {
       // Process if it's a CourseSubgroup (has course_group_id) or BookingUser without booking property
-      const isSubgroup = booking.course_group_id != null;
+        const isSubgroup = booking.course_group_id != null;
       const isUnprocessedBooking = !booking.booking;
 
       if (isSubgroup || isUnprocessedBooking) {
@@ -1440,6 +1470,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         this.monitorDetail = task.monitor_id;
         this.subgroupDetail = task.course_subgroup_id;
         this.taskDetail = task;
+        if (!this.taskDetail.sport) {
+          const courseSport = this.taskDetail?.course?.sport;
+          this.taskDetail.sport = courseSport || this.sports.find(s => s.id === this.taskDetail?.sport_id) || null;
+        }
         this.selectedTaskKey = this.getTaskSelectionKey(task);
         this.showDetail = true;
         this.initializeMonitorAssignment(task);
@@ -1678,14 +1712,6 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   private openMonitorAssignmentDialog(monitor: any): Observable<MonitorAssignmentDialogResult | undefined> {
     if (!this.taskDetail) return of(undefined);
 
-    if (this.taskDetail?.course?.course_type !== 1) {
-      const defaultDate = this.taskDetail?.date || null;
-      return of({
-        scope: 'single',
-        startDate: defaultDate,
-        endDate: defaultDate
-      });
-    }
     // Inicializa arrays/estado para el diálogo
     this.initializeMonitorAssignment(this.taskDetail); // <- tu método existente que carga monitorAssignmentDates, scope, etc.
     const defaultDate = this.taskDetail?.date || null;
@@ -1703,8 +1729,9 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         dates: this.monitorAssignmentDates, // <-- aquí estaba el bug (antes hacía ({ .option }))
         defaultDate,
         intervalDates: this.getIntervalDatesForTask(this.taskDetail),
-        hasMultipleIntervals: this.hasMultipleIntervals(),
+        hasMultipleIntervals: this.taskDetail?.course?.course_type === 1 && this.hasMultipleIntervals(),
         allowAllOption: (this.monitorAssignmentDates?.length ?? 0) > 1,
+        allowMultiScope: (this.monitorAssignmentDates?.length ?? 0) > 1,
         initialScope: this.monitorAssignmentScope as MonitorAssignmentScope,
         startDate: this.monitorAssignmentStartDate,
         endDate: this.monitorAssignmentEndDate,
@@ -1928,6 +1955,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     this.monitorAssignmentStartDate = this.monitorAssignmentDates[0]?.value || null;
     this.monitorAssignmentEndDate   = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || this.monitorAssignmentStartDate;
     this.updateCurrentAssignmentContext();
+    void this.refreshAssignmentDatesForPrivate(task);
   }
 
   private resetMonitorAssignmentState(): void {
@@ -2007,6 +2035,12 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     const fallbackDates = this.collectCourseDatesForTask(task);
     fallbackDates.forEach(date => dateSet.add(date));
 
+    const assignmentBookingUsers = this.getAssignmentBookingUsers(task);
+    assignmentBookingUsers
+      .map((entry: any) => this.getDateStrFromAny(entry))
+      .filter((date: string | null) => !!date)
+      .forEach((date: string) => dateSet.add(date));
+
     const relatedTasks = this.getRelatedTasks(task);
 
     relatedTasks
@@ -2027,6 +2061,14 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       (task.booking.course_dates as any[])
         .filter(item => item?.date)
         .forEach(item => dateSet.add(item.date));
+    }
+
+    const bookingUsersFallback = task?.booking?.booking_users ?? task?.booking_users ?? [];
+    if (dateSet.size === 0 && Array.isArray(bookingUsersFallback)) {
+      bookingUsersFallback
+        .map((entry: any) => this.getDateStrFromAny(entry))
+        .filter((date: string | null) => !!date)
+        .forEach((date: string) => dateSet.add(date));
     }
 
     const uniqueDates = Array.from(dateSet).filter(Boolean);
@@ -2051,19 +2093,81 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     return tasksSource.filter(candidate => {
       if (!candidate) return false;
 
-      // 1) mismo intervalo / subgrupo
       if (subgroupId && candidate.course_subgroup_id === subgroupId) return true;
 
-      // 2) mismo curso (todas las fechas del curso) — solo para cursos grupales (type 1)
       if (isGroupCourse && courseId && candidate.course_id === courseId) {
         return true;
       }
 
-      // 3) misma sesión (fallback)
       if (isGroupCourse && bookingId && candidate.booking_id && candidate.booking_id === bookingId) return true;
+
+      if (!isGroupCourse && bookingId && candidate.booking_id === bookingId) {
+        if (!courseId) {
+          return true;
+        }
+        return candidate.course_id === courseId;
+      }
 
       return false;
     });
+  }
+
+  private getAssignmentBookingUsers(task: any): any[] {
+    const bookingId = task?.booking_id ?? task?.booking?.id ?? null;
+    if (!bookingId) {
+      return [];
+    }
+    const cached = this.assignmentBookingUsersCache.get(bookingId);
+    if (cached) {
+      return cached;
+    }
+    const embedded = task?.__assignmentBookingUsers ?? task?.booking_users_all ?? task?.booking?.booking_users ?? task?.booking_users ?? null;
+    if (Array.isArray(embedded) && embedded.length) {
+      return embedded;
+    }
+    return [];
+  }
+
+  private async loadAssignmentBookingUsers(task: any): Promise<any[]> {
+    const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
+    if (baseCourseType !== 2) {
+      return [];
+    }
+    const bookingId = task?.booking_id ?? task?.booking?.id ?? null;
+    if (!bookingId) {
+      return [];
+    }
+    if (this.assignmentBookingUsersCache.has(bookingId)) {
+      return this.assignmentBookingUsersCache.get(bookingId) as any[];
+    }
+    try {
+      const response: any = await firstValueFrom(
+        this.crudService.list('/booking-users', 1, 10000, 'asc', 'id', `&booking_id=${bookingId}&status=1`)
+      );
+      const bookingUsers = Array.isArray(response?.data) ? response.data : [];
+      this.assignmentBookingUsersCache.set(bookingId, bookingUsers);
+      task.__assignmentBookingUsers = bookingUsers;
+      return bookingUsers;
+    } catch {
+      return [];
+    }
+  }
+
+  private async refreshAssignmentDatesForPrivate(task: any): Promise<void> {
+    const bookingUsers = await this.loadAssignmentBookingUsers(task);
+    if (!bookingUsers.length) {
+      return;
+    }
+    const nextDates = this.buildMonitorAssignmentDates(task);
+    const currentKey = this.monitorAssignmentDates.map(item => item.value).join('|');
+    const nextKey = nextDates.map(item => item.value).join('|');
+    if (currentKey === nextKey) {
+      return;
+    }
+    this.monitorAssignmentDates = nextDates;
+    this.monitorAssignmentStartDate = this.monitorAssignmentDates[0]?.value || null;
+    this.monitorAssignmentEndDate = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || this.monitorAssignmentStartDate;
+    this.updateCurrentAssignmentContext();
   }
 
   private getTaskSelectionKey(task: any): string | null {
@@ -2096,11 +2200,6 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onMonitorAssignmentScopeChange(scope: MonitorAssignmentScope): void {
-    // Force 'single' scope for private courses (course_type !== 1)
-    if (this.taskDetail?.course?.course_type !== 1) {
-      scope = 'single';
-    }
-
     this.monitorAssignmentScope = scope;
     const defaultDate = this.taskDetail?.date || null;
 
@@ -2494,19 +2593,6 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       return [];
     }
 
-    const baseCourseType = baseTask?.course?.course_type ?? baseTask?.course_type ?? null;
-    if (baseCourseType !== 1) {
-      const bookingUserIds = new Set<number>();
-      const clients = Array.isArray(baseTask.all_clients) ? baseTask.all_clients : [];
-      clients.forEach((client: any) => {
-        const resolvedId = this.resolveBookingUserId(client);
-        if (resolvedId != null) {
-          bookingUserIds.add(resolvedId);
-        }
-      });
-      return Array.from(bookingUserIds);
-    }
-
     const relatedTasks = this.getRelatedTasks(baseTask);
     const { start, end } = this.resolveAssignmentDateRange();
     const bookingUserIds = new Set<number>();
@@ -2838,7 +2924,8 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       startTime?: string,
       endTime?: string,
       courseDateId?: number | null,
-      subgroupId?: number | null
+      subgroupId?: number | null,
+      currentMonitorOverride?: { id: number | null; name: string | null }
     ) => {
       if (!dateValue) {
         return;
@@ -2863,7 +2950,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         const normalizedSubgroupId = subgroupId ?? baseTask.course_subgroup_id ?? null;
         const currentMonitorTask = this.findTaskForSubgroup(normalizedSubgroupId, normalizedDate);
       const courseSubgroupDetails = this.findCourseSubgroupDetails(normalizedSubgroupId, normalizedDate);
-      const currentMonitorInfo = currentMonitorTask
+      const derivedMonitorInfo = currentMonitorTask
         ? {
             id: currentMonitorTask.monitor_id ?? currentMonitorTask.monitor?.id ?? null,
             name: this.getMonitorNameFromTask(currentMonitorTask)
@@ -2871,6 +2958,9 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         : (courseSubgroupDetails
             ? { id: courseSubgroupDetails.monitorId, name: courseSubgroupDetails.monitorName }
             : this.findCurrentMonitorForSubgroup(normalizedSubgroupId, normalizedDate));
+      const currentMonitorInfo = currentMonitorOverride?.id != null || currentMonitorOverride?.name
+        ? currentMonitorOverride
+        : derivedMonitorInfo;
         const baseLevelLabel =
         this.getLevelLabelFromTask(currentMonitorTask) ??
         courseSubgroupDetails?.levelLabel ??
@@ -2897,6 +2987,24 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
     addSlot(baseTask.date, baseTask.hour_start, baseTask.hour_end, baseTask.course_date_id, baseTask.course_subgroup_id);
       relatedTasks.forEach(task => addSlot(task.date, task.hour_start, task.hour_end, task.course_date_id, task.course_subgroup_id));
+
+    const assignmentBookingUsers = this.getAssignmentBookingUsers(baseTask);
+    assignmentBookingUsers.forEach((bookingUser: any) => {
+      const dateValue = this.getDateStrFromAny(bookingUser);
+      if (!dateValue) {
+        return;
+      }
+      const monitorId = bookingUser?.monitor_id ?? bookingUser?.monitor?.id ?? null;
+      const monitorName = this.getMonitorNameFromTask(bookingUser);
+      addSlot(
+        dateValue,
+        bookingUser?.hour_start ?? baseTask.hour_start,
+        bookingUser?.hour_end ?? baseTask.hour_end,
+        bookingUser?.course_date_id ?? null,
+        bookingUser?.course_subgroup_id ?? baseTask.course_subgroup_id ?? baseTask.subgroup_id ?? null,
+        { id: monitorId, name: monitorName }
+      );
+    });
 
       if (isGroupCourse) {
         courseDateEntries.forEach(({ dateValue, cd }) => {
@@ -4308,6 +4416,161 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  getGroupedBlockIds(block: any = this.blockDetail): number[] {
+    if (!block) return [];
+
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const signature = {
+      date: this.normalizeBlockDate(block.date ?? block.start_date),
+      hour_start: block.hour_start,
+      hour_end: block.hour_end,
+      full_day: !!block.full_day,
+      name: block.name ?? null,
+      type: block.type ?? null,
+      user_nwd_subtype_id: block.user_nwd_subtype_id ?? null,
+      color_block: block.color_block ?? null,
+      school_id: block.school_id ?? null,
+      station_id: block.station_id ?? null
+    };
+
+    const matches = tasksSource.filter(task => {
+      if (!task?.block_id) return false;
+      if (task.type !== signature.type) return false;
+      const taskDate = this.normalizeBlockDate(task.date ?? task.start_date);
+      if (!taskDate || taskDate !== signature.date) return false;
+      if (!!task.full_day !== signature.full_day) return false;
+      if ((task.name ?? null) !== signature.name) return false;
+      if ((task.user_nwd_subtype_id ?? null) !== signature.user_nwd_subtype_id) return false;
+      if ((task.color_block ?? null) !== signature.color_block) return false;
+      if ((task.school_id ?? null) !== signature.school_id) return false;
+      if ((task.station_id ?? null) !== signature.station_id) return false;
+      if (!signature.full_day) {
+        if (task.hour_start !== signature.hour_start) return false;
+        if (task.hour_end !== signature.hour_end) return false;
+      }
+      return true;
+    });
+
+    const ids = matches.map(task => task.block_id).filter(Boolean);
+    return Array.from(new Set(ids));
+  }
+
+  getGroupedBlockIdsForRange(block: any, rangeStart: moment.Moment, rangeEnd: moment.Moment): number[] {
+    if (!block) return [];
+
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const signature = {
+      hour_start: block.hour_start,
+      hour_end: block.hour_end,
+      full_day: !!block.full_day,
+      name: block.name ?? null,
+      type: block.type ?? null,
+      user_nwd_subtype_id: block.user_nwd_subtype_id ?? null,
+      color_block: block.color_block ?? null,
+      school_id: block.school_id ?? null,
+      station_id: block.station_id ?? null
+    };
+
+    const start = rangeStart.clone().startOf('day');
+    const end = rangeEnd.clone().endOf('day');
+
+    const matches = tasksSource.filter(task => {
+      if (!task?.block_id) return false;
+      if (task.type !== signature.type) return false;
+      const taskDateValue = this.normalizeBlockDate(task.date ?? task.start_date);
+      if (!taskDateValue) return false;
+      const taskMoment = moment(taskDateValue, 'YYYY-MM-DD', true);
+      if (!taskMoment.isValid() || !taskMoment.isBetween(start, end, 'day', '[]')) return false;
+      if (!!task.full_day !== signature.full_day) return false;
+      if ((task.name ?? null) !== signature.name) return false;
+      if ((task.user_nwd_subtype_id ?? null) !== signature.user_nwd_subtype_id) return false;
+      if ((task.color_block ?? null) !== signature.color_block) return false;
+      if ((task.school_id ?? null) !== signature.school_id) return false;
+      if ((task.station_id ?? null) !== signature.station_id) return false;
+      if (!signature.full_day) {
+        if (task.hour_start !== signature.hour_start) return false;
+        if (task.hour_end !== signature.hour_end) return false;
+      }
+      return true;
+    });
+
+    const ids = matches.map(task => task.block_id).filter(Boolean);
+    return Array.from(new Set(ids));
+  }
+
+  private normalizeBlockDate(value: any): string | null {
+    if (!value) return null;
+    const m = moment(value);
+    if (!m.isValid()) return null;
+    return m.format('YYYY-MM-DD');
+  }
+
+    deleteGroupedBlock(): void {
+      if (!this.blockDetail) return;
+
+      const ids = this.getGroupedBlockIds(this.blockDetail);
+      if (ids.length <= 1) {
+        this.deleteEditedBlock();
+        return;
+      }
+
+      const dialogRef = this.dialog.open(GroupedBlockDeleteDialogComponent, {
+        width: '560px',
+        data: {
+          title: this.translateService.instant('delete_grouped_block'),
+          message: this.translateService.instant('delete_grouped_block_confirm'),
+          dayLabel: this.translateService.instant('delete_grouped_block_option_day'),
+          visibleLabel: this.translateService.instant('delete_grouped_block_option_visible'),
+          cancelLabel: this.translateService.instant('cancel')
+        }
+      });
+
+      dialogRef.afterClosed().subscribe((selection: 'day' | 'visible' | null) => {
+        if (!selection) {
+          return;
+        }
+
+        let idsToDelete = ids;
+        if (selection === 'visible') {
+          const baseDate = moment(this.currentDate);
+          let rangeStart = baseDate.clone();
+          let rangeEnd = baseDate.clone();
+
+          if (this.timelineView === 'week') {
+            rangeStart = baseDate.clone().startOf('isoWeek');
+            rangeEnd = baseDate.clone().endOf('isoWeek');
+          } else if (this.timelineView === 'month') {
+            rangeStart = baseDate.clone().startOf('month');
+            rangeEnd = baseDate.clone().endOf('month');
+          }
+
+          idsToDelete = this.getGroupedBlockIdsForRange(this.blockDetail, rangeStart, rangeEnd);
+        }
+
+        if (idsToDelete.length <= 1) {
+          this.deleteEditedBlock();
+          return;
+        }
+
+        this.deletingGroupedBlocks = true;
+        this.crudService.post('/monitor-nwds/bulk-delete', { ids: idsToDelete })
+          .pipe(takeUntil(this.destroy$))
+          .subscribe(
+            () => {
+              this.deletingGroupedBlocks = false;
+              this.hideEditBlock();
+              this.hideBlock();
+              this.loadBookings(this.currentDate);
+            },
+            error => {
+              this.deletingGroupedBlocks = false;
+              console.error('Error deleting grouped blocks', error);
+              this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+            }
+          );
+      });
+    }
+
   getDayOfWeek(dayIndex: number): number {
     const startOfWeek = moment(this.currentDate).startOf('isoWeek');
     const specificDate = startOfWeek.add(dayIndex, 'days');
@@ -4566,6 +4829,52 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       return client.booking_user.id;
     }
     return client.id ?? null;
+  }
+
+  isAttendedClient(client: any): boolean {
+    if (!client) {
+      return false;
+    }
+    return client.attended === true || client.attended === 1 || client.attendance === true || client.attendance === 1;
+  }
+
+  onAttendanceToggleClient(client: any, checked: boolean): void {
+    const bookingUserId = this.resolveBookingUserId(client);
+    if (!bookingUserId) {
+      return;
+    }
+    const payload: any = {
+      ...client,
+      attended: checked,
+      attendance: checked
+    };
+    ['client', 'created_at', 'deleted_at', 'updated_at'].forEach((k) => {
+      if (k in payload) {
+        delete payload[k];
+      }
+    });
+
+    this.crudService.update('/booking-users', payload, bookingUserId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          client.attended = checked;
+          client.attendance = checked;
+          this.snackbar.open(
+            this.translateService.instant('toast.registered_correctly'),
+            '',
+            { duration: 3000 }
+          );
+        },
+        error: (error) => {
+          console.error('Error updating attendance:', error);
+          this.snackbar.open(
+            'Error al actualizar asistencia',
+            '',
+            { duration: 3000 }
+          );
+        }
+      });
   }
 
   private getBookingUserIdsFromTask(task: any): number[] {

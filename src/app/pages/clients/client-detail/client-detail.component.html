@@ -37,6 +37,12 @@
             {{defaults.first_name}}
             {{defaults.last_name}}
           </h1>
+          <div class="flex items-center gap-2" style="margin-top: 4px;">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold"
+                  [ngClass]="defaultsUser?.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+              {{ defaultsUser?.active ? ('active' | translate) : ('inactive' | translate) }}
+            </span>
+          </div>
           <div style="display: flex;">
             <vex-icon src="chat"></vex-icon>
             <vex-icon src="mail" href="mailto:{{defaults.email}}" style="cursor:pointer"
@@ -1099,11 +1105,15 @@
 							{{'no_payed' | translate | uppercase }}
 						</span>
 						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 3"
-                  style="color:#FA9917;background-color: #F7E399;">
+                    style="color:#FA9917;background-color: #F7E399;">
 							{{(detailData?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
 						</span>
-					</span>
-                  </div>
+						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 7"
+							style="color:#FA9917;background-color: #F7E399;">
+							{{(detailData?.payment_method_status === 'invoice_overdue' ? 'invoice_overdue' : 'invoice_pending') | translate | uppercase }}
+						</span>
+ 					</span>
+ 				</div>
                 </mat-card-header>
                 <mat-card-content>
                   <div style="width: 100%;">

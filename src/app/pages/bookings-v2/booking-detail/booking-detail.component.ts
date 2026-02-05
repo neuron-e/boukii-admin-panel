@@ -139,6 +139,10 @@ export class BookingDetailV2Component implements OnInit {
       return 3;
     }
 
+    if (this.paymentMethod === 7) {
+      return 7;
+    }
+
     if (this.paymentMethod === 4) {
       return 5;
     }
@@ -163,6 +167,13 @@ export class BookingDetailV2Component implements OnInit {
       this.paymentMethod = 3;
       this.selectedPaymentOptionId = 3;
       this.selectedPaymentOptionLabel = this.resolvePaymentLabel(3);
+      return;
+    }
+
+    if (methodId === 7) {
+      this.paymentMethod = 7;
+      this.selectedPaymentOptionId = 7;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(7);
       return;
     }
 
@@ -1094,7 +1105,7 @@ export class BookingDetailV2Component implements OnInit {
 
     // MEJORA: Requerir confirmación explícita para pagos offline
     // Solo marcar como pagado si hay confirmación explícita del admin
-    if ((paymentMethodId === 1 || paymentMethodId === 4) && this.isPaid) {
+    if ((paymentMethodId === 1 || paymentMethodId === 4 || paymentMethodId === 7) && this.isPaid) {
       bookingData.paid = true;
       bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
     }
@@ -1103,7 +1114,7 @@ export class BookingDetailV2Component implements OnInit {
     this.crudService.post(`/admin/bookings/update/${this.id}/payment`, bookingData)
       .pipe(
         switchMap((result: any) => {
-          if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
+          if ((bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) && !bookingData.paid) {
             return this.crudService
               .post(`/admin/bookings/payments/${this.id}`, result.data.basket)
               .pipe(map((paymentResult: any) => ({ result, paymentResult })));
@@ -1117,7 +1128,7 @@ export class BookingDetailV2Component implements OnInit {
       .subscribe({
         next: ({ result, paymentResult }: any) => {
           // Manejar pagos en línea
-          if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
+          if ((bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) && !bookingData.paid) {
             if (bookingData.payment_method_id === 2) {
               window.open(paymentResult.data, "_self");
             } else {
@@ -1183,6 +1194,9 @@ export class BookingDetailV2Component implements OnInit {
     } else if (value === 3) {
       this.selectedPaymentOptionId = 3;
       this.selectedPaymentOptionLabel = this.resolvePaymentLabel(3);
+    } else if (value === 7) {
+      this.selectedPaymentOptionId = 7;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(7);
     } else if (value === 4) {
       this.selectedPaymentOptionId = 5;
       this.selectedPaymentOptionLabel = this.resolvePaymentLabel(5);

@@ -34,13 +34,15 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { TranslateModule } from '@ngx-translate/core';
 import { ConfirmUnmatchMonitorModule } from './confirm-unmatch-monitor/confirm-unmatch-monitor.module';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from 'src/@vex/components/icon/app.component';
 import { EditDateComponent } from './edit-date/edit-date.component';
 import { MonitorAssignmentDialogModule } from './monitor-assignment-dialog/monitor-assignment-dialog.module';
 import { MonitorPartialAvailabilityDialogModule } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-partial-availability-dialog.module';
+import { GroupedBlockDeleteDialogComponent } from './grouped-block-delete-dialog/grouped-block-delete-dialog.component';
 
 @NgModule({
-  declarations: [TimelineComponent, EditDateComponent],
+  declarations: [TimelineComponent, EditDateComponent, GroupedBlockDeleteDialogComponent],
   imports: [
     CommonModule,
     FormsModule,
@@ -78,6 +80,7 @@ import { MonitorPartialAvailabilityDialogModule } from 'src/app/shared/dialogs/m
     MatDatepickerModule,
     ConfirmUnmatchMonitorModule,
     MatAutocompleteModule,
+    MatTooltipModule,
     MonitorAssignmentDialogModule,
     MonitorPartialAvailabilityDialogModule
   ],

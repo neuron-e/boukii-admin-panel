@@ -1428,6 +1428,8 @@ export class ClientDetailComponent {
         return 'payment_no_payment';
       case 6:
         return 'bonus';
+      case 7:
+        return 'payment_invoice';
 
       default:
         return 'payment_no_payment'

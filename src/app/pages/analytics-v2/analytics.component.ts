@@ -267,7 +267,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   public courseTypeBookingsSummary: any[] = [];
   // ==================== UI STATE ====================
   loading = false;
-  activeTab = 'revenue'; // ? A�ADIR ESTA L�NEA
+  activeTab = 'revenue'; // ? Aï¿½ADIR ESTA Lï¿½NEA
   activeTabIndex = 0;
   showAdvancedFilters = false;
   fullDashboardLoaded = false;
@@ -345,7 +345,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadUserData();
     this.loadMasterData();
 
-    this.activeTab = this.tabs[0].id; // Inicializar con primera pesta�a
+    this.activeTab = this.tabs[0].id; // Inicializar con primera pestaï¿½a
   }
 
   // ==================== LIFECYCLE METHODS ====================
@@ -356,7 +356,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    // Los gr�ficos se crear�n cuando los datos est�n disponibles
+    // Los grï¿½ficos se crearï¿½n cuando los datos estï¿½n disponibles
   }
 
   ngOnDestroy(): void {
@@ -373,17 +373,17 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     let startDate: string;
     let endDate: string;
 
-    // Temporada va de Noviembre a Mayo del siguiente a�o
+    // Temporada va de Noviembre a Mayo del siguiente aï¿½o
     if (currentMonth >= 10) {
-      // Noviembre o Diciembre ? temporada ACTUAL: Nov (este a�o) - Mayo (a�o siguiente)
+      // Noviembre o Diciembre ? temporada ACTUAL: Nov (este aï¿½o) - Mayo (aï¿½o siguiente)
       startDate = moment().month(10).startOf('month').format('YYYY-MM-DD');
       endDate = moment().add(1, 'year').month(4).endOf('month').format('YYYY-MM-DD');
     } else if (currentMonth <= 4) {
-      // Enero a Mayo ? temporada ACTUAL: Nov (a�o anterior) - Mayo (este a�o)
+      // Enero a Mayo ? temporada ACTUAL: Nov (aï¿½o anterior) - Mayo (este aï¿½o)
       startDate = moment().subtract(1, 'year').month(10).startOf('month').format('YYYY-MM-DD');
       endDate = moment().month(4).endOf('month').format('YYYY-MM-DD');
     } else {
-      // Junio a Octubre ? fuera de temporada, mostrar temporada M�S RECIENTE: Nov (a�o anterior) - Mayo (este a�o)
+      // Junio a Octubre ? fuera de temporada, mostrar temporada Mï¿½S RECIENTE: Nov (aï¿½o anterior) - Mayo (este aï¿½o)
       startDate = moment().subtract(1, 'year').month(10).startOf('month').format('YYYY-MM-DD');
       endDate = moment().month(4).endOf('month').format('YYYY-MM-DD');
     }
@@ -440,7 +440,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   // ==================== COLOR HELPER METHODS ====================
 
   /**
-   * ?? Obtener color por tipo de curso (n�mero)
+   * ?? Obtener color por tipo de curso (nï¿½mero)
    */
   public getCourseTypeColor(courseType: number): string {
     return this.courseTypeColors[courseType] || this.chartColors.primary;
@@ -466,7 +466,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * ?? Obtener array de colores para gr�ficos de tipos de curso
+   * ?? Obtener array de colores para grï¿½ficos de tipos de curso
    */
   private getCourseTypeColorsArray(): string[] {
     return [
@@ -502,7 +502,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         this.loading = false;
         this.cdr.detectChanges();
 
-        // Crear gr�ficos despu�s de que los datos est�n listos
+        // Crear grï¿½ficos despuï¿½s de que los datos estï¿½n listos
         setTimeout(() => this.createChartsForTab(this.activeTab), 100);
         this.maybeLoadFullDashboard(this.activeTab);
       },
@@ -604,7 +604,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       ...item,
       revenue_expected: item.revenue,
       revenue_received: item.revenue_received ?? 0,
-      month: this.formatDateWithMonthName(item.month), // ? FORMATEAR MES AQU�
+      month: this.formatDateWithMonthName(item.month), // ? FORMATEAR MES AQUï¿½
       month_original: item.month // Mantener original para ordenamiento si es necesario
     }));
 
@@ -671,7 +671,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       month_original: item.month
     }));
 
-    // Usar barras si hay pocos datos (3 o menos), l�neas si hay m�s
+    // Usar barras si hay pocos datos (3 o menos), lï¿½neas si hay mï¿½s
     const chartType = data.length <= 3 ? 'bar' : 'scatter';
     const trace: any = {
       x: processedData.map(d => d.month_formatted),
@@ -714,15 +714,15 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private createCourseTypeRevenueChart(): void {
 
-    // Verificaci�n del elemento DOM
+    // Verificaciï¿½n del elemento DOM
     if (!this.courseTypeRevenueChartRef?.nativeElement) {
-      console.error('? Elemento DOM del gr�fico no est� disponible');
+      console.error('? Elemento DOM del grï¿½fico no estï¿½ disponible');
       return;
     }
 
-    // Verificaci�n de datos principales
+    // Verificaciï¿½n de datos principales
     if (!this.dashboardData) {
-      console.error('? dashboardData no est� disponible');
+      console.error('? dashboardData no estï¿½ disponible');
       return;
     }
 
@@ -790,16 +790,16 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         typeStats[typeName].course_count += item.courses_sold || 0;
       }
     }
-    // Verificar que tenemos datos v�lidos
+    // Verificar que tenemos datos vï¿½lidos
     const hasValidData = Object.values(typeStats).some(stat => stat.revenue > 0);
 
     if (!hasValidData) {
-      console.warn('?? No hay datos de revenue v�lidos para mostrar');
+      console.warn('?? No hay datos de revenue vï¿½lidos para mostrar');
       this.showEmptyChart();
       return;
     }
 
-    // Preparar datos para el gr�fico
+    // Preparar datos para el grï¿½fico
     try {
       const labels = Object.keys(typeStats).map(type => {
         const translated = this.translateService.instant(type);
@@ -815,11 +815,11 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       // Preparar datos adicionales para mostrar bookings
       const bookingsData = Object.values(typeStats).map(stat => stat.bookings);
       const totalBookings = bookingsData.reduce((sum, bookings) => sum + bookings, 0);
-      const coursesSoldData = Object.values(typeStats).map(stat => stat.course_count); // ? NUEVA L�NEA
+      const coursesSoldData = Object.values(typeStats).map(stat => stat.course_count); // ? NUEVA Lï¿½NEA
       const totalRevenue = values.reduce((sum, revenue) => sum + revenue, 0);
       const totalCoursesSold = coursesSoldData.reduce((sum, courses) => sum + courses, 0);
 
-      // Configurar el gr�fico
+      // Configurar el grï¿½fico
       const revenueLabel = this.translateService.instant('revenue');
       const bookingsLabel = this.translateService.instant('bookings');
       const coursesSoldLabel = this.translateService.instant('courses_sold');
@@ -858,7 +858,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
         if (!typeStats[typeName]) {
           typeStats[typeName] = {
-            typeName,        // ? ASEGURAR QUE ESTE CAMPO EST� AQU�
+            typeName,        // ? ASEGURAR QUE ESTE CAMPO ESTï¿½ AQUï¿½
             revenue: 0,
             bookings: 0,
             participants: 0,
@@ -901,19 +901,19 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       ).then(() => {
         this.displayBookingsSummary(typeStats, totalBookings, totalRevenue, totalCoursesSold);
       }).catch(error => {
-        console.error('? Error al crear el gr�fico:', error);
+        console.error('? Error al crear el grï¿½fico:', error);
       });
 
-      // Opcional: Almacenar las estad�sticas para uso posterior
+      // Opcional: Almacenar las estadï¿½sticas para uso posterior
      // this.courseTypeStats = typeStats;
 
     } catch (error) {
-      console.error('? Error durante la creaci�n del gr�fico:', error);
+      console.error('? Error durante la creaciï¿½n del grï¿½fico:', error);
       this.showEmptyChart();
     }
   }
 
-  // M�todo para mostrar resumen detallado de bookings y revenue
+  // Mï¿½todo para mostrar resumen detallado de bookings y revenue
   private displayBookingsSummary(typeStats: any, totalBookings: number, totalRevenue: number, totalCoursesSold: number): void {
 
     Object.entries(typeStats).forEach(([typeName, stats]: [string, any]) => {
@@ -924,24 +924,24 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       const avgRevenuePerCourse = stats.course_count > 0 ? (stats.revenue / stats.course_count).toFixed(2) : '0';
     });
 
-    // Tambi�n crear el array para uso en el template si lo necesitas
+    // Tambiï¿½n crear el array para uso en el template si lo necesitas
     this.courseTypeBookingsSummary = Object.entries(typeStats).map(([typeName, stats]: [string, any]) => ({
       type: typeName,
       typeName: this.translateService.instant(typeName),
       bookings: stats.bookings,
-      courses_sold: stats.course_count, // ? NUEVA L�NEA
+      courses_sold: stats.course_count, // ? NUEVA Lï¿½NEA
       revenue: stats.revenue,
       participants: stats.participants,
       revenueReceived: stats.revenue_received,
       avgRevenuePerBooking: stats.bookings > 0 ? stats.revenue / stats.bookings : 0,
-      avgRevenuePerCourse: stats.course_count > 0 ? stats.revenue / stats.course_count : 0, // ? NUEVA L�NEA
+      avgRevenuePerCourse: stats.course_count > 0 ? stats.revenue / stats.course_count : 0, // ? NUEVA Lï¿½NEA
       bookingPercentage: totalBookings > 0 ? (stats.bookings / totalBookings) * 100 : 0,
-      coursePercentage: totalCoursesSold > 0 ? (stats.course_count / totalCoursesSold) * 100 : 0, // ? NUEVA L�NEA
+      coursePercentage: totalCoursesSold > 0 ? (stats.course_count / totalCoursesSold) * 100 : 0, // ? NUEVA Lï¿½NEA
       revenuePercentage: totalRevenue > 0 ? (stats.revenue / totalRevenue) * 100 : 0
     }));
   }
 
-// M�todo auxiliar para mostrar un gr�fico vac�o con mensaje
+// Mï¿½todo auxiliar para mostrar un grï¿½fico vacï¿½o con mensaje
   private showEmptyChart(): void {
     if (!this.courseTypeRevenueChartRef?.nativeElement) return;
 
@@ -1086,7 +1086,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const courses = this.dashboardData.courses || [];
 
-    // Ordenar por n�mero de reservas (mayor a menor) y tomar top 10, luego invertir
+    // Ordenar por nï¿½mero de reservas (mayor a menor) y tomar top 10, luego invertir
     const topCoursesByBookings = courses
       .sort((a, b) => b.bookings - a.bookings)
       .slice(0, 10)
@@ -1510,7 +1510,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-// ?? MANEJAR EXPORTACI�N DE TODAS LAS RESERVAS
+// ?? MANEJAR EXPORTACIï¿½N DE TODAS LAS RESERVAS
   private handleExportAllBookings(result: any): void {
     const exportType = result.type;
     const exportTypeLabel = this.translateService.instant(`analytics_export_type_${exportType}`);
@@ -1558,7 +1558,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }), 'success');
   }
 
-// ?? MANEJAR EXPORTACI�N DE RESERVA INDIVIDUAL
+// ?? MANEJAR EXPORTACIï¿½N DE RESERVA INDIVIDUAL
   private handleExportSingleBooking(result: any): void {
     const booking = result.booking;
 
@@ -1680,7 +1680,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Crear configuraci�n de eje X con fechas traducidas
+   * Crear configuraciï¿½n de eje X con fechas traducidas
    */
   private createTranslatedXAxisConfig(dates: string[]) {
     const translatedLabels = this.processDateLabels(dates);
@@ -1708,7 +1708,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         const year = date.format('YYYY');
         const monthNumber = date.format('MM');
 
-        // Mapear n�mero de mes a nombre
+        // Mapear nï¿½mero de mes a nombre
         const monthNames = [
           'january', 'february', 'march', 'april', 'may', 'june',
           'july', 'august', 'september', 'october', 'november', 'december'
@@ -1808,12 +1808,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadPendingBookings(): void {
     this.loadingPendingBookings = true;
 
-    // Simular carga de datos - esto se conectar� al backend m�s tarde
+    // Simular carga de datos - esto se conectarï¿½ al backend mï¿½s tarde
     setTimeout(() => {
       this.pendingBookings = [
         {
           id: 12345,
-          client_name: 'Juan P�rez',
+          client_name: 'Juan Pï¿½rez',
           client_email: 'juan@example.com',
           booking_date: '2024-12-15',
           amount: 150.00,
@@ -1822,7 +1822,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         },
         {
           id: 12346,
-          client_name: 'Mar�a Garc�a',
+          client_name: 'Marï¿½a Garcï¿½a',
           client_email: 'maria@example.com',
           booking_date: '2024-12-16',
           amount: 200.00,
@@ -1837,12 +1837,12 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadCancelledBookings(): void {
     this.loadingCancelledBookings = true;
 
-    // Simular carga de datos - esto se conectar� al backend m�s tarde
+    // Simular carga de datos - esto se conectarï¿½ al backend mï¿½s tarde
     setTimeout(() => {
       this.cancelledBookings = [
         {
           id: 12340,
-          client_name: 'Carlos L�pez',
+          client_name: 'Carlos Lï¿½pez',
           client_email: 'carlos@example.com',
           booking_date: '2024-12-10',
           amount: 180.00,
@@ -1850,7 +1850,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         },
         {
           id: 12341,
-          client_name: 'Ana Mart�nez',
+          client_name: 'Ana Martï¿½nez',
           client_email: 'ana@example.com',
           booking_date: '2024-12-11',
           amount: 95.00,
@@ -1868,7 +1868,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public onEditBooking(booking: any): void {
-    // TODO: Abrir formulario de edici�n
+    // TODO: Abrir formulario de ediciï¿½n
   }
 
   public onExportBooking(booking: any): void {
@@ -2274,7 +2274,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       },
       error: (error) => {
-        console.error('Error exportando estad�sticas del curso:', error);
+        console.error('Error exportando estadï¿½sticas del curso:', error);
         this.showMessage(this.translateService.instant('analytics_export_error'), 'error');
       }
     });
@@ -2284,7 +2284,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.exportSingleCourseStatistics(course.id, course);
   }
 
-// Agregar estos m�todos al analytics.component.ts
+// Agregar estos mï¿½todos al analytics.component.ts
 
   public navigateToCourseBookings(course: any): void {
     if (course?.id) {
@@ -2300,7 +2300,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-// M�todo helper para formatear monedas
+// Mï¿½todo helper para formatear monedas
   public formatCurrency(amount: number): string {
     if (amount === null || amount === undefined || isNaN(amount)) {
       return new Intl.NumberFormat(this.getLocale(), {
@@ -2319,7 +2319,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     }).format(amount);
   }
 
-  // M�todo helper para acortar nombres de curso largos
+  // Mï¿½todo helper para acortar nombres de curso largos
   private shortenCourseName(name: string): string {
     if (!name) return '';
     const maxLength = 45;
@@ -2460,7 +2460,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       vouchers: 'voucher',
       pending: 'pending',
       bank_transfer: 'bank_transfer',
-      paypal: 'paypal'
+      paypal: 'paypal',
+        invoice: 'payment_invoice'
     };
 
     const key = keyMap[method];

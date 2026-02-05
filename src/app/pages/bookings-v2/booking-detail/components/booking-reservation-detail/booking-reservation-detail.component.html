@@ -83,8 +83,12 @@
 										{{'no_payed' | translate | uppercase }}
 									</span>
 									<span *ngIf="bookingData.status === 1 && !bookingData.paid && bookingData.payment_method_id == 3"
-                        style="color:#FA9917;background-color: #F7E399;">
+                    style="color:#FA9917;background-color: #F7E399;">
 										{{(bookingData?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
+									</span>
+									<span *ngIf="bookingData.status === 1 && !bookingData.paid && bookingData.payment_method_id == 7"
+										style="color:#FA9917;background-color: #F7E399;">
+										{{(bookingData?.payment_method_status === 'invoice_overdue' ? 'invoice_overdue' : 'invoice_pending') | translate | uppercase }}
 									</span>
 								</span>
     </div>

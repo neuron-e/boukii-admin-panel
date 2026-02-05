@@ -149,6 +149,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   activeMonitor = true;
   inactiveMonitor = false;
   allMonitors = false;
+  private readonly badgePositiveValues = new Set(['active', 'paid', 'delivered', 'redeemed', 'valid']);
+  private readonly badgeWarningValues = new Set(['pending', 'processing']);
+  private readonly badgeNegativeValues = new Set(['inactive', 'cancelled', 'canceled', 'failed', 'unpaid', 'not_paid']);
+  private readonly badgeNeutralValues = new Set(['expired', 'used', 'exhausted']);
 
   constructor(private dialog: MatDialog, public router: Router, private crudService: ApiCrudService,
     private excelExportService: ExcelExportService, private routeActive: ActivatedRoute,
@@ -156,6 +160,46 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     private schoolService: SchoolService) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.schoolId = this.user.schools[0].id;
+  }
+
+  private normalizeBadgeValue(value: any): string | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    if (value === true || value === 1 || value === '1') {
+      return 'active';
+    }
+    if (value === false || value === 0 || value === '0') {
+      return 'inactive';
+    }
+    if (typeof value === 'string') {
+      return value.toLowerCase();
+    }
+    return String(value).toLowerCase();
+  }
+
+  getBadgeLabel(value: any): string | null {
+    return this.normalizeBadgeValue(value);
+  }
+
+  getBadgeClass(value: any): string {
+    const normalized = this.normalizeBadgeValue(value);
+    if (!normalized) {
+      return 'bg-gray-100 text-gray-800';
+    }
+    if (this.badgePositiveValues.has(normalized)) {
+      return 'bg-green-100 text-green-800';
+    }
+    if (this.badgeWarningValues.has(normalized)) {
+      return 'bg-yellow-100 text-yellow-800';
+    }
+    if (this.badgeNegativeValues.has(normalized)) {
+      return 'bg-red-100 text-red-800';
+    }
+    if (this.badgeNeutralValues.has(normalized)) {
+      return 'bg-gray-100 text-gray-800';
+    }
+    return 'bg-gray-100 text-gray-800';
   }
 
   get visibleColumns() {
@@ -1227,6 +1271,8 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         return 'payment_no_payment';
       case 6:
         return 'bonus';
+      case 7:
+        return 'payment_invoice';
       default:
         return 'payment_no_payment'
     }

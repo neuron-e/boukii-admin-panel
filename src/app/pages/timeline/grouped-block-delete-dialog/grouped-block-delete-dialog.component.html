@@ -1,0 +1,17 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+
+<mat-dialog-content>
+  <p>{{ data.message }}</p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">
+    {{ data.cancelLabel }}
+  </button>
+  <button mat-stroked-button type="button" class="day-button" (click)="chooseDay()">
+    {{ data.dayLabel }}
+  </button>
+  <button mat-flat-button color="warn" type="button" (click)="chooseVisible()">
+    {{ data.visibleLabel }}
+  </button>
+</mat-dialog-actions>

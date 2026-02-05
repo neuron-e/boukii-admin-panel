@@ -124,11 +124,15 @@
 							{{'no_payed' | translate | uppercase }}
 						</span>
 						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 3"
-                  style="color:#FA9917;background-color: #F7E399;">
+                    style="color:#FA9917;background-color: #F7E399;">
 							{{(detailData?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
 						</span>
-					</span>
-				</div>
+						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 7"
+							style="color:#FA9917;background-color: #F7E399;">
+							{{(detailData?.payment_method_status === 'invoice_overdue' ? 'invoice_overdue' : 'invoice_pending') | translate | uppercase }}
+						</span>
+ 					</span>
+ 				</div>
 			</mat-card-header>
 			<mat-card-content>
 				<div style="width: 100%;">
@@ -490,16 +494,7 @@
 						</div>
 					</div>
 
-					<div class="list-inner-holder">
-						<div class="col-left">
-							<mat-slide-toggle [disabled]="true"
-								[checked]="detailData?.has_boukii_care"></mat-slide-toggle>
-							Boukii Care
-						</div>
-						<div class="col-right">
-							{{detailData?.price_boukii_care | number:'0.2-2'}} {{detailData?.currency}}
-						</div>
-					</div>
+					<div class="list-inner-holder" *ngIf="false"></div>
 
 					<div class="list-inner-holder">
 						<div class="col-left">

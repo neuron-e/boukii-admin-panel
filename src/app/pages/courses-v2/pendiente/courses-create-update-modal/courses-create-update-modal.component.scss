@@ -1,4 +1,31 @@
 
+.modal-header {
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #e6e6e6;
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: #444;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+}
+
 
 .custom-card {
   transition: all 0.3s ease;

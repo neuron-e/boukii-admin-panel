@@ -6,7 +6,8 @@ export const PAYMENT_METHODS = [
   { id: 1, code: 'cash', i18nKey: 'payment_cash' },
   { id: 2, code: 'gateway', i18nKey: 'payment_gateway' },
   { id: 3, code: 'paylink', i18nKey: 'payment_paylink' },
-  { id: 4, code: 'card', i18nKey: 'credit_card' }
+  { id: 4, code: 'card', i18nKey: 'credit_card' },
+  { id: 7, code: 'invoice', i18nKey: 'payment_invoice' }
 ] as const;
 
 export type PaymentMethodId = typeof PAYMENT_METHODS[number]['id'];
@@ -29,5 +30,5 @@ export function isOfflinePayment(methodId: PaymentMethodId): boolean {
  * Helper para determinar si es pago online
  */
 export function isOnlinePayment(methodId: PaymentMethodId): boolean {
-  return methodId === 2 || methodId === 3; // gateway or paylink
+  return methodId === 2 || methodId === 3 || methodId === 7; // gateway, paylink, or invoice
 }

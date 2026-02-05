@@ -31,6 +31,7 @@ import {MatSelectModule} from '@angular/material/select';
 import { TimelineModule } from '../../timeline/timeline.module';
 import { MatDialogModule } from '@angular/material/dialog';
 import { CourseTimingModalModule } from '../course-timing-modal/course-timing-modal.module';
+import { CoursesCreateUpdateModalModule } from '../pendiente/courses-create-update-modal/courses-create-update-modal.module';
 
 @NgModule({
   declarations: [CourseDetailComponent],
@@ -53,7 +54,7 @@ import { CourseTimingModalModule } from '../course-timing-modal/course-timing-mo
         ComponenteButtonModule,
         ComponenteInputModule,
         CourseOpcionComponent,
-        BookingsModule, MatOptionModule, MatSelectModule, TimelineModule, MatDialogModule, CourseTimingModalModule
+        BookingsModule, MatOptionModule, MatSelectModule, TimelineModule, MatDialogModule, CourseTimingModalModule, CoursesCreateUpdateModalModule
     ]
 })
 export class CourseDetailModule { }

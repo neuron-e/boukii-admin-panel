@@ -58,6 +58,7 @@
       (eventClicked)="handleUpdateEvent('Clicked', $event.event)"
       (eventTimesChanged)="eventTimesChanged($event)"
       *ngSwitchCase="'week'"
+      [weekStartsOn]="weekStartsOn"
       [events]="events"
       [refresh]="refresh"
       [viewDate]="viewDate">

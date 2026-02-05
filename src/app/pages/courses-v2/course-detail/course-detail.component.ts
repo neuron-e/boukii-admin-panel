@@ -6,12 +6,13 @@ import { TranslateService } from '@ngx-translate/core';
 import { TableColumn } from 'src/@vex/interfaces/table-column.interface';
 import {MonitorsCreateUpdateComponent} from '../../monitors/monitors-create-update/monitors-create-update.component';
 import moment from 'moment';
-import {MAT_DIALOG_DATA, MatDialog} from '@angular/material/dialog';
+import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { CourseTimingModalComponent } from '../course-timing-modal/course-timing-modal.component';
 import {forkJoin, of, Subject} from 'rxjs';
 import {catchError, finalize, map, switchMap, takeUntil} from 'rxjs/operators';
 import {UntypedFormArray, UntypedFormControl} from '@angular/forms';
+import { CoursesCreateUpdateModalComponent } from '../pendiente/courses-create-update-modal/courses-create-update-modal.component';
 
 @Component({
   selector: 'vex-course-detail',
@@ -47,7 +48,9 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
   constructor(private crudService: ApiCrudService, private activatedRoute: ActivatedRoute,
               public dialog: MatDialog,
               private router: Router, public courses: CoursesService, public TranslateService: TranslateService,
-              @Optional() @Inject(MAT_DIALOG_DATA) public incData: any, private snackBar: MatSnackBar) {
+              @Optional() @Inject(MAT_DIALOG_DATA) public incData: any,
+              @Optional() private dialogRef: MatDialogRef<CourseDetailComponent>,
+              private snackBar: MatSnackBar) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.settings = this.parseSettings(this.user?.schools?.[0]?.settings);
     this.id = this.activatedRoute.snapshot.params.id;
@@ -413,7 +416,25 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
   }
 
   goTo(route: string, query: any = null) {
+    const normalizedRoute = (route || '').replace(/^\/+/, '');
+    if (this.incData && normalizedRoute.startsWith('courses/update')) {
+      if (this.dialogRef) {
+        this.dialogRef.close();
+      }
+      this.router.navigate([route], {queryParams: query});
+      return;
+    }
     this.router.navigate([route], {queryParams: query});
+  }
+
+  private openEditCourseModal(step: number | null): void {
+    this.dialog.open(CoursesCreateUpdateModalComponent, {
+      width: '100%',
+      height: '1200px',
+      maxWidth: '90vw',
+      panelClass: 'full-screen-dialog',
+      data: { id: this.id, step, source: 'course-detail' }
+    });
   }
 
   DateDiff = (value1: string, value2: string): number => Math.round((new Date(value2).getTime() - new Date(value1).getTime()) / 1000 / 60 / 60 / 24)
@@ -428,7 +449,6 @@ export class CourseDetailComponent implements OnInit, OnDestroy {
     {label: 'register', property: 'created_at', type: 'date', visible: true},
     //{ label: 'Options', property: 'options', type: 'text', visible: true },
     {label: 'op_rem_abr', property: 'has_cancellation_insurance', type: 'light', visible: true},
-    {label: 'B. Care', property: 'has_boukii_care', type: 'light', visible: true},
     {label: 'price', property: 'price_total', type: 'price', visible: true},
     {label: 'method_paiment', property: 'payment_method_id', type: 'payment_method_id', visible: true},
     {label: 'bonus', property: 'bonus', type: 'light', visible: true},

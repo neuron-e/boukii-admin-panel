@@ -403,7 +403,7 @@
         <mat-tab label="{{ 'payment_methods' | translate }}">
           <div class="tab-content">
 
-            <!-- TU C”DIGO ORIGINAL - Payment Methods Charts -->
+            <!-- TU C√ìDIGO ORIGINAL - Payment Methods Charts -->
             <div class="charts-grid">
               <mat-card class="chart-card">
                 <mat-card-header>
@@ -426,7 +426,7 @@
               </mat-card>
             </div>
 
-            <!-- TU C”DIGO ORIGINAL - Payment Methods Summary Cards -->
+            <!-- TU C√ìDIGO ORIGINAL - Payment Methods Summary Cards -->
             <div class="payment-methods-summary" *ngIf="dashboardData.payment_methods?.methods">
               <div class="payment-method-card" *ngFor="let method of dashboardData.payment_methods.methods">
                 <div class="payment-icon">
@@ -532,7 +532,7 @@
                       <th mat-header-cell *matHeaderCellDef>{{ 'actions' | translate }}</th>
                       <td mat-cell *matCellDef="let element" class="actions-cell">
 
-                        <!-- BotÛn principal de ver detalles -->
+                        <!-- Bot√≥n principal de ver detalles -->
                         <button
                           mat-raised-button
                           color="primary"
@@ -543,7 +543,7 @@
                           {{ 'details' | translate }}
                         </button>
 
-                        <!-- Men˙ de acciones adicionales -->
+                        <!-- Men√∫ de acciones adicionales -->
                         <button
                           mat-icon-button
                           [matMenuTriggerFor]="courseMenu"
@@ -627,12 +627,12 @@
                             <mat-card-header>
                               <mat-card-title>
                                 <mat-icon>person</mat-icon>
-                                An·lisis de Monitores
+                                An√°lisis de Monitores
                               </mat-card-title>
-                              <mat-card-subtitle>PrÛximamente disponible</mat-card-subtitle>
+                              <mat-card-subtitle>Pr√≥ximamente disponible</mat-card-subtitle>
                             </mat-card-header>
                             <mat-card-content>
-                              <p>La funcionalidad de an·lisis de monitores estar· disponible prÛximamente.</p>
+                              <p>La funcionalidad de an√°lisis de monitores estar√° disponible pr√≥ximamente.</p>
                               <div style="text-align: center; padding: 40px;">
                                 <mat-icon style="font-size: 64px; width: 64px; height: 64px; color: #ccc;">person</mat-icon>
                               </div>
@@ -640,7 +640,7 @@
                           </mat-card>
                         </div>-->
 
-            <!-- AquÌ ir· el componente MonitorsLegacy cuando estÈ listo -->
+            <!-- Aqu√≠ ir√° el componente MonitorsLegacy cuando est√© listo -->
 
             <app-monitors-legacy
               *ngIf="activeTab === 'monitors'"

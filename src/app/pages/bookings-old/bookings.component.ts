@@ -46,7 +46,6 @@ export class BookingsComponent {
     { label: 'register', property: 'created_at', type: 'date', visible: true },
     //{ label: 'options', property: 'options', type: 'text', visible: true },
     { label: 'op_rem_abr', property: 'has_cancellation_insurance', type: 'light', visible: true },
-    { label: 'B. Care', property: 'has_boukii_care', type: 'light', visible: true },
     { label: 'price', property: 'price_total', type: 'price', visible: true },
     { label: 'method_paiment', property: 'payment_method_id', type: 'payment_method_id', visible: true },
     { label: 'bonus', property: 'bonus', type: 'light', visible: true },
@@ -63,10 +62,7 @@ export class BookingsComponent {
       if (!JSON.parse(this.school.settings).taxes?.cancellation_insurance_percent) {
         this.columns = this.columns.filter(column => column.property !== 'has_cancellation_insurance');
       }
-      if (!JSON.parse(this.school.settings).taxes?.boukii_care_price) {
-        this.columns = this.columns.filter(column => column.property !== 'has_boukii_care');
-
-      }
+      this.columns = this.columns.filter(column => column.property !== 'has_boukii_care');
     })
 
     this.getSports();
@@ -419,6 +415,8 @@ export class BookingsComponent {
         return 'payment_no_payment';
       case 6:
         return 'bonus';
+      case 7:
+        return 'payment_invoice';
 
       default:
         return 'payment_no_payment'

@@ -65,7 +65,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
 
-  // MEJORA CRÍTICA: Propiedades para persistencia de estado
+  // MEJORA CRÃTICA: Propiedades para persistencia de estado
   private autoSaveInterval: any;
   private syncSubscription: Subscription = new Subscription();
   private currentBookingId: string = '';
@@ -206,18 +206,18 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.ensureCreateRouteState();
     this.isEditMode = this.detectEditMode();
 
-    // MEJORA CRÍTICA: Inicializar sistema de persistencia
+    // MEJORA CRÃTICA: Inicializar sistema de persistencia
     this.initializePersistence();
 
     this.getDegrees();
   }
 
   ngOnInit(): void {
-    // MEJORA CR�TICA: Verificar integridad de datos al iniciar
+    // MEJORA CRÍTICA: Verificar integridad de datos al iniciar
     const integrity = this.bookingService.validateBookingDataIntegrity();
     if (!integrity.isValid) {
-      console.warn('?? Datos problem�ticos detectados al inicializar:', integrity.issues);
-      // Limpiar datos problem�ticos
+      console.warn('?? Datos problemáticos detectados al inicializar:', integrity.issues);
+      // Limpiar datos problemáticos
       this.bookingService.resetBookingData();
     }
 
@@ -229,13 +229,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÍTICA: Inicializar sistema de persistencia de estado
+   * MEJORA CRÃTICA: Inicializar sistema de persistencia de estado
    */
   private initializePersistence(): void {
-    // Generar ID único para esta sesión de reserva
+    // Generar ID Ãºnico para esta sesiÃ³n de reserva
     this.currentBookingId = this.generateBookingId();
 
-    // Configurar sincronización entre tabs
+    // Configurar sincronizaciÃ³n entre tabs
     this.syncSubscription.add(
       this.persistenceService.syncUpdate$.subscribe((syncData) => {
         if (syncData && syncData.bookingId === this.currentBookingId) {
@@ -253,7 +253,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÍTICA: Intentar cargar borrador existente
+   * MEJORA CRÃTICA: Intentar cargar borrador existente
    */
   private loadDraftIfExists(): void {
     // Si estamos editando una reserva existente, usar ese ID
@@ -269,13 +269,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÍTICA: Verificar si debe cargar el borrador
+   * MEJORA CRÃTICA: Verificar si debe cargar el borrador
    */
   private shouldLoadDraft(draft: any): boolean {
     // No cargar si ya hay datos externos
     if (this.externalData?.booking) return false;
 
-    // No cargar si el borrador es muy antiguo (más de 1 hora)
+    // No cargar si el borrador es muy antiguo (mÃ¡s de 1 hora)
     const hourAgo = Date.now() - (60 * 60 * 1000);
     if (draft.timestamp < hourAgo) return false;
 
@@ -283,7 +283,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÍTICA: Mostrar diálogo de recuperación de borrador
+   * MEJORA CRÃTICA: Mostrar diÃ¡logo de recuperaciÃ³n de borrador
    */
   private showDraftRecoveryDialog(draft: any): void {
     const dialogRef = this.dialog.open(BookingDialogComponent, {
@@ -309,7 +309,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÍTICA: Cargar datos del borrador
+   * MEJORA CRÃTICA: Cargar datos del borrador
    */
   private loadDraftData(draft: any): void {
     try {
@@ -361,7 +361,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÍTICA: Restaurar datos calculados del borrador
+   * MEJORA CRÃTICA: Restaurar datos calculados del borrador
    */
   private restoreCalculatedData(data: any): void {
     if (data.mainClient) this.mainClient = data.mainClient;
@@ -373,10 +373,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (data.subtotal) this.subtotal = data.subtotal;
     if (data.normalizedDates) this.normalizedDates = data.normalizedDates;
 
-    // MEJORA CR�TICA: Limpiar datos de bookingData que pueden causar bonos autom�ticos
+    // MEJORA CRÍTICA: Limpiar datos de bookingData que pueden causar bonos automáticos
     const currentBookingData = this.bookingService.getBookingData();
     if (currentBookingData) {
-      // Resetear vouchers para evitar aplicaci�n autom�tica desde borradores
+      // Resetear vouchers para evitar aplicación automática desde borradores
       currentBookingData.vouchers = [];
       currentBookingData.price_total = 0; // OK: Reset al crear nueva reserva, backend recalculara
       currentBookingData.paid_total = 0;
@@ -386,7 +386,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÍTICA: Guardar borrador actual
+   * MEJORA CRÃTICA: Guardar borrador actual
    */
   private saveDraft(): void {
     if (!this.currentBookingId) return;
@@ -405,7 +405,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * MEJORA CRÍTICA: Recopilar datos de formularios para guardado
+   * MEJORA CRÃTICA: Recopilar datos de formularios para guardado
    */
   private collectFormData(): any {
     return {
@@ -424,7 +424,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     };
   }
 
-  // Métodos auxiliares
+  // MÃ©todos auxiliares
 
   private generateBookingId(): string {
     return `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -466,11 +466,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       this.mainClient = mainClient;
     }
 
-    // VALIDACIÓN PREVENTIVA: Verificar coherencia cliente-participantes
+    // VALIDACIÃ“N PREVENTIVA: Verificar coherencia cliente-participantes
     if (mainClient && utilizers) {
       const validationResult = this.validateClientParticipantConsistency(mainClient, utilizers);
       if (!validationResult.isValid) {
-        // Filtrar utilizers inválidos y mostrar advertencia
+        // Filtrar utilizers invÃ¡lidos y mostrar advertencia
         this.utilizers = validationResult.filteredUtilizers;
         this.snackBar.open(
           this.translateService.instant('booking.conflict.filtered', {
@@ -508,7 +508,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       }
       this.normalizeDates(createNew);
 
-      // MEJORA CRÍTICA: Marcar como cambios no guardados para persistencia
+      // MEJORA CRÃTICA: Marcar como cambios no guardados para persistencia
       this.hasUnsavedChanges = true;
     }
   }
@@ -854,14 +854,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     };
   }
   /**
-   * Obtiene los descuentos del intervalo espec�fico desde settings.intervals
+   * Obtiene los descuentos del intervalo específico desde settings.intervals
    */
   private getIntervalDiscounts(intervalId: string): any[] {
     return getIntervalDiscountsUtil(this.course, intervalId);
   }
 
   /**
-   * Determina qu� descuentos usar (por intervalo o globales)
+   * Determina qué descuentos usar (por intervalo o globales)
    */
   private getApplicableDiscounts(intervalId?: string, targetCourse?: any): any[] {
     const course = targetCourse || this.course;
@@ -869,7 +869,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   /**
-   * Obtiene informaci�n del descuento aplicado para mostrar en la UI
+   * Obtiene información del descuento aplicado para mostrar en la UI
    */
   getAppliedDiscountInfo(selectedDatesCount: number, intervalId?: string): any {
     const info = getAppliedDiscountInfoUtil(this.course, selectedDatesCount, intervalId);
@@ -949,7 +949,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
     return total;
   }
-  // Método para obtener el intervalo de precios basado en la duración
+  // MÃ©todo para obtener el intervalo de precios basado en la duraciÃ³n
   private getPriceInterval(duration: number) {
     const priceRanges = this.course.price_range;
     return priceRanges.find((interval: any) => {
@@ -958,7 +958,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     });
   }
 
-  // Método para parsear la duración en formato de texto a minutos
+  // MÃ©todo para parsear la duraciÃ³n en formato de texto a minutos
   private parseDuration(durationStr: string): number {
     const parts = durationStr.split(' ');
     let totalMinutes = 0;
@@ -1022,20 +1022,20 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   getSelectedDates(dates: any) {
     const selectedDates = dates.filter((date: any) => date.selected);
 
-    // Calcular precio individual para cada fecha seg�n el tipo de curso
+    // Calcular precio individual para cada fecha según el tipo de curso
     if (this.course?.course_type === 2 && this.course?.is_flexible && this.utilizers?.length) {
-      // PRIVADOS FLEX: Usar price_range seg�n duraci�n y PAX
+      // PRIVADOS FLEX: Usar price_range según duración y PAX
       selectedDates.forEach((date: any) => {
         const duration = date.duration;
         const selectedUtilizers = this.utilizers.length;
 
-        // Encuentra el intervalo de duraci�n que se aplica
+        // Encuentra el intervalo de duración que se aplica
         const interval = this.course.price_range?.find(range => {
           return range.intervalo === duration;
         });
 
         if (interval) {
-          // Intentar acceso con n�mero y string para compatibilidad
+          // Intentar acceso con número y string para compatibilidad
           const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
           date.price = priceForPax.toString();
           date.currency = this.course.currency || 'CHF';
@@ -1200,7 +1200,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   goToNextStep() {
-    this.step = 2;  // Cambiar al paso 2 de confirmación de pago
+    this.step = 2;  // Cambiar al paso 2 de confirmaciÃ³n de pago
   }
 
   cancelPaymentStep() {
@@ -1211,14 +1211,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.isPaid = false;  // Resetear isPaid
   }
 
-  // Método para finalizar la reserva
+  // MÃ©todo para finalizar la reserva
   finalizeBooking(): void {
     const bookingData = this.bookingService.getBookingData();
     if (!bookingData || this.isSubmitting) {
       return;
     }
 
-    // Asegurar que el total enviado incluya opcionales (p.e. seguro de cancelación)
+    // Asegurar que el total enviado incluya opcionales (p.e. seguro de cancelaciÃ³n)
     const finalPriceTotal = this.buildFinalPriceTotal(bookingData);
     bookingData.price_total = finalPriceTotal;
 
@@ -1237,9 +1237,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     const vouchersTotal = this.calculateTotalVoucherPrice();
     const safeVouchersTotal = isNaN(vouchersTotal) ? 0 : vouchersTotal;
 
-    // MEJORA CR�TICA: Detectar y prevenir reservas con problemas de precios/bonos
+    // MEJORA CRÍTICA: Detectar y prevenir reservas con problemas de precios/bonos
     if (safePriceTotal === 0 && safeVouchersTotal > 0) {
-      console.error('?? PROBLEMA DETECTADO: Reserva con precio 0� pero bonos aplicados', {
+      console.error('?? PROBLEMA DETECTADO: Reserva con precio 0€ pero bonos aplicados', {
         priceTotal: safePriceTotal,
         vouchersTotal: safeVouchersTotal,
         vouchers: bookingData.vouchers
@@ -1254,7 +1254,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         }
       );
 
-      // Limpiar bonos autom�ticos problem�ticos y detener proceso
+      // Limpiar bonos automáticos problemáticos y detener proceso
       bookingData.vouchers = [];
       this.bookingService.setBookingData(bookingData);
       return;
@@ -1284,8 +1284,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         (result: any) => {
           const bookingId = result.data.id;
 
-          // Manejar pagos en línea
-          if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
+          // Manejar pagos en lÃ­nea
+          if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) {
             this.crudService.post(`/admin/bookings/payments/${bookingId}`, result.data.basket)
               .subscribe(
                 (paymentResult: any) => {
@@ -1302,7 +1302,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                     this.snackBar.open(this.translateService.instant('snackbar.booking_detail.send_mail'),
                       this.translateService.instant('close'),
                       { duration: 1000 });
-                    // MEJORA CRÍTICA: Limpiar borrador al completar reserva exitosamente
+                    // MEJORA CRÃTICA: Limpiar borrador al completar reserva exitosamente
                     this.persistenceService.removeDraft(this.currentBookingId);
                     this.hasUnsavedChanges = false;
 
@@ -1314,7 +1314,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                   if (this.dialogRef) {
                     this.dialogRef.close();
                   }
-                  // MEJORA CRÍTICA: Incluso con error de pago, la reserva se creó exitosamente
+                  // MEJORA CRÃTICA: Incluso con error de pago, la reserva se creÃ³ exitosamente
                   this.persistenceService.removeDraft(this.currentBookingId);
                   this.hasUnsavedChanges = false;
 
@@ -1327,11 +1327,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
             if (this.dialogRef) {
               this.dialogRef.close();
             }
-            // MEJORA CRÍTICA: Limpiar borrador al completar reserva exitosamente
+            // MEJORA CRÃTICA: Limpiar borrador al completar reserva exitosamente
             this.persistenceService.removeDraft(this.currentBookingId);
             this.hasUnsavedChanges = false;
 
-            // Si no es pago online, llevar directamente a la página de actualización
+            // Si no es pago online, llevar directamente a la pÃ¡gina de actualizaciÃ³n
             this.router.navigate([`/bookings/update/${bookingId}`]);
           }
         },
@@ -1391,7 +1391,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   // Manejo elegante de errores de coherencia cliente-participantes
   handleClientParticipantConsistencyError(errorMessage: string): void {
-    // Extraer información del error
+    // Extraer informaciÃ³n del error
     const participantMatch = errorMessage.match(/participante\s+([^)]+)\s+no\s+pertenece\s+al\s+cliente\s+principal\s+([^)]+)/i);
 
     let dialogMessage = this.translateService.instant('booking.conflict.detected');
@@ -1404,7 +1404,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       });
     }
 
-    // Mostrar dialog elegante con opciones de corrección
+    // Mostrar dialog elegante con opciones de correcciÃ³n
     const dialog = this.dialog.open(ClientParticipantConflictDialogComponent, {
       width: '600px',
       disableClose: true,
@@ -1414,14 +1414,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         utilizers: this.utilizers,
         normalizedDates: this.normalizedDates,
         onResolved: (solution: any) => {
-          // Aplicar solución y reintentar
+          // Aplicar soluciÃ³n y reintentar
           this.applyConsistencySolution(solution);
         }
       }
     });
   }
 
-  // Aplicar la solución elegida para resolver la inconsistencia
+  // Aplicar la soluciÃ³n elegida para resolver la inconsistencia
   applyConsistencySolution(solution: any): void {
     const clientLocked = (this.forms && this.forms.length > 0) || (this.normalizedDates && this.normalizedDates.length > 0);
     switch (solution.action) {
@@ -1445,7 +1445,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         break;
 
       case 'remove_participants':
-        // Remover participantes problemáticos
+        // Remover participantes problemÃ¡ticos
         this.normalizedDates = this.normalizedDates.map(date => ({
           ...date,
           utilizers: date.utilizers.filter(u => !solution.participantsToRemove.includes(u.id))
@@ -1458,13 +1458,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         break;
 
       case 'create_relationship':
-        // En este caso, simplemente mostrar mensaje ya que la relación debe crearse manualmente
+        // En este caso, simplemente mostrar mensaje ya que la relaciÃ³n debe crearse manualmente
         this.snackBar.open(
           this.translateService.instant('booking.conflict.create_relationship'),
           this.translateService.instant('close'),
           { duration: 2000 }
         );
-        // Reintentar la reserva después de un delay
+        // Reintentar la reserva despuÃ©s de un delay
         setTimeout(() => {
           this.finalizeBooking();
         }, 2500);
@@ -1472,7 +1472,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     }
   }
 
-  // Validación preventiva de coherencia cliente-participantes
+  // ValidaciÃ³n preventiva de coherencia cliente-participantes
   validateClientParticipantConsistency(mainClient: any, utilizers: any[]): {
     isValid: boolean,
     filteredUtilizers: any[],
@@ -1482,17 +1482,17 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return { isValid: true, filteredUtilizers: utilizers || [], invalidCount: 0 };
     }
 
-    // Obtener IDs válidos: cliente principal + sus utilizers
+    // Obtener IDs vÃ¡lidos: cliente principal + sus utilizers
     const validClientIds = [mainClient.id];
 
-    // Agregar utilizers del cliente principal si están disponibles
+    // Agregar utilizers del cliente principal si estÃ¡n disponibles
     if (mainClient.utilizers && Array.isArray(mainClient.utilizers)) {
       mainClient.utilizers.forEach(utilizer => {
         validClientIds.push(utilizer.id);
       });
     }
 
-    // Filtrar solo utilizers válidos
+    // Filtrar solo utilizers vÃ¡lidos
     const filteredUtilizers = utilizers.filter(utilizer =>
       validClientIds.includes(utilizer.id)
     );
@@ -1507,7 +1507,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     };
   }
 
-  // Función para mostrar un Snackbar en caso de error
+  // FunciÃ³n para mostrar un Snackbar en caso de error
   showErrorSnackbar(message: string): void {
     this.snackBar.open(message, "Cerrar", {
       duration: 3000,

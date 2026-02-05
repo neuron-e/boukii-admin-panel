@@ -24,7 +24,7 @@ import { CoursesCreateUpdateModule } from 'src/app/pages/courses-v2/courses-crea
 import { DateTimeDialogComponent } from './date-time-dialog/date-time-dialog.component';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
+import { DateAdapter, MatNativeDateModule, NativeDateAdapter } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
 import { ReductionDialogComponent } from './reduction-dialog/reduction-dialog.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -68,6 +68,14 @@ import { ComponenteButtonModule } from './form/button/app.module';
 
   ],
   providers: [
+    {
+      provide: DateAdapter,
+      useClass: class MondayDateAdapter extends NativeDateAdapter {
+        override getFirstDayOfWeek(): number {
+          return 1;
+        }
+      }
+    },
     {
       provide: MAT_SNACK_BAR_DEFAULT_OPTIONS,
       useValue: { verticalPosition: 'top', horizontalPosition: 'center', duration: 3000 }
