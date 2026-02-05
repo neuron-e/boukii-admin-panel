@@ -1,0 +1,19 @@
+<h2 mat-dialog-title>Seleccionar Intervalos</h2>
+<div mat-dialog-content>
+  <mat-checkbox [(ngModel)]="selectAll" (change)="onSelectAllChange()">
+    Seleccionar todos
+  </mat-checkbox>
+  <div class="interval-list">
+    <div *ngFor="let interval of data.intervals; let i = index">
+      <mat-checkbox [(ngModel)]="selectedIndices[i]"
+                    [disabled]="selectAll"
+                    (change)="onIntervalChange()">
+        {{ interval.name || ('Intervalo ' + (i + 1)) }}
+      </mat-checkbox>
+    </div>
+  </div>
+</div>
+<div mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancelar</button>
+  <button mat-raised-button color="primary" (click)="onConfirm()" [disabled]="!hasSelection()">Aceptar</button>
+</div>

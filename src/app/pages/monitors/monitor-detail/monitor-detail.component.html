@@ -1393,6 +1393,30 @@
       <mat-tab label="Statistiques" *ngIf="false">
 
       </mat-tab>
+      <mat-tab label="{{'notifications' | translate}}">
+        <div class="card notification-card">
+          <div class="px-6 py-4 border-b">
+            <h2 class="title m-0">{{'notifications' | translate}}</h2>
+          </div>
+          <div class="px-6 py-4">
+            <mat-spinner *ngIf="loadingNotifications" style="margin: 0 auto"></mat-spinner>
+            <div *ngIf="!loadingNotifications && notifications.length === 0" class="text-hint">
+              {{'no_notifications' | translate}}
+            </div>
+            <div *ngFor="let item of notifications" class="notification-item" [class.unread]="!item.read_at">
+              <div class="notification-row">
+                <div class="notification-title">{{ item.title }}</div>
+                <div class="notification-date">{{ item.created_at | date:'dd/MM/yyyy HH:mm' }}</div>
+              </div>
+              <div class="notification-body">{{ item.body }}</div>
+              <div class="notification-meta" *ngIf="item.event_date">
+                {{ item.event_date | date:'dd/MM/yyyy' }}
+              </div>
+              <button *ngIf="!item.read_at" class="btn-mark-read" (click)="markNotificationRead(item)"> {{'mark_as_read' | translate}} </button>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
     </mat-tab-group>
 
   </div>
@@ -2895,6 +2919,30 @@
       </mat-tab>
       <mat-tab label="Statistiques" *ngIf="false">
 
+      </mat-tab>
+      <mat-tab label="{{'notifications' | translate}}">
+        <div class="card notification-card">
+          <div class="px-6 py-4 border-b">
+            <h2 class="title m-0">{{'notifications' | translate}}</h2>
+          </div>
+          <div class="px-6 py-4">
+            <mat-spinner *ngIf="loadingNotifications" style="margin: 0 auto"></mat-spinner>
+            <div *ngIf="!loadingNotifications && notifications.length === 0" class="text-hint">
+              {{'no_notifications' | translate}}
+            </div>
+            <div *ngFor="let item of notifications" class="notification-item" [class.unread]="!item.read_at">
+              <div class="notification-row">
+                <div class="notification-title">{{ item.title }}</div>
+                <div class="notification-date">{{ item.created_at | date:'dd/MM/yyyy HH:mm' }}</div>
+              </div>
+              <div class="notification-body">{{ item.body }}</div>
+              <div class="notification-meta" *ngIf="item.event_date">
+                {{ item.event_date | date:'dd/MM/yyyy' }}
+              </div>
+              <button *ngIf="!item.read_at" class="btn-mark-read" (click)="markNotificationRead(item)"> {{'mark_as_read' | translate}} </button>
+            </div>
+          </div>
+        </div>
       </mat-tab>
     </mat-tab-group>
   </div>

@@ -40,6 +40,7 @@ export class CalendarComponent implements OnInit {
   CalendarView = CalendarView;
 
   viewDate: Date = new Date();
+  weekStartsOn = 1;
 
   refresh: Subject<any> = new Subject();
   actions: CalendarEventAction[] = [

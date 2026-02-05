@@ -111,3 +111,4 @@ export class CustomHeader implements OnChanges, DoCheck {
     return locale;
   }
 }
+

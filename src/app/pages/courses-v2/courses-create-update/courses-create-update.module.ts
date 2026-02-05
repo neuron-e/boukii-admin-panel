@@ -44,10 +44,13 @@ import { ComponenteDatePickerModule } from 'src/@vex/components/form/datepicker/
 import { ComponenteSelectModule } from 'src/@vex/components/form/select/app.module';
 import { ComponenteButtonModule } from 'src/@vex/components/form/button/app.module';
 import { CourseOpcionComponent } from '../components/opcion/opcion.component';
-import { CourseTimingModalModule } from '../../courses/course-timing-modal/course-timing-modal.module';
+import { CourseTimingModalModule } from '../course-timing-modal/course-timing-modal.module';
 import { CourseIntervalsManagerComponent } from '../course-intervals-manager/course-intervals-manager.component';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { IntervalSelectorModalComponent } from './interval-selector-modal/interval-selector-modal.component';
+import { LevelSelectorDialogComponent } from '../level-selector-dialog/level-selector-dialog.component';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @NgModule({
   imports: [
@@ -101,9 +104,10 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
     CourseTimingModalModule,
     CourseOpcionComponent,
     DragDropModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatTooltipModule
   ],
-  declarations: [CoursesCreateUpdateComponent, CourseIntervalsManagerComponent],
+  declarations: [CoursesCreateUpdateComponent, CourseIntervalsManagerComponent, IntervalSelectorModalComponent, LevelSelectorDialogComponent],
   exports: [CoursesCreateUpdateComponent]
 })
 export class CoursesCreateUpdateModule { }

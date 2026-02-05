@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, Inject, OnInit, ViewChild } from '@angular/core';
 import { FormControl, UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Observable, map, of, startWith } from 'rxjs';
@@ -24,7 +24,7 @@ import { DateAdapter } from '@angular/material/core';
   styleUrls: ['./courses-create-update-modal.component.scss'],
   animations: [fadeInUp400ms, stagger20ms]
 })
-export class CoursesCreateUpdateModalComponent implements OnInit {
+export class CoursesCreateUpdateModalComponent implements OnInit, AfterViewInit {
 
   @ViewChild(MatSort, { static: true }) sort: MatSort;
   @ViewChild('dateTable') dateTable: MatTable<any>;
@@ -32,6 +32,7 @@ export class CoursesCreateUpdateModalComponent implements OnInit {
   @ViewChild('privateDatesTable') privateDatesTable: MatTable<any>;
   @ViewChild('privateReductionTable') privateReductionTable: MatTable<any>;
   @ViewChild('levelTable') table: MatTable<any>;
+  @ViewChild(MatStepper) stepper?: MatStepper;
 
   userAvatar = '../../../../assets/img/avatar.png';
 
@@ -124,7 +125,9 @@ export class CoursesCreateUpdateModalComponent implements OnInit {
   selectedItem: any;
   selectedTabNameIndex: any = 0;
   selectedTabDescIndex: any = 0;
+  private initialStepIndex: number | null = null;
   loadingMonitors = true;
+  isDialog = false;
   defaults: any = {
     unique: false,
     course_type: null,
@@ -258,6 +261,14 @@ export class CoursesCreateUpdateModalComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public externalData: any, private dateAdapter: DateAdapter<Date>) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.id = this.externalData && this.externalData.id ? this.externalData.id : this.activatedRoute.snapshot.params.id;
+    const rawStep = this.externalData?.step;
+    if (rawStep !== null && rawStep !== undefined && rawStep !== '') {
+      const parsed = Number(rawStep);
+      if (!Number.isNaN(parsed)) {
+        this.initialStepIndex = parsed > 0 ? parsed - 1 : parsed;
+      }
+    }
+    this.isDialog = !!this.dialogRef;
     this.dateAdapter.setLocale(this.translateService.getDefaultLang());
     this.dateAdapter.getFirstDayOfWeek = () => { return 1; }
     this.generateDurations();
@@ -296,6 +307,28 @@ export class CoursesCreateUpdateModalComponent implements OnInit {
 
   ngAfterViewInit() {
     this.dataSource.sort = this.sort;
+    this.applyInitialStepIndex();
+  }
+
+  closeModal(): void {
+    if (this.dialogRef) {
+      this.dialogRef.close();
+    }
+  }
+
+  private applyInitialStepIndex(): void {
+    if (this.initialStepIndex === null || this.initialStepIndex === undefined || !this.stepper) {
+      return;
+    }
+    let index = Math.max(0, this.initialStepIndex || 0);
+    if (this.mode === 'update' && index > 0) {
+      index = Math.max(0, index - 1);
+    }
+    setTimeout(() => {
+      if (this.stepper) {
+        this.stepper.selectedIndex = index;
+      }
+    });
   }
 
   ngOnInit() {
@@ -584,6 +617,7 @@ export class CoursesCreateUpdateModalComponent implements OnInit {
             this.filterSportsByType();
             this.defaults.station_id = this.stations.filter((s) => s.id === this.defaults.station_id)[0];
             this.loading = false;
+            this.applyInitialStepIndex();
           }, 500);
         })
     } else {

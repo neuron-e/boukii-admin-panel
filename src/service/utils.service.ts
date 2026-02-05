@@ -33,8 +33,15 @@ export class UtilsService {
   }
 
   getHighestAuthorizedDegree(monitor, sport_id: number, school_id: number): any | null {
+    const monitorSports = Array.isArray(monitor?.monitor_sports_degrees)
+      ? monitor.monitor_sports_degrees
+      : [];
+    if (monitorSports.length === 0) {
+      return null;
+    }
+
     // Encuentra los deportes asociados al monitor
-    const degrees = monitor.monitor_sports_degrees
+    const degrees = monitorSports
       .filter(degree =>
         degree.sport_id === sport_id &&
         degree.school_id === school_id
@@ -531,6 +538,105 @@ export class UtilsService {
 
       return sportObject?.degree ?? null;
     }
+    return null;
+  }
+
+  formatBookingOverlapMessage(overlaps: any[]): string {
+    const titleKey = 'snackbar.booking.overlap_title';
+    const fallbackKey = 'snackbar.booking.overlap';
+    const title = this.translateService.instant(titleKey);
+    const fallback = this.translateService.instant(fallbackKey);
+    const titleMessage = title && title !== titleKey
+      ? title
+      : (fallback && fallback !== fallbackKey ? fallback : 'Overlap detected for this client.');
+
+    if (!Array.isArray(overlaps) || overlaps.length === 0) {
+      return titleMessage;
+    }
+
+    const sorted = overlaps.slice().sort((a, b) => {
+      const dateA = a?.date ? moment(a.date).format('YYYY-MM-DD') : '';
+      const dateB = b?.date ? moment(b.date).format('YYYY-MM-DD') : '';
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+      const timeA = a?.hour_start ?? '';
+      const timeB = b?.hour_start ?? '';
+      return timeA.localeCompare(timeB);
+    });
+
+    const itemKey = 'snackbar.booking.overlap_item';
+    const itemTemplate = this.translateService.instant(itemKey);
+    const hasTemplate = itemTemplate && itemTemplate !== itemKey;
+
+    const items = sorted.map((overlap) => {
+      const date = overlap?.date ? moment(overlap.date).format('YYYY-MM-DD') : '--';
+      const time = overlap?.hour_start && overlap?.hour_end
+        ? `${overlap.hour_start} - ${overlap.hour_end}`
+        : '--';
+      const course = this.resolveOverlapCourseName(overlap);
+      const bookingId = overlap?.booking_id ?? overlap?.bookingId ?? '--';
+
+      if (hasTemplate) {
+        return this.translateService.instant(itemKey, {
+          date,
+          time,
+          course,
+          bookingId
+        });
+      }
+
+      return `${date} | ${time} | ${course} (${bookingId})`;
+    });
+
+    return [titleMessage, ...items.map(item => `- ${item}`)].join('\n');
+  }
+
+  private resolveOverlapCourseName(overlap: any): string {
+    const fallbackKey = 'snackbar.booking.overlap_unknown_course';
+    const fallback = this.translateService.instant(fallbackKey);
+    const fallbackName = fallback && fallback !== fallbackKey ? fallback : 'Course';
+
+    const rawTranslations = overlap?.course_translations ?? overlap?.course?.translations ?? null;
+    const translations = this.parseOverlapTranslations(rawTranslations);
+    const currentLang = this.translateService.currentLang || this.translateService.defaultLang || 'en';
+
+    if (translations && translations[currentLang]) {
+      return translations[currentLang];
+    }
+
+    if (translations) {
+      const first = Object.values(translations).find(value =>
+        typeof value === 'string' && value.trim().length > 0
+      );
+      if (first) {
+        return first;
+      }
+    }
+
+    return overlap?.course_name || fallbackName;
+  }
+
+  private parseOverlapTranslations(translations: any): Record<string, string> | null {
+    if (!translations) {
+      return null;
+    }
+
+    if (typeof translations === 'string') {
+      try {
+        const parsed = JSON.parse(translations);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      } catch (error) {
+        return null;
+      }
+    }
+
+    if (typeof translations === 'object') {
+      return translations as Record<string, string>;
+    }
+
     return null;
   }
 

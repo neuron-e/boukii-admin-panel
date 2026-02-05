@@ -286,3 +286,9 @@
     font-weight: 700;
   }
 }
+
+.actions-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}

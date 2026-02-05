@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, AfterViewInit, HostListener, Input, OnDestroy, OnInit} from '@angular/core';
 import {
   addDays,
   addMonths,
@@ -16,11 +16,12 @@ import {
   subWeeks
 } from 'date-fns';
 import {ApiCrudService} from 'src/service/crud.service';
-import {MonitorsService} from 'src/service/monitors.service';
+import {MonitorTransferPayload, MonitorTransferPreviewPayload, MonitorsService} from 'src/service/monitors.service';
 import {LEVELS} from 'src/app/static-data/level-data';
 import {MOCK_COUNTRIES} from 'src/app/static-data/countries-data';
-import {MatDialog} from '@angular/material/dialog';
+import {MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {ConfirmModalComponent} from '../monitors/monitor-detail/confirm-dialog/confirm-dialog.component';
+import {GroupedBlockDeleteDialogComponent} from './grouped-block-delete-dialog/grouped-block-delete-dialog.component';
 import {CalendarEditComponent} from '../monitors/monitor-detail/calendar/calendar-edit/calendar-edit.component';
 import * as moment from 'moment';
 import 'moment/locale/fr';
@@ -31,13 +32,21 @@ import {
 } from './course-user-transfer-timeline/course-user-transfer-timeline.component';
 import {TranslateService} from '@ngx-translate/core';
 import {ConfirmUnmatchMonitorComponent} from './confirm-unmatch-monitor/confirm-unmatch-monitor.component';
-import {firstValueFrom, Observable, Subject} from 'rxjs';
+import {firstValueFrom, forkJoin, Observable, of, Subject} from 'rxjs';
 import {map, startWith, takeUntil} from 'rxjs/operators';
 import {FormControl} from '@angular/forms';
 import {DateAdapter} from '@angular/material/core';
 import {Router} from '@angular/router';
 import {EditDateComponent} from './edit-date/edit-date.component';
 import {BookingDetailV2Component} from '../bookings-v2/booking-detail/booking-detail.component';
+import {
+  MonitorAssignmentDialogComponent,
+  MonitorAssignmentDialogResult,
+  MonitorAssignmentScope,
+  MonitorAssignmentDialogSummaryItem
+} from './monitor-assignment-dialog/monitor-assignment-dialog.component';
+import { MonitorAssignmentHelperService, MonitorAssignmentSlot } from 'src/app/shared/services/monitor-assignment-helper.service';
+import { MonitorAssignmentLoadingDialogComponent } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-assignment-loading-dialog.component';
 
 moment.locale('fr');
 
@@ -46,18 +55,29 @@ moment.locale('fr');
   templateUrl: './timeline.component.html',
   styleUrls: ['./timeline.component.scss']
 })
-export class TimelineComponent implements OnInit, OnDestroy {
+export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private destroy$ = new Subject<void>();
+  private loadingDialogRef?: MatDialogRef<MonitorAssignmentLoadingDialogComponent>;
+  private keydownHandler?: (event: KeyboardEvent) => void;
+  // FIX: Sincronizar scroll horizontal
+  private hoursScrollElement?: HTMLDivElement;
+  private readonly plannerViewStorageKey = 'plannerViewState';
 
   hoursRange: string[];
   hoursRangeMinusLast: string[];
   hoursRangeMinutes: string[];
 
   monitorsForm: any[];
+  private currentAssignmentSlots: MonitorAssignmentSlot[] = [];
+  private currentAssignmentTargetSubgroupIds = new Set<number>();
+  private monitorSelectOptionsCache: any[] = [];
+  private monitorOptionsVersion = 0;
+  private monitorSelectOptionsCacheVersion = -1;
 
   loadingMonitors = true;
   loading = true;
+  deletingGroupedBlocks = false;
 
   tasksCalendarStyle: any[];
   filteredTasks: any[];
@@ -93,6 +113,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   monitorDetail: any;
   subgroupDetail: any;
   taskDetail: any;
+  selectedTaskKey: string | null = null;
   showBlock: boolean = false;
   idBlock: any;
   blockDetail: any;
@@ -106,6 +127,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   moving: boolean = false;
   taskMoved: any;
   showEditBlock: boolean = false;
+  monitorSearchHint = '';
 
   showFilter: boolean = false;
   checkedSports = new Set();
@@ -129,6 +151,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
   searchDate: any;
 
   matchResults: { [monitorId: string]: boolean } = {};
+  private monitorMatchCache = new Map<string, boolean>();
+  private monitorDegreeAuthCache = new Map<string, Promise<Set<number>>>();
 
   nullMonitor: any = { id: null };
   filterBookingUser: any;
@@ -138,13 +162,20 @@ export class TimelineComponent implements OnInit, OnDestroy {
   filteredUsers: Observable<any[]>;
   filteredMonitorsO: Observable<any[]>;
 
-  monitorAssignmentScope: 'single' | 'from' | 'range' = 'single';
+  monitorAssignmentScope: 'single' | 'interval' | 'all' | 'from' | 'range' = 'single';
   monitorAssignmentStartDate: string | null = null;
   monitorAssignmentEndDate: string | null = null;
+  monitorAssignmentSubgroupIds: number[] = [];
+  monitorAssignmentSelectedDates: string[] = [];
   monitorAssignmentDates: { value: string, label: string }[] = [];
+  monitorSearchTerm: string = '';
+  hasApiAvailability = false;
+  @Input() filterCourseId: number | null = null;
+  private assignmentBookingUsersCache = new Map<number, any[]>();
 
   constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private dialog: MatDialog, public translateService: TranslateService,
-    private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router) {
+    private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router,
+    private assignmentHelper: MonitorAssignmentHelperService) {
     this.dateAdapter.setLocale(this.translateService.getDefaultLang());
     this.dateAdapter.getFirstDayOfWeek = () => { return 1; }
     this.mockLevels.forEach(level => {
@@ -173,6 +204,28 @@ export class TimelineComponent implements OnInit, OnDestroy {
         map(value => typeof value === 'string' ? value : value.first_name),
         map(name => name ? this._filterMonitor(name) : this.allMonitors.slice())
       );
+  }
+
+  /**
+   * FIX: Inicializa referencias para sincronizacion de scroll
+   */
+  ngAfterViewInit(): void {
+    const hoursScrollElements = document.querySelectorAll('.hours-scroll');
+    if (hoursScrollElements.length > 0) {
+      this.hoursScrollElement = hoursScrollElements[0] as HTMLDivElement;
+    }
+  }
+
+  /**
+   * FIX: Sincroniza el scroll del header de horas con el grid
+   */
+  syncHoursScroll(event: Event): void {
+    const scrollLeft = (event.target as HTMLDivElement).scrollLeft;
+
+    const hoursRows = document.querySelectorAll('.hours-row');
+    hoursRows.forEach((row: Element) => {
+      (row as HTMLDivElement).scrollLeft = scrollLeft;
+    });
   }
 
   displayFn(user: any): string {
@@ -227,11 +280,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.showGrouped = false;
     this.showDetail = false;
     //ESC to close moveMonitor
-    document.addEventListener('keydown', this.handleKeydownEvent.bind(this));
-    this.destroy$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      document.removeEventListener('keydown', this.handleKeydownEvent.bind(this));
-    });
-    //ESC to close moveMonitor
+    this.keydownHandler = this.handleKeydownEvent.bind(this);
+    document.addEventListener('keydown', this.keydownHandler);
+
 
     this.activeSchool = await this.getUser();
     await this.getLanguages();
@@ -239,7 +290,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     await this.getSchoolSports();
     await this.getDegrees();
     this.crudService.list('/seasons', 1, 10000, 'asc', 'id', '&school_id=' + this.user.schools[0].id + '&is_active=1')
-      .subscribe((season) => {
+      .pipe(takeUntil(this.destroy$)).subscribe((season) => {
         let hour_start = '08:00';
         let hour_end = '18:00';
         if (season.data.length > 0) {
@@ -255,6 +306,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
     await this.calculateWeeksInMonth();
     //await this.calculateTaskPositions();
 
+    this.loadSavedViewState();
+    this.syncViewLabels();
     //BRING PREVIOUS FILTERS
     this.loadSavedFilters();
     this.loadBookings(this.currentDate);
@@ -363,7 +416,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.updateView();
   }
 
-  updateView() {
+  private syncViewLabels(): void {
     if (this.timelineView === 'week') {
       const start = startOfWeek(this.currentDate, { weekStartsOn: 1 });
       const end = endOfWeek(this.currentDate, { weekStartsOn: 1 });
@@ -374,17 +427,25 @@ export class TimelineComponent implements OnInit, OnDestroy {
     } else {
       this.currentWeek = '';
     }
+  }
+
+  updateView() {
+    this.syncViewLabels();
+    this.saveViewState();
     this.loadBookings(this.currentDate);
   }
 
-  loadBookings(date: Date) {
+  loadBookings(date: Date, options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      this.loading = true;
+    }
     let firstDate, lastDate;
     if (this.timelineView === 'week') {
       const startOfWeekDate = startOfWeek(date, { weekStartsOn: 1 });
       const endOfWeekDate = endOfWeek(date, { weekStartsOn: 1 });
       firstDate = moment(startOfWeekDate).format('YYYY-MM-DD');
       lastDate = moment(endOfWeekDate).format('YYYY-MM-DD');
-      this.searchBookings(firstDate, lastDate);
+      this.searchBookings(firstDate, lastDate, options);
 
       /*this.filteredTasks = this.tasksCalendarStyle.filter(task => {
         const taskDate = new Date(task.date);
@@ -395,7 +456,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       const endMonth = endOfMonth(date);
       firstDate = moment(startMonth).format('YYYY-MM-DD');
       lastDate = moment(endMonth).format('YYYY-MM-DD');
-      this.searchBookings(firstDate, lastDate);
+      this.searchBookings(firstDate, lastDate, options);
 
       /*this.filteredTasks = this.tasksCalendarStyle.filter(task => {
         const taskDate = new Date(task.date);
@@ -405,18 +466,21 @@ export class TimelineComponent implements OnInit, OnDestroy {
       const dateStr = date.toLocaleString().split('T')[0];
       firstDate = moment(date).format('YYYY-MM-DD');
       lastDate = firstDate;
-      this.searchBookings(firstDate, lastDate);
+      this.searchBookings(firstDate, lastDate, options);
       /*this.filteredTasks = this.tasksCalendarStyle.filter(task => task.date === dateStr);*/
     }
 
   }
 
-  searchBookings(firstDate: string, lastDate: string) {
-    this.crudService.get('/admin/getPlanner?date_start=' + firstDate + '&date_end=' + lastDate + '&school_id=' + this.activeSchool + '&perPage=' + 99999).subscribe(
+  searchBookings(firstDate: string, lastDate: string, options: { silent?: boolean } = {}) {
+    this.crudService.get('/admin/getPlanner?date_start=' + firstDate + '&date_end=' + lastDate + '&school_id=' + this.activeSchool + '&perPage=' + 99999).pipe(takeUntil(this.destroy$)).subscribe(
       (data: any) => {
         this.processData(data.data);
       },
       error => {
+        if (!options.silent) {
+          this.loading = false;
+        }
       }
     );
   }
@@ -542,8 +606,31 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
           if (Array.isArray(bookingArray) && bookingArray.length > 0) {
 
-            //Check if private bookings have the the same hours - and group them
-            if ((bookingArray[0].course.course_type === 2 || bookingArray[0].course.course_type === 3) && bookingArray.length > 1) {
+            const courseType = bookingArray[0].course.course_type;
+            // Private bookings: group shared sessions (same booking/group/date/time).
+            if (courseType === 2) {
+              const groupedBySession = bookingArray.reduce((acc, curr) => {
+                const groupId = curr.group_id ?? curr.course_group_id ?? curr.course_subgroup_id ?? 'no-group';
+                const bookingId = curr.booking_id ?? curr.id ?? 'no-booking';
+                const key = `${bookingId}-${groupId}-${curr.date ?? ''}-${curr.hour_start}-${curr.hour_end}`;
+                if (!acc[key]) {
+                  acc[key] = [];
+                }
+                acc[key].push(curr);
+                return acc;
+              }, {});
+
+              Object.values(groupedBySession).forEach((sessionGroup: any[]) => {
+                const resolvedMonitorId = sessionGroup.find(item => item?.monitor_id != null)?.monitor_id ?? null;
+                if (resolvedMonitorId != null) {
+                  sessionGroup.forEach(item => {
+                    item.monitor_id = resolvedMonitorId;
+                  });
+                }
+                bookingArrayComplete.push(sessionGroup);
+              });
+            } else if (courseType === 3 && bookingArray.length > 1) {
+              // Activity bookings keep time grouping.
               const groupedByTime = bookingArray.reduce((acc, curr) => {
                 const timeKey = `${curr.hour_start}-${curr.hour_end}`;
                 if (!acc[timeKey]) {
@@ -555,7 +642,6 @@ export class TimelineComponent implements OnInit, OnDestroy {
               for (const group in groupedByTime) {
                 bookingArrayComplete.push(groupedByTime[group]);
               }
-
             } else {
               bookingArrayComplete.push(bookingArray);
             }
@@ -571,7 +657,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
                   if ((this.filterCollective || groupedBookingArray[0].course.course_type !== 1) &&
                     (this.filterPrivate || groupedBookingArray[0].course.course_type !== 2) &&
                     (this.filterActivity || groupedBookingArray[0].course.course_type === 3)) {
-                    const firstBooking = { ...groupedBookingArray[0], bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
+                    const representative = (groupedBookingArray[0]?.course?.course_type === 2)
+                      ? (groupedBookingArray.find(entry => entry?.monitor_id != null) ?? groupedBookingArray[0])
+                      : groupedBookingArray[0];
+                    const firstBooking = { ...representative, bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
                     allBookings.push(firstBooking);
                   }
                 }
@@ -580,7 +669,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
                   if ((this.filterCollective || groupedBookingArray[0].course.course_type !== 1) &&
                     (this.filterPrivate || groupedBookingArray[0].course.course_type !== 2) &&
                     (this.filterActivity || groupedBookingArray[0].course.course_type === 3)) {
-                    const firstBooking = { ...groupedBookingArray[0], bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
+                    const representative = (groupedBookingArray[0]?.course?.course_type === 2)
+                      ? (groupedBookingArray.find(entry => entry?.monitor_id != null) ?? groupedBookingArray[0])
+                      : groupedBookingArray[0];
+                    const firstBooking = { ...representative, bookings_number: groupedBookingArray.length, bookings_clients: groupedBookingArray };
                     allBookings.push(firstBooking);
                   }
                 }
@@ -607,7 +699,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       if (booking.course.course_type === 2 || booking.course.course_type === 3) {
         usersToProcess = booking.bookings_clients;
       } else if (booking.course.course_type === 1) {
-        usersToProcess = booking.booking_users;
+        usersToProcess = booking.booking_users ?? booking.bookings_clients;
       }
 
       usersToProcess.forEach(userObj => {
@@ -621,17 +713,17 @@ export class TimelineComponent implements OnInit, OnDestroy {
       });
     });
 
-    //Saved object to filter
-    if (this.filterBookingUser && !allBookingUsers.some(user => user.id === this.filterBookingUser.id)) {
-      allBookingUsers.push(this.filterBookingUser);
-    }
+      //Saved object to filter
+      if (this.filterBookingUser && !allBookingUsers.some(user => user.id === this.filterBookingUser.id)) {
+        allBookingUsers.push(this.filterBookingUser);
+      }
 
     allBookingUsers.sort((a, b) => a.first_name.localeCompare(b.first_name));
     this.allBookingUsers = allBookingUsers;
 
-    //filter the bookings if bookinguser
-    if (this.filterBookingUser && this.filterBookingUser.id) {
-      const filteredBookings = allBookings.filter(booking => {
+      //filter the bookings if bookinguser
+      if (this.filterBookingUser && this.filterBookingUser.id) {
+        const filteredBookings = allBookings.filter(booking => {
         let usersToCheck = [];
         if (booking.course.course_type === 2 || booking.course.course_type === 3) {
           usersToCheck = booking.bookings_clients.map(clientObj => clientObj.client);
@@ -640,26 +732,72 @@ export class TimelineComponent implements OnInit, OnDestroy {
         }
 
         return usersToCheck.some(user => user.id === this.filterBookingUser.id);
-      });
+        });
 
-      allBookings = filteredBookings;
-    }
+        allBookings = filteredBookings;
+      }
 
-    //Convert them into TASKS
+      if (this.filterCourseId) {
+        const targetId = Number(this.filterCourseId);
+        allBookings = allBookings.filter(booking => {
+          const resolvedCourseId =
+            booking?.course_id ??
+            booking?.course?.id ??
+            booking?.course_group?.course_id ??
+            booking?.courseGroup?.course_id ??
+            booking?.course_group?.course?.id ??
+            booking?.courseGroup?.course?.id ??
+            null;
+          return Number(resolvedCourseId) === targetId;
+        });
+      }
+
+      if (this.filterBookingUser && this.filterBookingUser.id) {
+        const monitorIds = new Set<number | null>();
+        allBookings.forEach(booking => {
+          const monitorId = booking?.monitor_id ?? null;
+          monitorIds.add(monitorId);
+        });
+        this.filteredMonitors = this.filteredMonitors.filter(monitor => monitorIds.has(monitor?.id ?? null));
+        this.allMonitorsTimeline = this.allMonitorsTimeline.filter(monitor => monitorIds.has(monitor?.id ?? null));
+        this.allMonitors = this.allMonitors.filter(monitor => monitorIds.has(monitor?.id ?? null));
+      }
+
+      //Convert them into TASKS
 
     allBookings.forEach(booking => {
-      if (!booking.booking) {
-        // Construct the booking object
-        const courseDate = booking.course.course_dates.find(date => date.id === booking.course_date_id);
+      // Process if it's a CourseSubgroup (has course_group_id) or BookingUser without booking property
+        const isSubgroup = booking.course_group_id != null;
+      const isUnprocessedBooking = !booking.booking;
 
-        booking.booking = {
-          id: booking.id
-        };
+      if (isSubgroup || isUnprocessedBooking) {
+        // For subgroups, get course from course_group.course; for booking_users, from booking.course
+        const course = booking.course || booking.courseGroup?.course || booking.course_group?.course;
+        const courseDate = course?.course_dates?.find((date: any) => date.id === booking.course_date_id);
+
+        if (!booking.booking) {
+          booking.booking = {
+            id: booking.id
+          };
+        }
+
         booking.date = courseDate ? courseDate.date : null;
         booking.hour_start = courseDate ? courseDate.hour_start : null;
         booking.hour_end = courseDate ? courseDate.hour_end : null;
-        booking.bookings_number = booking.booking_users?.length;
-        booking.bookings_clients = booking.booking_users;
+
+        // Filter by status = 1 (active bookings only) to get correct count
+        // API returns booking_users (snake_case) for CourseSubgroup
+        const rawBookingUsers = booking.booking_users || booking.bookingUsers || [];
+        const activeBookingUsers = Array.isArray(rawBookingUsers)
+          ? rawBookingUsers.filter((user: any) => user?.status === 1)
+          : [];
+        booking.bookings_number = activeBookingUsers.length;
+        booking.bookings_clients = activeBookingUsers;
+
+        // Ensure course reference is available for later processing
+        if (!booking.course && course) {
+          booking.course = course;
+        }
       }
     });
 
@@ -732,6 +870,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
           monitor = this.filteredMonitors.find(monitor => monitor.id === booking.monitor_id) || null;
         }
 
+        const computedSubgroupNumber = this.resolveBookingSubgroupOrder(booking);
+        const subgroupNumber = booking.subgroup_number ?? computedSubgroupNumber;
+
         return {
           id: booking?.id,
           booking_id: booking?.booking?.id,
@@ -745,7 +886,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           hour_start: booking.hour_start.substring(0, 5),
           hour_end: booking.hour_end ? booking.hour_end.substring(0, 5) : this.hoursRange[this.hoursRange.length - 1],
           type: type,
-          name: booking.course.name,
+          name: this.getCourseDisplayName(booking.course),
           sport_id: booking.course.sport_id,
           sport: sport,
           degree_id: booking.degree_id,
@@ -758,10 +899,15 @@ export class TimelineComponent implements OnInit, OnDestroy {
           monitor: monitor,
           course_id: booking.course_id,
           course_date_id: booking.course_date_id,
-          course_subgroup_id: booking.booking_users && booking.booking_users?.length > 0 ? booking.booking_users[0].course_subgroup_id : null,
-          subgroup_number: booking.subgroup_number,
+          course_subgroup_id: booking.course_subgroup_id
+            ?? booking.subgroup_id
+            ?? (booking.booking_users && booking.booking_users?.length > 0 ? booking.booking_users[0].course_subgroup_id : null),
+          subgroup_number: subgroupNumber,
           total_subgroups: booking.total_subgroups,
           course: booking.course,
+          meeting_point: booking.meeting_point,
+          meeting_point_address: booking.meeting_point_address,
+          meeting_point_instructions: booking.meeting_point_instructions,
           accepted: booking.accepted,
           paid: booking?.booking?.paid,
           user: booking?.booking?.user,
@@ -815,6 +961,64 @@ export class TimelineComponent implements OnInit, OnDestroy {
     ];
 
     this.calculateTaskPositions(tasksCalendar);
+  }
+
+  private getCourseDisplayName(course: any): string {
+    const translated = this.extractDisplayName(course?.translations);
+    if (translated) {
+      return translated;
+    }
+
+    const fallback = this.extractDisplayName(course?.name);
+    if (fallback) {
+      return fallback;
+    }
+
+    return '';
+  }
+
+  private extractDisplayName(value: any): string {
+    if (!value) return '';
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+
+      try {
+        const parsed = JSON.parse(value);
+        return this.extractDisplayName(parsed);
+      } catch {
+        return '';
+      }
+    }
+
+    if (typeof value === 'object') {
+      const lang = this.translateService.currentLang || this.translateService.getDefaultLang();
+      const candidate = (value as any)[lang];
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+      if (candidate && typeof candidate === 'object' && candidate.name) {
+        return candidate.name;
+      }
+
+      const objectValues = Object.values(value as Record<string, any>);
+      for (const entry of objectValues) {
+        const item = entry as any;
+        if (typeof item === 'string' && item.trim()) {
+          return item.trim();
+        }
+        if (item && typeof item === 'object') {
+          if (item.name) {
+            return item.name;
+          }
+        }
+      }
+    }
+
+    return '';
   }
 
   getPositionDate(courseDates: any[], courseDateId: string): number {
@@ -1035,7 +1239,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       return group;
     }, {});
 
-    //Store ids that will be deleted
+    //Store ids that will be deleted (no monitor grouping)
     let groupedTaskIds = new Set();
 
     // Process each group to adjust overlapping tasks
@@ -1121,14 +1325,69 @@ export class TimelineComponent implements OnInit, OnDestroy {
       groupedByDate[date] = overlappingGroups.flat();
     });
 
+    const buildMonitorGroupKey = (task: any): string | null => {
+      if (task.course_id == null || task.monitor_id == null) {
+        return null;
+      }
+      const courseType = task.course?.course_type ?? task.course_type ?? null;
+      const baseKey = courseType == 1
+        ? `${task.course_id}-${task.hour_start}-${task.hour_end}`
+        : `${task.course_id}-${task.hour_start}-${task.hour_end}-${task.group_id}`;
+      return `${task.monitor_id}-${task.date}-${baseKey}`;
+    };
+
+    const buildMonitorTaskKey = (task: any): string => {
+      const bookingId = task?.booking_id ?? task?.id ?? 'none';
+      const date = task?.date ?? 'no-date';
+      const start = task?.hour_start ?? 'no-start';
+      const monitorId = task?.monitor_id ?? 'no-monitor';
+      const subgroupId = task?.course_subgroup_id ?? task?.subgroup_id ?? 'no-subgroup';
+      return `${bookingId}-${date}-${start}-${monitorId}-${subgroupId}`;
+    };
+
     // Remove the original tasks that were grouped -> NOT THE ONES THAT ALREADY HAVE MONITOR
     const filteredPlannerTasks = plannerTasks.filter(task =>
       !groupedTaskIds.has(task.booking_id) ||
       (groupedTaskIds.has(task.booking_id) && task.monitor_id)
     );
 
+    // Group overlapping tasks per monitor (same behavior as "no monitor" column)
+    const groupedMonitorTasks: any[] = [];
+    const groupedMonitorTaskKeys = new Set<string>();
+    const monitorTasks = filteredPlannerTasks.filter(task => task.monitor_id != null);
+    const groupedByMonitor = monitorTasks.reduce((group, task) => {
+      const key = buildMonitorGroupKey(task);
+      if (!key) {
+        return group;
+      }
+      (group[key] = group[key] || []).push(task);
+      return group;
+    }, {});
+
+    Object.keys(groupedByMonitor).forEach(key => {
+      const tasksForKey = groupedByMonitor[key] || [];
+      if (tasksForKey.length <= 1) {
+        return;
+      }
+      const baseTask = { ...tasksForKey[0], grouped_tasks: tasksForKey };
+      groupedMonitorTasks.push(baseTask);
+      tasksForKey.forEach(task => groupedMonitorTaskKeys.add(buildMonitorTaskKey(task)));
+    });
+
+    const finalPlannerTasks = filteredPlannerTasks.filter(task => {
+      if (task.monitor_id == null) {
+        return true;
+      }
+      return !groupedMonitorTaskKeys.has(buildMonitorTaskKey(task));
+    });
+
     // Combine adjusted tasks with the rest
-    this.plannerTasks = [...filteredPlannerTasks, ...Object.values(groupedByDate).flat()];
+    this.plannerTasks = [
+      ...finalPlannerTasks,
+      ...Object.values(groupedByDate).flat(),
+      ...groupedMonitorTasks
+    ];
+    this.bumpMonitorOptionsVersion();
     this.loading = false;
   }
 
@@ -1180,7 +1439,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   // LOGIC
 
-  toggleDetail(task: any) {
+  toggleDetail(task: any, event?: MouseEvent) {
+    if (event) {
+      event.stopPropagation();
+    }
     if (task.booking_id) {
       if (task.grouped_tasks && task.grouped_tasks.length > 1) {
         //Open Modal grouped courses
@@ -1190,6 +1452,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
         this.dateGrouped = task.date;
         this.taskDetail = null;
         this.idDetail = null;
+        this.selectedTaskKey = null;
         this.showGrouped = true;
       }
       else {
@@ -1207,15 +1470,26 @@ export class TimelineComponent implements OnInit, OnDestroy {
         this.monitorDetail = task.monitor_id;
         this.subgroupDetail = task.course_subgroup_id;
         this.taskDetail = task;
+        if (!this.taskDetail.sport) {
+          const courseSport = this.taskDetail?.course?.sport;
+          this.taskDetail.sport = courseSport || this.sports.find(s => s.id === this.taskDetail?.sport_id) || null;
+        }
+        this.selectedTaskKey = this.getTaskSelectionKey(task);
         this.showDetail = true;
         this.initializeMonitorAssignment(task);
+
+      // Cargar disponibles para el selector del preview:
+        this.checkAvailableMonitors();
       }
       this.hideBlock();
       this.hideEditBlock();
     }
   }
 
-  toggleBlock(block: any) {
+  toggleBlock(block: any, event?: MouseEvent) {
+    if (event) {
+      event.stopPropagation();
+    }
     this.idBlock = block.block_id;
     this.blockDetail = block;
     this.hideDetail();
@@ -1230,10 +1504,12 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorDetail = null;
     this.subgroupDetail = null;
     this.taskDetail = null;
+    this.selectedTaskKey = null;
     this.showDetail = false;
     this.editedMonitor = null;
     this.showEditMonitor = false;
     this.resetMonitorAssignmentState();
+    this.clearCurrentAssignmentContext();
   }
 
   hideBlock() {
@@ -1253,6 +1529,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   toggleDetailMove(task: any, event: any) {
     this.moving = true;
     this.taskDetail = task;
+    this.initializeMonitorAssignment(task);
     event.preventDefault();
     if (task.booking_id) {
       const dialogRef = this.dialog.open(ConfirmModalComponent, {
@@ -1261,33 +1538,30 @@ export class TimelineComponent implements OnInit, OnDestroy {
         data: { message: this.translateService.instant('move_task'), title: this.translateService.instant('confirm_move') }
       });
 
-      dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
-        if (userConfirmed) {
+      dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((userConfirmed: boolean) => {
+      if (userConfirmed) {
 
-          const clientIds = this.taskDetail.all_clients.map((client) => client.id);
-
-          const data = {
-            sportId: this.taskDetail.sport_id,
-            minimumDegreeId: this.taskDetail.degree_id || this.taskDetail.degree.id,
-            startTime: this.taskDetail.hour_start,
-            endTime: this.taskDetail.hour_end,
-            date: this.taskDetail.date,
-            clientIds: clientIds
-          };
+          const data = this.buildMonitorAvailabilityPayload(this.taskDetail);
 
           firstValueFrom(this.crudService.post('/admin/monitors/available', data))
             .then(response => {
               this.monitorsForm = response.data;
+              this.matchResults = {};
+              this.monitorMatchCache.clear();
+              this.monitorDegreeAuthCache.clear();
+              this.showLoadingDialog('monitor_assignment.loading_matching');
               return this.updateMatchResults();
             })
             .then(() => {
               this.moveTask = true;
               this.taskMoved = task;
               this.moving = false;
+              this.hideLoadingDialog();
             })
             .catch(error => {
               console.error('An error occurred:', error);
               this.moving = false;
+              this.hideLoadingDialog();
             });
         } else {
           this.moving = false;
@@ -1306,300 +1580,247 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (this.moveTask) {
       this.moveTask = false;
       this.taskMoved = null;
+      this.clearCurrentAssignmentContext();
     }
   }
 
-  checkMonitorSport(monitor) {
-    let ret = false;
-    if (this.taskMoved && monitor && monitor.id) {
+  async moveMonitor(monitor: any, event: MouseEvent): Promise<void> {
+    if (!this.moveTask || !this.taskDetail) {
+      return;
+    }
 
-      monitor.sports.forEach(element => {
-        if (element.id === this.taskMoved.sport_id) {
-          ret = true;
+    event.stopPropagation();
+
+    if (this.taskMoved && this.taskMoved.monitor_id === monitor.id) {
+      this.moveTask = false;
+      this.taskMoved = null;
+      this.clearCurrentAssignmentContext();
+      return;
+    }
+
+    const availabilityPayload = this.buildMonitorAvailabilityPayload(this.taskDetail);
+
+    const performTransfer = async (): Promise<void> => {
+      let response: any;
+      this.showLoadingDialog('monitor_assignment.loading_checking');
+      try {
+        response = await firstValueFrom(this.crudService.post('/admin/monitors/available', availabilityPayload));
+      } finally {
+        this.hideLoadingDialog();
+      }
+
+      try {
+        this.monitorsForm = response.data;
+
+        if (!this.monitorMatchesCurrentSport(monitor)) {
+          this.snackbar.open(this.translateService.instant('match_error_sport') + this.taskDetail.sport.name, 'OK', { duration: 3000 });
+          return;
+        }
+
+        const selection = await firstValueFrom(this.openMonitorAssignmentDialog(monitor));
+        if (!selection) {
+          return;
+        }
+
+        this.applyMonitorAssignmentSelection(selection);
+
+        const slots = this.buildSlotsForCurrentSelection();
+        if (!slots.length) {
+          this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+          return;
+        }
+
+        const canProceed = await this.confirmTimelinePastDates(slots);
+        if (!canProceed) {
+          return;
+        }
+
+        const resolvedSlots = await this.resolveTimelineSlotsAfterAvailability(monitor, slots);
+        if (!resolvedSlots?.length) {
+          return;
+        }
+
+        const success = await this.executeTimelineTransferForSlots(
+          monitor,
+          resolvedSlots,
+          resolvedSlots.length === slots.length
+        );
+        if (success) {
+          this.handleMonitorTransferSuccess();
+        }
+      } catch (error) {
+        console.error('Error occurred while checking monitor availability:', error);
+        this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+      }
+    };
+
+    const needsConfirmation = await this.matchTeacher(monitor.id);
+    if (needsConfirmation) {
+      const dialogRef = this.dialog.open(ConfirmUnmatchMonitorComponent, {
+        data: {
+          booking: this.taskDetail,
+          monitor,
+          school_id: this.activeSchool
         }
       });
 
+      const confirmed = await firstValueFrom(dialogRef.afterClosed());
+      if (confirmed) {
+        await performTransfer();
+      }
+    } else {
+      await performTransfer();
     }
-    return ret;
   }
 
-  moveMonitor(monitor: any, event: MouseEvent): void {
-
-    let ret = this.checkMonitorSport(monitor);
-    if (this.taskDetail) {
-      const clientIds = this.taskDetail?.all_clients?.map((client) => client.id);
-
-      let subgroup_id = null;
-      if (!this.taskDetail?.all_clients?.length) {
-        subgroup_id = this.taskDetail?.booking_id;
-      }
-
-      const data = {
-        sportId: this.taskDetail?.sport_id,
-        minimumDegreeId: this.taskDetail?.degree_id || this.taskDetail?.degree.id,
-        startTime: this.taskDetail?.hour_start,
-        endTime: this.taskDetail?.hour_end,
-        date: this.taskDetail?.date,
-        clientIds: clientIds
-      };
-
-
-      this.matchTeacher(monitor.id).then((res) => {
-        if (res) {
-
-          const dialogRef = this.dialog.open(ConfirmUnmatchMonitorComponent, {
-            data: {
-              booking: this.taskDetail,
-              monitor: monitor,
-              school_id: this.activeSchool
-            }
-          });
-
-          dialogRef.afterClosed().subscribe((result) => {
-            if (result) {
-              this.crudService.post('/admin/monitors/available', data)
-                .subscribe((response) => {
-                  this.monitorsForm = response.data;
-
-                  ret = this.monitorsForm.find((m) => m.id === monitor.id);
-
-                  if (this.moveTask && ret) {
-                    event.stopPropagation();
-
-                    if (this.taskMoved && this.taskMoved.monitor_id != monitor.id) {
-                      let data: any;
-                      let all_booking_users = [];
-                      this.taskMoved.all_clients.forEach((client: any) => {
-                        all_booking_users.push(client.id);
-                      });
-                      data = {
-                        monitor_id: monitor.id,
-                        booking_users: all_booking_users,
-                        subgroup_id: subgroup_id
-                      };
-
-                      this.monitorsService.transferMonitor(data)
-                        .subscribe((data) => {
-                          this.moveTask = false;
-                          this.taskMoved = null;
-                          this.hideDetail();
-                          this.hideGrouped();
-                          this.loadBookings(this.currentDate);
-                          this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-                        },
-                          (error) => {
-                            // Error handling code
-                            this.moveTask = false;
-                            this.taskMoved = null;
-                            console.error('Error occurred:', error);
-                            if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-                              this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-                            }
-                            else {
-                              this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-                            }
-                          })
-
-                    }
-                    else {
-                      this.moveTask = false;
-                      this.taskMoved = null;
-                    }
-                  } else {
-                    let sameSport = false;
-
-                    if (monitor.sports && monitor.sports.length) {
-                      monitor.sports.forEach(element => {
-                        if (element.id === this.taskDetail.sport_id) {
-                          sameSport = true;
-                        }
-                      });
-                    }
-
-                    if (!monitor.id) {
-                      sameSport = true;
-                    }
-
-                    if (this.moveTask && sameSport) {
-                      event.stopPropagation();
-
-                      if (this.taskMoved && this.taskMoved.monitor_id != monitor.id) {
-                        let data: any;
-                        let all_booking_users = [];
-                        this.taskMoved.all_clients.forEach((client: any) => {
-                          all_booking_users.push(client.id);
-                        });
-                        data = {
-                          monitor_id: monitor.id,
-                          booking_users: all_booking_users,
-                          subgroup_id: subgroup_id
-                        };
-
-
-                        this.monitorsService.transferMonitor(data)
-                          .subscribe((data) => {
-
-                            //this.getData();
-                            this.moveTask = false;
-                            this.taskMoved = null;
-                            this.hideDetail();
-                            this.hideGrouped();
-                            this.loadBookings(this.currentDate);
-                            this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-                          },
-                            (error) => {
-                              // Error handling code
-                              this.moveTask = false;
-                              this.taskMoved = null;
-                              console.error('Error occurred:', error);
-                              if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-                                this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-                              }
-                              else {
-                                this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-                              }
-                            })
-
-                      }
-                      else {
-                        this.moveTask = false;
-                        this.taskMoved = null;
-                      }
-                      //
-                    } else {
-                      if (this.moveTask) {
-
-                        this.snackbar.open(this.translateService.instant('match_error_sport') + this.taskDetail.sport.name, 'OK', { duration: 3000 });
-                      }
-                    }
-                  }
-                })
-            }
-          })
-        } else {
-          this.crudService.post('/admin/monitors/available', data)
-            .subscribe((response) => {
-              this.monitorsForm = response.data;
-
-              ret = this.monitorsForm.find((m) => m.id === monitor.id);
-
-              if (this.moveTask && ret) {
-                event.stopPropagation();
-
-                if (this.taskMoved && this.taskMoved.monitor_id != monitor.id) {
-                  let data: any;
-                  let all_booking_users = [];
-                  this.taskMoved.all_clients.forEach((client: any) => {
-                    all_booking_users.push(client.id);
-                  });
-                  data = {
-                    monitor_id: monitor.id,
-                    booking_users: all_booking_users,
-                    subgroup_id: subgroup_id
-                  };
-                  this.monitorsService.transferMonitor(data)
-                    .subscribe((data) => {
-                      this.moveTask = false;
-                      this.taskMoved = null;
-                      this.hideDetail();
-                      this.hideGrouped();
-                      this.loadBookings(this.currentDate);
-                      this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-                    },
-                      (error) => {
-                        // Error handling code
-                        this.moveTask = false;
-                        this.taskMoved = null;
-                        console.error('Error occurred:', error);
-                        if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-                          this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-                        }
-                        else {
-                          this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-                        }
-                      })
-
-                }
-                else {
-                  this.moveTask = false;
-                  this.taskMoved = null;
-                }
-              } else {
-                let sameSport = false;
-
-                if (monitor.sports && monitor.sports.length) {
-                  monitor.sports.forEach(element => {
-                    if (element.id === this.taskDetail.sport_id) {
-                      sameSport = true;
-                    }
-                  });
-                }
-
-                if (!monitor.id) {
-                  sameSport = true;
-                }
-
-                if (this.moveTask && sameSport) {
-                  event.stopPropagation();
-
-                  if (this.taskMoved && this.taskMoved.monitor_id != monitor.id) {
-                    let data: any;
-                    let all_booking_users = [];
-                    this.taskMoved.all_clients.forEach((client: any) => {
-                      all_booking_users.push(client.id);
-                    });
-                    data = {
-                      monitor_id: monitor.id,
-                      booking_users: all_booking_users,
-                      subgroup_id: subgroup_id
-                    };
-
-
-                    this.monitorsService.transferMonitor(data)
-                      .subscribe((data) => {
-
-                        this.moveTask = false;
-                        this.taskMoved = null;
-                        this.hideDetail();
-                        this.hideGrouped();
-                        this.loadBookings(this.currentDate);
-                        this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-                      },
-                        (error) => {
-                          // Error handling code
-                          this.moveTask = false;
-                          this.taskMoved = null;
-                          console.error('Error occurred:', error);
-                          if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-                            this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
-                          }
-                          else {
-                            this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
-                          }
-                        })
-
-                  }
-                  else {
-                    this.moveTask = false;
-                    this.taskMoved = null;
-                  }
-                  //
-                } else {
-                  if (this.moveTask) {
-
-                    this.snackbar.open(this.translateService.instant('match_error_sport') + this.taskDetail.sport.name, 'OK', { duration: 3000 });
-                  }
-                }
-              }
-            })
-        }
-      })
-
+  private monitorMatchesCurrentSport(monitor: any): boolean {
+    if (!this.taskDetail) {
+      return false;
+    }
+    if (!monitor || !monitor.id) {
+      return true;
     }
 
+    const targetSportId = this.taskDetail.sport_id;
 
+    if (Array.isArray(monitor.sports) && monitor.sports.length) {
+      return monitor.sports.some((sport: any) => Number(sport?.id) === targetSportId);
+    }
 
+    const sportDegreeSource = Array.isArray(monitor.monitorSportsDegrees)
+      ? monitor.monitorSportsDegrees
+      : Array.isArray(monitor.monitor_sports_degrees)
+        ? monitor.monitor_sports_degrees
+        : null;
+    if (sportDegreeSource?.length) {
+      return sportDegreeSource.some((entry: any) => Number(entry?.sport_id) === targetSportId);
+    }
 
+    if (this.isMonitorFromApiList(monitor)) {
+      // Backend already filtered by sport/degree for availability results.
+      return true;
+    }
+
+    const fallbackSportId = monitor?.sport_id ?? monitor?.sportId ?? monitor?.pivot?.sport_id;
+    if (fallbackSportId != null) {
+      return Number(fallbackSportId) === targetSportId;
+    }
+
+    return false;
+  }
+
+  private openMonitorAssignmentDialog(monitor: any): Observable<MonitorAssignmentDialogResult | undefined> {
+    if (!this.taskDetail) return of(undefined);
+
+    // Inicializa arrays/estado para el diálogo
+    this.initializeMonitorAssignment(this.taskDetail); // <- tu método existente que carga monitorAssignmentDates, scope, etc.
+    const defaultDate = this.taskDetail?.date || null;
+
+    const summaryItems = this.buildMonitorAssignmentSummary();
+    const targetSubgroupIds = this.collectSubgroupIdsForAssignment();
+    const previewContext = this.buildMonitorTransferPreviewPayload();
+    const dialogRef = this.dialog.open(MonitorAssignmentDialogComponent, {
+      width: '420px',
+      disableClose: true,
+      autoFocus: false,
+      data: {
+        monitor,
+        // YA SON OPCIONES {value,label} (no hay que remapear nada)
+        dates: this.monitorAssignmentDates, // <-- aquí estaba el bug (antes hacía ({ .option }))
+        defaultDate,
+        intervalDates: this.getIntervalDatesForTask(this.taskDetail),
+        hasMultipleIntervals: this.taskDetail?.course?.course_type === 1 && this.hasMultipleIntervals(),
+        allowAllOption: (this.monitorAssignmentDates?.length ?? 0) > 1,
+        allowMultiScope: (this.monitorAssignmentDates?.length ?? 0) > 1,
+        initialScope: this.monitorAssignmentScope as MonitorAssignmentScope,
+        startDate: this.monitorAssignmentStartDate,
+        endDate: this.monitorAssignmentEndDate,
+        summaryItems,
+        targetSubgroupIds,
+        previewContext
+      }
+    });
+
+    return dialogRef.afterClosed();
+  }
+
+  private applyMonitorAssignmentSelection(selection: MonitorAssignmentDialogResult): void {
+    this.monitorAssignmentScope = selection.scope;
+    this.monitorAssignmentStartDate = selection.startDate;
+    this.monitorAssignmentEndDate = selection.endDate;
+    this.monitorAssignmentSubgroupIds = selection.targetSubgroupIds ?? [];
+    this.monitorAssignmentSelectedDates = (selection.selectedDates ?? []).filter(date => !!date);
+    this.updateCurrentAssignmentContext();
+  }
+
+  private buildMonitorTransferPayload(
+    monitorId: number | null,
+    fallbackSubgroupId: number | null
+  ): MonitorTransferPayload {
+    const bookingUsers = this.collectBookingUserIdsForAssignment();
+
+    // Scope y rango que vienen del modal / preview:
+    const scope = this.monitorAssignmentScope; // 'single' | 'interval' | 'all' | 'from' | 'range'
+    const { start, end } = this.resolveAssignmentDateRange();
+
+    // Contexto de la tarea actual
+    const ctx = this.taskDetail || {};
+    const baseCourseType = ctx?.course?.course_type ?? ctx?.course_type ?? null;
+    let subgroupId = fallbackSubgroupId;
+
+    if (!bookingUsers.length && baseCourseType === 1) {
+      if (ctx.course_subgroup_id) {
+        subgroupId = ctx.course_subgroup_id;
+      } else if (ctx.subgroup_id) {
+        subgroupId = ctx.subgroup_id;
+      } else if (!ctx.all_clients?.length && ctx.booking_id) {
+        // mantiene tu fallback actual
+        subgroupId = ctx.booking_id;
+        ctx.booking_id = null;
+      }
+    }
+    if (baseCourseType !== 1) {
+      subgroupId = null;
+    }
+
+    return {
+      monitor_id: monitorId,
+      booking_users: bookingUsers,
+      subgroup_id: subgroupId,
+
+      // NUEVO:
+      scope,
+      start_date: start.format('YYYY-MM-DD'),
+      end_date:   end.format('YYYY-MM-DD'),
+
+      course_id: ctx.course_id ?? null,
+      booking_id: ctx.booking_id ?? null,
+      course_subgroup_id: baseCourseType !== 1 ? null : (ctx.course_subgroup_id ?? ctx.subgroup_id ?? null),
+      course_date_id: baseCourseType !== 1 && bookingUsers.length ? null : (ctx.course_date_id ?? null)
+    };
+  }
+
+  private handleMonitorTransferSuccess(): void {
+    this.moveTask = false;
+    this.taskMoved = null;
+    this.hideDetail();
+    this.hideGrouped();
+    this.loadBookings(this.currentDate, { silent: true });
+    this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+    this.clearCurrentAssignmentContext();
+  }
+
+  private handleMonitorTransferError(error: any): void {
+    this.moveTask = false;
+    this.taskMoved = null;
+    this.clearCurrentAssignmentContext();
+    console.error('Error occurred:', error);
+    const message = error?.error?.message;
+    if (message && message.includes('Overlap detected')) {
+      this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
+    } else {
+      this.snackbar.open(this.translateService.instant('event_overlap'), 'OK', { duration: 3000 });
+    }
   }
 
   getDateFormatLong(date: string) {
@@ -1631,8 +1852,28 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   getBirthYears(date: string) {
+    if (!date) {
+      return null;
+    }
     const birthDate = moment(date);
-    return moment().diff(birthDate, 'years');
+    if (!birthDate.isValid()) {
+      return null;
+    }
+    const years = moment().diff(birthDate, 'years');
+    return years > 0 ? years : null;
+  }
+
+  resolveBirthDate(entity: any): string | null {
+    if (!entity) {
+      return null;
+    }
+    return entity.birth_date
+      ?? entity.birthDate
+      ?? entity.birth_date_formatted
+      ?? entity.birthDateFormatted
+      ?? entity.user?.birth_date
+      ?? entity.user?.birthDate
+      ?? null;
   }
 
   getLanguageById(languageId: number): string {
@@ -1658,6 +1899,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   openEditMonitor() {
     this.editedMonitor = null;
     this.showEditMonitor = true;
+    this.updateCurrentAssignmentContext();
     this.checkAvailableMonitors();
   }
 
@@ -1668,15 +1910,15 @@ export class TimelineComponent implements OnInit, OnDestroy {
       data: { message: this.translateService.instant('accept_task'), title: this.translateService.instant('confirm_accept') }
     });
 
-    dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((userConfirmed: boolean) => {
       if (userConfirmed) {
         this.crudService.update('/booking-users', { accepted: true }, this.taskDetail.id)
-          .subscribe(() => {
+          .pipe(takeUntil(this.destroy$)).subscribe(() => {
             dialogRef.close(true)
             this.editedMonitor = null;
             this.showEditMonitor = false;
             this.hideDetail();
-            this.loadBookings(this.currentDate);
+            this.loadBookings(this.currentDate, { silent: true });
           });
       } else {
 
@@ -1703,11 +1945,17 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   private initializeMonitorAssignment(task: any): void {
+    // 1) Construye TODAS las fechas del curso para el selector del modal
     this.monitorAssignmentDates = this.buildMonitorAssignmentDates(task);
-    const defaultDate = task?.date || null;
+
+    // 2) Scope por defecto
     this.monitorAssignmentScope = 'single';
-    this.monitorAssignmentStartDate = defaultDate;
-    this.monitorAssignmentEndDate = defaultDate;
+
+    // 3) Rango por defecto (primera y última del curso)
+    this.monitorAssignmentStartDate = this.monitorAssignmentDates[0]?.value || null;
+    this.monitorAssignmentEndDate   = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || this.monitorAssignmentStartDate;
+    this.updateCurrentAssignmentContext();
+    void this.refreshAssignmentDatesForPrivate(task);
   }
 
   private resetMonitorAssignmentState(): void {
@@ -1715,20 +1963,116 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorAssignmentStartDate = null;
     this.monitorAssignmentEndDate = null;
     this.monitorAssignmentDates = [];
+    this.monitorAssignmentSelectedDates = [];
+    this.updateCurrentAssignmentContext();
+  }
+
+  private updateCurrentAssignmentContext(): void {
+    if (!this.taskDetail) {
+      this.clearCurrentAssignmentContext();
+      return;
+    }
+    this.currentAssignmentSlots = this.dedupeAssignmentSlots(this.buildSlotsForCurrentSelection());
+    this.currentAssignmentTargetSubgroupIds = new Set(this.collectSubgroupIdsForAssignment());
+    if (this.monitorAssignmentSelectedDates?.length) {
+      this.currentAssignmentSlots = this.currentAssignmentSlots.filter(slot =>
+        this.monitorAssignmentSelectedDates.some(date => this.getDateStrFromAny(date) === slot.date)
+      );
+    }
+  }
+
+  private dedupeAssignmentSlots(slots: MonitorAssignmentSlot[]): MonitorAssignmentSlot[] {
+    const seen = new Set<string>();
+    const deduped: MonitorAssignmentSlot[] = [];
+
+    slots.forEach(slot => {
+      const date = this.getDateStrFromAny(slot?.date) ?? slot?.date ?? '';
+      const start = slot?.startTime ?? '';
+      const end = slot?.endTime ?? '';
+      const subgroupId = slot?.context?.subgroupId ?? slot?.context?.courseSubgroupId ?? 'none';
+      const key = `${date}-${start}-${end}-${subgroupId}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      deduped.push({
+        ...slot,
+        date
+      });
+    });
+
+    return deduped;
+  }
+
+  private clearCurrentAssignmentContext(): void {
+    this.currentAssignmentSlots = [];
+    this.currentAssignmentTargetSubgroupIds.clear();
+  }
+
+  /** Extrae fechas del curso con tolerancia a distintos campos (date, date_full, etc.) */
+  private getDateStrFromAny(item: any): string | null {
+    if (!item) return null;
+    // formato preferente YYYY-MM-DD en 'date'
+    if (typeof item.date === 'string' && item.date.length >= 10) return item.date.slice(0, 10);
+    // a veces viene 'date_full' en ISO con 'Z'
+    if (typeof item.date_full === 'string' && item.date_full.length >= 10) return item.date_full.slice(0, 10);
+    // por si llega como string directo
+    if (typeof item === 'string' && item.length >= 10) return item.slice(0, 10);
+    return null;
   }
 
   private buildMonitorAssignmentDates(task: any): { value: string, label: string }[] {
     if (!task) {
       return [];
     }
-    const relatedTasks = this.getRelatedTasks(task);
-    const uniqueDates = Array.from(new Set(
-      relatedTasks
-        .map((related: any) => related?.date)
-        .filter((date: string) => !!date)
-    ));
 
-    uniqueDates.sort((a, b) => a.localeCompare(b));
+    const dateSet = new Set<string>();
+    const normalizedCourseDates = (task?.course?.course_dates ?? [])
+      .map((cd: any) => this.getDateStrFromAny(cd))
+      .filter((d: string | null) => !!d);
+    normalizedCourseDates.forEach(d => dateSet.add(d!));
+
+    const fallbackDates = this.collectCourseDatesForTask(task);
+    fallbackDates.forEach(date => dateSet.add(date));
+
+    const assignmentBookingUsers = this.getAssignmentBookingUsers(task);
+    assignmentBookingUsers
+      .map((entry: any) => this.getDateStrFromAny(entry))
+      .filter((date: string | null) => !!date)
+      .forEach((date: string) => dateSet.add(date));
+
+    const relatedTasks = this.getRelatedTasks(task);
+
+    relatedTasks
+      .map((related: any) => this.getDateStrFromAny(related?.date))
+      .filter((date: string | null) => !!date)
+      .forEach((date: string) => dateSet.add(date));
+
+    if (task?.date) {
+      dateSet.add(task.date);
+    }
+
+    if (dateSet.size === 0) {
+      this.collectCourseDatesForTask(task).forEach(date => dateSet.add(date));
+      this.collectGroupedTaskDates(task).forEach(date => dateSet.add(date));
+    }
+
+    if (dateSet.size === 0 && task?.booking?.course_dates) {
+      (task.booking.course_dates as any[])
+        .filter(item => item?.date)
+        .forEach(item => dateSet.add(item.date));
+    }
+
+    const bookingUsersFallback = task?.booking?.booking_users ?? task?.booking_users ?? [];
+    if (dateSet.size === 0 && Array.isArray(bookingUsersFallback)) {
+      bookingUsersFallback
+        .map((entry: any) => this.getDateStrFromAny(entry))
+        .filter((date: string | null) => !!date)
+        .forEach((date: string) => dateSet.add(date));
+    }
+
+    const uniqueDates = Array.from(dateSet).filter(Boolean);
+    uniqueDates.sort((a, b) => moment(a).diff(moment(b)));
 
     return uniqueDates.map(date => ({
       value: date,
@@ -1737,48 +2081,164 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   private getRelatedTasks(task: any): any[] {
-    if (!task) {
-      return [];
-    }
+    if (!task) return [];
 
     const courseId = task.course_id;
     const subgroupId = task.course_subgroup_id;
     const bookingId = task.booking_id;
     const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
+    const isGroupCourse = baseCourseType === 1;
 
     return tasksSource.filter(candidate => {
-      if (!candidate) {
-        return false;
+      if (!candidate) return false;
+
+      if (subgroupId && candidate.course_subgroup_id === subgroupId) return true;
+
+      if (isGroupCourse && courseId && candidate.course_id === courseId) {
+        return true;
       }
-      if (subgroupId) {
-        return candidate.course_subgroup_id === subgroupId;
-      }
-      if (bookingId && candidate.booking_id) {
-        return candidate.booking_id === bookingId;
-      }
-      if (courseId) {
+
+      if (isGroupCourse && bookingId && candidate.booking_id && candidate.booking_id === bookingId) return true;
+
+      if (!isGroupCourse && bookingId && candidate.booking_id === bookingId) {
+        if (!courseId) {
+          return true;
+        }
         return candidate.course_id === courseId;
       }
+
       return false;
     });
   }
 
-  onMonitorAssignmentScopeChange(scope: 'single' | 'from' | 'range'): void {
+  private getAssignmentBookingUsers(task: any): any[] {
+    const bookingId = task?.booking_id ?? task?.booking?.id ?? null;
+    if (!bookingId) {
+      return [];
+    }
+    const cached = this.assignmentBookingUsersCache.get(bookingId);
+    if (cached) {
+      return cached;
+    }
+    const embedded = task?.__assignmentBookingUsers ?? task?.booking_users_all ?? task?.booking?.booking_users ?? task?.booking_users ?? null;
+    if (Array.isArray(embedded) && embedded.length) {
+      return embedded;
+    }
+    return [];
+  }
+
+  private async loadAssignmentBookingUsers(task: any): Promise<any[]> {
+    const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
+    if (baseCourseType !== 2) {
+      return [];
+    }
+    const bookingId = task?.booking_id ?? task?.booking?.id ?? null;
+    if (!bookingId) {
+      return [];
+    }
+    if (this.assignmentBookingUsersCache.has(bookingId)) {
+      return this.assignmentBookingUsersCache.get(bookingId) as any[];
+    }
+    try {
+      const response: any = await firstValueFrom(
+        this.crudService.list('/booking-users', 1, 10000, 'asc', 'id', `&booking_id=${bookingId}&status=1`)
+      );
+      const bookingUsers = Array.isArray(response?.data) ? response.data : [];
+      this.assignmentBookingUsersCache.set(bookingId, bookingUsers);
+      task.__assignmentBookingUsers = bookingUsers;
+      return bookingUsers;
+    } catch {
+      return [];
+    }
+  }
+
+  private async refreshAssignmentDatesForPrivate(task: any): Promise<void> {
+    const bookingUsers = await this.loadAssignmentBookingUsers(task);
+    if (!bookingUsers.length) {
+      return;
+    }
+    const nextDates = this.buildMonitorAssignmentDates(task);
+    const currentKey = this.monitorAssignmentDates.map(item => item.value).join('|');
+    const nextKey = nextDates.map(item => item.value).join('|');
+    if (currentKey === nextKey) {
+      return;
+    }
+    this.monitorAssignmentDates = nextDates;
+    this.monitorAssignmentStartDate = this.monitorAssignmentDates[0]?.value || null;
+    this.monitorAssignmentEndDate = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || this.monitorAssignmentStartDate;
+    this.updateCurrentAssignmentContext();
+  }
+
+  private getTaskSelectionKey(task: any): string | null {
+    if (!task) {
+      return null;
+    }
+    if (task.id != null) {
+      return `id-${task.id}`;
+    }
+    if (task.booking_id != null) {
+      const date = task.date ?? '';
+      const hour = task.hour_start ?? '';
+      const monitor = task.monitor_id ?? 'none';
+      const subgroup = task.course_subgroup_id ?? task.subgroup_id ?? 'none';
+      const group = task.group_id ?? 'none';
+      return `bk-${task.booking_id}-${date}-${hour}-${monitor}-${subgroup}-${group}`;
+    }
+    return null;
+  }
+
+  isGroupedTaskHighlighted(task: any): boolean {
+    return !!(this.showGrouped && task?.booking_id && this.idGroupedTasks == task.booking_id && this.hourGrouped == task.hour_start && this.dateGrouped == task.date);
+  }
+
+  isTaskHighlighted(task: any): boolean {
+    if (!task) {
+      return false;
+    }
+    return !!this.selectedTaskKey && this.selectedTaskKey === this.getTaskSelectionKey(task);
+  }
+
+  onMonitorAssignmentScopeChange(scope: MonitorAssignmentScope): void {
     this.monitorAssignmentScope = scope;
     const defaultDate = this.taskDetail?.date || null;
 
     if (scope === 'single') {
       this.monitorAssignmentStartDate = defaultDate;
       this.monitorAssignmentEndDate = defaultDate;
+      this.updateCurrentAssignmentContext();
+      return;
+    }
+
+    // NEW: Handle interval scope
+    if (scope === 'interval') {
+      const intervalDates = this.getIntervalDatesForTask(this.taskDetail);
+      if (intervalDates.length > 0) {
+        this.monitorAssignmentStartDate = intervalDates[0];
+        this.monitorAssignmentEndDate = intervalDates[intervalDates.length - 1];
+      } else {
+        this.monitorAssignmentStartDate = defaultDate;
+        this.monitorAssignmentEndDate = defaultDate;
+      }
+      this.updateCurrentAssignmentContext();
       return;
     }
 
     const firstDate = this.monitorAssignmentDates[0]?.value || defaultDate;
     const lastDate = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || defaultDate;
 
+    // NEW: Handle all (todo el curso)
+    if (scope === 'all') {
+      this.monitorAssignmentStartDate = firstDate;
+      this.monitorAssignmentEndDate = lastDate;
+      this.updateCurrentAssignmentContext();
+      return;
+    }
+
     if (scope === 'from') {
       this.monitorAssignmentStartDate = defaultDate ?? firstDate;
       this.monitorAssignmentEndDate = lastDate;
+      this.updateCurrentAssignmentContext();
       return;
     }
 
@@ -1786,6 +2246,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.monitorAssignmentStartDate = defaultDate ?? firstDate;
     this.monitorAssignmentEndDate = lastDate;
     this.ensureAssignmentRangeOrder();
+    this.updateCurrentAssignmentContext();
   }
 
   onMonitorAssignmentStartChange(value: string): void {
@@ -1796,6 +2257,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (this.monitorAssignmentScope === 'range') {
       this.ensureAssignmentRangeOrder();
     }
+    this.updateCurrentAssignmentContext();
   }
 
   onMonitorAssignmentEndChange(value: string): void {
@@ -1803,6 +2265,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (this.monitorAssignmentScope === 'range') {
       this.ensureAssignmentRangeOrder();
     }
+    this.updateCurrentAssignmentContext();
   }
 
   private ensureAssignmentRangeOrder(): void {
@@ -1819,12 +2282,293 @@ export class TimelineComponent implements OnInit, OnDestroy {
     }
   }
 
+  private collectCourseDatesFromCourse(task: any): string[] {
+    const set = new Set<string>();
+
+    // 1) curso anidado en la tarea
+    const arr = task?.course?.course_dates ?? [];
+    if (Array.isArray(arr) && arr.length) {
+      arr.forEach((cd: any) => {
+        const d = this.getDateStrFromAny(cd);
+        if (d) set.add(d);
+      });
+    }
+
+    // 2) por seguridad añade la propia fecha de la tarea
+    const selfDate = this.getDateStrFromAny(task);
+    if (selfDate) set.add(selfDate);
+
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  private collectCourseDatesForTask(task: any): any[] {
+    if (!task) return [];
+
+    // 1) si la tarea trae booking.course_dates
+    const datesFromBooking = (task.booking?.course_dates ?? [])
+      .map((d: any) => this.getDateStrFromAny(d))
+      .filter((d: string | null) => !!d);
+
+    if (datesFromBooking.length) {
+      return Array.from(new Set(datesFromBooking)).sort();
+    }
+
+    // 2) si existen otras tasks del mismo curso en el planner
+    const courseId = task.course_id;
+    if (!courseId) return [];
+
+    const datesFromPlanner = (Array.isArray(this.plannerTasks) ? this.plannerTasks : [])
+      .filter(t => t?.course_id === courseId && t?.date)
+      .map(t => this.getDateStrFromAny(t?.date))
+      .filter((d: string | null) => !!d);
+
+    return Array.from(new Set(datesFromPlanner)).sort();
+  }
+
+  private collectCourseDateOptionsForTask(task: any): Array<{ value: string; label: string }> {
+    const dates = this.collectCourseDatesForTask(task);
+    return dates.map(d => ({ value: d, label: d })); // formatea si quieres a locale
+  }
+
+/*  private collectCourseDateOptionsForTask(task: any): Array<{ value: string; label: string }> {
+    const dateSet = new Set<string>();
+
+    // 1) Fechas desde task.course.course_dates (admin)
+    const courseDates = task?.course?.course_dates ?? [];
+    courseDates.forEach((cd: any) => {
+      if (cd?.date) dateSet.add(cd.date);
+    });
+
+    // 2) Fechas desde booking.course_dates (si viene de una reserva concreta)
+    const bookingDates = task?.booking?.course_dates ?? [];
+    bookingDates.forEach((bd: any) => {
+      if (bd?.date) dateSet.add(bd.date);
+    });
+
+    // 3) Fechas visibles en planner para ese curso (por si no llegaron anidadas)
+    const courseId = task?.course_id ?? task?.course?.id;
+    if (courseId && Array.isArray(this.plannerTasks)) {
+      this.plannerTasks
+        .filter(t => t.course_id === courseId && !!t.date)
+        .forEach(t => dateSet.add(t.date));
+    }
+
+    const uniqueDates = Array.from(dateSet).sort();
+    return uniqueDates.map(d => ({ value: d, label: d })); // Si quieres, formatea el label a locale
+  }*/
+
+  private collectGroupedTaskDates(task: any): string[] {
+    if (!task?.booking_id) return [];
+    const bookingId = task.booking_id;
+
+    const dates = (Array.isArray(this.plannerTasks) ? this.plannerTasks : [])
+      .filter(t => t?.booking_id === bookingId && t?.date)
+      .map(t => t.date);
+
+    return Array.from(new Set(dates)).sort();
+  }
+
+  private resolveSubgroupDatesId(task: any): string | number | null {
+    if (!task) {
+      return null;
+    }
+
+    const direct =
+      task.subgroup_dates_id ??
+      task.subgroupDatesId ??
+      task.course_subgroup?.subgroup_dates_id ??
+      task.course_subgroup?.subgroupDatesId ??
+      null;
+    if (direct != null) {
+      return direct;
+    }
+
+    const subgroupId = task.course_subgroup_id ?? task.course_subgroup?.id ?? null;
+    if (subgroupId == null) {
+      return null;
+    }
+
+    const courseDates = task?.course?.course_dates ?? [];
+    const normalizeId = (value: any) => (value == null ? null : Number(value));
+    const targetId = normalizeId(subgroupId);
+
+    const findInContainer = (container: any): string | number | null => {
+      const subgroups = container?.course_subgroups ?? container?.courseSubgroups ?? container?.subgroups ?? [];
+      for (const sub of subgroups) {
+        if (normalizeId(sub?.id) === targetId) {
+          const subgroupDatesId = sub?.subgroup_dates_id ?? sub?.subgroupDatesId ?? null;
+          if (subgroupDatesId != null) {
+            return subgroupDatesId;
+          }
+        }
+      }
+      return null;
+    };
+
+    for (const cd of courseDates) {
+      const directMatch = findInContainer(cd);
+      if (directMatch != null) {
+        return directMatch;
+      }
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      for (const group of groups) {
+        const groupMatch = findInContainer(group);
+        if (groupMatch != null) {
+          return groupMatch;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private courseDateHasSubgroupDatesId(courseDate: any, subgroupDatesId: string): boolean {
+    if (!courseDate || !subgroupDatesId) {
+      return false;
+    }
+    const normalizeValue = (value: any) => (value == null ? null : String(value));
+
+    const matchesContainer = (container: any): boolean => {
+      const subgroups = container?.course_subgroups ?? container?.courseSubgroups ?? container?.subgroups ?? [];
+      for (const sub of subgroups) {
+        const candidate = normalizeValue(sub?.subgroup_dates_id ?? sub?.subgroupDatesId ?? null);
+        if (candidate != null && candidate === subgroupDatesId) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (matchesContainer(courseDate)) {
+      return true;
+    }
+
+    const groups = courseDate?.course_groups ?? courseDate?.courseGroups ?? [];
+    for (const group of groups) {
+      if (matchesContainer(group)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Get all dates that belong to the same interval as the given task
+   */
+  private getIntervalDatesForTask(task: any): string[] {
+    if (!task) {
+      return [];
+    }
+
+    const subgroupDatesId = this.resolveSubgroupDatesId(task);
+    const courseDates = task?.course?.course_dates ?? [];
+    if (subgroupDatesId != null && Array.isArray(courseDates) && courseDates.length) {
+      const target = String(subgroupDatesId);
+      const dateSet = new Set<string>();
+      courseDates.forEach((cd: any) => {
+        if (!this.courseDateHasSubgroupDatesId(cd, target)) {
+          return;
+        }
+        const dateValue = this.getDateStrFromAny(cd?.date ?? cd);
+        if (dateValue) {
+          dateSet.add(dateValue);
+        }
+      });
+      const dates = Array.from(dateSet).sort();
+      if (dates.length) {
+        return dates;
+      }
+    }
+
+    if (!task.course_subgroup_id) {
+      return this.collectCourseDatesForTask(task);
+    }
+
+    // Find all tasks with the same course_subgroup_id (same interval)
+    const intervalTasks = this.plannerTasks.filter(t =>
+      t.course_subgroup_id === task.course_subgroup_id
+    );
+
+    // Extract and sort unique dates
+    const dates = Array.from(new Set(
+      intervalTasks
+        .map(t => t.date)
+        .filter(date => !!date)
+    )).sort();
+
+    if (dates.length === 0) {
+      return this.collectCourseDatesForTask(task);
+    }
+
+    return dates;
+  }
+
+  /**
+   * Check if the current task's course has multiple intervals
+   */
+  hasMultipleIntervals(): boolean {
+    if (!this.taskDetail) {
+      return false;
+    }
+
+    // Check if there are multiple unique subgroups for this course
+    const courseId = this.taskDetail.course_id;
+    if (!courseId) {
+      return false;
+    }
+
+    const subgroups = new Set(
+      this.plannerTasks
+        .filter(t => t.course_id === courseId && t.course_subgroup_id)
+        .map(t => t.course_subgroup_id)
+    );
+
+    if (subgroups.size > 1) {
+      return true;
+    }
+
+    const course = this.taskDetail.course;
+    if (!course || !Array.isArray(course.course_dates)) {
+      return false;
+    }
+
+    const courseSubgroupIds = new Set<number>();
+    course.course_dates.forEach((courseDate: any) => {
+      if (!Array.isArray(courseDate?.course_groups)) {
+        return;
+      }
+      courseDate.course_groups.forEach((group: any) => {
+        if (!Array.isArray(group?.course_subgroups)) {
+          return;
+        }
+        group.course_subgroups.forEach((subgroup: any) => {
+          if (subgroup?.id) {
+            courseSubgroupIds.add(subgroup.id);
+          }
+        });
+      });
+    });
+
+    return courseSubgroupIds.size > 1;
+  }
   private resolveAssignmentDateRange(): { start: moment.Moment, end: moment.Moment } {
     const fallbackDate = this.taskDetail?.date || moment().format('YYYY-MM-DD');
     let startDate = this.monitorAssignmentStartDate || fallbackDate;
     let endDate = this.monitorAssignmentEndDate || startDate;
 
-    if (this.monitorAssignmentScope === 'from') {
+    if (this.monitorAssignmentScope === 'interval') {
+      if (this.monitorAssignmentStartDate && this.monitorAssignmentEndDate) {
+        startDate = this.monitorAssignmentStartDate;
+        endDate = this.monitorAssignmentEndDate;
+      } else {
+        const intervalDates = this.getIntervalDatesForTask(this.taskDetail);
+        if (intervalDates.length > 0) {
+          startDate = intervalDates[0];
+          endDate = intervalDates[intervalDates.length - 1];
+        }
+      }
+    } else if (this.monitorAssignmentScope === 'from') {
       const last = this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value || endDate;
       endDate = last;
     } else if (this.monitorAssignmentScope === 'single') {
@@ -1843,7 +2587,6 @@ export class TimelineComponent implements OnInit, OnDestroy {
       end: moment(endDate, 'YYYY-MM-DD')
     };
   }
-
   private collectBookingUserIdsForAssignment(): number[] {
     const baseTask = this.taskDetail;
     if (!baseTask) {
@@ -1864,16 +2607,18 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
       const clients = Array.isArray(candidate.all_clients) ? candidate.all_clients : [];
       clients.forEach((client: any) => {
-        if (client && client.id != null) {
-          bookingUserIds.add(client.id);
+        const resolvedId = this.resolveBookingUserId(client);
+        if (resolvedId != null) {
+          bookingUserIds.add(resolvedId);
         }
       });
     });
 
     if (bookingUserIds.size === 0 && Array.isArray(baseTask.all_clients)) {
       baseTask.all_clients.forEach((client: any) => {
-        if (client && client.id != null) {
-          bookingUserIds.add(client.id);
+        const resolvedId = this.resolveBookingUserId(client);
+        if (resolvedId != null) {
+          bookingUserIds.add(resolvedId);
         }
       });
     }
@@ -1881,68 +2626,1225 @@ export class TimelineComponent implements OnInit, OnDestroy {
     return Array.from(bookingUserIds);
   }
 
-  getSelectedAssignmentSessionCount(): number {
+  private collectSubgroupIdsForAssignment(forceIncludeRelated = false): number[] {
     const baseTask = this.taskDetail;
     if (!baseTask) {
+      return [];
+    }
+
+    const { start, end } = this.resolveAssignmentDateRange();
+    const selectedDateSet = new Set(
+      (this.monitorAssignmentSelectedDates ?? [])
+        .map(value => this.getDateStrFromAny(value))
+        .filter((value): value is string => !!value)
+    );
+    const subgroupIds = new Set<number>();
+    const scope = this.monitorAssignmentScope;
+    const baseSubgroupDatesId = this.resolveSubgroupDatesId(baseTask);
+    const baseSubgroupId =
+      baseTask.course_subgroup_id ??
+      baseTask.subgroup_id ??
+      null;
+
+    const addCandidateSubgroup = (candidate: any) => {
+      const subgroupId = candidate?.course_subgroup_id ?? candidate?.subgroup_id ?? null;
+      if (subgroupId != null) {
+        subgroupIds.add(subgroupId);
+      }
+    };
+
+    const includeRelatedTasks = forceIncludeRelated || scope !== 'single';
+    const enforceDateRange = !forceIncludeRelated;
+    if (includeRelatedTasks) {
+      const relatedTasks = this.getRelatedTasks(baseTask);
+      relatedTasks.forEach(candidate => {
+        const candidateDate = moment(candidate.date, 'YYYY-MM-DD');
+        if (!candidateDate.isValid()) {
+          return;
+        }
+        if (enforceDateRange) {
+          if (candidateDate.isBefore(start) || candidateDate.isAfter(end)) {
+            return;
+          }
+        }
+        if (baseSubgroupDatesId != null) {
+          const candidateDatesId = this.resolveSubgroupDatesId(candidate);
+          if (candidateDatesId !== baseSubgroupDatesId) {
+            return;
+          }
+        } else if (baseSubgroupId != null) {
+          const candidateSubgroupId = candidate?.course_subgroup_id ?? candidate?.subgroup_id ?? null;
+          if (candidateSubgroupId !== baseSubgroupId) {
+            return;
+          }
+        }
+        addCandidateSubgroup(candidate);
+      });
+    }
+
+    addCandidateSubgroup(baseTask);
+
+    return Array.from(subgroupIds);
+  }
+
+  private resolveTaskDegreeId(task: any): number | null {
+    if (!task) {
+      return null;
+    }
+
+    const candidates = [
+      task.degree_id,
+      task.degreeId,
+      task.degree?.id,
+      task.degree?.degree_id,
+      task.course_subgroup?.degree_id,
+      task.course_subgroup?.degree?.id,
+      task.course_subgroup?.level_id
+    ];
+
+    for (const value of candidates) {
+      if (typeof value === 'number') {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
+  private isSameAssignmentDegree(baseDegreeId: number | null, candidate: any): boolean {
+    if (baseDegreeId == null) {
+      return true;
+    }
+    const candidateDegreeId = this.resolveTaskDegreeId(candidate);
+    return candidateDegreeId == null ? false : candidateDegreeId === baseDegreeId;
+  }
+
+  getSelectedAssignmentSessionCount(): number {
+    const startValue = this.monitorAssignmentStartDate;
+    const endValue = this.monitorAssignmentEndDate || startValue;
+    if (!startValue) {
       return 0;
     }
-    const relatedTasks = this.getRelatedTasks(baseTask);
-    const { start, end } = this.resolveAssignmentDateRange();
-    const dates = new Set<string>();
+    const start = moment(this.getDateStrFromAny(startValue) ?? startValue, 'YYYY-MM-DD');
+    const end = moment(this.getDateStrFromAny(endValue ?? startValue) ?? endValue ?? startValue, 'YYYY-MM-DD');
+    if (!start.isValid() || !end.isValid()) {
+      return 0;
+    }
+    const diff = end.diff(start, 'days');
+    return Math.max(diff + 1, 1);
+  }
 
-    relatedTasks.forEach(candidate => {
-      const candidateDate = moment(candidate.date, 'YYYY-MM-DD');
-      if (candidateDate.isValid() && !candidateDate.isBefore(start) && !candidateDate.isAfter(end)) {
-        dates.add(candidate.date);
+  private buildFullMonitorTransferPayload(
+    monitorId: number | null,
+    options?: { courseDateId?: number | null; subgroupIds?: number[] }
+  ) {
+    const bookingUserIds = this.collectBookingUserIdsForAssignment();
+
+    // Fechas seg?n el scope elegido en el preview (las mismas que usa el modal)
+    const { start, end } = this.resolveAssignmentDateRange();
+
+    const startDate = start.format('YYYY-MM-DD');
+
+    const endDate   = end.format('YYYY-MM-DD');
+
+    // Ids base de la tarea actual
+    const ctx = this.taskDetail || {};
+    const baseCourseType = ctx?.course?.course_type ?? ctx?.course_type ?? null;
+    const courseId        = ctx.course_id ?? ctx.course?.id ?? null;
+    const bookingId       = ctx.booking_id ?? null;
+    const subgroupId      = ctx.course_subgroup_id ?? ctx.subgroup_id ?? null;
+    const courseDateId    = ctx.course_date_id ?? null;
+    const degreeId        = ctx.degree?.id ?? null;
+
+    // fallback (como ten?as antes) si no hay BUs ni subgroup expl?cito
+    let fallbackSubgroupId = subgroupId;
+
+    if (!bookingUserIds.length && !fallbackSubgroupId) {
+      if (!ctx.all_clients?.length && ctx.booking_id) {
+        fallbackSubgroupId = ctx.booking_id; // (ojo: tu backend lo llama subgroup_id; aqu? mantenemos por compat)
+      }
+
+    }
+
+    const scope = this.monitorAssignmentScope;
+    const subgroupIdsSet = new Set<number>();
+    if (baseCourseType === 1) {
+      if (this.monitorAssignmentSubgroupIds?.length) {
+        this.monitorAssignmentSubgroupIds.forEach(id => subgroupIdsSet.add(id));
+      } else {
+        this.collectSubgroupIdsForAssignment().forEach(id => subgroupIdsSet.add(id));
+      }
+      options?.subgroupIds?.forEach(id => {
+        if (id != null) subgroupIdsSet.add(id);
+      });
+
+      if (ctx.course_subgroup_id != null) {
+        subgroupIdsSet.add(ctx.course_subgroup_id);
+      }
+      if (ctx.subgroup_id != null) {
+        subgroupIdsSet.add(ctx.subgroup_id);
+      }
+
+      if (fallbackSubgroupId != null) {
+        subgroupIdsSet.add(fallbackSubgroupId);
+      }
+
+      if ((scope === 'all' || scope === 'from' || scope === 'range') && !this.monitorAssignmentSubgroupIds?.length) {
+        this.collectSubgroupIdsForAssignment(true).forEach(id => subgroupIdsSet.add(id));
+      }
+
+      if (!bookingUserIds.length && subgroupIdsSet.size === 0 && !ctx.all_clients?.length && ctx.booking_id) {
+        subgroupIdsSet.add(ctx.booking_id);
+        ctx.booking_id = null;
+      }
+    }
+
+    const subgroupIds = Array.from(subgroupIdsSet);
+
+    const subgroupIdToUse = baseCourseType === 1
+      ? (this.monitorAssignmentSubgroupIds?.[0] ?? subgroupId ?? subgroupIds[0] ?? fallbackSubgroupId ?? null)
+      : null;
+
+    let finalSubgroupIds = subgroupIds;
+    if (baseCourseType === 1) {
+      if (scope === 'single') {
+        finalSubgroupIds = subgroupIdToUse != null ? [subgroupIdToUse] : [];
+      } else if (this.monitorAssignmentSubgroupIds?.length) {
+        finalSubgroupIds = Array.from(new Set(this.monitorAssignmentSubgroupIds));
+      }
+    }
+
+    const payload: MonitorTransferPayload = {
+      monitor_id: monitorId,
+      booking_users: baseCourseType === 1 ? [] : bookingUserIds,
+
+      scope,              // 'single'|'interval'|'all'|'from'|'range'
+      start_date: startDate,
+      end_date: endDate,
+      course_id: courseId,
+      booking_id: bookingId,
+      subgroup_id: subgroupIdToUse,                 // en el backend lo recoges como subgroup_id
+      course_subgroup_id: subgroupIdToUse ?? null,
+      course_date_id: baseCourseType !== 1 && bookingUserIds.length ? null : courseDateId,
+      subgroup_ids: finalSubgroupIds
+    };
+
+    if (scope !== 'single') {
+      payload.course_date_id = null;
+    }
+
+    if (options?.courseDateId != null && scope === 'single') {
+      payload.course_date_id = options.courseDateId;
+    }
+
+    if (options?.subgroupIds?.length && scope !== 'single') {
+      payload.subgroup_ids = Array.from(new Set([...(payload.subgroup_ids ?? []), ...options.subgroupIds.filter(id => id != null) as number[]]));
+    }
+
+    return payload;
+  }
+
+  private buildMonitorTransferPreviewPayload(): MonitorTransferPreviewPayload | null {
+    const ctx = this.taskDetail;
+    if (!ctx) {
+      return null;
+    }
+
+    const { start, end } = this.resolveAssignmentDateRange();
+    const startDate = start?.format('YYYY-MM-DD') ?? null;
+    const endDate = end?.format('YYYY-MM-DD') ?? startDate;
+    const scope = this.monitorAssignmentScope;
+    const courseId = ctx.course_id ?? ctx.course?.id ?? null;
+    const subgroupId = ctx.course_subgroup_id ?? ctx.subgroup_id ?? ctx.booking_id ?? null;
+
+    const payload: MonitorTransferPreviewPayload = {
+      scope,
+      start_date: startDate,
+      end_date: endDate,
+      course_id: courseId
+    };
+
+    if (subgroupId != null) {
+      payload.subgroup_id = subgroupId;
+    }
+    return payload;
+  }
+
+  private buildSlotsForCurrentSelection(): MonitorAssignmentSlot[] {
+    const baseTask = this.taskDetail;
+    if (!baseTask) {
+      return [];
+    }
+
+    const { start, end } = this.resolveAssignmentDateRange();
+    const selectedDateSet = new Set(
+      (this.monitorAssignmentSelectedDates ?? [])
+        .map(value => this.getDateStrFromAny(value))
+        .filter((value): value is string => !!value)
+    );
+    const selectedSubgroupIds = (this.monitorAssignmentSubgroupIds?.length
+      ? this.monitorAssignmentSubgroupIds
+      : []).filter(id => id != null);
+    const targetSubgroupId = selectedSubgroupIds.length
+      ? selectedSubgroupIds[0]
+      : (baseTask.course_subgroup_id ?? baseTask.subgroup_id ?? null);
+    const relatedTasks = this.getRelatedTasks(baseTask).filter(task => {
+      if (!selectedSubgroupIds.length && targetSubgroupId == null) {
+        return true;
+      }
+      const taskSubgroupId = task?.course_subgroup_id ?? task?.subgroup_id ?? null;
+      if (selectedSubgroupIds.length) {
+        return selectedSubgroupIds.some(id => Number(taskSubgroupId) === Number(id));
+      }
+      return Number(taskSubgroupId) === Number(targetSubgroupId);
+    });
+    const slots: MonitorAssignmentSlot[] = [];
+    const seen = new Set<string>();
+
+    const isGroupCourse = (baseTask.course?.course_type ?? baseTask.course_type) === 1;
+    const courseDateEntries: Array<{ key: string; dateValue: string; cd: any }> = [];
+    const courseDateKeys = new Set<string>();
+    const registerCourseDate = (cd: any) => {
+      const dateValue = this.getDateStrFromAny(cd?.date ?? cd);
+      if (!dateValue) {
+        return;
+      }
+      const key = `${dateValue}-${cd?.hour_start ?? ''}-${cd?.hour_end ?? ''}-${cd?.id ?? ''}`;
+      if (courseDateKeys.has(key)) {
+        return;
+      }
+      courseDateKeys.add(key);
+      courseDateEntries.push({ key, dateValue, cd });
+    };
+    (baseTask.course?.course_dates ?? []).forEach(registerCourseDate);
+    (baseTask.booking?.course_dates ?? []).forEach(registerCourseDate);
+
+    const addSlot = (
+      dateValue: string | null,
+      startTime?: string,
+      endTime?: string,
+      courseDateId?: number | null,
+      subgroupId?: number | null,
+      currentMonitorOverride?: { id: number | null; name: string | null }
+    ) => {
+      if (!dateValue) {
+        return;
+      }
+      const normalizedDate = this.getDateStrFromAny(dateValue) ?? dateValue;
+      const taskDate = moment(normalizedDate, 'YYYY-MM-DD');
+      if (!taskDate.isValid() || taskDate.isBefore(start) || taskDate.isAfter(end)) {
+        return;
+      }
+      if (selectedDateSet.size && !selectedDateSet.has(normalizedDate)) {
+        return;
+      }
+      const startLabel = startTime ?? baseTask.hour_start;
+      const endLabel = endTime ?? baseTask.hour_end;
+      const subgroupKey = subgroupId != null ? subgroupId : 'none';
+      const key = `${normalizedDate}-${startLabel}-${endLabel}-${subgroupKey}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      const label = this.assignmentHelper.formatSlotLabel(normalizedDate, startLabel, endLabel);
+        const normalizedSubgroupId = subgroupId ?? baseTask.course_subgroup_id ?? null;
+        const currentMonitorTask = this.findTaskForSubgroup(normalizedSubgroupId, normalizedDate);
+      const courseSubgroupDetails = this.findCourseSubgroupDetails(normalizedSubgroupId, normalizedDate);
+      const derivedMonitorInfo = currentMonitorTask
+        ? {
+            id: currentMonitorTask.monitor_id ?? currentMonitorTask.monitor?.id ?? null,
+            name: this.getMonitorNameFromTask(currentMonitorTask)
+          }
+        : (courseSubgroupDetails
+            ? { id: courseSubgroupDetails.monitorId, name: courseSubgroupDetails.monitorName }
+            : this.findCurrentMonitorForSubgroup(normalizedSubgroupId, normalizedDate));
+      const currentMonitorInfo = currentMonitorOverride?.id != null || currentMonitorOverride?.name
+        ? currentMonitorOverride
+        : derivedMonitorInfo;
+        const baseLevelLabel =
+        this.getLevelLabelFromTask(currentMonitorTask) ??
+        courseSubgroupDetails?.levelLabel ??
+        this.resolveCurrentLevelLabel();
+        const subgroupOrderLabel = this.resolveSubgroupOrderLabel(normalizedSubgroupId, normalizedDate);
+        const levelLabel = subgroupOrderLabel ? `${baseLevelLabel} ${subgroupOrderLabel}` : baseLevelLabel;
+        slots.push({
+          date: normalizedDate,
+          startTime: startLabel,
+          endTime: endLabel,
+        degreeId: baseTask.degree_id,
+        sportId: baseTask.sport_id,
+        label,
+          context: {
+            courseDateId: courseDateId ?? null,
+            subgroupId: normalizedSubgroupId,
+            courseId: baseTask.course_id ?? baseTask.course?.id ?? null,
+            currentMonitorId: currentMonitorInfo?.id ?? null,
+          currentMonitorName: currentMonitorInfo?.name ?? null,
+          levelLabel
+        }
+      });
+    };
+
+    addSlot(baseTask.date, baseTask.hour_start, baseTask.hour_end, baseTask.course_date_id, baseTask.course_subgroup_id);
+      relatedTasks.forEach(task => addSlot(task.date, task.hour_start, task.hour_end, task.course_date_id, task.course_subgroup_id));
+
+    const assignmentBookingUsers = this.getAssignmentBookingUsers(baseTask);
+    assignmentBookingUsers.forEach((bookingUser: any) => {
+      const dateValue = this.getDateStrFromAny(bookingUser);
+      if (!dateValue) {
+        return;
+      }
+      const monitorId = bookingUser?.monitor_id ?? bookingUser?.monitor?.id ?? null;
+      const monitorName = this.getMonitorNameFromTask(bookingUser);
+      addSlot(
+        dateValue,
+        bookingUser?.hour_start ?? baseTask.hour_start,
+        bookingUser?.hour_end ?? baseTask.hour_end,
+        bookingUser?.course_date_id ?? null,
+        bookingUser?.course_subgroup_id ?? baseTask.course_subgroup_id ?? baseTask.subgroup_id ?? null,
+        { id: monitorId, name: monitorName }
+      );
+    });
+
+      if (isGroupCourse) {
+        courseDateEntries.forEach(({ dateValue, cd }) => {
+          const subgroups = (cd?.course_groups ?? [])
+            .flatMap((group: any) => group?.course_subgroups ?? [])
+            .map((sub: any) => sub?.id)
+            .filter((id: any) => id != null);
+          const filteredSubgroups = selectedSubgroupIds.length
+            ? subgroups.filter((id: any) => selectedSubgroupIds.some(targetId => Number(id) === Number(targetId)))
+            : (targetSubgroupId == null
+              ? subgroups
+              : subgroups.filter((id: any) => Number(id) === Number(targetSubgroupId)));
+
+          if (filteredSubgroups.length) {
+            filteredSubgroups.forEach(subId => {
+              addSlot(
+                dateValue,
+                cd?.hour_start ?? baseTask.hour_start,
+                cd?.hour_end ?? baseTask.hour_end,
+                cd?.id ?? null,
+                subId
+              );
+            });
+          } else if (!selectedSubgroupIds.length && targetSubgroupId == null) {
+            addSlot(
+              dateValue,
+              cd?.hour_start ?? baseTask.hour_start,
+              cd?.hour_end ?? baseTask.hour_end,
+              cd?.id ?? null,
+              targetSubgroupId ?? baseTask.course_subgroup_id
+            );
+          }
+        });
+
+        if (!selectedSubgroupIds.length && targetSubgroupId == null) {
+          const fallbackDates = this.collectCourseDatesForTask(baseTask);
+          fallbackDates.forEach(dateValue => addSlot(dateValue, baseTask.hour_start, baseTask.hour_end, null, baseTask.course_subgroup_id));
+        }
+      }
+
+      if (selectedDateSet.size) {
+        const subgroupIdsForDates = selectedSubgroupIds.length
+          ? selectedSubgroupIds
+          : [targetSubgroupId ?? baseTask.course_subgroup_id].filter((id): id is number => id != null);
+        Array.from(selectedDateSet).forEach(dateValue => {
+          subgroupIdsForDates.forEach(subgroupId => {
+            addSlot(dateValue, baseTask.hour_start, baseTask.hour_end, null, subgroupId);
+          });
+        });
+      }
+
+    return slots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  }
+
+  private resolveMonitorFullName(monitor: any | null): string {
+    if (!monitor) {
+      return '';
+    }
+    const first = monitor.first_name ?? monitor.firstName ?? '';
+    const last = monitor.last_name ?? monitor.lastName ?? '';
+    const combined = `${first} ${last}`.trim();
+    if (combined) {
+      return combined;
+    }
+    return monitor.name ?? '';
+  }
+
+  private formatPersonName(first: string | null | undefined, last: string | null | undefined): string {
+    return `${first ?? ''} ${last ?? ''}`.trim();
+  }
+
+  private getMonitorNameFromTask(task: any): string | null {
+    if (!task) {
+      return null;
+    }
+    if (task.monitor) {
+      const name = this.resolveMonitorFullName(task.monitor);
+      if (name) {
+        return name;
+      }
+    }
+    const first = task.monitor_first_name ?? task.monitor_firstName ?? task.monitor_first ?? task.monitorName?.split(' ')?.[0];
+    const last = task.monitor_last_name ?? task.monitor_lastName ?? task.monitor_last ?? null;
+    const fromFields = this.formatPersonName(first, last);
+    if (fromFields) {
+      return fromFields;
+    }
+    if (typeof task.monitor_name === 'string' && task.monitor_name.length) {
+      return task.monitor_name;
+    }
+    return null;
+  }
+
+  private resolveCurrentLevelLabel(): string | null {
+    const degree = this.taskDetail?.degree;
+    if (degree?.name) {
+      return degree.name;
+    }
+    if (degree?.annotation) {
+      return degree.annotation;
+    }
+    const subgroupDegree = this.taskDetail?.course_subgroup?.degree ?? this.taskDetail?.course_subgroup?.level;
+    if (subgroupDegree?.name) {
+      return subgroupDegree.name;
+    }
+    if (typeof this.taskDetail?.degree_id === 'number') {
+      return `${this.translateWithFallback('monitor_assignment.partial.level', 'Nivel')} ${this.taskDetail.degree_id}`;
+    }
+    return null;
+  }
+
+  private getLevelLabelFromTask(task: any): string | null {
+    if (!task) {
+      return null;
+    }
+    const subgroup = task.course_subgroup ?? task.courseSubgroup ?? null;
+    if (subgroup?.name) {
+      return subgroup.name;
+    }
+    if (subgroup?.label) {
+      return subgroup.label;
+    }
+    const degree = subgroup?.degree ?? subgroup?.level ?? task.degree ?? null;
+    if (typeof degree === 'string') {
+      return degree;
+    }
+    if (degree?.name) {
+      return degree.name;
+    }
+    if (degree?.annotation) {
+      return degree.annotation;
+    }
+    if (task.level_label) {
+      return task.level_label;
+    }
+    return null;
+  }
+
+  private buildMonitorAssignmentSummary(): MonitorAssignmentDialogSummaryItem[] {
+    const originalScope = this.monitorAssignmentScope;
+    const originalStart = this.monitorAssignmentStartDate;
+    const originalEnd = this.monitorAssignmentEndDate;
+
+    const firstDate = this.monitorAssignmentDates[0]?.value ?? originalStart;
+    const lastDate =
+      this.monitorAssignmentDates[this.monitorAssignmentDates.length - 1]?.value ?? originalEnd ?? firstDate;
+
+    this.monitorAssignmentScope = 'range';
+    this.monitorAssignmentStartDate = firstDate;
+    this.monitorAssignmentEndDate = lastDate;
+
+    const slots = this.buildSlotsForCurrentSelection();
+
+    this.monitorAssignmentScope = originalScope;
+    this.monitorAssignmentStartDate = originalStart;
+    this.monitorAssignmentEndDate = originalEnd;
+
+    return slots.map(slot => ({
+      value: slot.date,
+      dateLabel: slot.label ?? this.assignmentHelper.formatSlotLabel(slot.date, slot.startTime, slot.endTime),
+      levelLabel: slot.context?.levelLabel ?? this.resolveCurrentLevelLabel(),
+      currentMonitor: slot.context?.currentMonitorName ?? null,
+      subgroupId: slot.context?.subgroupId ?? null
+    }));
+  }
+
+
+  private findCurrentMonitorForSubgroup(subgroupId: number | null, dateValue?: string | null): { id: number | null; name: string | null } | null {
+    if (!subgroupId) {
+      return null;
+    }
+    const dateStr = dateValue ?? null;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const holder = tasksSource.find(task => {
+      if (task?.course_subgroup_id !== subgroupId) {
+        return false;
+      }
+      if (!task?.monitor_id) {
+        return false;
+      }
+      if (!dateStr) {
+        return true;
+      }
+      return this.getDateStrFromAny(task?.date) === dateStr;
+    });
+    if (!holder) {
+      return null;
+    }
+    return {
+      id: holder.monitor_id ?? holder.monitor?.id ?? null,
+      name: this.getMonitorNameFromTask(holder)
+    };
+  }
+
+  private findTaskForSubgroup(subgroupId: number | null, dateValue?: string | null): any | null {
+    if (!subgroupId) {
+      return null;
+    }
+    const dateStr = dateValue ?? null;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    return tasksSource.find(task => {
+      if (task?.course_subgroup_id !== subgroupId) {
+        return false;
+      }
+      if (!dateStr) {
+        return true;
+      }
+      return this.getDateStrFromAny(task?.date) === dateStr;
+    }) ?? null;
+  }
+
+  private getSlotDetailsForDate(dateValue: string | null): { levelLabel: string | null; currentMonitor: string | null } {
+    const normalizedDate = this.normalizeDateValue(dateValue);
+    const subgroupId = this.taskDetail?.course_subgroup_id ?? null;
+    let levelLabel = this.resolveCurrentLevelLabel();
+    let currentMonitor: string | null = null;
+
+    const task = this.findTaskForSubgroup(subgroupId, normalizedDate);
+    if (task) {
+      currentMonitor = this.getMonitorNameFromTask(task);
+      levelLabel = this.getLevelLabelFromTask(task) ?? levelLabel;
+    } else {
+      const details = this.findCourseSubgroupDetails(subgroupId, normalizedDate);
+      if (details) {
+        currentMonitor = details.monitorName ?? currentMonitor;
+        levelLabel = details.levelLabel ?? levelLabel;
+      }
+    }
+
+    return { levelLabel, currentMonitor };
+  }
+
+  private normalizeDateValue(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+    return this.getDateStrFromAny(value);
+  }
+
+  private findCourseSubgroupDetails(subgroupId: number | null, dateValue?: string | null): { monitorId: number | null; monitorName: string | null; levelLabel: string | null } | null {
+    if (!subgroupId) {
+      return null;
+    }
+    const course = this.taskDetail?.course;
+    if (!course) {
+      return null;
+    }
+
+    const normalizedDate = dateValue ? this.getDateStrFromAny(dateValue) : null;
+    const normalizeId = (val: any) => (val == null ? null : Number(val));
+    const targetId = normalizeId(subgroupId);
+    if (targetId == null) {
+      return null;
+    }
+
+    const buildDetails = (sub: any): { monitorId: number | null; monitorName: string | null; levelLabel: string | null } => {
+      if (!sub) {
+        return { monitorId: null, monitorName: null, levelLabel: null };
+      }
+      const monitor = sub.monitor ?? null;
+      const monitorName = monitor ? this.resolveMonitorFullName(monitor) : (sub.monitor_name ?? null);
+      const monitorId = sub.monitor_id ?? monitor?.id ?? null;
+      const degree = sub.degree ?? sub.level ?? null;
+      const levelLabel = degree?.name ?? degree?.annotation ?? sub.level_label ?? null;
+      return { monitorId, monitorName, levelLabel };
+    };
+
+    const checkContainer = (container: any): { monitorId: number | null; monitorName: string | null; levelLabel: string | null } | null => {
+      if (!container) {
+        return null;
+      }
+      const subgroups = container.course_subgroups ?? container.courseSubgroups ?? container.subgroups ?? [];
+      for (const sub of subgroups) {
+        if (targetId === normalizeId(sub?.id)) {
+          return buildDetails(sub);
+        }
+      }
+      return null;
+    };
+
+    const courseDates = course.course_dates ?? [];
+    for (const cd of courseDates) {
+      if (normalizedDate) {
+        const dateValueNormalized = this.getDateStrFromAny(cd?.date ?? cd?.date_start ?? cd?.date_start_res ?? null);
+        if (dateValueNormalized !== normalizedDate) {
+          continue;
+        }
+      }
+      const direct = checkContainer(cd);
+      if (direct) {
+        return direct;
+      }
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      for (const group of groups) {
+        const details = checkContainer(group);
+        if (details) {
+          return details;
+        }
+      }
+    }
+
+    if (!normalizedDate) {
+      const groups = course.course_groups ?? [];
+      for (const group of groups) {
+        const details = checkContainer(group);
+        if (details) {
+          return details;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private resolveSubgroupOrderLabel(subgroupId: number | null, dateValue?: string | null): string | null {
+    if (!subgroupId || !this.taskDetail?.course) {
+      return null;
+    }
+
+    const course = this.taskDetail.course;
+    const normalizedDate = dateValue ? this.getDateStrFromAny(dateValue) : null;
+    const normalizeId = (val: any) => (val == null ? null : Number(val));
+    const targetId = normalizeId(subgroupId);
+
+    const findOrderInContainer = (container: any): number | null => {
+      if (!container) {
+        return null;
+      }
+      const subgroups = container.course_subgroups ?? container.courseSubgroups ?? container.subgroups ?? [];
+      const index = subgroups.findIndex((sub: any) => normalizeId(sub?.id) === targetId);
+      return index >= 0 ? index + 1 : null;
+    };
+
+    const courseDates = course.course_dates ?? [];
+    for (const cd of courseDates) {
+      if (normalizedDate) {
+        const dateValueNormalized = this.getDateStrFromAny(cd?.date ?? cd?.date_start ?? cd?.date_start_res ?? null);
+        if (dateValueNormalized !== normalizedDate) {
+          continue;
+        }
+      }
+      const direct = findOrderInContainer(cd);
+      if (direct != null) {
+        return String(direct);
+      }
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      for (const group of groups) {
+        const order = findOrderInContainer(group);
+        if (order != null) {
+          return String(order);
+        }
+      }
+    }
+
+    const groups = course.course_groups ?? [];
+    for (const group of groups) {
+      const order = findOrderInContainer(group);
+      if (order != null) {
+        return String(order);
+      }
+    }
+
+    const targetTask = this.findTaskForSubgroup(targetId, normalizedDate);
+    const courseId = targetTask?.course_id ?? this.taskDetail?.course_id ?? course?.id ?? null;
+    const groupId = targetTask?.course_group_id ?? this.taskDetail?.course_group_id ?? null;
+    const degreeId = targetTask?.degree_id ?? this.taskDetail?.degree_id ?? null;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const candidateIds = new Set<number>();
+
+    tasksSource.forEach(task => {
+      if (courseId != null && Number(task?.course_id) !== Number(courseId)) {
+        return;
+      }
+      if (groupId != null && Number(task?.course_group_id) !== Number(groupId)) {
+        return;
+      }
+      if (degreeId != null && Number(task?.degree_id) !== Number(degreeId)) {
+        return;
+      }
+      if (normalizedDate && this.getDateStrFromAny(task?.date) !== normalizedDate) {
+        return;
+      }
+      const subgroupRaw = task?.course_subgroup_id;
+      const subgroupParsed = subgroupRaw == null ? null : Number(subgroupRaw);
+      if (subgroupParsed != null && !Number.isNaN(subgroupParsed)) {
+        candidateIds.add(subgroupParsed);
       }
     });
 
-    if (dates.size === 0 && baseTask.date) {
-      dates.add(baseTask.date);
-    }
-
-    return dates.size;
-  }
-
-  saveEditedMonitor() {
-    const monitorId = this.editedMonitor ? this.editedMonitor.id : null;
-    const bookingUserIds = this.collectBookingUserIdsForAssignment();
-    let subgroupId: number | null = null;
-
-    if (!bookingUserIds.length) {
-      if (this.taskDetail?.course_subgroup_id) {
-        subgroupId = this.taskDetail.course_subgroup_id;
-      } else if (!this.taskDetail?.all_clients?.length && this.taskDetail?.booking_id) {
-        subgroupId = this.taskDetail.booking_id;
+    if (candidateIds.size) {
+      const orderedIds = Array.from(candidateIds).sort((a, b) => a - b);
+      const idx = orderedIds.indexOf(targetId);
+      if (idx >= 0) {
+        return String(idx + 1);
       }
     }
 
-    const payload = {
-      monitor_id: monitorId,
-      booking_users: bookingUserIds,
-      subgroup_id: subgroupId
+    return null;
+  }
+
+  private resolveBookingSubgroupOrder(booking: any): number | null {
+    if (!booking) {
+      return null;
+    }
+    const subgroupId = booking.course_subgroup_id
+      ?? booking.subgroup_id
+      ?? booking?.booking_users?.[0]?.course_subgroup_id
+      ?? null;
+    if (!subgroupId) {
+      return null;
+    }
+
+    const course = booking.course ?? booking.courseGroup?.course ?? booking.course_group?.course ?? null;
+    if (!course) {
+      return null;
+    }
+
+    const normalizeId = (value: any) => (value == null ? null : Number(value));
+    const targetId = normalizeId(subgroupId);
+    if (targetId == null || Number.isNaN(targetId)) {
+      return null;
+    }
+
+    const matchInContainer = (container: any): number | null => {
+      if (!container) {
+        return null;
+      }
+      const subgroups = container?.course_subgroups ?? container?.courseSubgroups ?? container?.subgroups ?? [];
+      const idx = subgroups.findIndex((sub: any) => normalizeId(sub?.id) === targetId);
+      return idx >= 0 ? idx + 1 : null;
     };
 
-    this.monitorsService.transferMonitor(payload)
-      .subscribe((data) => {
+    const dateId = booking.course_date_id ?? null;
+    const dateValue = this.getDateStrFromAny(booking.date ?? booking.date_full ?? null);
+    const courseDates = course.course_dates ?? [];
 
-        this.editedMonitor = null;
-        this.showEditMonitor = false;
-        this.hideDetail();
-        this.loadBookings(this.currentDate);
-        this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
-      },
-        (error) => {
-          // Error handling code
-          console.error('Error occurred:', error);
-          if (error.error && error.error.message && error.error.message == "Overlap detected. Monitor cannot be transferred.") {
-            this.snackbar.open(this.translateService.instant('monitor_busy'), 'OK', { duration: 3000 });
+    for (const cd of courseDates) {
+      if (dateId != null && normalizeId(cd?.id) !== normalizeId(dateId)) {
+        continue;
+      }
+      if (dateId == null && dateValue) {
+        const cdDate = this.getDateStrFromAny(cd?.date ?? cd?.date_start ?? cd?.date_start_res ?? null);
+        if (cdDate && cdDate !== dateValue) {
+          continue;
+        }
+      }
+      const direct = matchInContainer(cd);
+      if (direct != null) {
+        return direct;
+      }
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      for (const group of groups) {
+        const order = matchInContainer(group);
+        if (order != null) {
+          return order;
+        }
+      }
+    }
+
+    const courseGroups = course.course_groups ?? [];
+    for (const group of courseGroups) {
+      const order = matchInContainer(group);
+      if (order != null) {
+        return order;
+      }
+    }
+
+    const ids = new Set<number>();
+    const collectFromContainer = (container: any) => {
+      const subgroups = container?.course_subgroups ?? container?.courseSubgroups ?? container?.subgroups ?? [];
+      subgroups.forEach((sub: any) => {
+        const id = normalizeId(sub?.id);
+        if (id != null && !Number.isNaN(id)) {
+          ids.add(id);
+        }
+      });
+    };
+
+    courseGroups.forEach(collectFromContainer);
+    courseDates.forEach((cd: any) => {
+      collectFromContainer(cd);
+      const groups = cd?.course_groups ?? cd?.courseGroups ?? [];
+      groups.forEach(collectFromContainer);
+    });
+
+    if (ids.size) {
+      const ordered = Array.from(ids).sort((a, b) => a - b);
+      const idx = ordered.indexOf(targetId);
+      if (idx >= 0) {
+        return idx + 1;
+      }
+    }
+
+    return null;
+  }
+
+  private timeRangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
+    return startA < endB && endA > startB;
+  }
+
+  private describeTaskAssignment(task: any): string {
+    const courseName = task?.course?.name
+      ?? task?.booking?.course?.name
+      ?? task?.booking?.name
+      ?? task?.course_name
+      ?? null;
+    const subgroupLabel = task?.course_subgroup?.name
+      ?? task?.course_subgroup_label
+      ?? (task?.course_subgroup_id ? `${this.translateWithFallback('monitor_assignment.partial.subgroup', 'Subgrupo')} ${task.course_subgroup_id}` : null);
+    const bookingLabel = task?.booking?.code ?? task?.booking?.id ?? task?.booking_id ?? null;
+
+    if (courseName && subgroupLabel) {
+      return `${courseName} · ${subgroupLabel}`;
+    }
+    if (courseName) {
+      return courseName;
+    }
+    if (bookingLabel) {
+      return `${this.translateWithFallback('monitor_assignment.partial.booking', 'Reserva')} ${bookingLabel}`;
+    }
+    return this.translateWithFallback('monitor_assignment.partial.conflict_default', 'Otra sesión');
+  }
+
+  private describeMonitorConflicts(monitorId: number, slot: MonitorAssignmentSlot): string[] {
+    return this.getMonitorConflictsForSlot(monitorId, slot).map(task => this.describeTaskAssignment(task));
+  }
+
+  private getMonitorConflictsForSlot(monitorId: number, slot: MonitorAssignmentSlot): any[] {
+    if (!monitorId || !slot?.date || !slot?.startTime) {
+      return [];
+    }
+    const date = slot.date;
+    const slotStart = slot.startTime;
+    const slotEnd = slot.endTime || slot.startTime;
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+
+    return tasksSource.filter(task => {
+      if (task?.monitor_id !== monitorId) {
+        return false;
+      }
+      if (this.getDateStrFromAny(task?.date) !== date) {
+        return false;
+      }
+      if (!task?.hour_start || !task?.hour_end) {
+        return false;
+      }
+      return this.timeRangesOverlap(task.hour_start, task.hour_end, slotStart, slotEnd);
+    });
+  }
+
+  private monitorHasOverlapOutsideTargets(monitorId: number): boolean {
+    if (!monitorId || !this.currentAssignmentSlots.length) {
+      return false;
+    }
+    return this.currentAssignmentSlots.some(slot => {
+      const conflicts = this.getMonitorConflictsForSlot(monitorId, slot);
+      if (!conflicts.length) {
+        return false;
+      }
+      if (!this.currentAssignmentTargetSubgroupIds.size) {
+        return conflicts.length > 0;
+      }
+      return conflicts.some(task => {
+        const subgroupId = task?.course_subgroup_id;
+        if (subgroupId == null) {
+          return true;
+        }
+        const numericId = Number(subgroupId);
+        return Number.isNaN(numericId) || !this.currentAssignmentTargetSubgroupIds.has(numericId);
+      });
+    });
+  }
+
+  private async resolveTimelineSlotsAfterAvailability(monitor: any | null, slots: MonitorAssignmentSlot[]): Promise<MonitorAssignmentSlot[] | null> {
+    if (!monitor?.id) {
+      return slots;
+    }
+
+    slots = this.dedupeAssignmentSlots(slots);
+    const availabilityContext = {
+      bookingUserIds: this.collectBookingUserIdsForAssignment(),
+      subgroupIds: this.extractSubgroupIdsFromSlots(slots),
+      courseId: this.taskDetail?.course_id ?? this.taskDetail?.course?.id ?? null
+    };
+    if (!availabilityContext.subgroupIds.length && this.taskDetail) {
+      availabilityContext.subgroupIds = this.collectSubgroupIdsForAssignment(true);
+    }
+    // Asegurar que se incluyan los subgrupos a transferir en las exclusiones de disponibilidad
+    if (this.monitorAssignmentSubgroupIds.length) {
+      availabilityContext.subgroupIds = Array.from(new Set([
+        ...(availabilityContext.subgroupIds ?? []),
+        ...this.monitorAssignmentSubgroupIds
+      ]));
+    }
+
+    this.showLoadingDialog('monitor_assignment.loading_checking');
+    let result;
+    try {
+      result = await this.assignmentHelper.checkMonitorAvailabilityForSlots(monitor.id, slots, availabilityContext);
+    } finally {
+      this.hideLoadingDialog();
+    }
+    if (monitor?.id) {
+      result.blocked.forEach(slot => {
+        slot.context = slot.context ?? {};
+        slot.context.conflicts = this.describeMonitorConflicts(monitor.id, slot);
+      });
+    }
+
+    if (result.blocked.length && this.monitorAssignmentScope === 'single') {
+      const translationKey = 'monitor_assignment.partial.single_forbidden';
+      const translated = this.translateService.instant(translationKey);
+      const fallback = 'El monitor ya está ocupado en esa franja.';
+      const message = translated === translationKey ? fallback : translated;
+      this.snackbar.open(message, 'OK', { duration: 4000 });
+      return null;
+    }
+
+    if (!result.blocked.length) {
+      return slots;
+    }
+
+    const proceed = await this.assignmentHelper.confirmPartialAvailability(this.resolveMonitorFullName(monitor), result);
+    if (!proceed) {
+      return null;
+    }
+
+    if (!result.available.length) {
+      this.snackbar.open(this.translateWithFallback('monitor_assignment.partial.no_available', 'El monitor no está disponible en ninguna de las fechas seleccionadas.'), 'OK', { duration: 3000 });
+      return null;
+    }
+
+    return result.available;
+  }
+
+  private async confirmTimelinePastDates(slots: MonitorAssignmentSlot[]): Promise<boolean> {
+    const hasPast = slots.some(slot => {
+      const dateTime = moment(`${slot.date}T${slot.startTime || '00:00'}`);
+      return dateTime.isValid() && dateTime.isBefore(moment());
+    });
+
+    if (!hasPast) {
+      return true;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      data: {
+        title: this.translateWithFallback('monitor_assignment.past_warning_title', 'Fecha en el pasado'),
+        message: this.translateWithFallback('monitor_assignment.past_warning_message', 'La fecha seleccionada es anterior a hoy. ¿Quieres continuar?')
+      }
+    });
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
+  private async executeTimelineTransferForSlots(
+    monitor: any | null,
+    slots: MonitorAssignmentSlot[],
+    preserveOriginalScope: boolean
+  ): Promise<boolean> {
+    if (!slots.length) {
+      return false;
+    }
+
+    const originalScope = this.monitorAssignmentScope;
+    const originalStart = this.monitorAssignmentStartDate;
+    const originalEnd = this.monitorAssignmentEndDate;
+    const shouldPreserveScope = preserveOriginalScope;
+
+    this.showLoadingDialog('monitor_assignment.loading_applying');
+    try {
+      if (shouldPreserveScope) {
+        let subgroupsToUse = Array.from(
+          new Set(
+            slots
+              .map(slot => slot.context?.subgroupId)
+              .filter((id): id is number => id != null)
+          )
+        );
+        if (!subgroupsToUse.length && this.monitorAssignmentSubgroupIds?.length) {
+          subgroupsToUse = [...this.monitorAssignmentSubgroupIds];
+        }
+
+        // For different scopes, use appropriate subgroup collection:
+        // - scope='all': use ALL subgroups of the SAME DEGREE in the course
+        // - scope='from'/'range': use all related subgroups in date range (same degree)
+        // - scope='single'/'interval': use only preview subgroups
+        if (this.taskDetail) {
+          if (this.monitorAssignmentScope === 'all' || this.monitorAssignmentScope === 'from' || this.monitorAssignmentScope === 'range') {
+            // For wider scopes, keep only linked subgroup-date entries for the selected subgroup.
+            subgroupsToUse = this.collectSubgroupIdsForAssignment(true);
           }
-          else {
+        }
+
+        const payload = this.buildFullMonitorTransferPayload(monitor?.id ?? null, {
+          subgroupIds: subgroupsToUse
+        });
+
+        if (!payload.booking_users.length && payload.subgroup_id === null && !payload.course_id) {
+          this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+          return false;
+        }
+
+        await firstValueFrom(this.monitorsService.transferMonitor(payload));
+      } else {
+        const sequences = this.groupSlotsByConsecutiveDate(slots);
+
+        for (const seq of sequences) {
+          if (!seq.length) {
+            continue;
+          }
+          this.monitorAssignmentScope = seq.length === 1 ? 'single' : 'range';
+          this.monitorAssignmentStartDate = seq[0].date;
+          this.monitorAssignmentEndDate = seq[seq.length - 1].date;
+
+          const sequenceSubgroupIds = this.extractSubgroupIdsFromSlots(seq);
+          const subgroupIdsToUse = sequenceSubgroupIds.length
+            ? sequenceSubgroupIds
+            : this.collectSubgroupIdsForAssignment(true);
+          if (!subgroupIdsToUse.length && this.monitorAssignmentSubgroupIds?.length) {
+            subgroupIdsToUse.push(...this.monitorAssignmentSubgroupIds);
+          }
+          if (!subgroupIdsToUse.length && this.taskDetail?.course_subgroup_id != null) {
+            subgroupIdsToUse.push(this.taskDetail.course_subgroup_id);
+          }
+          const payload = this.buildFullMonitorTransferPayload(
+            monitor?.id ?? null,
+            {
+              courseDateId: seq.length === 1 ? seq[0].context?.courseDateId ?? null : null,
+              subgroupIds: subgroupIdsToUse.length ? subgroupIdsToUse : undefined
+            }
+          );
+
+          if (!payload.booking_users.length && payload.subgroup_id === null && !payload.course_id) {
             this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+            return false;
           }
-        })
 
+          await firstValueFrom(this.monitorsService.transferMonitor(payload));
+        }
+      }
+
+      return true;
+    } catch (error) {
+      this.handleMonitorTransferError(error);
+      return false;
+    } finally {
+      this.monitorAssignmentScope = originalScope;
+      this.monitorAssignmentStartDate = originalStart;
+      this.monitorAssignmentEndDate = originalEnd;
+      this.hideLoadingDialog();
+    }
+  }
+
+  private groupSlotsByConsecutiveDate(slots: MonitorAssignmentSlot[]): MonitorAssignmentSlot[][] {
+    const sorted = [...slots].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const groups: MonitorAssignmentSlot[][] = [];
+    let current: MonitorAssignmentSlot[] = [];
+
+    sorted.forEach(slot => {
+      if (!slot.date) {
+        return;
+      }
+      if (!current.length) {
+        current.push(slot);
+        return;
+      }
+      const last = current[current.length - 1];
+      const lastMoment = moment(last.date, 'YYYY-MM-DD');
+      const currentMoment = moment(slot.date, 'YYYY-MM-DD');
+      if (lastMoment.isValid() && currentMoment.isValid() && currentMoment.diff(lastMoment, 'days') === 1) {
+        current.push(slot);
+      } else {
+        groups.push(current);
+        current = [slot];
+      }
+    });
+
+    if (current.length) {
+      groups.push(current);
+    }
+
+    return groups;
+  }
+
+  private translateWithFallback(key: string, fallback: string): string {
+    const translated = this.translateService.instant(key);
+    return translated === key ? fallback : translated;
+  }
+
+  private showLoadingDialog(messageKey: string): void {
+    const message = this.translateWithFallback(messageKey, 'Traitement en cours...');
+    if (this.loadingDialogRef) {
+      this.loadingDialogRef.componentInstance.data.message = message;
+      return;
+    }
+    this.loadingDialogRef = this.dialog.open(MonitorAssignmentLoadingDialogComponent, {
+      disableClose: true,
+      panelClass: 'monitor-assignment-loading-dialog',
+      data: { message }
+    });
+  }
+
+  private hideLoadingDialog(): void {
+    this.loadingDialogRef?.close();
+    this.loadingDialogRef = undefined;
+  }
+
+
+  async saveEditedMonitor() {
+    const monitor = this.editedMonitor ?? null;
+    const slots = this.buildSlotsForCurrentSelection();
+    if (!slots.length) {
+      this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+      return;
+    }
+
+    const canProceed = await this.confirmTimelinePastDates(slots);
+    if (!canProceed) {
+      return;
+    }
+
+    const resolvedSlots = await this.resolveTimelineSlotsAfterAvailability(monitor, slots);
+    if (!resolvedSlots?.length) {
+      return;
+    }
+
+    const success = await this.executeTimelineTransferForSlots(
+      monitor,
+      resolvedSlots,
+      resolvedSlots.length === slots.length
+    );
+    if (success) {
+      this.editedMonitor = null;
+      this.showEditMonitor = false;
+      this.hideDetail();
+      this.loadBookings(this.currentDate, { silent: true });
+      this.snackbar.open(this.translateService.instant('snackbar.monitor.update'), 'OK', { duration: 3000 });
+    }
   }
 
   goTo(route: string) {
@@ -1960,12 +3862,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((result) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result) => {
       if (result) {
-
+        this.getData();
       }
-
-      this.getData();
     });
   }
 
@@ -2033,7 +3933,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((result) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result) => {
       if (result) {
 
         if (result.end_date && moment(result.end_date).isAfter(result.start_date)) {
@@ -2081,7 +3981,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
             default: false, user_nwd_subtype_id: result.user_nwd_subtype_id, color: result.color, monitor_id: dateInfo.monitor_id, start_date: result.start_date, end_date: result.end_date, start_time: result.full_day ? null : `${result.start_time}:00`, end_time: result.full_day ? null : `${result.end_time}:00`, full_day: result.full_day, station_id: result.station_id, school_id: result.school_id, description: result.description
           }
           this.crudService.create('/monitor-nwds', data)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
               //this.getData();
               this.loadBookings(this.currentDate);
@@ -2109,7 +4009,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           if (result.user_nwd_subtype_id !== 0) {
 
             this.crudService.create('/monitor-nwds', result)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
               this.getData();
               this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
@@ -2119,17 +4019,17 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
           const updateEdit = this.events[isOverlap[0].overlapedId].id;
           this.crudService.update('/monitor-nwds', isOverlap[0].dates[0], updateEdit)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
               isOverlap[0].dates[1].start_time = data.data.end_time;
               this.crudService.create('/monitor-nwds', isOverlap[0].dates[1])
-              .subscribe((data) => {
+              .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
                 this.getData();
                 this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
               })
             })
           // hacer el update y el create
-          this.snackbar.open('Existe un solapamiento', 'OK', {duration: 3000});
+          this.snackbar.open(this.translateWithFallback('event_overlap', 'Overlap detected'), 'OK', { duration: 3000 });
         }*/
         this.getData();
       } else {
@@ -2145,7 +4045,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       data: { message: this.translateService.instant('create_general_blockage'), title: this.translateService.instant('general_blockage') }
     });
 
-    dialogRef.afterClosed().subscribe((userConfirmed: boolean) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((userConfirmed: boolean) => {
       if (userConfirmed) {
         this.createBlockGeneral();
       }
@@ -2162,7 +4062,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((result) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result) => {
       if (result) {
 
         //ONLY 1 DAY
@@ -2217,7 +4117,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
           if (result.user_nwd_subtype_id !== 0) {
 
             this.crudService.create('/monitor-nwds', result)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
               this.getData();
               this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
@@ -2227,17 +4127,17 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
           const updateEdit = this.events[isOverlap[0].overlapedId].id;
           this.crudService.update('/monitor-nwds', isOverlap[0].dates[0], updateEdit)
-            .subscribe((data) => {
+            .pipe(takeUntil(this.destroy$)).subscribe((data) => {
               isOverlap[0].dates[1].start_time = data.data.end_time;
               this.crudService.create('/monitor-nwds', isOverlap[0].dates[1])
-              .subscribe((data) => {
+              .pipe(takeUntil(this.destroy$)).subscribe((data) => {
 
                 this.getData();
                 this.snackbar.open(this.translateService.instant('event_created'), 'OK', {duration: 3000});
               })
             })
           // hacer el update y el create
-          this.snackbar.open('Existe un solapamiento', 'OK', {duration: 3000});
+          this.snackbar.open(this.translateWithFallback('event_overlap', 'Overlap detected'), 'OK', { duration: 3000 });
         }*/
 
       }
@@ -2308,6 +4208,36 @@ export class TimelineComponent implements OnInit, OnDestroy {
       this.filterNwd = options.filterNwd;
       this.filterBlockPayed = options.filterBlockPayed;
       this.filterBlockNotPayed = options.filterBlockNotPayed;
+    }
+  }
+
+  private saveViewState(): void {
+    const state = {
+      timelineView: this.timelineView,
+      currentDate: this.currentDate ? this.currentDate.toISOString() : null
+    };
+    localStorage.setItem(this.plannerViewStorageKey, JSON.stringify(state));
+  }
+
+  private loadSavedViewState(): void {
+    const raw = localStorage.getItem(this.plannerViewStorageKey);
+    if (!raw) {
+      return;
+    }
+    try {
+      const state = JSON.parse(raw);
+      if (state?.timelineView) {
+        this.timelineView = state.timelineView;
+      }
+      if (state?.currentDate) {
+        const parsedDate = new Date(state.currentDate);
+        if (!Number.isNaN(parsedDate.getTime())) {
+          this.currentDate = parsedDate;
+          this.searchDate = parsedDate;
+        }
+      }
+    } catch {
+      // ignore malformed storage
     }
   }
 
@@ -2414,7 +4344,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     // Function update first block -> CALL LATER
     const updateFirstBlock = () => {
-      this.crudService.update('/monitor-nwds', firstBlockData, this.blockDetail.block_id).subscribe(
+      this.crudService.update('/monitor-nwds', firstBlockData, this.blockDetail.block_id).pipe(takeUntil(this.destroy$)).subscribe(
         response => {
           if (this.divideDay) {
             createSecondBlock();
@@ -2430,7 +4360,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     const createSecondBlock = () => {
       secondBlockData = { ...commonData, start_date: this.blockDetail.start_date, end_date: this.blockDetail.end_date, start_time: `${this.endTimeDivision}:00`, end_time: `${this.endTimeDay}:00`, full_day: false };
-      this.crudService.post('/monitor-nwds', secondBlockData).subscribe(
+      this.crudService.post('/monitor-nwds', secondBlockData).pipe(takeUntil(this.destroy$)).subscribe(
         secondResponse => {
           finalizeUpdate();
         },
@@ -2474,7 +4404,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   deleteEditedBlock() {
     const isConfirmed = confirm('Êtes-vous sûr de vouloir supprimer le blocage?');
     if (isConfirmed) {
-      this.crudService.delete('/monitor-nwds', this.blockDetail.block_id).subscribe(
+      this.crudService.delete('/monitor-nwds', this.blockDetail.block_id).pipe(takeUntil(this.destroy$)).subscribe(
         response => {
           this.hideEditBlock();
           this.hideBlock();
@@ -2485,6 +4415,161 @@ export class TimelineComponent implements OnInit, OnDestroy {
       );
     }
   }
+
+  getGroupedBlockIds(block: any = this.blockDetail): number[] {
+    if (!block) return [];
+
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const signature = {
+      date: this.normalizeBlockDate(block.date ?? block.start_date),
+      hour_start: block.hour_start,
+      hour_end: block.hour_end,
+      full_day: !!block.full_day,
+      name: block.name ?? null,
+      type: block.type ?? null,
+      user_nwd_subtype_id: block.user_nwd_subtype_id ?? null,
+      color_block: block.color_block ?? null,
+      school_id: block.school_id ?? null,
+      station_id: block.station_id ?? null
+    };
+
+    const matches = tasksSource.filter(task => {
+      if (!task?.block_id) return false;
+      if (task.type !== signature.type) return false;
+      const taskDate = this.normalizeBlockDate(task.date ?? task.start_date);
+      if (!taskDate || taskDate !== signature.date) return false;
+      if (!!task.full_day !== signature.full_day) return false;
+      if ((task.name ?? null) !== signature.name) return false;
+      if ((task.user_nwd_subtype_id ?? null) !== signature.user_nwd_subtype_id) return false;
+      if ((task.color_block ?? null) !== signature.color_block) return false;
+      if ((task.school_id ?? null) !== signature.school_id) return false;
+      if ((task.station_id ?? null) !== signature.station_id) return false;
+      if (!signature.full_day) {
+        if (task.hour_start !== signature.hour_start) return false;
+        if (task.hour_end !== signature.hour_end) return false;
+      }
+      return true;
+    });
+
+    const ids = matches.map(task => task.block_id).filter(Boolean);
+    return Array.from(new Set(ids));
+  }
+
+  getGroupedBlockIdsForRange(block: any, rangeStart: moment.Moment, rangeEnd: moment.Moment): number[] {
+    if (!block) return [];
+
+    const tasksSource = Array.isArray(this.plannerTasks) ? this.plannerTasks : [];
+    const signature = {
+      hour_start: block.hour_start,
+      hour_end: block.hour_end,
+      full_day: !!block.full_day,
+      name: block.name ?? null,
+      type: block.type ?? null,
+      user_nwd_subtype_id: block.user_nwd_subtype_id ?? null,
+      color_block: block.color_block ?? null,
+      school_id: block.school_id ?? null,
+      station_id: block.station_id ?? null
+    };
+
+    const start = rangeStart.clone().startOf('day');
+    const end = rangeEnd.clone().endOf('day');
+
+    const matches = tasksSource.filter(task => {
+      if (!task?.block_id) return false;
+      if (task.type !== signature.type) return false;
+      const taskDateValue = this.normalizeBlockDate(task.date ?? task.start_date);
+      if (!taskDateValue) return false;
+      const taskMoment = moment(taskDateValue, 'YYYY-MM-DD', true);
+      if (!taskMoment.isValid() || !taskMoment.isBetween(start, end, 'day', '[]')) return false;
+      if (!!task.full_day !== signature.full_day) return false;
+      if ((task.name ?? null) !== signature.name) return false;
+      if ((task.user_nwd_subtype_id ?? null) !== signature.user_nwd_subtype_id) return false;
+      if ((task.color_block ?? null) !== signature.color_block) return false;
+      if ((task.school_id ?? null) !== signature.school_id) return false;
+      if ((task.station_id ?? null) !== signature.station_id) return false;
+      if (!signature.full_day) {
+        if (task.hour_start !== signature.hour_start) return false;
+        if (task.hour_end !== signature.hour_end) return false;
+      }
+      return true;
+    });
+
+    const ids = matches.map(task => task.block_id).filter(Boolean);
+    return Array.from(new Set(ids));
+  }
+
+  private normalizeBlockDate(value: any): string | null {
+    if (!value) return null;
+    const m = moment(value);
+    if (!m.isValid()) return null;
+    return m.format('YYYY-MM-DD');
+  }
+
+    deleteGroupedBlock(): void {
+      if (!this.blockDetail) return;
+
+      const ids = this.getGroupedBlockIds(this.blockDetail);
+      if (ids.length <= 1) {
+        this.deleteEditedBlock();
+        return;
+      }
+
+      const dialogRef = this.dialog.open(GroupedBlockDeleteDialogComponent, {
+        width: '560px',
+        data: {
+          title: this.translateService.instant('delete_grouped_block'),
+          message: this.translateService.instant('delete_grouped_block_confirm'),
+          dayLabel: this.translateService.instant('delete_grouped_block_option_day'),
+          visibleLabel: this.translateService.instant('delete_grouped_block_option_visible'),
+          cancelLabel: this.translateService.instant('cancel')
+        }
+      });
+
+      dialogRef.afterClosed().subscribe((selection: 'day' | 'visible' | null) => {
+        if (!selection) {
+          return;
+        }
+
+        let idsToDelete = ids;
+        if (selection === 'visible') {
+          const baseDate = moment(this.currentDate);
+          let rangeStart = baseDate.clone();
+          let rangeEnd = baseDate.clone();
+
+          if (this.timelineView === 'week') {
+            rangeStart = baseDate.clone().startOf('isoWeek');
+            rangeEnd = baseDate.clone().endOf('isoWeek');
+          } else if (this.timelineView === 'month') {
+            rangeStart = baseDate.clone().startOf('month');
+            rangeEnd = baseDate.clone().endOf('month');
+          }
+
+          idsToDelete = this.getGroupedBlockIdsForRange(this.blockDetail, rangeStart, rangeEnd);
+        }
+
+        if (idsToDelete.length <= 1) {
+          this.deleteEditedBlock();
+          return;
+        }
+
+        this.deletingGroupedBlocks = true;
+        this.crudService.post('/monitor-nwds/bulk-delete', { ids: idsToDelete })
+          .pipe(takeUntil(this.destroy$))
+          .subscribe(
+            () => {
+              this.deletingGroupedBlocks = false;
+              this.hideEditBlock();
+              this.hideBlock();
+              this.loadBookings(this.currentDate);
+            },
+            error => {
+              this.deletingGroupedBlocks = false;
+              console.error('Error deleting grouped blocks', error);
+              this.snackbar.open(this.translateService.instant('error'), 'OK', { duration: 3000 });
+            }
+          );
+      });
+    }
 
   getDayOfWeek(dayIndex: number): number {
     const startOfWeek = moment(this.currentDate).startOf('isoWeek');
@@ -2507,21 +4592,368 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     this.loadingMonitors = true;
 
-    const clientIds = this.taskDetail.all_clients.map((client) => client.id);
-    const data = {
-      sportId: this.taskDetail.sport_id,
-      minimumDegreeId: this.taskDetail.degree_id || this.taskDetail.degree.id,
-      startTime: this.taskDetail.hour_start,
-      endTime: this.taskDetail.hour_end,
-      date: this.taskDetail.date,
-      clientId: clientIds
-    };
+    const data = this.buildMonitorAvailabilityPayload(this.taskDetail);
 
     this.crudService.post('/admin/monitors/available', data)
-      .subscribe((response) => {
+      .pipe(takeUntil(this.destroy$)).subscribe((response) => {
         this.monitorsForm = response.data;
+        this.hasApiAvailability = Array.isArray(this.monitorsForm) && this.monitorsForm.length > 0;
         this.loadingMonitors = false;
+        this.monitorSearchHint = this.buildMonitorSearchHint();
+        this.bumpMonitorOptionsVersion();
+      }, () => {
+        this.loadingMonitors = false;
+        this.monitorSearchHint = '';
+        this.hasApiAvailability = false;
+        this.bumpMonitorOptionsVersion();
       })
+  }
+
+  isMonitorTemporarilyBlocked(monitor: any): boolean {
+    if (!this.moveTask || !monitor || monitor.id == null || !this.taskDetail) {
+      return false;
+    }
+    return this.monitorHasOverlapOutsideTargets(monitor.id);
+  }
+
+  onMonitorSearchInput(event: Event): void {
+    this.monitorSearchTerm = (event.target as HTMLInputElement)?.value ?? '';
+  }
+
+  get filteredMonitorOptions(): any[] {
+    const term = (this.monitorSearchTerm || '').trim().toLowerCase();
+    const monitors = this.getMonitorSelectOptions();
+    const filtered = monitors.filter(monitor => {
+      const name = this.getMonitorDisplayName(monitor).toLowerCase();
+      return !term || name.includes(term);
+    });
+    return filtered.sort((a, b) => {
+      const nameA = this.getMonitorDisplayName(a);
+      const nameB = this.getMonitorDisplayName(b);
+      return nameA.localeCompare(nameB);
+    });
+  }
+
+  /**
+   * Build monitor options for the modal select:
+   * - Start with availability API results (monitorsForm).
+   * - Add timeline monitors (visible on the grid) that match sport and are not busy,
+   *   so users can still pick them with confirmation if needed.
+   */
+  getMonitorSelectOptions(): any[] {
+    if (this.monitorSelectOptionsCacheVersion === this.monitorOptionsVersion) {
+      return this.monitorSelectOptionsCache;
+    }
+
+    const apiList = Array.isArray(this.monitorsForm) ? this.monitorsForm : [];
+    const timelineList = Array.isArray(this.filteredMonitors) ? this.filteredMonitors : [];
+    const combined = apiList.length ? [...apiList, ...timelineList] : [...timelineList];
+
+    const seen = new Set<number>();
+    const options = combined.reduce((acc: any[], monitor: any) => {
+      if (!monitor || monitor.id == null) {
+        return acc;
+      }
+      if (seen.has(monitor.id)) {
+        return acc;
+      }
+      seen.add(monitor.id);
+
+      const matchesSport = this.monitorMatchesCurrentSport(monitor);
+      if (!matchesSport && this.isMonitorFromApiList(monitor)) {
+        return acc;
+      }
+
+      const option = { ...monitor };
+      if (!matchesSport) {
+        option.__sportMismatch = true;
+        option.__sportMismatchMessage = this.translateWithFallback(
+          'monitor_assignment.override_sport',
+          'Deporte distinto al curso (requiere confirmación)'
+        );
+      }
+
+      const busy = this.isMonitorBusyForCurrentTask(option);
+      if (busy) {
+        option.__busy = true;
+        option.__busyMessage = this.translateWithFallback('monitor_assignment.conflict_default', 'Tiene un conflicto en este horario');
+      }
+
+      acc.push(option);
+      return acc;
+    }, []);
+
+    const sorted = options.sort((a, b) => {
+      const aApi = this.isMonitorFromApiList(a) ? 0 : 1;
+      const bApi = this.isMonitorFromApiList(b) ? 0 : 1;
+      return aApi - bApi || this.getMonitorDisplayName(a).localeCompare(this.getMonitorDisplayName(b));
+    });
+
+    this.monitorSelectOptionsCache = sorted;
+    this.monitorSelectOptionsCacheVersion = this.monitorOptionsVersion;
+    return sorted;
+  }
+
+  getMonitorSelectTotals(): { available: number; visible: number } {
+    const apiList = Array.isArray(this.monitorsForm) ? this.monitorsForm : [];
+    const options = this.getMonitorSelectOptions();
+    return {
+      available: apiList.filter(m => m && m.id != null && this.monitorMatchesCurrentSport(m)).length,
+      visible: options.length
+    };
+  }
+
+  private buildMonitorSearchHint(): string {
+    const totals = this.getMonitorSelectTotals();
+    if (!totals.visible) {
+      return '';
+    }
+    if (totals.available && totals.visible >= totals.available) {
+      return `${totals.visible} monitores compatibles`;
+    }
+    if (totals.available) {
+      return `${totals.visible} de ${totals.available} monitores compatibles`;
+    }
+    return `${totals.visible} monitores visibles`;
+  }
+
+  isMonitorFromApiList(monitor: any): boolean {
+    return Array.isArray(this.monitorsForm) && this.monitorsForm.some(m => m?.id === monitor?.id);
+  }
+
+  private isMonitorBusyForCurrentTask(monitor: any): boolean {
+    if (!monitor || monitor.id == null || !this.taskDetail) {
+      return false;
+    }
+    return this.monitorHasOverlapOutsideTargets(monitor.id);
+  }
+
+  async onMonitorSelected(monitor: any) {
+    if (!monitor) {
+      this.editedMonitor = null;
+      return;
+    }
+
+    if (this.isMonitorFromApiList(monitor)) {
+      this.editedMonitor = monitor;
+      return;
+    }
+
+    // Not returned by availability API (nivel/idioma/otros). Ask for confirmation.
+    const confirmed = await this.confirmMonitorOverride(monitor);
+    if (confirmed) {
+      this.editedMonitor = monitor;
+    } else {
+      this.editedMonitor = null;
+    }
+  }
+
+  private async confirmMonitorOverride(monitor: any): Promise<boolean> {
+    const dialogRef = this.dialog.open(ConfirmUnmatchMonitorComponent, {
+      data: {
+        booking: this.taskDetail,
+        monitor,
+        school_id: this.activeSchool
+      }
+    });
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
+
+  private collectCourseSubgroupIdsForTask(task: any, filterByDegree: boolean = false): number[] {
+    if (!task) return [];
+    const subgroupIds = new Set<number>();
+    const degreeId = filterByDegree ? this.resolveTaskDegreeId(task) : null;
+
+    const addId = (value: any, subgroupDegree?: any) => {
+      // If filterByDegree is enabled, only add if degree matches
+      if (filterByDegree && degreeId != null) {
+        const subgroupDegreeId = subgroupDegree?.degree_id ?? subgroupDegree?.degree?.id;
+        if (subgroupDegreeId !== degreeId) {
+          return; // Skip subgroups with different degree
+        }
+      }
+      const numeric = Number(value);
+      if (!Number.isNaN(numeric) && numeric !== 0) {
+        subgroupIds.add(numeric);
+      }
+    };
+
+    const baseSubgroup = task.course_subgroup_id ?? task.subgroup_id;
+    addId(baseSubgroup, task.course_subgroup || task);
+
+    const courseGroups = task.course?.course_groups ?? [];
+    courseGroups.forEach((group: any) => {
+      const subgroups = group?.course_subgroups ?? group?.subgroups ?? [];
+      subgroups.forEach((subgroup: any) => addId(subgroup?.id, subgroup));
+    });
+
+    const courseDates = task.course?.course_dates ?? [];
+    courseDates.forEach((date: any) => {
+      const dateGroups = date?.course_groups ?? [];
+      dateGroups.forEach((group: any) => {
+        const subgroups = group?.course_subgroups ?? group?.subgroups ?? [];
+        subgroups.forEach((subgroup: any) => addId(subgroup?.id, subgroup));
+      });
+      const dateSubgroups = date?.course_subgroups ?? date?.courseSubgroups ?? [];
+      dateSubgroups.forEach((subgroup: any) => addId(subgroup?.id, subgroup));
+    });
+
+    (this.plannerTasks ?? [])
+      .filter(t => t?.course_id === task.course_id)
+      .forEach(t => addId(t.course_subgroup_id, t.course_subgroup || t));
+
+    return Array.from(subgroupIds);
+  }
+
+  private bumpMonitorOptionsVersion(): void {
+    this.monitorOptionsVersion++;
+    if (this.monitorOptionsVersion > Number.MAX_SAFE_INTEGER - 1) {
+      this.monitorOptionsVersion = 0;
+    }
+  }
+
+  private resolveBookingUserId(client: any): number | null {
+    if (!client) {
+      return null;
+    }
+    if (client.booking_user_id != null) {
+      return client.booking_user_id;
+    }
+    if (client.bookingUserId != null) {
+      return client.bookingUserId;
+    }
+    if (client.booking_user?.id != null) {
+      return client.booking_user.id;
+    }
+    return client.id ?? null;
+  }
+
+  isAttendedClient(client: any): boolean {
+    if (!client) {
+      return false;
+    }
+    return client.attended === true || client.attended === 1 || client.attendance === true || client.attendance === 1;
+  }
+
+  onAttendanceToggleClient(client: any, checked: boolean): void {
+    const bookingUserId = this.resolveBookingUserId(client);
+    if (!bookingUserId) {
+      return;
+    }
+    const payload: any = {
+      ...client,
+      attended: checked,
+      attendance: checked
+    };
+    ['client', 'created_at', 'deleted_at', 'updated_at'].forEach((k) => {
+      if (k in payload) {
+        delete payload[k];
+      }
+    });
+
+    this.crudService.update('/booking-users', payload, bookingUserId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          client.attended = checked;
+          client.attendance = checked;
+          this.snackbar.open(
+            this.translateService.instant('toast.registered_correctly'),
+            '',
+            { duration: 3000 }
+          );
+        },
+        error: (error) => {
+          console.error('Error updating attendance:', error);
+          this.snackbar.open(
+            'Error al actualizar asistencia',
+            '',
+            { duration: 3000 }
+          );
+        }
+      });
+  }
+
+  private getBookingUserIdsFromTask(task: any): number[] {
+    if (!task) {
+      return [];
+    }
+    const ids = new Set<number>();
+    const clients = Array.isArray(task.all_clients) ? task.all_clients : [];
+    clients.forEach((client: any) => {
+      const resolvedId = this.resolveBookingUserId(client);
+      if (resolvedId != null) {
+        ids.add(resolvedId);
+      }
+    });
+    return Array.from(ids);
+  }
+
+  private buildMonitorAvailabilityPayload(task: any): any {
+    if (!task) {
+      return {};
+    }
+    const clientIds = (task.all_clients || [])
+      .map((client: any) => client?.id)
+      .filter((id: any) => id != null);
+
+    const subgroupContextIds = this.collectCourseSubgroupIdsForTask(task);
+    const fallbackSubgroup =
+      task.course_subgroup_id && subgroupContextIds.indexOf(task.course_subgroup_id) === -1
+        ? [task.course_subgroup_id]
+        : [];
+
+    return {
+      sportId: task.sport_id,
+      minimumDegreeId: task.degree_id || task.degree?.id,
+      startTime: task.hour_start,
+      endTime: task.hour_end,
+      date: task.date,
+      clientIds,
+      bookingUserIds: this.getBookingUserIdsFromTask(task),
+      subgroupIds: [...subgroupContextIds, ...fallbackSubgroup],
+      courseId: task.course_id ?? task.course?.id ?? null
+    };
+  }
+
+  private extractSubgroupIdsFromSlots(slots: MonitorAssignmentSlot[]): number[] {
+    const ids = new Set<number>();
+    slots.forEach(slot => {
+      const rawId = slot?.context?.subgroupId ?? slot?.context?.courseSubgroupId;
+      if (rawId == null) {
+        return;
+      }
+      const parsed = Number(rawId);
+      if (!Number.isNaN(parsed)) {
+        ids.add(parsed);
+      }
+    });
+    if (!ids.size && this.taskDetail) {
+      this.collectSubgroupIdsForAssignment(true).forEach(id => ids.add(id));
+      if (this.taskDetail?.course_subgroup_id != null) {
+        ids.add(Number(this.taskDetail.course_subgroup_id));
+      }
+    }
+    return Array.from(ids);
+  }
+
+  private getMonitorDisplayName(monitor: any): string {
+    if (!monitor) {
+      return '';
+    }
+    const first = monitor.first_name ?? monitor.firstName ?? '';
+    const last = monitor.last_name ?? monitor.lastName ?? '';
+    const combined = `${first} ${last}`.trim();
+    if (combined) {
+      return combined;
+    }
+    if (monitor.name) {
+      return monitor.name;
+    }
+    return '';
   }
 
   detailBooking(bookingId = null) {
@@ -2538,7 +4970,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((data: any) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((data: any) => {
       if (data) {
         this.snackbar.open(this.translateService.instant('snackbar.booking.create'), 'OK', { duration: 3000 });
       }
@@ -2555,11 +4987,11 @@ export class TimelineComponent implements OnInit, OnDestroy {
       data: this.taskDetail
     });
 
-    dialogRef.afterClosed().subscribe((data: any) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((data: any) => {
       if (data) {
         this.hideDetail();
         this.hideGrouped();
-        this.loadBookings(this.currentDate);
+        this.loadBookings(this.currentDate, { silent: true });
         /*          const bookingLog = {
                     booking_id: this.id,
                     action: 'update booking',
@@ -2583,22 +5015,68 @@ export class TimelineComponent implements OnInit, OnDestroy {
       panelClass: 'full-screen-dialog',  // Si necesitas estilos adicionales
       data: {
         degree: this.taskDetail.degree, subgroup: this.taskDetail.course_subgroup_id, id: this.taskDetail.course_id,
-        subgroupNumber: this.taskDetail.subgroup_number, currentDate: moment(this.taskDetail.date), degrees: this.taskDetail.degrees_sport, currentStudents: this.taskDetail.all_clients
+        subgroupNumber: this.taskDetail.subgroup_number, currentDate: moment(this.taskDetail.date), degrees: this.taskDetail.degrees_sport, currentStudents: this.taskDetail.all_clients, currentMonitor: this.taskDetail.monitor
       }
     });
 
-    dialogRef.afterClosed().subscribe((data: any) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((data: any) => {
       if (data) {
         dialogRef.close();
         this.hideDetail();
         this.hideGrouped();
-        this.loadBookings(this.currentDate);
+        this.loadBookings(this.currentDate, { silent: true });
       }
     });
   }
 
 
+
+  /**
+   * Handle click events on the document to close modals when clicking outside
+   */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+
+    // Exclude clicks happening inside Material overlay containers (select panels, datepickers)
+    const isMaterialOverlay = !!target.closest('.mat-select-panel, .mat-mdc-select-panel, .cdk-overlay-pane, .cdk-overlay-container, .cdk-overlay-backdrop, .mat-menu-panel, .mat-datepicker-popup, .mat-mdc-datepicker-popup, .mat-autocomplete-panel, .mat-mdc-autocomplete-panel, mat-option, mat-select, .mat-select-trigger, .mat-mdc-select-value');
+    if (isMaterialOverlay) {
+      return;
+    }
+
+    // Close grouped tasks modal (left sidebar) if clicking outside
+    if (this.showGrouped) {
+      const groupedModal = target.closest('.modal-grouped');
+      if (!groupedModal && !isMaterialOverlay) {
+        this.hideGrouped();
+      }
+    }
+
+    // Close detail modal (right sidebar) if clicking outside
+    if (this.showDetail) {
+      const detailModal = target.closest('.col-right, .box-detail-timeline');
+      if (!detailModal && !isMaterialOverlay) {
+        this.hideDetail();
+      }
+    }
+
+    // Close block detail modal if clicking outside
+    if (this.showBlock) {
+      const blockModal = target.closest('.box-detail-timeline');
+      if (!blockModal && !isMaterialOverlay) {
+        this.hideBlock();
+      }
+    }
+  }
   ngOnDestroy(): void {
+    if (this.keydownHandler) {
+      document.removeEventListener('keydown', this.keydownHandler);
+      this.keydownHandler = undefined;
+    }
+    this.currentAssignmentSlots = [];
+    this.currentAssignmentTargetSubgroupIds.clear();
+    this.monitorSelectOptionsCache = [];
+    this.monitorSelectOptionsCacheVersion = -1;
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -2608,19 +5086,38 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   async updateMatchResults() {
-    const promises = this.filteredMonitors.map(async (monitor) => {
-      const match = await this.matchTeacher(monitor.id);
-      this.matchResults[monitor.id] = match;
-    });
+    const monitors = Array.isArray(this.filteredMonitors) ? this.filteredMonitors : [];
+    const limit = 6;
+    let index = 0;
 
-    await Promise.all(promises);
+    const worker = async () => {
+      while (index < monitors.length) {
+        const current = monitors[index];
+        index++;
+        if (!current?.id) {
+          continue;
+        }
+        const match = await this.matchTeacher(current.id);
+        this.matchResults[current.id] = match;
+      }
+    };
+
+    const workers = new Array(Math.min(limit, monitors.length)).fill(null).map(() => worker());
+    await Promise.all(workers);
   }
 
   async matchTeacher(monitorId: any): Promise<boolean> {
     let ret = false;
 
     if (monitorId !== null && this.monitorsForm) {
+      const matchKey = this.buildMatchCacheKey(monitorId);
+      if (this.monitorMatchCache.has(matchKey)) {
+        return this.monitorMatchCache.get(matchKey) ?? false;
+      }
       const monitor = this.allMonitors.find((m) => m.id === monitorId);
+      if (!monitor) {
+        return false;
+      }
       const monitorLanguages = {
         "language1_id": monitor.language1_id,
         "language2_id": monitor.language2_id,
@@ -2634,7 +5131,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
       if (!sport) {
         ret = true;
       } else {
-        for (const client of this.taskDetail.all_clients) {
+        let languageMismatch = false;
+        const clients = Array.isArray(this.taskDetail?.all_clients) ? this.taskDetail.all_clients : [];
+        for (const client of clients) {
           const clientLanguages = {
             "language1_id": client.client.language1_id,
             "language2_id": client.client.language2_id,
@@ -2644,31 +5143,34 @@ export class TimelineComponent implements OnInit, OnDestroy {
             "language6_id": client.client.language6_id
           };
 
-          if (this.langMatch(monitorLanguages, clientLanguages)) {
-            ret = false;
-          }
-          else {
-            ret = true;
+          if (!this.langMatch(monitorLanguages, clientLanguages)) {
+            languageMismatch = true;
             break;
           }
+        }
 
-          if (this.taskDetail.course.course_type !== 2) {
-            const data = await firstValueFrom(this.crudService.list('/monitor-sports-degrees', 1, 1000, 'desc', 'id', '&monitor_id=' + monitor.id + '&school_id=' + this.activeSchool + '&sport_id=' + this.taskDetail.sport_id));
+        ret = languageMismatch;
 
-            if (data.data.length > 0) {
-              const authsD = await firstValueFrom(this.crudService.list('/monitor-sport-authorized-degrees', 1, 1000, 'desc', 'id', '&monitor_id=' + monitor.id + '&school_id=' + this.activeSchool + '&monitor_sport_id=' + data.data[0].id));
-
-              for (const element of authsD.data) {
-                if (element.degree_id === this.taskDetail.degree.id) {
-                  ret = true;
-                  break;
-                }
+        if (!languageMismatch && clients.length > 0 && this.taskDetail.course.course_type !== 2) {
+          const degreeId = this.taskDetail?.degree?.id ?? this.taskDetail?.degree_id ?? null;
+          if (degreeId != null) {
+            const authorizedDegrees = this.getAuthorizedDegreesFromMonitorSport(sport);
+            if (authorizedDegrees.size > 0) {
+              if (authorizedDegrees.has(degreeId)) {
+                ret = true;
+              }
+            } else {
+              const fetchedDegrees = await this.getMonitorAuthorizedDegrees(monitor.id, this.taskDetail.sport_id);
+              if (fetchedDegrees.has(degreeId)) {
+                ret = true;
               }
             }
-
           }
         }
       }
+    }
+    if (monitorId !== null) {
+      this.monitorMatchCache.set(this.buildMatchCacheKey(monitorId), ret);
     }
     return ret;
   }
@@ -2684,6 +5186,78 @@ export class TimelineComponent implements OnInit, OnDestroy {
       }
     }
     return false;
+  }
+
+  private getAuthorizedDegreesFromMonitorSport(sport: any): Set<number> {
+    const degrees = new Set<number>();
+    if (!sport) {
+      return degrees;
+    }
+    const authList = Array.isArray(sport.authorizedDegrees) ? sport.authorizedDegrees : [];
+    authList.forEach((entry: any) => {
+      const value = entry?.degree_id ?? entry?.degreeId ?? entry?.id ?? null;
+      if (value != null) {
+        degrees.add(Number(value));
+      }
+    });
+    return degrees;
+  }
+
+  private buildMatchCacheKey(monitorId: number): string {
+    const sportId = this.taskDetail?.sport_id ?? 'none';
+    const degreeId = this.taskDetail?.degree?.id ?? this.taskDetail?.degree_id ?? 'none';
+    const schoolId = this.activeSchool ?? 'none';
+    return `${monitorId}-${sportId}-${degreeId}-${schoolId}`;
+  }
+
+  private async getMonitorAuthorizedDegrees(monitorId: number, sportId: number): Promise<Set<number>> {
+    const key = `${monitorId}-${sportId}-${this.activeSchool ?? 'none'}`;
+    if (this.monitorDegreeAuthCache.has(key)) {
+      return this.monitorDegreeAuthCache.get(key) as Promise<Set<number>>;
+    }
+
+    const promise = (async () => {
+      const degreesSet = new Set<number>();
+      const data = await firstValueFrom(
+        this.crudService.list(
+          '/monitor-sports-degrees',
+          1,
+          1000,
+          'desc',
+          'id',
+          '&monitor_id=' + monitorId + '&school_id=' + this.activeSchool + '&sport_id=' + sportId
+        )
+      );
+
+      if (!data?.data?.length) {
+        return degreesSet;
+      }
+
+      const monitorSportId = data.data[0].id;
+      const authsD = await firstValueFrom(
+        this.crudService.list(
+          '/monitor-sport-authorized-degrees',
+          1,
+          1000,
+          'desc',
+          'id',
+          '&monitor_id=' + monitorId + '&school_id=' + this.activeSchool + '&monitor_sport_id=' + monitorSportId
+        )
+      );
+
+      if (Array.isArray(authsD?.data)) {
+        authsD.data.forEach((element: any) => {
+          if (element?.degree_id != null) {
+            degreesSet.add(element.degree_id);
+          }
+        });
+      }
+
+      return degreesSet;
+    })();
+
+    this.monitorDegreeAuthCache.set(key, promise);
+    return promise;
   }
 
   //Change degree wheel in monitor

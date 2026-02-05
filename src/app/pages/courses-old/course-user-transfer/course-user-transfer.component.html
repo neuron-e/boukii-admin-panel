@@ -1,0 +1,97 @@
+<form class="transfer-form">
+  <div class="flex items-center" mat-dialog-title>
+    <h2 class="headline m-0 flex-auto">{{ 'courses.transfer.title' | translate }}</h2>
+
+    <button class="text-secondary" mat-dialog-close mat-icon-button type="button">
+      <mat-icon svgIcon="mat:close"></mat-icon>
+    </button>
+  </div>
+
+  <mat-divider class="text-border"></mat-divider>
+
+  <mat-dialog-content class="container transfer-content" *ngIf="!loading; else loadingTemplate">
+    <div class="transfer-column students-column">
+      <h3>{{ 'choose_students' | translate }}</h3>
+      <mat-checkbox class="select-all-checkbox"
+        [checked]="selectAllStudents"
+        (change)="toggleSelectAllStudents($event)">
+        {{ 'choose_all' | translate }}
+      </mat-checkbox>
+
+      <div class="students-scroll">
+        <ng-container *ngFor="let item of currentStudents">
+          <mat-checkbox class="student-checkbox"
+            [checked]="isStudentSelected(item)"
+            (change)="toggleStudentSelection($event, item)">
+            <div class="student-row">
+              <div class="student-avatar">
+                <img [src]="getClient(item.client_id)?.image" alt="avatar" />
+              </div>
+              <div class="student-details">
+                <p class="student-name">
+                  {{ getClient(item.client_id)?.first_name }}
+                  {{ getClient(item.client_id)?.last_name }}
+                </p>
+                <p class="student-meta">
+                  {{ getLanguage(getClient(item.client_id)?.language1_id) }}
+                  · {{ calculateAge(getClient(item.client_id)?.birth_date) }}
+                  {{ 'years' | translate }}
+                </p>
+              </div>
+            </div>
+          </mat-checkbox>
+        </ng-container>
+
+        <p class="empty-hint" *ngIf="currentStudents.length === 0">
+          {{ 'courses.transfer.no_students' | translate }}
+        </p>
+      </div>
+    </div>
+
+    <div class="transfer-column subgroups-column">
+      <h3>{{ 'courses.transfer.target_subgroup' | translate }}</h3>
+
+      <mat-radio-group class="subgroup-options"
+        [(ngModel)]="selectedSubgroupId"
+        (ngModelChange)="onSubgroupSelectionChange($event)">
+        <mat-radio-button
+          *ngFor="let subgroup of courseSubGroups"
+          class="subgroup-card"
+          [value]="subgroup.id"
+          [disabled]="isDefaultSubgroup(subgroup)">
+          <div class="subgroup-card__header">
+            <div>
+              <p class="subgroup-title">
+                {{ getSubgroupName(subgroup) }}
+              </p>
+              <div class="subgroup-meta">
+                <span>{{ getSubgroupDaysCount(subgroup) }} {{ 'days' | translate }}</span>
+                <span class="capacity-pill">
+                  {{ getUserInSubGroup(subgroup) }} /
+                  {{ getSubgroupCapacityValue(subgroup) }}
+                </span>
+              </div>
+            </div>
+            <span *ngIf="isDefaultSubgroup(subgroup)" class="current-tag">
+              {{ 'courses.transfer.current_subgroup' | translate }}
+            </span>
+          </div>
+        </mat-radio-button>
+      </mat-radio-group>
+    </div>
+  </mat-dialog-content>
+
+  <ng-template #loadingTemplate>
+    <div class="transfer-loading">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+  </ng-template>
+
+  <mat-dialog-actions align="end" class="transfer-actions">
+    <button mat-button mat-dialog-close type="button">{{ 'cancel' | translate }}</button>
+    <button mat-raised-button color="accent" type="button" (click)="transferStudent()" [disabled]="!canTransfer()">
+      <span *ngIf="!transferring">{{ 'confirm' | translate }}</span>
+      <span *ngIf="transferring">{{ 'processing' | translate }}</span>
+    </button>
+  </mat-dialog-actions>
+</form>

@@ -60,6 +60,8 @@ import { SchoolService } from 'src/service/school.service';
 })
 export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   private readonly destroyRef: DestroyRef = inject(DestroyRef);
+  private viewInitialized = false;
+  private lastRequestKey = '';
 
   layoutCtrl = new UntypedFormControl('boxed');
   subject$: ReplaySubject<any[]> = new ReplaySubject<any[]>(1);
@@ -87,6 +89,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   @Input() filterColumn: any = null;
   @Input() with: any = '';
   @Input() search: any = '';
+  @Input() currencyCode: string = 'EUR';
   @Output() showDetailEvent = new EventEmitter<any>();
   @Output() dataLoaded = new EventEmitter<any[]>();
   pageIndex = 1;
@@ -146,6 +149,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   activeMonitor = true;
   inactiveMonitor = false;
   allMonitors = false;
+  private readonly badgePositiveValues = new Set(['active', 'paid', 'delivered', 'redeemed', 'valid']);
+  private readonly badgeWarningValues = new Set(['pending', 'processing']);
+  private readonly badgeNegativeValues = new Set(['inactive', 'cancelled', 'canceled', 'failed', 'unpaid', 'not_paid']);
+  private readonly badgeNeutralValues = new Set(['expired', 'used', 'exhausted']);
 
   constructor(private dialog: MatDialog, public router: Router, private crudService: ApiCrudService,
     private excelExportService: ExcelExportService, private routeActive: ActivatedRoute,
@@ -153,6 +160,46 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     private schoolService: SchoolService) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.schoolId = this.user.schools[0].id;
+  }
+
+  private normalizeBadgeValue(value: any): string | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    if (value === true || value === 1 || value === '1') {
+      return 'active';
+    }
+    if (value === false || value === 0 || value === '0') {
+      return 'inactive';
+    }
+    if (typeof value === 'string') {
+      return value.toLowerCase();
+    }
+    return String(value).toLowerCase();
+  }
+
+  getBadgeLabel(value: any): string | null {
+    return this.normalizeBadgeValue(value);
+  }
+
+  getBadgeClass(value: any): string {
+    const normalized = this.normalizeBadgeValue(value);
+    if (!normalized) {
+      return 'bg-gray-100 text-gray-800';
+    }
+    if (this.badgePositiveValues.has(normalized)) {
+      return 'bg-green-100 text-green-800';
+    }
+    if (this.badgeWarningValues.has(normalized)) {
+      return 'bg-yellow-100 text-yellow-800';
+    }
+    if (this.badgeNegativeValues.has(normalized)) {
+      return 'bg-red-100 text-red-800';
+    }
+    if (this.badgeNeutralValues.has(normalized)) {
+      return 'bg-gray-100 text-gray-800';
+    }
+    return 'bg-gray-100 text-gray-800';
   }
 
   get visibleColumns() {
@@ -187,6 +234,9 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   // Detecta cambios en las propiedades de entrada
   ngOnChanges(changes: SimpleChanges): void {
+    if (!this.viewInitialized) {
+      return;
+    }
     if (changes['search'] || changes['entity']) {
       this.pageIndex = 1;
       this.getFilteredData(this.pageIndex, this.pageSize, this.filter);
@@ -222,6 +272,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       pageSize = 10000; // Large number to load all records
     }
 
+    pageSize = this.getCappedPageSize(pageSize);
     this.pageSize = pageSize;
     if (!all) {
       if (this.entity.includes('booking')) {
@@ -252,7 +303,14 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         // Filtrar por estado de finalización
         filter = this.finishedBooking ? filter + '&finished=0' : filter + '&finished=1';
         if (this.allBookings) filter = filter + '&all=1';
-        if (this.cancelledBookings) filter = filter + '&status=2';
+
+        // Filtrar por estado de la reserva
+        if (this.cancelledBookings) {
+          filter = filter + '&status=2';
+        } else if (this.activeBooking && !this.allBookings) {
+          // Activas (incluir parcialmente canceladas como activas)
+          filter = filter + '&status=1,3';
+        }
 
       }
 
@@ -364,6 +422,28 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
    * We are simulating this request here.
    */
   getFilteredData(pageIndex: number, pageSize: number, filter: any) {
+    pageSize = this.getCappedPageSize(pageSize);
+    const availabilityFilter = this.entity && this.entity.includes('/admin/courses') && pageSize >= 25
+      ? '&include_availability=0&light=1'
+      : (this.entity && this.entity.includes('/admin/courses') ? '&light=1' : '');
+    const requestKey = [
+      this.entity,
+      pageIndex,
+      pageSize,
+      this.Sort?.direction,
+      this.backendOrderColumn,
+      this.searchCtrl.value,
+      filter,
+      this.search,
+      this.filterColumn,
+      this.filterField,
+      this.with
+    ].join('|');
+    if (this.lastRequestKey === requestKey) {
+      return;
+    }
+    this.lastRequestKey = requestKey;
+    this.loading = true;
     //this.loading = true;
     // Asegúrate de que pageIndex y pageSize se pasan correctamente.
     // Puede que necesites ajustar pageIndex según cómo espera tu backend que se paginen los índices (base 0 o base 1).
@@ -373,13 +453,14 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       pageSize,
       this.Sort.direction,
       this.backendOrderColumn,
-      this.searchCtrl.value + filter + '&school_id=' + this.user.schools[0].id + this.search +
+      this.searchCtrl.value + filter + availabilityFilter + '&school_id=' + this.user.schools[0].id + this.search +
       (this.filterField !== null ? '&' + this.filterColumn + '=' + this.filterField : ''),
       '',
       null,
       this.searchCtrl.value,
       this.with)
-      .subscribe((response: any) => {
+      .subscribe({
+        next: (response: any) => {
         this.pageIndex = pageIndex;
         this.pageSize = pageSize;
         this.data = response.data;
@@ -393,6 +474,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
           this.paginator.pageSize = pageSize;
         }
         this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+        }
       });
   }
   /**
@@ -406,7 +491,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
   onPageChange(event: PageEvent) {
     // La API puede esperar la primera página como 1, no como 0.
-    this.getData(event.pageIndex + 1, event.pageSize);
+    this.getData(event.pageIndex + 1, this.getCappedPageSize(event.pageSize));
   }
 
   sortData(sort: Sort) {
@@ -425,6 +510,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   ngAfterViewInit() {
     this.dataSource = new MatTableDataSource();
     this.dataSource.sort = this.sort;
+    this.viewInitialized = true;
     this.getData(this.pageIndex, this.pageSize);
   }
 
@@ -480,53 +566,12 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     // Vamos a mostrar siempre los nombres reales para ver qué está pasando
     return false;
 
-    /*
-    if (!booking) return false;
-
-    // Solo aplicar a reservas (no a otros tipos de entidades)
-    if (!this.entity?.includes('bookings')) return false;
-
-    // DEBUGGING: Imprimir información detallada de la reserva
-    console.log('🔍 Checking booking:', {
-      booking_id: booking.id,
-      course_id: booking.course_id,
-      has_course: !!booking.course,
-      course_name: booking.course?.name,
-      entity: this.entity
-    });
-
-    // NUEVA LÓGICA MÁS CONSERVADORA:
-    // Solo marcar como huérfana si hay problemas REALES, no por falta de datos cargados
-
-    // 1. Si no tiene course_id, definitivamente es huérfana
-    const hasNoCourseId = !booking.course_id || booking.course_id === null;
-
-    // 2. Si tiene course_id pero el curso está explícitamente marcado como eliminado
-    const hasCourseDeleted = booking.course && booking.course.deleted_at;
-
-    // 3. Si tiene datos de curso pero están claramente corruptos (ID exists but no name AND it was loaded)
-    const hasCorruptCourseData = booking.course && booking.course.id && !booking.course.name;
-
-    const isOrphaned = hasNoCourseId || hasCourseDeleted || hasCorruptCourseData;
-
-    // Log the decision
-    console.log('🔍 Orphaned decision:', {
-      booking_id: booking.id,
-      isOrphaned,
-      reason: hasNoCourseId ? 'no_course_id' :
-              hasCourseDeleted ? 'course_deleted' :
-              hasCorruptCourseData ? 'corrupt_course_data' : 'none'
-    });
-
-    return isOrphaned;
-    */
   }
 
   /**
    * MEJORA: Mostrar acciones para reparar reserva huérfana
    */
   showOrphanedBookingActions(booking: any): void {
-    console.log('🔧 Abriendo modal para reserva huérfana:', booking);
 
     const dialogRef = this.dialog.open(ConfirmModalComponent, {
       width: '600px',
@@ -542,19 +587,15 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     });
 
     dialogRef.afterClosed().subscribe((shouldOpenRepairTool) => {
-      console.log('🔧 Modal cerrado. Respuesta del usuario:', shouldOpenRepairTool);
 
       if (shouldOpenRepairTool === true) {
-        console.log('🔧 Usuario confirmó - navegando al detalle de reserva:', booking.id);
 
         // Navegar a la ruta correcta: /bookings/update/:id
         this.router.navigate(['/bookings/update', booking.id])
           .then((success) => {
-            console.log('🔧 Navegación exitosa:', success);
             if (success) {
               // Mostrar mensaje informativo sobre qué hacer
               setTimeout(() => {
-                console.log('🔧 Reserva huérfana abierta. Contacte con administrador técnico para reparación.');
               }, 1000);
             }
           })
@@ -564,7 +605,6 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
             this.showContactAdminMessage(booking);
           });
       } else {
-        console.log('🔧 Usuario canceló o cerró el modal');
       }
     });
   }
@@ -627,8 +667,6 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         const activeBookingsCount = response.data.active_bookings_count || 0;
         const partialBookingsCount = response.data.partial_bookings_count || 0;
         const totalActiveBookings = activeBookingsCount + partialBookingsCount;
-
-        console.log(`Curso ${courseId} - Reservas activas: ${totalActiveBookings}`);
         return totalActiveBookings > 0;
       }
 
@@ -644,7 +682,6 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         }).toPromise();
 
         const activeBookings = bookingsResponse?.data?.data || [];
-        console.log(`Curso ${courseId} - Reservas activas (fallback): ${activeBookings.length}`);
         return activeBookings.length > 0;
       } catch (fallbackError) {
         console.error('Error en verificación fallback:', fallbackError);
@@ -888,8 +925,12 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       return 'Curso no cargado';
     }
 
-    if (data.length === 1 || this.checkIfCourseIdIsSame(data)) {
-      const course = data[0].course;
+    // Group booking users by group_id (like in detail view)
+    const grouped = this.groupBookingUsersByGroupId(data);
+    
+    // Check if all groups have the same course_id
+    if (grouped.length === 1 || this.checkIfCourseIdIsSameInGroups(grouped)) {
+      const course = grouped[0].course;
       if (course.translations || course.name) {
         return this.getTrad(course.translations, course.name);
       } else {
@@ -900,14 +941,39 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     }
   }
 
-  checkIfCourseIdIsSame(data: any[]): boolean {
-    if (!data || !Array.isArray(data) || data.length === 0) return false;
+  groupBookingUsersByGroupId(bookingUsers: any[]): any[] {
+    if (!bookingUsers || !Array.isArray(bookingUsers)) {
+      return [];
+    }
 
-    // Safety check: ensure first item has course structure
-    if (!data[0] || !data[0].course) return false;
+    const grouped = Object.values(bookingUsers.reduce((acc: any, user: any) => {
+      if (!user || !user.group_id) {
+        return acc;
+      }
 
-    const firstCourseId = data[0].course.id;
-    return data.every(item => item && item.course && item.course.id === firstCourseId);
+      const groupId = user.group_id;
+      
+      if (!acc[groupId]) {
+        acc[groupId] = {
+          group_id: groupId,
+          course: user.course,
+          course_id: user.course_id,
+          participants: []
+        };
+      }
+      
+      acc[groupId].participants.push(user);
+      return acc;
+    }, {}));
+
+    return grouped;
+  }
+
+  checkIfCourseIdIsSameInGroups(groups: any[]): boolean {
+    if (!groups || !Array.isArray(groups) || groups.length === 0) return false;
+    
+    const firstCourseId = groups[0].course_id;
+    return groups.every(group => group && group.course_id === firstCourseId);
   }
 
   getBookingCourseMonitorClient(data: any) {
@@ -1129,8 +1195,69 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  private normalizePaymentMethodId(value: any): number | null {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
 
-  getPaymentMethod(id: number): string {
+    if (typeof value === 'object') {
+      if ('payment_method_id' in value && value.payment_method_id !== undefined && value.payment_method_id !== null) {
+        value = value.payment_method_id;
+      } else if ('id' in value && value.id !== undefined && value.id !== null) {
+        value = value.id;
+      }
+    }
+
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  getPaymentMethodByRow(row: any, property: string): string {
+    const candidate = row ? row[property] ?? row?.payment_method_id ?? row?.payment_method : null;
+    const paymentMethodId = this.normalizePaymentMethodId(candidate);
+    if (this.isFreeBookingRow(row)) {
+      return 'booking_free';
+    }
+    return this.getPaymentMethod(paymentMethodId);
+  }
+
+  private resolveRowTotal(row: any): number {
+    if (!row) return 0;
+    const rawTotal = row.price_total ?? row?.booking?.price_total ?? null;
+    if (rawTotal !== null && rawTotal !== undefined && rawTotal !== '') {
+      const total = Number(rawTotal);
+      if (!isNaN(total)) return total;
+    }
+    const computedTotal = row.computed_total ?? row?.booking?.computed_total ?? null;
+    if (computedTotal !== null && computedTotal !== undefined) {
+      const total = Number(computedTotal);
+      if (!isNaN(total)) return total;
+    }
+    const basketRaw = row.basket ?? row?.booking?.basket ?? null;
+    if (basketRaw) {
+      try {
+        const basket = typeof basketRaw === 'string' ? JSON.parse(basketRaw) : basketRaw;
+        const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
+        if (!isNaN(basketTotal)) return basketTotal;
+      } catch {
+        return 0;
+      }
+    }
+    return 0;
+  }
+
+  isFreeBookingRow(row: any): boolean {
+    return this.resolveRowTotal(row) <= 0.01;
+  }
+
+  getPaymentStatusColor(row: any, property: string): string {
+    if (this.isFreeBookingRow(row)) {
+      return '#2fca45';
+    }
+    return row?.[property] ? '#CEE741' : 'red';
+  }
+
+  getPaymentMethod(id: number | null): string {
     switch (id) {
       case 1:
         return 'CASH';
@@ -1144,6 +1271,8 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
         return 'payment_no_payment';
       case 6:
         return 'bonus';
+      case 7:
+        return 'payment_invoice';
       default:
         return 'payment_no_payment'
     }
@@ -1159,20 +1288,40 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     return formattedDuration.trim();
   }
 
-  countActives = (dates: any): number => dates.filter((objeto: any) => objeto.active === 1 || objeto.active === true).length;
+  countActives = (dates: any): number => {
+    if (!dates) return 0;
+    if (Array.isArray(dates)) {
+      return dates.filter((objeto: any) => objeto.active === 1 || objeto.active === true).length;
+    }
+    if (typeof dates === 'object') {
+      return Number(dates.count ?? dates.total ?? 0);
+    }
+    return 0;
+  };
 
-  findFirstActive(dates: any[]) {
-    if (dates.length > 0) {
-      let min = dates.find((objeto: any) => objeto.active === 1 || objeto.active === true);
-      let max = dates.slice().reverse().find((objeto: any) => objeto.active === 1 || objeto.active === true);
+  findFirstActive(dates: any) {
+    if (!dates) {
+      return { min: null, max: null };
+    }
+    if (Array.isArray(dates)) {
+      if (dates.length === 0) {
+        return { min: null, max: null };
+      }
+      const min = dates.find((objeto: any) => objeto.active === 1 || objeto.active === true);
+      const max = dates.slice().reverse().find((objeto: any) => objeto.active === 1 || objeto.active === true);
 
       return {
         min: min ? min.date : null,
         max: max ? max.date : null
       };
-    } else {
-      return { min: null, max: null };
     }
+    if (typeof dates === 'object') {
+      return {
+        min: dates.min ?? dates.min_date ?? null,
+        max: dates.max ?? dates.max_date ?? null
+      };
+    }
+    return { min: null, max: null };
   }
 
   /* EXPORT QR */
@@ -1378,6 +1527,278 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     } else {
       return "No_durations_found";
     }
+  }
+
+  resolveDurationDisplay(row: any, fallbackDates: any, property: string): string {
+    const summary = this.buildDurationSummary(row, fallbackDates);
+    if (summary) {
+      return summary;
+    }
+
+    const directValue = this.normalizeDurationLabel(row?.[property] ?? row?.duration);
+    if (directValue) {
+      return directValue;
+    }
+
+    return this.translateService.instant('duration_not_available');
+  }
+
+  private buildDurationSummary(row: any, fallbackDates: any): string {
+    const collected = this.extractDurationsFromDates(row?.course_dates);
+
+    if (!collected.length && fallbackDates && fallbackDates !== row?.course_dates) {
+      collected.push(...this.extractDurationsFromDates(fallbackDates));
+    }
+
+    const uniqueDurations = Array.from(new Set(collected)).filter(Boolean);
+    if (!uniqueDurations.length) {
+      return '';
+    }
+
+    if (uniqueDurations.length === 1) {
+      return uniqueDurations[0];
+    }
+
+    if (uniqueDurations.length === 2) {
+      return `${uniqueDurations[0]} / ${uniqueDurations[1]}`;
+    }
+
+    const label = this.translateService.instant('variable_duration');
+    return `${label} (${uniqueDurations.length})`;
+  }
+
+  private extractDurationsFromDates(source: any): string[] {
+    const dates = this.ensureArray(source);
+    const durations: string[] = [];
+
+    dates.forEach(date => {
+      const dateDuration = this.resolveDurationLabel(date);
+      if (dateDuration) {
+        durations.push(dateDuration);
+      }
+
+      const subgroupDurations = this.collectSubgroupDurations(date);
+      if (subgroupDurations.length) {
+        durations.push(...subgroupDurations);
+      }
+    });
+
+    return durations;
+  }
+
+  private collectSubgroupDurations(date: any): string[] {
+    const results: string[] = [];
+    if (!date) {
+      return results;
+    }
+
+    const inlineSubgroups = this.ensureArray(date?.course_subgroups ?? date?.courseSubgroups);
+    inlineSubgroups.forEach(sub => {
+      const label = this.resolveDurationLabel(sub);
+      if (label) {
+        results.push(label);
+      }
+    });
+
+    const grouped = this.ensureArray(date?.course_groups);
+    grouped.forEach(group => {
+      const subgroups = this.ensureArray(group?.course_subgroups ?? group?.subgroups);
+      subgroups.forEach(sub => {
+        const label = this.resolveDurationLabel(sub);
+        if (label) {
+          results.push(label);
+        }
+      });
+    });
+
+    return results;
+  }
+
+  private resolveDurationLabel(item: any): string | null {
+    if (!item) {
+      return null;
+    }
+
+    const explicit = this.normalizeDurationLabel(
+      item?.duration ??
+      item?.course_duration ??
+      item?.duration_label ??
+      item?.durationLabel
+    );
+
+    if (explicit) {
+      return explicit;
+    }
+
+    const numericDuration =
+      this.normalizeDurationValue(item?.duration_minutes) ??
+      this.normalizeDurationValue(item?.duration_value) ??
+      this.normalizeDurationValue(item?.duration);
+
+    if (numericDuration) {
+      return this.formatDurationFromMinutes(numericDuration);
+    }
+
+    const rangeMinutes = this.calculateMinutesFromRange(
+      item?.hour_start ?? item?.hourStart,
+      item?.hour_end ?? item?.hourEnd
+    );
+
+    if (rangeMinutes) {
+      return this.formatDurationFromMinutes(rangeMinutes);
+    }
+
+    return null;
+  }
+
+  private normalizeDurationLabel(value: any): string | null {
+    if (value == null) {
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      return this.formatDurationFromMinutes(value);
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+        const minutes = this.normalizeDurationValue(trimmed);
+        return minutes ? this.formatDurationFromMinutes(minutes) : null;
+      }
+
+      return trimmed.replace(/\s+/g, ' ');
+    }
+
+    return null;
+  }
+
+  private normalizeDurationValue(value: any): number | null {
+    if (typeof value === 'number') {
+      return value > 0 ? value : null;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      if (/^\d+$/.test(trimmed)) {
+        const numeric = Number(trimmed);
+        return numeric > 0 ? numeric : null;
+      }
+
+      const colonMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (colonMatch) {
+        const hours = Number(colonMatch[1]) || 0;
+        const minutes = Number(colonMatch[2]) || 0;
+        const seconds = Number(colonMatch[3]) || 0;
+        const total = hours * 60 + minutes + Math.round(seconds / 60);
+        return total > 0 ? total : null;
+      }
+
+      const hourMinuteMatch = trimmed.match(/^(\d+)\s*h(?:\s*(\d+)\s*(?:m|min)?)?$/i);
+      if (hourMinuteMatch) {
+        const hours = Number(hourMinuteMatch[1]) || 0;
+        const minutes = Number(hourMinuteMatch[2]) || 0;
+        const total = hours * 60 + minutes;
+        return total > 0 ? total : null;
+      }
+
+      const minuteMatch = trimmed.match(/^(\d+)\s*(?:m|min)$/i);
+      if (minuteMatch) {
+        const total = Number(minuteMatch[1]) || 0;
+        return total > 0 ? total : null;
+      }
+    }
+
+    return null;
+  }
+
+  private calculateMinutesFromRange(start: string, end: string): number | null {
+    const startMinutes = this.parseHourToMinutes(start);
+    const endMinutes = this.parseHourToMinutes(end);
+
+    if (startMinutes == null || endMinutes == null) {
+      return null;
+    }
+
+    const diff = endMinutes - startMinutes;
+    return diff > 0 ? diff : null;
+  }
+
+  private parseHourToMinutes(value: string): number | null {
+    if (!value || typeof value !== 'string') {
+      return null;
+    }
+
+    const normalized = value.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const parsed = moment(normalized, ['HH:mm:ss', 'HH:mm'], true);
+    if (!parsed.isValid()) {
+      return null;
+    }
+
+    return parsed.hour() * 60 + parsed.minute();
+  }
+
+  private formatDurationFromMinutes(minutes: number): string {
+    if (!minutes || minutes <= 0) {
+      return '';
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+
+    if (hours && remaining) {
+      return `${hours}h ${remaining}min`;
+    }
+
+    if (hours) {
+      return `${hours}h`;
+    }
+
+    return `${remaining}min`;
+  }
+
+  private getCappedPageSize(pageSize: number): number {
+    if (this.entity && this.entity.includes('/admin/bookings/table')) {
+      return Math.min(pageSize, 50);
+    }
+    return pageSize;
+  }
+
+  private ensureArray<T = any>(value: any): T[] {
+    if (!value) {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      return value as T[];
+    }
+
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      return [value as T];
+    }
+
+    return [];
   }
 
   getSportName(id) {

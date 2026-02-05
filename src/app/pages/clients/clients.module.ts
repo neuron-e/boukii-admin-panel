@@ -28,6 +28,7 @@ import { ClientsCreateUpdateModalModule } from './client-create-update-modal/cli
 import { TranslateModule } from '@ngx-translate/core';
 import { ComponentsCustomModule } from 'src/app/components/components-custom.module';
 import { IconComponent } from 'src/@vex/components/icon/app.component';
+import { MatButtonModule } from '@angular/material/button';
 
 @NgModule({
   declarations: [ClientsComponent],
@@ -60,7 +61,8 @@ import { IconComponent } from 'src/@vex/components/icon/app.component';
     ComponentsCustomModule,
     ClientDetailModule,
     ClientsCreateUpdateModule,
-    ClientsCreateUpdateModalModule
+    ClientsCreateUpdateModalModule,
+    MatButtonModule
   ]
 })
 export class ClientsModule {

@@ -3,6 +3,7 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 import { CustomLayoutComponent } from './custom-layout/custom-layout.component';
 import { VexRoutes } from '../@vex/interfaces/vex-route.interface';
 import { AuthGuard } from './auth.guard';
+import { SuperadminGuard } from './superadmin.guard';
 
 const childrenRoutes: VexRoutes = [
   {
@@ -33,11 +34,6 @@ const childrenRoutes: VexRoutes = [
               canActivate: [AuthGuard],
             },
       {
-        path: 'bookings-old',
-        loadChildren: () => import('./pages/bookings/bookings.module').then(m => m.BookingsModule),
-        canActivate: [AuthGuard],
-      },
-      {
         path: 'bookings',
         loadChildren: () => import('./pages/bookings-v2/bookings.module').then(m => m.BookingsModule),
         canActivate: [AuthGuard],
@@ -45,11 +41,6 @@ const childrenRoutes: VexRoutes = [
       {
         path: 'courses',
         loadChildren: () => import('./pages/courses-v2/courses.module').then(m => m.CoursesModule),
-        canActivate: [AuthGuard],
-      },
-      {
-        path: 'courses-old',
-        loadChildren: () => import('./pages/courses/courses.module').then(m => m.CoursesModule),
         canActivate: [AuthGuard],
       },
       {
@@ -93,6 +84,16 @@ const childrenRoutes: VexRoutes = [
         canActivate: [AuthGuard],
       },
       {
+        path: 'payment-terminal',
+        loadChildren: () => import('./pages/payment-terminal/payment-terminal.module').then(m => m.PaymentTerminalModule),
+        canActivate: [AuthGuard],
+      },
+      {
+        path: 'tpv-virtual',
+        loadChildren: () => import('./pages/tpv-virtual/tpv-virtual.module').then(m => m.TpvVirtualModule),
+        canActivate: [AuthGuard],
+      },
+      {
         path: 'mail',
         loadChildren: () => import('./pages/mail/mail.module').then(m => m.MailModule),
         canActivate: [AuthGuard],
@@ -112,6 +113,11 @@ const childrenRoutes: VexRoutes = [
         loadChildren: () => import('./pages/chrono/chrono.module').then(m => m.ChronoModule),
         canActivate: [AuthGuard],
       },
+      {
+        path: 'superadmin',
+        loadChildren: () => import('./pages/superadmin/superadmin.module').then(m => m.SuperadminModule),
+        canActivate: [SuperadminGuard]
+      }
     ]
   }
 ];

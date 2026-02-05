@@ -1,0 +1,166 @@
+﻿<div class="terminal-container">
+  <div class="header">
+    <h1 class="title">
+      <mat-icon class="title-icon">point_of_sale</mat-icon>
+      {{ 'payment_terminal.title' | translate }}
+    </h1>
+    <p class="subtitle">{{ 'payment_terminal.subtitle' | translate }}</p>
+  </div>
+
+  <div class="content">
+    <mat-card class="form-card">
+      <mat-card-header>
+        <mat-card-title>{{ 'payment_terminal.payment_options' | translate }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="paymentForm" (ngSubmit)="generatePaymentLink()">
+
+          <div class="form-row client-select">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>{{ 'payment_terminal.client_lookup' | translate }}</mat-label>
+              <input matInput
+                     type="text"
+                     [formControl]="clientSearchControl"
+                     [matAutocomplete]="clientAutocomplete"
+                     [placeholder]="'payment_terminal.client_lookup_placeholder' | translate">
+              <mat-autocomplete #clientAutocomplete="matAutocomplete"
+                                [displayWith]="displayClientName">
+                <mat-option *ngFor="let client of clientOptions" [value]="client">
+                  {{ getClientLabel(client) }}
+                </mat-option>
+              </mat-autocomplete>
+              <mat-progress-spinner *ngIf="clientLoading"
+                                    matSuffix
+                                    diameter="20"
+                                    mode="indeterminate"></mat-progress-spinner>
+              <button *ngIf="selectedClient"
+                      mat-icon-button
+                      matSuffix
+                      type="button"
+                      (click)="clearSelectedClient()"
+                      [attr.aria-label]="'payment_terminal.client_lookup_clear' | translate">
+                <mat-icon>close</mat-icon>
+              </button>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>{{ 'payment_terminal.amount' | translate }}</mat-label>
+              <input matInput
+                     type="number"
+                     formControlName="amount"
+                     step="0.01"
+                     min="0.01"
+                     placeholder="0.00"
+                     required>
+              <span matSuffix>CHF</span>
+              <mat-error *ngIf="paymentForm.get('amount')?.hasError('required')">
+                {{ 'payment_terminal.amount_required' | translate }}
+              </mat-error>
+              <mat-error *ngIf="paymentForm.get('amount')?.hasError('min')">
+                {{ 'payment_terminal.amount_min' | translate }}
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>{{ 'payment_terminal.description' | translate }}</mat-label>
+              <textarea matInput
+                        formControlName="description"
+                        rows="3"
+                        placeholder="{{ 'payment_terminal.description_placeholder' | translate }}"></textarea>
+            </mat-form-field>
+          </div>
+
+          <div class="divider">
+            <span>{{ 'payment_terminal.client_info' | translate }} ({{ 'optional' | translate }})</span>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>{{ 'payment_terminal.client_name' | translate }}</mat-label>
+              <input matInput
+                     formControlName="clientName"
+                     placeholder="{{ 'payment_terminal.client_name_placeholder' | translate }}">
+              <mat-icon matPrefix>person</mat-icon>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>{{ 'payment_terminal.client_email' | translate }}</mat-label>
+              <input matInput
+                     type="email"
+                     formControlName="clientEmail"
+                     placeholder="{{ 'payment_terminal.client_email_placeholder' | translate }}">
+              <mat-icon matPrefix>email</mat-icon>
+              <mat-error *ngIf="paymentForm.get('clientEmail')?.hasError('email')">
+                {{ 'payment_terminal.email_invalid' | translate }}
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <div class="form-actions">
+            <button mat-raised-button
+                    color="primary"
+                    type="submit"
+                    [disabled]="loading || paymentForm.invalid"
+                    class="generate-btn">
+              <mat-icon *ngIf="!loading">link</mat-icon>
+              <mat-spinner *ngIf="loading"
+                           diameter="20"
+                           class="button-spinner"></mat-spinner>
+              {{ 'payment_terminal.generate_link' | translate }}
+            </button>
+            <button mat-button
+                    type="button"
+                    (click)="reset()"
+                    [disabled]="loading">
+              {{ 'reset' | translate }}
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="result-card" *ngIf="paymentLink">
+      <mat-card-header>
+        <mat-card-title>{{ 'payment_terminal.payment_link_ready' | translate }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="link-section">
+          <div class="link-display">
+            <input readonly
+                   [value]="paymentLink"
+                   class="link-input"
+                   #linkInput>
+            <button mat-icon-button
+                    (click)="copyToClipboard()"
+                    [matTooltip]="'payment_terminal.copy_link' | translate"
+                    color="primary">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+
+          <div class="actions">
+            <button mat-raised-button
+                    color="accent"
+                    (click)="openPaymentLink()">
+              <mat-icon>open_in_new</mat-icon>
+              {{ 'payment_terminal.open_link' | translate }}
+            </button>
+          </div>
+        </div>
+
+        <div class="qr-section" *ngIf="qrCodeUrl">
+          <div class="qr-label">{{ 'payment_terminal.scan_qr' | translate }}</div>
+          <img [src]="qrCodeUrl"
+               alt="QR Code"
+               class="qr-code">
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

@@ -1,0 +1,71 @@
+.dashboard {
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  mat-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 24px;
+    min-height: 120px;
+
+    .label {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.64);
+    }
+
+    .value {
+      font-size: 32px;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+  }
+
+  .chart {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 24px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .months {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 12px 0;
+  }
+
+  .month {
+    flex: 0 0 60px;
+    text-align: center;
+
+    .month-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .month-value {
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .bar {
+      width: 100%;
+      background: linear-gradient(180deg, #ff6c9a 0%, #ff2e6d 100%);
+      border-radius: 4px;
+      min-height: 30px;
+    }
+  }
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  margin: 48px 0;
+}

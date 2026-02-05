@@ -13,8 +13,8 @@
 	<div class="card flex-auto">
 		<mat-tab-group>
 			<mat-tab label="{{'course' | translate}}">
-				<mat-spinner *ngIf="loading" style="margin: 0 auto"></mat-spinner>
-				<mat-card *ngIf="!loading">
+				<mat-spinner *ngIf="loading || !courses.courseFormGroup" style="margin: 0 auto"></mat-spinner>
+				<mat-card *ngIf="!loading && courses.courseFormGroup">
 					<mat-card-content style="display: flex;padding: 0;">
 						<div [style.width]="count(courses.courseFormGroup.controls['levelGrop'].value,'active')?'':'100%'"
 							class="contents" style="border: 1px solid #dee6ea;">
@@ -22,6 +22,7 @@
 								(update)="updateCourses()"></vex-course-detail-opcion>
 							<div style="padding: 0;border: none;">
 								<vex-course-detail-card [courseFormGroup]="courses.courseFormGroup" [detail]="true"
+									[subgroupCache]="previewSubgroupCache"
 									[noneExtras]="!courses.courseFormGroup.controls['course_extras'].value.length"
 									(edit)="goTo('courses/update/'+id,{step:$event})" style="width: 100%">
 								</vex-course-detail-card>
@@ -41,7 +42,7 @@
 												class="editbutton icon24">
 										</p>
 									</div>
-            <vex-course-detail-nivel [courseFormGroup]="courses.courseFormGroup"
+            <vex-course-detail-nivel [subgroupCache]="previewSubgroupCache" [courseFormGroup]="courses.courseFormGroup"
                                      (viewTimes)="openTimingModal($event.subGroup, $event.groupLevel, $event.selectedDate)"
                                      style="width: 100%;"></vex-course-detail-nivel>
 								</div>
@@ -62,7 +63,7 @@
 			</mat-tab>
 			<mat-tab label="{{'timeline.timeline' | translate}}">
 				<!-- Embedded timeline view -->
-				<vex-timeline></vex-timeline>
+				<vex-timeline [filterCourseId]="id"></vex-timeline>
 			</mat-tab>
 			<mat-tab label="{{'menu.stats' | translate}}">
         <div class="card" style="margin: 2% 0 2% 0;">
@@ -101,7 +102,8 @@
             </div>
           </div>
         </div>
-        <vex-aio-table *ngIf="detailData && detailData?.course_type == 1" [columns]="columnsSalesCollective"
+        <vex-aio-table *ngIf="detailData"
+                       [columns]="detailData?.course_type == 1 ? columnsSalesCollective : columnsSalesPrivate"
                        [entity]="'/admin/courses/'+this.detailData?.id + '/sells'" [search]="filter"
                        [title]="'menu.courses'" [showDetail]="false" [withFilters]="false"
                        [route]="'courses'"
@@ -110,14 +112,6 @@
                        [sectionIcon]="icon"
                        (dataLoaded)="calculateTotal($event)"
         ></vex-aio-table>
-        <vex-aio-table *ngIf="detailData && detailData?.course_type != 1" [columns]="columnsSalesPrivate"
-                       [entity]="'/admin/courses/'+this.detailData?.id + '/sells'" [search]="filter"
-                       [title]="'menu.courses'" [showDetail]="false" [withFilters]="false"
-                       [route]="'courses'"
-                       [canDelete]="false" [canDeactivate]="false"
-                       [filterColumn]="'school_id'" [filterField]="user.schools[0].id"
-                       [sectionIcon]="icon"
-                       (dataLoaded)="calculateTotal($event)"></vex-aio-table>
       </mat-tab>
 		</mat-tab-group>
 	</div>

@@ -14,12 +14,15 @@
   <mat-divider class="text-border"></mat-divider>
 
 
-  <mat-dialog-content class="container" *ngIf="!loading">
+  <mat-dialog-content class="container" *ngIf="!loading; else loadingTemplate">
     <div class="column left-column">
       <h3>{{'choose_students' | translate}}</h3>
       <div class="subgroup-title">
         <p [style.color]="defaults.degree.color"><strong>{{defaults.degree.annotation}}</strong>
           {{defaults.degree.name}} - {{defaults.subgroupNumber}}</p>
+        <p class="current-monitor">
+          {{ defaults.currentMonitor ? (defaults.currentMonitor.first_name + ' ' + defaults.currentMonitor.last_name) : ('no_monitor' | translate) }}
+        </p>
       </div>
       <div class="students-list">
         <mat-checkbox>{{'choose_all' | translate}}</mat-checkbox>
@@ -41,11 +44,28 @@
     </div>
 
     <div class="column right-column">
+      <div class="transfer-scope">
+        <h3>{{ 'courses.transfer.scope_title' | translate }}</h3>
+        <div class="transfer-scope-chips">
+          <button type="button" class="transfer-scope-chip" [class.active]="transferScope === 'single'"
+            (click)="transferScope='single'">
+            {{ 'courses.transfer.scope_single' | translate }}
+          </button>
+          <button type="button" class="transfer-scope-chip" [class.active]="transferScope === 'future'"
+            (click)="transferScope='future'">
+            {{ 'courses.transfer.scope_future' | translate }}
+          </button>
+          <button type="button" class="transfer-scope-chip" [class.active]="transferScope === 'all'"
+            (click)="transferScope='all'">
+            {{ 'courses.transfer.scope_all' | translate }}
+          </button>
+        </div>
+      </div>
       <div class="example-action-buttons">
         <button mat-button (click)="accordion.openAll()">{{'expand_all' | translate }}</button>
         <button mat-button (click)="accordion.closeAll()">{{'collapse_all' | translate }}</button>
       </div>
-      <mat-accordion class="example-headers-align" multi>
+      <mat-accordion class="example-headers-align" [multi]="false">
         <ng-container *ngFor="let colorKey of this.colorKeys">
           <ng-container *ngFor="let groupLevel of this.groupedByColor[colorKey]; let groupIndex = index">
 
@@ -60,11 +80,14 @@
               <!-- aqui el listado -->
               <div class="list-group">
                 <ng-container *ngFor="let item of getCourseSubgroups(groupLevel); let itemIndex = index">
-                  <div class="list-item">
+                  <div *ngIf="item.id !== defaults.subgroup" class="list-item">
                     <p [style.color]="colorKey"><strong>{{ groupLevel.annotation }} {{itemIndex+1}}</strong></p>
+                    <p class="monitor-name">
+                      {{ item.monitor ? (item.monitor.first_name + ' ' + item.monitor.last_name) : ('no_monitor' | translate) }}
+                    </p>
                     <mat-checkbox [checked]="item.checked" [(ngModel)]="item.checked"
-                      [ngModelOptions]="{standalone: true}" (change)="onCheckboxChange(itemIndex, item.checked, item)"
-                      [disabled]="getUserInSubGroup(item) === item.max_participants || ((itemIndex+1) === this.defaults.subgroupNumber && defaults.degree.id === item.degree_id)">
+                      [ngModelOptions]="{standalone: true}" (change)="onCheckboxChange($event.checked, item)"
+                      [disabled]="getUserInSubGroup(item) === item.max_participants">
                       <span class="item-count">{{getUserInSubGroup(item)}}/{{ item.max_participants }}</span>
                     </mat-checkbox>
                   </div>
@@ -82,3 +105,9 @@
     </div>
   </mat-dialog-content>
 </form>
+
+<ng-template #loadingTemplate>
+  <div class="transfer-loading">
+    <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+  </div>
+</ng-template>

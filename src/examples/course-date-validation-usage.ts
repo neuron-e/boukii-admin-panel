@@ -116,9 +116,7 @@ Primero debe cancelar o reasignar estas reservas.`;
       .toPromise();
 
     if (validation!.affectedBookings.length > 0) {
-      console.log(`Esta fecha afecta a ${validation!.affectedBookings.length} reservas:`);
       validation!.affectedBookings.forEach(booking => {
-        console.log(`- ${booking.client?.first_name} ${booking.client?.last_name}`);
       });
 
       // Aquí puedes implementar tu propia lógica personalizada

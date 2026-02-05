@@ -6,6 +6,11 @@ import { Component, ContentChild, TemplateRef } from '@angular/core';
   styleUrls: ['./app.component.scss']
 })
 export class FluxLayoutComponent {
-  ShowCard: boolean = false
+  ShowCard: boolean = false;
+  showSidebar: boolean = true;
+
+  toggleSidebar(): void {
+    this.showSidebar = !this.showSidebar;
+  }
 }
 

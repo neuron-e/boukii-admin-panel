@@ -1,0 +1,46 @@
+<div class="modal-header">
+  <h2 mat-dialog-title>{{ 'meeting_point' | translate }}</h2>
+  <button mat-icon-button (click)="cancel()" class="close-button">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="modal-content">
+  <div class="form-container">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'meeting_point_select' | translate }}</mat-label>
+      <mat-select [(value)]="selectedMeetingPointId" (selectionChange)="onMeetingPointSelect($event.value)">
+        <mat-option *ngIf="meetingPoints.length === 0" disabled>
+          {{ 'settings.meeting_points.empty' | translate }}
+        </mat-option>
+        <mat-option *ngFor="let point of meetingPoints" [value]="point.id">
+          {{ point.name }}<span *ngIf="point.address"> - {{ point.address }}</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'meeting_point' | translate }}</mat-label>
+      <input matInput [(ngModel)]="meetingPointName">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'meeting_point_address' | translate }}</mat-label>
+      <input matInput [(ngModel)]="meetingPointAddress">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'meeting_point_instructions' | translate }}</mat-label>
+      <textarea matInput rows="3" [(ngModel)]="meetingPointInstructions"></textarea>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="cancel()">
+    {{ 'cancel' | translate }}
+  </button>
+  <button mat-raised-button color="primary" (click)="save()">
+    {{ 'save' | translate }}
+  </button>
+</mat-dialog-actions>

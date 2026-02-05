@@ -23,6 +23,9 @@ import {IconComponent} from '../../../../../@vex/components/icon/app.component';
 import {ComponentsCustomModule} from '../../../../components/components-custom.module';
 import {BookingDetailDialogComponent} from './booking-dialog/booking-dialog.component';
 import {BookingDatesEditUnifiedComponent} from './booking-dates-edit-unified/booking-dates-edit-unified.component';
+import { EditMeetingPointModalComponent } from './edit-meeting-point-modal/edit-meeting-point-modal.component';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { ConfirmModalModule } from '../../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component.module';
 
 
 
@@ -35,7 +38,8 @@ import {BookingDatesEditUnifiedComponent} from './booking-dates-edit-unified/boo
     FormDetailsColectiveFixComponent,
     StepObservationsComponent,
     BookingDetailDialogComponent,
-    BookingDatesEditUnifiedComponent
+    BookingDatesEditUnifiedComponent,
+    EditMeetingPointModalComponent
   ],
   imports: [
     CommonModule,
@@ -53,6 +57,8 @@ import {BookingDatesEditUnifiedComponent} from './booking-dates-edit-unified/boo
     FluxModalModule,
     MatRadioModule,
     MatDialogModule,
+    MatTooltipModule,
+    ConfirmModalModule,
     IconComponent,
     ComponentsCustomModule,
   ],

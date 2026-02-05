@@ -16,11 +16,13 @@ export class FluxUploadImgComponent {
   @Input() roundCropper: boolean = false
 
   @Output() upload = new EventEmitter();
+  @Output() uploadFile = new EventEmitter<File>();
 
   onFileChanged(event: Event) {
     this.imageChangedEvent = event
     const file = (event.target as HTMLInputElement).files[0];
     if (file) {
+      this.uploadFile.emit(file);
       const reader = new FileReader();
       reader.onload = () => {
         if (!this.edit) this.imagePreviewUrl = reader.result;

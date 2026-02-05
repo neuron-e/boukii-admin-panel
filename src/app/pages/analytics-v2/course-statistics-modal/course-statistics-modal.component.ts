@@ -7,6 +7,8 @@ interface CourseModalData {
   courseName: string;
   courseType?: number;
   sport?: string;
+  dateFilter?: string;
+  optimizationLevel?: string;
   dateRange?: {
     start: string;
     end: string;
@@ -80,8 +82,6 @@ export class CourseStatisticsModalComponent {
   }
 
   public onRefresh(): void {
-    // Este evento será manejado por el componente hijo (course-statistics)
-    console.log('Refresh requested for course:', this.data.courseId);
   }
 
   // ==================== GETTERS FOR TEMPLATE ====================

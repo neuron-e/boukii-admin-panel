@@ -1,6 +1,6 @@
 <div class="flex flex-col">
   <div mat-dialog-title class="flex items-center justify-between">
-    <h2 class="m-0">{{'Transfer Voucher' | translate}}</h2>
+    <h2 class="m-0">{{'voucher.transfer_title' | translate}}</h2>
     <button (click)="cancel()"
             mat-icon-button
             type="button">
@@ -14,23 +14,23 @@
     <div *ngIf="!loading" class="flex flex-col">
       <!-- Voucher Information -->
       <div class="p-4 rounded mb-4" style="background-color: #F5F5F5;">
-        <h3 class="text-md font-medium mb-2">{{'Voucher Information' | translate}}</h3>
+        <h3 class="text-md font-medium mb-2">{{'voucher.info_title' | translate}}</h3>
         <div class="grid grid-cols-2 gap-2 text-sm">
           <div>
-            <span class="font-medium">{{'Code:' | translate}}</span>
+            <span class="font-medium">{{'code' | translate}}:</span>
             <span class="ml-2">{{data.voucher.code}}</span>
           </div>
           <div *ngIf="data.voucher.name">
-            <span class="font-medium">{{'Name:' | translate}}</span>
+            <span class="font-medium">{{'name' | translate}}:</span>
             <span class="ml-2">{{data.voucher.name}}</span>
           </div>
           <div>
-            <span class="font-medium">{{'Balance:' | translate}}</span>
+            <span class="font-medium">{{'voucher.balance' | translate}}:</span>
             <span class="ml-2">{{data.voucher.remaining_balance}}</span>
           </div>
           <div *ngIf="data.voucher.course_type_id">
-            <span class="font-medium">{{'Course Type:' | translate}}</span>
-            <span class="ml-2">{{data.voucher.course_type_id === 1 ? 'Collective' : 'Private'}}</span>
+            <span class="font-medium">{{'voucher.course_type' | translate}}:</span>
+            <span class="ml-2">{{data.voucher.course_type_id === 1 ? ('collective' | translate) : ('private' | translate)}}</span>
           </div>
         </div>
       </div>
@@ -38,7 +38,7 @@
       <!-- Client Selector -->
       <form [formGroup]="form">
         <mat-form-field appearance="outline" class="w-full">
-          <mat-label>{{'Select Client' | translate}}</mat-label>
+          <mat-label>{{'voucher.select_client' | translate}}</mat-label>
           <input [formControl]="clientsForm"
                  [matAutocomplete]="auto"
                  type="text"
@@ -59,7 +59,7 @@
       <!-- Availability Check Result -->
       <div *ngIf="checking" class="flex items-center justify-center py-4">
         <mat-spinner diameter="40"></mat-spinner>
-        <span class="ml-3">{{'Checking availability...' | translate}}</span>
+        <span class="ml-3">{{'voucher.checking_availability' | translate}}</span>
       </div>
 
       <div *ngIf="!checking && selectedClient && availabilityMessage"
@@ -84,14 +84,14 @@
            style="background-color: #FFF3E0; border-left: 4px solid #FF9800;">
         <div class="flex items-center">
           <mat-icon class="text-orange-600 mr-2">warning</mat-icon>
-          <span class="text-sm font-medium">{{'This voucher is not marked as transferable' | translate}}</span>
+          <span class="text-sm font-medium">{{'voucher.not_marked_transferable' | translate}}</span>
         </div>
       </div>
 
       <!-- Transfer Instructions -->
       <div class="text-sm text-gray-600 mb-4">
         <p class="m-0">
-          {{'The voucher will be transferred to the selected client. This action can be tracked in the voucher history.' | translate}}
+          {{'voucher.transfer_notice' | translate}}
         </p>
       </div>
     </div>
@@ -115,7 +115,7 @@
             mat-raised-button
             type="button">
       <mat-spinner *ngIf="transferring" diameter="20" class="inline-block mr-2"></mat-spinner>
-      {{'Transfer' | translate}}
+      {{'voucher.transfer_action' | translate}}
     </button>
   </mat-dialog-actions>
 </div>

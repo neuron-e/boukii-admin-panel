@@ -306,6 +306,14 @@
             </p>
           </div>
 
+          <div class="expand-buttons" *ngIf="showLoadStudents">
+            <button type="button" class="text-button" (click)="loadStudents.emit()" [disabled]="loadingStudents">
+              <mat-icon>groups</mat-icon>
+              <span *ngIf="!loadingStudents">{{'load_students' | translate}}</span>
+              <mat-progress-spinner *ngIf="loadingStudents" diameter="16" mode="indeterminate"></mat-progress-spinner>
+            </button>
+          </div>
+
           <!-- Botones para expandir/colapsar todos los intervalos -->
           <div class="expand-buttons" *ngIf="groupedCourseDates.size > 1">
             <button type="button" (click)="expandAllIntervals()" class="text-button">
@@ -444,6 +452,21 @@
                 </div>
               </ng-container>
             </div>
+
+            <!-- Descuentos específicos del intervalo -->
+            <div *ngIf="getIntervalDiscounts(intervalId).length > 0"
+                 style="margin-top: 16px; padding: 12px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+              <h6 style="margin: 0 0 8px 0; color: #2e7d32; font-size: 13px; font-weight: 600;">
+                <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
+                {{ 'interval_discounts' | translate }}
+              </h6>
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+                <div *ngFor="let discount of getIntervalDiscounts(intervalId)"
+                     style="color: #2e7d32; font-weight: 400; margin-left: 4px;">
+                  · {{ 'reduction' | translate }} {{ formatIntervalDiscountLabel(discount) }} {{ 'booking' | translate }} {{ discount.dates || discount.days }} {{ 'days' | translate }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -559,15 +582,35 @@
           </span>
               </div>
             </ng-container>
+
+            <!-- Descuentos específicos del intervalo para fechas previas -->
+            <div *ngIf="getIntervalDiscounts(intervalId).length > 0"
+                 style="margin-top: 16px; padding: 12px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+              <h6 style="margin: 0 0 8px 0; color: #2e7d32; font-size: 13px; font-weight: 600;">
+                <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
+                {{ 'interval_discounts' | translate }}
+              </h6>
+              <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+                <div *ngFor="let discount of getIntervalDiscounts(intervalId)"
+                     style="color: #2e7d32; font-weight: 400; margin-left: 4px;">
+                  · {{ 'reduction' | translate }} {{ formatIntervalDiscountLabel(discount) }} {{ 'booking' | translate }} {{ discount.dates || discount.days }} {{ 'days' | translate }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <ng-container
-        *ngIf="courseFormGroup.controls['discounts'].value && courseFormGroup.controls['is_flexible'].value">
-        <div *ngFor="let item of courseFormGroup.controls['discounts'].value"
-             style="width: 100%; color:var(--color-dark1);font-weight: 400;">
-          · {{"reduction" | translate}} {{item.reduccion}}% {{"booking" | translate}} {{item.day}} {{"days" |
-          translate}}
+      <!-- Descuentos globales del curso -->
+      <ng-container *ngIf="hasGlobalDiscounts()">
+        <div style="width: 100%; margin-top: 12px; padding: 12px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+          <p style="margin: 0 0 8px 0; color: #2e7d32; font-size: 13px; font-weight: 600;">
+            <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">local_offer</mat-icon>
+            {{ 'course_global_discounts' | translate }}
+          </p>
+          <div *ngFor="let discount of getGlobalDiscounts()"
+               style="color: #2e7d32; font-weight: 400; font-size: 12px; margin-left: 20px;">
+            · {{ 'reduction' | translate }} {{ getDiscountLabel(discount) }} {{ 'booking' | translate }} {{ getDiscountDay(discount) }} {{ 'days' | translate }}
+          </div>
         </div>
       </ng-container>
       <div *ngIf="courseFormGroup.controls['settings'].value"
@@ -575,33 +618,38 @@
         {{CoursesService.weekString()}}
       </div>
     </div>
-    <div *ngIf="courseFormGroup.controls['levelGrop'].value && count(courseFormGroup.controls['levelGrop'].value,'active') && !detail"
-         class="cardgroup">
-      <div style="width: 100%;display: flex;gap: 8px;flex-wrap: wrap;">
-        <div style="width: 100%;">
-          <div *ngIf="courseFormGroup.controls['id'].value" class="label"
-               style="display: flex;justify-content: space-between;">
-            {{'levels' | translate }}
-            <div>
-              <mat-icon (click)="exportQR(courseFormGroup.controls['id'].value)" svgIcon="mat:print"
-                        style="cursor: pointer;">
-              </mat-icon>
-              <mat-icon (click)="export(courseFormGroup.controls['id'].value)" svgIcon="mat:save"
-                        style="cursor: pointer;">
-              </mat-icon>
-            </div>
+  <div *ngIf="courseFormGroup.controls['levelGrop'].value && count(courseFormGroup.controls['levelGrop'].value,'active') && !detail"
+       class="cardgroup">
+    <div style="width: 100%;display: flex;gap: 8px;flex-wrap: wrap;">
+      <div style="width: 100%;">
+        <div *ngIf="courseFormGroup.controls['id'].value" class="label"
+             style="display: flex;justify-content: space-between;">
+          {{'levels' | translate }}
+          <div>
+            <mat-icon (click)="exportQR(courseFormGroup.controls['id'].value)" svgIcon="mat:print"
+                      style="cursor: pointer;">
+            </mat-icon>
+            <mat-icon (click)="export(courseFormGroup.controls['id'].value)" svgIcon="mat:save"
+                      style="cursor: pointer;">
+            </mat-icon>
           </div>
         </div>
-        <vex-course-detail-nivel [courseFormGroup]="courseFormGroup"
-                                 [hideTimingButton]="true"
-                                 style="width: 100%;"></vex-course-detail-nivel>
       </div>
+      <vex-course-detail-nivel [courseFormGroup]="courseFormGroup"
+                               [hideTimingButton]="true"
+                               [expandByDefault]="true"
+                               [selectedSubgroup]="null"
+                               [checkbox]="false"
+                               [subgroupCache]="subgroupCache"
+                               style="width: 100%;"></vex-course-detail-nivel>
     </div>
-    <div *ngIf="detail" class="cardgroup languaje">
-      <div>
-        <div style="justify-content: space-between;">
-          <p class="label">
-            {{'langs' | translate }}
+  </div>
+
+  <div *ngIf="detail" class="cardgroup languaje">
+    <div>
+      <div style="justify-content: space-between;">
+        <p class="label">
+          {{'langs' | translate }}
           </p>
           <img *ngIf="detail" (click)="edit.emit(5)" src="assets/icons/icon/edit2.png" alt
                class="editbutton icon24">

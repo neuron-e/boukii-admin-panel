@@ -1,0 +1,61 @@
+<div class="history-header">
+  <div class="history-title">
+    {{ 'evaluation_history_title' | translate }}
+    <div class="history-subtitle">
+      {{ data.level?.annotation }} / {{ data.level?.name }}
+    </div>
+  </div>
+  <button mat-icon-button (click)="close()">
+    <mat-icon svgIcon="mat:close"></mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="history-content">
+  <mat-tab-group>
+    <mat-tab label="{{ 'evaluation_history_tab' | translate }}">
+      <ng-container *ngIf="historyEntries.length; else noHistory">
+        <mat-accordion class="history-accordion">
+          <mat-expansion-panel *ngFor="let entry of historyEntries">
+            <mat-expansion-panel-header>
+              <div class="history-panel-title">
+                <span class="history-change-badge" [ngClass]="getChangeClass(entry.type)">
+                  {{ entry.titleKey | translate }}
+                </span>
+                <span class="history-context" *ngIf="entry.contextLabel">{{ entry.contextLabel }}</span>
+              </div>
+              <div class="history-panel-meta">
+                <span class="history-user">{{ entry.userLabel }}</span>
+                <span class="history-date" *ngIf="entry.date">{{ entry.date | date:'short' }}</span>
+              </div>
+            </mat-expansion-panel-header>
+            <div class="history-panel-body">
+              <div *ngFor="let detail of entry.details" class="history-detail">
+                <div class="history-detail-label">{{ detail.labelKey | translate }}</div>
+                <div class="history-detail-value">{{ detail.value }}</div>
+              </div>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </ng-container>
+      <ng-template #noHistory>
+        <div class="history-empty">{{ 'history_no_changes' | translate }}</div>
+      </ng-template>
+    </mat-tab>
+    <mat-tab label="{{ 'evaluation_history_media_tab' | translate }}">
+      <div class="history-media">
+        <div *ngFor="let file of mediaFiles" class="history-media-card">
+          <img *ngIf="file.type === 'image'" [src]="file.file" alt="media" />
+          <video *ngIf="file.type === 'video'" [src]="file.file" controls></video>
+          <div class="history-media-date" *ngIf="file.created_at">{{ file.created_at | date:'shortDate' }}</div>
+          <div class="history-media-uploader">
+            {{ 'history_uploaded_by' | translate }} {{ getMediaUploader(file) }}
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-flat-button color="primary" (click)="close()">{{ 'close' | translate }}</button>
+</mat-dialog-actions>

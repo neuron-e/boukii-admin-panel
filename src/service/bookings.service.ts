@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import {BehaviorSubject, delay, EMPTY, forkJoin, mergeMap, Observable} from 'rxjs';
+import { map } from 'rxjs/operators';
 import * as moment from 'moment';
 import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
@@ -10,6 +11,9 @@ export interface BookingCreateData {
   client_main_id: number;
   user_id: number;
   price_total: number;
+  discount_code?: string | null;
+  discount_code_id?: number | null;
+  discount_code_value?: number;
   has_cancellation_insurance: boolean;
   has_boukii_care: boolean;
   has_reduction: boolean;
@@ -200,30 +204,52 @@ export class BookingService {
   calculatePendingPrice(): number {
     const data = this.getBookingData();
     if (!data) {
-      console.warn('🔍 calculatePendingPrice: No booking data found');
+      console.warn('calculatePendingPrice: No booking data found');
       return 0;
     }
+
+    const parseNumber = (value: any): number | null => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+      if (value === null || value === undefined) {
+        return null;
+      }
+      const parsed = parseFloat(String(value));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const computedPendingRaw = (data as any).computed_pending_amount;
+    const computedPending = parseNumber(computedPendingRaw);
+    if (computedPending !== null) {
+      return computedPending > 0 ? Number(computedPending.toFixed(2)) : 0;
+    }
+
+    const pendingAmountRaw = (data as any).pending_amount;
+    const pendingAmount = parseNumber(pendingAmountRaw);
+    if (pendingAmount !== null) {
+      return pendingAmount > 0 ? Number(pendingAmount.toFixed(2)) : 0;
+    }
+
+    const computedTotal = parseNumber((data as any).computed_total);
+    const computedPaid = parseNumber((data as any).computed_paid_total);
+    if (computedTotal !== null && computedPaid !== null) {
+      const pendingComputed = computedTotal - computedPaid;
+      return pendingComputed > 0 ? Number(pendingComputed.toFixed(2)) : 0;
+    }
+
+    const finalTotal = parseNumber((data as any).price_total) ?? 0;
+    const paidTotal = parseNumber((data as any).paid_total) ?? 0;
 
     const vouchers = Array.isArray((data as any).vouchers) ? (data as any).vouchers : [];
     const totalVouchers = vouchers.reduce((acc: number, item: any) => {
       const value = item?.bonus?.reducePrice;
-      const parsed = typeof value === 'number' ? value : parseFloat(value ?? '0');
-      return acc + (isNaN(parsed) ? 0 : parsed);
+      const parsed = parseNumber(value);
+      return acc + (parsed ?? 0);
     }, 0);
 
-    const priceTotal = typeof (data as any).price_total === 'number'
-      ? (data as any).price_total
-      : parseFloat((data as any).price_total ?? '0');
-
-    console.log('🔍 calculatePendingPrice DEBUG:', {
-      priceTotal,
-      totalVouchers,
-      pending: priceTotal - totalVouchers,
-      bookingData: data
-    });
-
-    const pending = priceTotal - totalVouchers;
-    return pending > 0 ? pending : 0;
+    const pending = finalTotal - paidTotal - totalVouchers;
+    return pending > 0 ? Number(pending.toFixed(2)) : 0;
   }
 
   calculateActivityPrice(activity: any): number {
@@ -285,6 +311,7 @@ export class BookingService {
 
     return datePrice + extraPrice;
   }
+
   updateBookingData(partialData: Partial<BookingCreateData>) {
     const currentData = this.getBookingData();
     if (currentData) {
@@ -294,125 +321,135 @@ export class BookingService {
   }
 
   setCart(normalizedDates, bookingData: BookingCreateData) {
-    let cart = [];
-    let group_id = 0;
-    normalizedDates.forEach(item => {
-      group_id++;
-      // Inicializar variables para el cálculo del precio
-      let totalExtrasPrice = 0;
-      item.utilizers.forEach(utilizer => {
-        item.dates.forEach(date => {
-          let bookingUser: any = {};
-          bookingUser.client_id = utilizer.id;
-          bookingUser.group_id = group_id;
-          bookingUser.monitor_id = item.monitor ? item.monitor.id : null;
+    const cart: any[] = [];
+    let groupId = 0;
+    const safeDates = Array.isArray(normalizedDates) ? normalizedDates : [];
 
-          // Obtener los valores desde bookingData
-          let reduction = bookingData.price_reduction || 0;
-          let cancellationInsurance = bookingData.price_cancellation_insurance || 0;
-          let boukiiCare =bookingData.price_boukii_care || 0;
-          let tva = bookingData.price_tva || 0;
+    safeDates.forEach(item => {
+      groupId += 1;
+      const utilizers = Array.isArray(item?.utilizers) ? item.utilizers : [];
+      const dates = Array.isArray(item?.dates) ? item.dates : [];
+      const course = item?.course ?? null;
+      const courseType = course?.course_type ?? null;
+      const coursePriceRaw = parseFloat(course?.price ?? '0');
+      const coursePrice = Number.isNaN(coursePriceRaw) ? 0 : coursePriceRaw;
 
-          // Calcular el valor total de los vouchers
-          let totalVoucherDiscount = 0;
-          if (bookingData.vouchers && bookingData.vouchers.length > 0) {
-            bookingData.vouchers.forEach(voucher => {
-              if (voucher.bonus && voucher.bonus.reducePrice) {
-                totalVoucherDiscount += parseFloat(voucher.bonus.reducePrice || 0); // Asumimos que 'reducePrice' contiene el monto del descuento
-              }
+      const resolveBasePrice = (date: any): number => {
+        if (courseType === 1) {
+          return coursePrice;
+        }
+        if (courseType === 2) {
+          if (course?.is_flexible) {
+            return 0;
+          }
+          return coursePrice;
+        }
+        return 0;
+      };
+
+      utilizers.forEach(utilizer => {
+        dates.forEach(date => {
+          const basePrice = resolveBasePrice(date);
+          const bookingUser: any = {
+            client_id: utilizer?.id ?? null,
+            group_id: groupId,
+            monitor_id: item?.monitor?.id ?? null,
+            price_base: basePrice,
+            extra_price: 0,
+            price: basePrice,
+            currency: item?.course?.currency ?? null,
+            course_id: item?.course?.id ?? null,
+            course_name: item?.course?.name ?? null,
+            notes_school: item?.schoolObs ?? '',
+            notes: item?.clientObs ?? '',
+            course_type: item?.course?.course_type ?? null,
+            degree_id: item?.sportLevel?.id ?? null,
+            hour_start: date?.startHour ?? null,
+            hour_end: date?.endHour ?? null
+          };
+
+          const courseDate = item?.course?.course_dates?.find(d =>
+            moment(d?.date).format('YYYY-MM-DD') === moment(date?.date).format('YYYY-MM-DD')
+          );
+
+          bookingUser.course_date_id = courseDate?.id ?? null;
+
+          const extras: any[] = [];
+          let extrasTotal = 0;
+
+          if (item?.course?.course_type === 2) {
+            const utilizerExtras = date?.utilizers?.find(u =>
+              u?.first_name === utilizer?.first_name && u?.last_name === utilizer?.last_name
+            );
+            const extraList = Array.isArray(utilizerExtras?.extras) ? utilizerExtras.extras : [];
+            extraList.forEach(extra => {
+              const extraPrice = parseFloat(extra?.price ?? '0');
+              const quantity = Number(extra?.quantity ?? 1) || 1;
+              const extraLineTotal = Number.isNaN(extraPrice) ? 0 : extraPrice * quantity;
+              extrasTotal += extraLineTotal;
+              extras.push({
+                course_extra_id: extra?.id ?? null,
+                name: extra?.name ?? '',
+                quantity,
+                price: Number.isNaN(extraPrice) ? 0 : extraPrice
+              });
+            });
+          } else {
+            const extraList = Array.isArray(date?.extras) ? date.extras : [];
+            extraList.forEach(extra => {
+              const extraPrice = parseFloat(extra?.price ?? '0');
+              const quantity = Number(extra?.quantity ?? 1) || 1;
+              const extraLineTotal = Number.isNaN(extraPrice) ? 0 : extraPrice * quantity;
+              extrasTotal += extraLineTotal;
+              extras.push({
+                course_extra_id: extra?.id ?? null,
+                name: extra?.name ?? '',
+                quantity,
+                price: Number.isNaN(extraPrice) ? 0 : extraPrice
+              });
             });
           }
 
-          let extras = [];
+          bookingUser.extras = extras;
+          bookingUser.extra_price = Number(extrasTotal.toFixed(2));
+          bookingUser.price = Number((basePrice + extrasTotal).toFixed(2));
 
-          // Recolectar los extras y calcular su precio total
-          if (item.course.course_type == 2) {
-            let utilizers =  date.utilizers.find(u =>
-              u.first_name == utilizer.first_name && u.last_name == utilizer.last_name);
-            if(utilizers && utilizers.extras && utilizers.extras.length) {
-              utilizers.extras.forEach(extra => {
-                const extraPrice = parseFloat(extra.price ?? '0');
-                const quantity = Number(extra.quantity ?? 1) || 1;
-                const totalExtra = (isNaN(extraPrice) ? 0 : extraPrice) * quantity;
-                totalExtrasPrice += totalExtra;
-                extras.push({
-                  course_extra_id: extra.id,
-                  name: extra.name,
-                  quantity: quantity,
-                  price: extraPrice
-                });
+          if (bookingData?.school_id === 15) {
+            const courseGroups = Array.isArray(courseDate?.course_groups) ? courseDate.course_groups : [];
+            const matchingGroup = courseGroups.find(group => group?.degree_id === item?.sportLevel?.id);
+
+            if (matchingGroup) {
+              bookingUser.course_group_id = matchingGroup.id;  // FIX: Usar nombre correcto
+              bookingUser.group_name = matchingGroup.name;
+
+              const courseSubgroups = Array.isArray(matchingGroup?.course_subgroups)
+                ? matchingGroup.course_subgroups
+                : [];
+              const availableSubgroup = courseSubgroups.find(subgroup => {
+                const currentParticipants = Array.isArray(subgroup?.booking_users)
+                  ? subgroup.booking_users.length
+                  : 0;
+                const maxParticipants = typeof subgroup?.max_participants === 'number'
+                  ? subgroup.max_participants
+                  : Number.POSITIVE_INFINITY;
+                return currentParticipants < maxParticipants;
               });
-            }
-          } else {
-            if(date.extras &&  date.extras.length) {
-              date.extras.forEach(extra => {
-                const extraPrice = parseFloat(extra.price ?? '0');
-                const quantity = Number(extra.quantity ?? 1) || 1;
-                const totalExtra = (isNaN(extraPrice) ? 0 : extraPrice) * quantity;
-                totalExtrasPrice += totalExtra;
-                extras.push({
-                  course_extra_id: extra.id,
-                  name: extra.name,
-                  quantity: quantity,
-                  price: extraPrice
-                });
-              });
-            }
-          }
 
-          // Asignar valores al objeto de usuario de la reserva
-          bookingUser.price_base = parseFloat(item.totalSinExtras); // Precio base calculado
-          bookingUser.extra_price = parseFloat(item.extrasTotal); // Precio base calculado
-          bookingUser.price = parseFloat(item.total.replace(/[^\d.-]/g, '')); // Precio total (base + extras)
-          bookingUser.currency = item.course.currency;
-          bookingUser.course_id = item.course.id;
-          bookingUser.course_name = item.course.name;
-          bookingUser.notes_school = item.schoolObs;
-          bookingUser.notes = item.clientObs;
-          bookingUser.course_type = item.course.course_type;
-          bookingUser.currency = item.course.currency;
-          bookingUser.degree_id = item.sportLevel.id;
-          bookingUser.course_date_id = item.course.course_dates.find(d =>
-            moment(d.date).format('YYYY-MM-DD') == moment(date.date).format('YYYY-MM-DD')).id;
-          bookingUser.hour_start = date.startHour;
-          bookingUser.hour_end = date.endHour;
-
-          // Add school-specific fields for school 15
-          if (bookingData.school_id === 15) {
-            const courseDate = item.course.course_dates.find(d =>
-              moment(d.date).format('YYYY-MM-DD') == moment(date.date).format('YYYY-MM-DD'));
-            
-            if (courseDate && courseDate.course_groups) {
-              const matchingGroup = courseDate.course_groups.find(group => group.degree_id === item.sportLevel.id);
-              if (matchingGroup) {
-                bookingUser.group = matchingGroup.id;
-                bookingUser.group_name = matchingGroup.name;
-                
-                const availableSubgroup = matchingGroup.course_subgroups.find(subgroup =>
-                  subgroup.booking_users.length < subgroup.max_participants
-                );
-                if (availableSubgroup) {
-                  bookingUser.subgroup = availableSubgroup.id;
-                  bookingUser.subgroup_name = availableSubgroup.name;
-                }
+              if (availableSubgroup) {
+                bookingUser.course_subgroup_id = availableSubgroup.id;  // FIX: Usar nombre correcto
+                bookingUser.subgroup_name = availableSubgroup.name;
               }
             }
           }
 
-          // Asignar los extras al usuario de la reserva
-          bookingUser.extras = extras;
-
-          // Añadir el usuario con la reserva completa al carrito
           cart.push(bookingUser);
         });
       });
-
     });
 
     return cart;
   }
   resetBookingData() {
-    console.log('🔄 Reseteando BookingData para nueva reserva');
     this.bookingDataSubject.next({
       school_id: 0,
       client_main_id: 0,
@@ -441,6 +478,23 @@ export class BookingService {
       basket: null,  // Reset de reduction
       cart:  null
     });
+  }
+
+  private computeFrontendTotal(data: BookingCreateData): number {
+    const baseRaw = (data as any).price_total ?? 0;
+    const base = typeof baseRaw === 'number' ? baseRaw : parseFloat(String(baseRaw)) || 0;
+
+    const insurance = (data as any).has_cancellation_insurance
+      ? Number((data as any).price_cancellation_insurance || 0)
+      : 0;
+    const reduction = (data as any).price_reduction ? Number((data as any).price_reduction) : 0;
+    const discountCodeValue = (data as any).discount_code_value ? Number((data as any).discount_code_value) : 0;
+    const boukiiCare = (data as any).has_boukii_care ? Number((data as any).price_boukii_care || 0) : 0;
+    const tva = (data as any).has_tva ? Number((data as any).price_tva || 0) : 0;
+
+    const total = base + insurance - reduction - discountCodeValue + boukiiCare + tva;
+    const safe = isNaN(total) ? 0 : total;
+    return Number(safe.toFixed(2));
   }
 
   /**
@@ -503,28 +557,34 @@ export class BookingService {
     });
   }
 
-  private handleNoRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any): Observable<any> {
-    const operations = [
+    private handleNoRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any): Observable<any> {
+    const operations: Observable<any>[] = [
       this.createBookingLog({
         booking_id: bookingId,
         action: 'no_refund',
         before_change: 'confirmed',
         user_id: userData.id
-      }),
-      this.createPayment({
-        booking_id: bookingId,
-        school_id: userData.schools[0].id,
-        amount: bookTotalPrice,
-        status: 'no_refund',
-        notes: 'no refund applied'
-      }),
-      this.cancelBookingUsers(bookingUsers)
+      })
     ];
+
+    if (bookTotalPrice > 0) {
+      operations.push(
+        this.createPayment({
+          booking_id: bookingId,
+          school_id: userData.schools[0].id,
+          amount: bookTotalPrice,
+          status: 'no_refund',
+          notes: 'no refund applied'
+        })
+      );
+    }
+
+    operations.push(this.cancelBookingUsers(bookingUsers));
 
     return forkJoin(operations);
   }
 
-  private handleBoukiiPay(bookingId: number, bookTotalPrice: number, bookingUsers: any[], userData: any, reason: string): Observable<any> {
+    private handleBoukiiPay(bookingId: number, bookTotalPrice: number, bookingUsers: any[], userData: any, reason: string): Observable<any> {
     const provider = 'boukii_pay';
     const operations: Observable<any>[] = [
       this.createBookingLog({
@@ -536,44 +596,49 @@ export class BookingService {
       })
     ];
 
-    operations.push(
-      this.crudService.post(`/admin/bookings/refunds/${bookingId}`, {
-        amount: bookTotalPrice
-      })
-    );
+    if (bookTotalPrice > 0) {
+      operations.push(
+        this.crudService.post(`/admin/bookings/refunds/${bookingId}`, {
+          amount: bookTotalPrice
+        })
+      );
+    }
 
-
-    operations.push(
-      this.cancelBookingUsers(bookingUsers)
-    );
+    operations.push(this.cancelBookingUsers(bookingUsers));
 
     return forkJoin(operations);
   }
 
-  private handleCashRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, reason: string): Observable<any> {
+    private handleCashRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, reason: string): Observable<any> {
     const provider = 'cash';
-    const operations = [
+    const operations: Observable<any>[] = [
       this.createBookingLog({
         booking_id: bookingId,
         action: 'refund_' + provider,
         before_change: 'confirmed',
         user_id: userData.id,
         description: reason
-      }),
-      this.createPayment({
-        booking_id: bookingId,
-        school_id: userData.schools[0].id,
-        amount: bookTotalPrice,
-        status: 'refund',
-        notes: 'other'
-      }),
-      this.cancelBookingUsers(bookingUsers)
+      })
     ];
+
+    if (bookTotalPrice > 0) {
+      operations.push(
+        this.createPayment({
+          booking_id: bookingId,
+          school_id: userData.schools[0].id,
+          amount: bookTotalPrice,
+          status: 'refund',
+          notes: reason
+        })
+      );
+    }
+
+    operations.push(this.cancelBookingUsers(bookingUsers));
 
     return forkJoin(operations);
   }
 
-  private handleVoucherRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, clientMainId: number): Observable<any> {
+    private handleVoucherRefund(bookingId: number, bookingUsers: any[], bookTotalPrice: number, userData: any, clientMainId: number): Observable<any> {
     const provider = 'voucher';
     const voucherData: VoucherData = {
       code: 'BOU-' + this.generateRandomNumber(),
@@ -584,31 +649,39 @@ export class BookingService {
       school_id: userData.schools[0].id
     };
 
-    return forkJoin([
+    const operations: Observable<any>[] = [
       this.createBookingLog({
         booking_id: bookingId,
         action: 'refund_' + provider,
         before_change: 'confirmed',
-        user_id: userData.id
+        user_id: userData.id,
+        description: 'Voucher refund'
       }),
-      this.cancelBookingUsers(bookingUsers),
-      this.createPayment({
-        booking_id: bookingId,
-        school_id: userData.schools[0].id,
-        amount: bookTotalPrice,
-        status: 'refund',
-        notes: 'voucher'
-      }),
-      this.crudService.create('/vouchers', voucherData).pipe(
-        mergeMap(result =>
-          this.crudService.create('/vouchers-logs', {
-            voucher_id: result.data.id,
-            booking_id: bookingId,
-            amount: -voucherData.quantity
-          })
+      this.cancelBookingUsers(bookingUsers)
+    ];
+
+    if (bookTotalPrice > 0) {
+      operations.push(
+        this.createPayment({
+          booking_id: bookingId,
+          school_id: userData.schools[0].id,
+          amount: bookTotalPrice,
+          status: 'refund',
+          notes: 'voucher'
+        }),
+        this.crudService.create('/vouchers', voucherData).pipe(
+          mergeMap(result =>
+            this.crudService.create('/vouchers-logs', {
+              voucher_id: result.data.id,
+              booking_id: bookingId,
+              amount: -voucherData.quantity
+            })
+          )
         )
-      )
-    ]);
+      );
+    }
+
+    return forkJoin(operations);
   }
 
   processCancellation(
@@ -625,7 +698,15 @@ export class BookingService {
       ? group.dates.flatMap(date => date.booking_users.map(b => b.id))
       : bookingUserIds;
 
-    const totalFinal = group ? group.total : total; // Si group no está, usar data.total
+    const cancellationAmount = this.parseNumber(group ? group.total : total);
+
+    const currentTotal = this.resolveCancellationBaseTotal(bookingData);
+
+    const currentBalance = this.getCurrentBalance(bookingData);
+
+    const newTotal = Math.max(0, currentTotal - cancellationAmount);
+
+    const amountToProcess = Math.max(0, currentBalance - newTotal);
 
     const initialLog: BookingLog = {
       booking_id: bookingData.id,
@@ -643,7 +724,7 @@ export class BookingService {
         cancellationOperation = this.handleNoRefund(
           bookingData.id,
           bookingUserIdsFinal,
-          totalFinal,
+          amountToProcess,
           user
         );
         break;
@@ -651,7 +732,7 @@ export class BookingService {
       case 'boukii_pay':
         cancellationOperation = this.handleBoukiiPay(
           bookingData.id,
-          totalFinal,
+          amountToProcess,
           bookingUserIdsFinal,
           user,
           data.reason
@@ -662,7 +743,7 @@ export class BookingService {
         cancellationOperation = this.handleCashRefund(
           bookingData.id,
           bookingUserIdsFinal,
-          totalFinal,
+          amountToProcess,
           user,
           data.reason
         );
@@ -672,7 +753,7 @@ export class BookingService {
         cancellationOperation = this.handleVoucherRefund(
           bookingData.id,
           bookingUserIdsFinal,
-          totalFinal,
+          amountToProcess,
           user,
           bookingData.client_main_id
         );
@@ -684,15 +765,203 @@ export class BookingService {
 
     return this.createBookingLog(initialLog).pipe(
       mergeMap(() => cancellationOperation),
-      delay(1000),
-      mergeMap(() => {
-        const status = isPartial ? 3 : 2;
-        return this.crudService.update('/bookings', { status }, bookingData.id);
-      })
+      delay(1000)
     );
+  }
+
+  private resolveCancellationBaseTotal(bookingData: any): number {
+    if (!bookingData) {
+      return 0;
+    }
+
+    const snapshotTotal = this.parseNumber(bookingData?.pricing_snapshot?.snapshot?.totals?.total);
+    if (snapshotTotal > 0) {
+      return snapshotTotal;
+    }
+
+    const computedTotal = this.parseNumber(bookingData?.computed_total);
+    if (computedTotal > 0) {
+      return computedTotal;
+    }
+
+    return this.parseNumber(bookingData?.price_total);
   }
 
   private generateRandomNumber(): string {
     return Math.random().toString(36).substring(2, 15);
   }
+
+  private parseNumber(value: any): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (value === null || value === undefined) {
+      return 0;
+    }
+    const parsed = parseFloat(String(value));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private getCurrentBalance(bookingData: any): number {
+    const payments = Array.isArray(bookingData?.payments) ? bookingData.payments : [];
+    const totalPaid = payments
+      .filter(p => p?.status === 'paid')
+      .reduce((sum, p) => sum + this.parseNumber(p?.amount), 0);
+    const totalRefunded = payments
+      .filter(p => p?.status === 'refund' || p?.status === 'partial_refund')
+      .reduce((sum, p) => sum + this.parseNumber(p?.amount), 0);
+    const totalNoRefund = payments
+      .filter(p => p?.status === 'no_refund')
+      .reduce((sum, p) => sum + this.parseNumber(p?.amount), 0);
+
+    const voucherLogs = Array.isArray(bookingData?.vouchers_logs) ? bookingData.vouchers_logs : [];
+    const vouchersUsed = voucherLogs
+      .filter(v => this.parseNumber(v?.amount) > 0)
+      .reduce((sum, v) => sum + this.parseNumber(v?.amount), 0);
+    const vouchersRefunded = voucherLogs
+      .filter(v => this.parseNumber(v?.amount) < 0)
+      .reduce((sum, v) => sum + Math.abs(this.parseNumber(v?.amount)), 0);
+
+    return totalPaid + vouchersUsed - totalRefunded - vouchersRefunded - totalNoRefund;
+  }
+
+  private getTotalVouchersAmount(bookingData: any): number {
+    const vouchers = Array.isArray(bookingData?.vouchers)
+      ? bookingData.vouchers
+      : Array.isArray(bookingData?.vouchers_logs)
+        ? bookingData.vouchers_logs
+        : [];
+    return vouchers.reduce((acc: number, item: any) => {
+      const value = item?.bonus?.reducePrice ?? item?.amount ?? 0;
+      return acc + this.parseNumber(value);
+    }, 0);
+  }
+
+  processPriceAdjustment(
+    bookingData: any,
+    newTotal: number,
+    user: any,
+    refundData?: { type: string; reason?: string; bonus?: any[]; unifyBonus?: boolean }
+  ): Observable<{ price_total: number; paid_total: number; paid: boolean; pending_amount?: number; vouchers?: any[] }> {
+    if (!bookingData?.id) {
+      return EMPTY;
+    }
+
+    const bookingId = bookingData.id;
+    const oldTotal = this.parseNumber(bookingData.price_total);
+    const paidTotal = this.parseNumber(bookingData.paid_total);
+    const vouchersTotal = this.getTotalVouchersAmount(bookingData);
+    const diff = Number((newTotal - oldTotal).toFixed(2));
+    const refundAmount = diff < 0 ? Math.abs(diff) : 0;
+
+    let nextPaidTotal = paidTotal;
+    if (refundAmount > 0) {
+      nextPaidTotal = Math.max(0, paidTotal - refundAmount);
+    }
+
+    const pendingAmount = Math.max(0, newTotal - nextPaidTotal - vouchersTotal);
+    const paid = nextPaidTotal >= newTotal;
+
+    const updatePayload: any = {
+      price_total: Number(newTotal.toFixed(2)),
+      paid_total: Number(nextPaidTotal.toFixed(2)),
+      paid,
+      pending_amount: Number(pendingAmount.toFixed(2))
+    };
+
+    const operations: Observable<any>[] = [];
+
+    operations.push(this.createBookingLog({
+      booking_id: bookingId,
+      action: 'price_adjustment',
+      description: `adjusted from ${oldTotal} to ${newTotal}`,
+      before_change: 'confirmed',
+      user_id: user?.id
+    }));
+
+    if (refundAmount > 0 && refundData?.type) {
+      const reason = refundData.reason || 'price_adjustment';
+      if (refundData.type === 'boukii_pay') {
+        operations.push(
+          this.crudService.post(`/admin/bookings/refunds/${bookingId}`, { amount: refundAmount })
+        );
+      } else if (refundData.type === 'refund') {
+        operations.push(
+          this.createPayment({
+            booking_id: bookingId,
+            school_id: user?.schools?.[0]?.id,
+            amount: refundAmount,
+            status: 'refund',
+            notes: reason
+          })
+        );
+      } else if (refundData.type === 'refund_gift') {
+        const voucherData: VoucherData = {
+          code: 'BOU-' + this.generateRandomNumber(),
+          quantity: refundAmount,
+          remaining_balance: refundAmount,
+          payed: false,
+          client_id: bookingData.client_main_id,
+          school_id: user?.schools?.[0]?.id
+        };
+
+        operations.push(
+          this.createPayment({
+            booking_id: bookingId,
+            school_id: user?.schools?.[0]?.id,
+            amount: refundAmount,
+            status: 'refund',
+            notes: 'voucher'
+          })
+        );
+
+        operations.push(
+          this.crudService.create('/vouchers', voucherData).pipe(
+            mergeMap(result =>
+              this.crudService.create('/vouchers-logs', {
+                voucher_id: result.data.id,
+                booking_id: bookingId,
+                amount: -voucherData.quantity
+              })
+            )
+          )
+        );
+      }
+
+      operations.push(this.createBookingLog({
+        booking_id: bookingId,
+        action: `price_adjustment_refund_${refundData.type}`,
+        description: `refund ${refundAmount}`,
+        before_change: 'confirmed',
+        user_id: user?.id,
+        reason: reason
+      }));
+    }
+
+    operations.push(this.crudService.update('/bookings', updatePayload, bookingId));
+    operations.push(this.crudService.post(`/admin/bookings/${bookingId}/pricing/adjust`, {
+      overrides: {
+        totals: {
+          total: updatePayload.price_total,
+          paid_total: updatePayload.paid_total,
+          pending_amount: updatePayload.pending_amount
+        }
+      },
+      note: refundData?.reason ? `price_adjustment:${refundData.reason}` : 'price_adjustment'
+    }));
+
+    return forkJoin(operations).pipe(
+      map(() => ({
+        price_total: updatePayload.price_total,
+        paid_total: updatePayload.paid_total,
+        paid: updatePayload.paid,
+        pending_amount: updatePayload.pending_amount
+      }))
+    );
+  }
 }
+
+
+
+
+

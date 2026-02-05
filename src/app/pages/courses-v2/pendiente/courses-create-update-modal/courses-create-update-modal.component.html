@@ -1,11 +1,19 @@
 <mat-spinner *ngIf="loading" style="margin: 0 auto"></mat-spinner>
+<div class="modal-header" *ngIf="isDialog">
+  <div class="modal-title">
+    {{ (mode === 'update' ? 'edit_course' : 'courses.new') | translate }}
+  </div>
+  <button class="modal-close" type="button" (click)="closeModal()" aria-label="Close">
+    <mat-icon svgIcon="mat:close"></mat-icon>
+  </button>
+</div>
 <div [@stagger]="true" class="p-gutter container" style="max-width: none"
   *ngIf="!loading && ((defaults.course_type === null || defaults.course_type === 2 && mode === 'create') || (defaults.course_type === 2 && mode === 'update'))">
   <div class="flex flex-col sm:flex-row gap-4" style="width: 100%;float:left; margin: 0 2% 0 0">
     <div @fadeInUp class="card flex-auto" style="width: 100%;">
       <div class="px-6 py-4 border-b flex items-center">
         <div style="float: left;width: 50%;">
-          <h2 class="title m-0">{{'courses.new' |translate }}</h2>
+          <h2 class="title m-0">{{(mode === 'update' ? 'edit_course' : 'courses.new') | translate }}</h2>
         </div>
         <div style="float: left;width: 50%;">
           <div style="float:right">

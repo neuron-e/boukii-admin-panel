@@ -17,6 +17,13 @@
 
   <vex-page-layout-content class="fullwidth"
     [ngClass]="{'table-show-detail': this.showDetail}">
+    <div class="actions-row">
+      <button mat-stroked-button color="primary" (click)="exportClients()" [disabled]="exporting">
+        <mat-icon svgIcon="mat:save"></mat-icon>
+        <span *ngIf="!exporting">Export clients (XLSX)</span>
+        <span *ngIf="exporting">Exporting...</span>
+      </button>
+    </div>
     <vex-aio-table [columns]="columns" [entity]="entity"
       [deleteEntity]="deleteEntity" [title]="'clients'"
       [route]="'clients'" [createComponent]="createComponent"

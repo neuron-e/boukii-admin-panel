@@ -1,0 +1,90 @@
+<h2 mat-dialog-title>{{ 'monitor_assignment.scope_label' | translate }}</h2>
+
+<mat-dialog-content class="dialog-content">
+  <div class="monitor-summary" *ngIf="monitorName">
+    <mat-icon svgIcon="mat:person_outline"></mat-icon>
+    <span>{{ monitorName }}</span>
+  </div>
+
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>{{ 'monitor_assignment.scope_label' | translate }}</mat-label>
+    <mat-select [value]="scope" (selectionChange)="onScopeChange($event.value)">
+      <mat-option value="single">
+        {{ 'monitor_assignment.scope.single' | translate }}
+      </mat-option>
+      <mat-option value="interval" *ngIf="hasIntervals">
+        {{ 'monitor_assignment.scope.interval' | translate }}
+      </mat-option>
+      <mat-option value="all" *ngIf="allowAll">
+        {{ 'monitor_assignment.scope.all' | translate }}
+      </mat-option>
+      <mat-option value="from" *ngIf="allowAll">
+        {{ 'monitor_assignment.scope.from' | translate }}
+      </mat-option>
+      <mat-option value="range" *ngIf="allowAll">
+        {{ 'monitor_assignment.scope.range' | translate }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <div class="date-pickers" *ngIf="scope === 'from' || scope === 'range'">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'monitor_assignment.start_date' | translate }}</mat-label>
+      <mat-select [value]="startDate" (selectionChange)="onStartDateChange($event.value)">
+        <mat-option *ngFor="let option of dateOptions" [value]="option.value">
+          {{ option.label }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width" *ngIf="scope === 'range'">
+      <mat-label>{{ 'monitor_assignment.end_date' | translate }}</mat-label>
+      <mat-select [value]="endDate" (selectionChange)="onEndDateChange($event.value)">
+        <mat-option *ngFor="let option of dateOptions" [value]="option.value">
+          {{ option.label }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+    <div class="selection-summary" *ngIf="dateOptions.length">
+    <mat-icon svgIcon="mat:calendar_today"></mat-icon>
+    <span>{{ getSelectedSessionCount() }} {{ 'days' | translate }}</span>
+  </div>
+
+  <div class="summary-loading" *ngIf="summaryLoading">
+    <span>Actualizando seleccion...</span>
+  </div>
+  <div class="summary-error" *ngIf="previewError && !summaryLoading">
+    <span>No se pudo cargar la vista previa de los Dias seleccionados.</span>
+  </div>
+
+  <div class="selection-summary-list" *ngIf="summaryItems.length">
+    <div class="summary-title">Dias seleccionados</div>
+    <div class="summary-table">
+      <div class="summary-row summary-header">
+        <span>Fecha</span>
+        <span>Nivel</span>
+        <span>Monitor actual</span>
+      </div>
+    <div class="summary-row" *ngFor="let item of summaryItems">
+      <span>{{ item.dateLabel }}</span>
+      <span>{{ item.levelLabel || '-' }}</span>
+      <span>{{ item.currentMonitor || '-' }}</span>
+    </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">
+    {{ 'cancel' | translate }}
+  </button>
+  <button mat-raised-button color="primary" type="button"
+          (click)="confirm()"
+          [disabled]="scope === 'range' && (!startDate || !endDate)">
+    {{ 'save' | translate }}
+  </button>
+</mat-dialog-actions>
+
+
+

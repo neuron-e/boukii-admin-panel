@@ -1,11 +1,49 @@
 /// <reference types="cypress" />
 
+export const adminLoginSelectors = {
+  emailInput: 'input[formcontrolname="email"], [data-cy="email-input"]',
+  passwordInput: 'input[formcontrolname="password"], [data-cy="password-input"]',
+  submitButton:
+    'button[type="submit"], button[mat-raised-button][color="primary"], [data-cy="login-button"]'
+}
+
+Cypress.Commands.add('loginAsAdmin', (email?: string, password?: string) => {
+  const rawEmail =
+    email || Cypress.env('ADMIN_EMAIL') || Cypress.env('TEST_EMAIL') || 'info@skischulechurwalden.ch'
+  const rawPassword =
+    password ||
+    Cypress.env('ADMIN_PASSWORD') ||
+    Cypress.env('TEST_PASSWORD') ||
+    'SkiSchule2025!'
+
+  const adminEmail = String(rawEmail).trim()
+  const adminPassword = String(rawPassword).trim()
+
+  cy.visit('/')
+  cy.contains(/e-mail|correo|sign in/i, { timeout: 20000 }).should('be.visible')
+
+  cy.get(adminLoginSelectors.emailInput).first().clear().type(adminEmail)
+  cy.get(adminLoginSelectors.passwordInput).first().clear().type(adminPassword, { log: false })
+  cy.get(adminLoginSelectors.submitButton).first().click()
+
+  cy.url().should('not.include', 'login')
+  cy.contains(/bookings|reservas|dashboard/i, { timeout: 20000 }).should('be.visible')
+})
+
 /**
  * Custom command to login to the application
  */
 Cypress.Commands.add('login', (email?: string, password?: string) => {
-  const testEmail = email || Cypress.env('TEST_EMAIL')
-  const testPassword = password || Cypress.env('TEST_PASSWORD')
+  const rawEmail =
+    email || Cypress.env('ADMIN_EMAIL') || Cypress.env('TEST_EMAIL') || 'info@skischulechurwalden.ch'
+  const rawPassword =
+    password ||
+    Cypress.env('ADMIN_PASSWORD') ||
+    Cypress.env('TEST_PASSWORD') ||
+    'SkiSchule2025!'
+
+  const testEmail = String(rawEmail).trim()
+  const testPassword = String(rawPassword).trim()
 
   cy.session([testEmail, testPassword], () => {
     cy.visit('/login')
@@ -132,3 +170,13 @@ Cypress.Commands.add('verifyNotification', (message: string) => {
     .should('be.visible')
     .and('contain', message)
 })
+
+declare global {
+  namespace Cypress {
+    interface Chainable {
+      loginAsAdmin(email?: string, password?: string): Chainable<void>
+    }
+  }
+}
+
+export {}

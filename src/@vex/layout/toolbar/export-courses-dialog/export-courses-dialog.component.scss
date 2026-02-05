@@ -1,0 +1,21 @@
+.export-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.date-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.date-field {
+  flex: 1;
+  min-width: 160px;
+}
+
+.error {
+  color: #c62828;
+  font-size: 13px;
+}

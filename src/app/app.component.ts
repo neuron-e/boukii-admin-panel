@@ -27,6 +27,9 @@ import localeEnGb from "@angular/common/locales/en-GB";
 import localeEs from "@angular/common/locales/es";
 import localeDe from "@angular/common/locales/de";
 import localeFr from "@angular/common/locales/fr";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { MonitorEventsService } from "src/service/monitor-events.service";
+import { DateAdapter } from "@angular/material/core";
 
 @Component({
   selector: "vex-root",
@@ -37,10 +40,10 @@ export class AppComponent {
   user: any;
   locales: { locale: any, lan: string }[] =
     [
+      { locale: localeDe, lan: 'de' },
       { locale: localeEs, lan: 'es' },
       { locale: localeIt, lan: 'it-IT' },
       { locale: localeEnGb, lan: 'en-GB' },
-      { locale: localeDe, lan: 'de' },
       { locale: localeFr, lan: 'fr' },
     ]
 
@@ -55,6 +58,9 @@ export class AppComponent {
     private navigationService: NavigationService,
     public splashScreenService: SplashScreenService,
     private schoolService: SchoolService,
+    private snackBar: MatSnackBar,
+    private monitorEventsService: MonitorEventsService,
+    private dateAdapter: DateAdapter<Date>,
     private readonly matIconRegistry: MatIconRegistry,
     private readonly domSanitizer: DomSanitizer) {
     for (const locale of this.locales) registerLocaleData(locale.locale, locale.lan)
@@ -63,6 +69,21 @@ export class AppComponent {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     layoutService.isDarkMode = !layoutService.isDarkMode
     layoutService.toggleDarkMode()
+    const monitorId = this.monitorEventsService.extractMonitorId(this.user);
+    if (monitorId) {
+      this.monitorEventsService.connectForMonitor(monitorId);
+      this.monitorEventsService.monitorEvents$.subscribe((event) => {
+        if (!event) {
+          return;
+        }
+        const bookingLabel = event.payload?.booking_id ?? event.payload?.course_date_id ?? '';
+        const message = event.type?.includes('removed')
+          ? `You have been removed from booking ${bookingLabel}`
+          : `You have been assigned to booking ${bookingLabel}`;
+        this.snackBar.open(message, undefined, { duration: 4000 });
+        // TODO: replace with richer notification UI once UX is defined.
+      });
+    }
     const lang = sessionStorage.getItem('lang');
     if (lang && lang.length > 0) {
       this.translateService.setDefaultLang(lang);
@@ -77,6 +98,12 @@ export class AppComponent {
         this.translateService.currentLang = this.locales[0].lan;
       }
     }
+
+    this.dateAdapter.getFirstDayOfWeek = () => 1;
+    this.setDateAdapterLocale(this.translateService.currentLang);
+    this.translateService.onLangChange.subscribe((event) => {
+      this.setDateAdapterLocale(event.lang);
+    });
     setTimeout(() => {
       if (this.user) {
         this.schoolService.getSchoolData().subscribe((data) => {
@@ -302,11 +329,28 @@ export class AppComponent {
         label: "menu.config",
         children: [
           {
-            type: "link",
+            type: "dropdown",
             label: gatewayLabel,
-            route: gatewayRoute,
             icon: "../assets/img/icons/boukii_pay.svg",
-            routerLinkActiveOptions: { exact: true },
+            children: [
+              {
+                type: "link",
+                label: "menu.admin_boukiipay",
+                route: gatewayRoute,
+              },
+              {
+                type: "link",
+                label: "menu.virtual_tpv",
+                route: "/tpv-virtual",
+                routerLinkActiveOptions: { exact: true },
+              },
+              {
+                type: "link",
+                label: "menu.payment_terminal",
+                route: "/payment-terminal",
+                routerLinkActiveOptions: { exact: true },
+              },
+            ],
           },
           {
             type: "link",
@@ -319,6 +363,21 @@ export class AppComponent {
         ],
       },
     ];
+  }
+
+  private setDateAdapterLocale(lang: string): void {
+    const normalized = lang || 'en';
+    const localeMap: Record<string, string> = {
+      en: 'en-GB',
+      'en-GB': 'en-GB',
+      es: 'es',
+      fr: 'fr',
+      de: 'de',
+      it: 'it-IT'
+    };
+    const locale = localeMap[normalized] ?? normalized;
+    this.dateAdapter.setLocale(locale);
+    Settings.defaultLocale = locale;
   }
 
 

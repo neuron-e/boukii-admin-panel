@@ -14,7 +14,11 @@ import {MatRadioModule} from '@angular/material/radio';
 import {MatSelectModule} from '@angular/material/select';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {FormsModule} from '@angular/forms';
+import { CancelBookginModalModule } from '../cancel-booking/cancel-booking.module';
+import { CancelPartialBookginModalModule } from '../cancel-partial-booking/cancel-partial-booking.module';
 
 @NgModule({
   declarations: [
@@ -35,7 +39,11 @@ import {FormsModule} from '@angular/forms';
     MatSelectModule,
     MatCardModule,
     MatIconModule,
-    FormsModule
+    MatCheckboxModule,
+    MatProgressSpinnerModule,
+    FormsModule,
+    CancelBookginModalModule,
+    CancelPartialBookginModalModule
   ],
   exports: [
     BookingDetailV2Component

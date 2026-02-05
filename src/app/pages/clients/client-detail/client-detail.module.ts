@@ -23,11 +23,13 @@ import { BreadcrumbsModule } from 'src/@vex/components/breadcrumbs/breadcrumbs.m
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { MatSortModule } from '@angular/material/sort';
 import { ClientDetailComponent } from './client-detail.component';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { ComponentsCustomModule } from '../../../components/components-custom.module';
 import { PageLayoutModule } from 'src/@vex/components/page-layout/page-layout.module';
 import { ComponentsModule } from 'src/@vex/components/components.module';
@@ -36,6 +38,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { IconComponent } from 'src/@vex/components/icon/app.component';
 import { FluxUploadImgModule } from 'src/@vex/components/form/upload-img/app.module';
 import {SportCardComponent} from './sport-card/app.component';
+import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor.component';
+import { EvaluationHistoryComponent } from './evaluation-history/evaluation-history.component';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { ConfirmModalModule } from '../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component.module';
 
 @NgModule({
   imports: [
@@ -61,6 +67,7 @@ import {SportCardComponent} from './sport-card/app.component';
     NgxMatTimepickerModule,
     MatStepperModule,
     MatSlideToggleModule,
+    MatCheckboxModule,
     BreadcrumbsModule,
     SecondaryToolbarModule,
     MatDialogModule,
@@ -69,14 +76,17 @@ import {SportCardComponent} from './sport-card/app.component';
     MatChipsModule,
     MatTabsModule,
     MatProgressBarModule,
+    MatButtonToggleModule,
     ComponentsCustomModule,
     PageLayoutModule,
     ComponentsModule,
     TranslateModule,
     MatProgressSpinnerModule,
-    FluxUploadImgModule
+    FluxUploadImgModule,
+    MatExpansionModule,
+    ConfirmModalModule
   ],
-  declarations: [ClientDetailComponent, SportCardComponent],
+  declarations: [ClientDetailComponent, SportCardComponent, EvaluationEditorComponent, EvaluationHistoryComponent],
   exports: [ClientDetailComponent]
 })
 export class ClientDetailModule {

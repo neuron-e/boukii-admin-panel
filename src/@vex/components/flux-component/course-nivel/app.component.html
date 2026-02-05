@@ -1,4 +1,5 @@
-<div style="width: 100%; gap: 8px; display: flex; flex-direction: column;">
+<ng-container *ngIf="!simplifiedView">
+  <div style="width: 100%; gap: 8px; display: flex; flex-direction: column;">
   <ng-container *ngFor="let item of asArray(courseFormGroup.controls['levelGrop'].value); index as i">
     <div *ngIf="item.active" style="height: 100%;width: 100%;">
       <div [style.backgroundColor]="item.color+'33'" [style.border]="'1px solid '+item.color"
@@ -20,18 +21,18 @@
         <div style="display: flex;align-items: center;">
           <img src="assets/icons/icon/people.png" class="icon16">
           <span>
-  {{ countSubgroups(getCourseDates(), item.id) }}g
-  · {{ countBookingUsersForDegree(courseFormGroup.controls.booking_users.value, getCourseDates(), item.id) }} /
-            {{ (item.max_participants || courseFormGroup.controls['max_participants'].value) * countSubgroups(getCourseDates(), item.id) || 0 }}px
+  {{ countSubgroups(courseDates, item.id) }}g
+  · {{ countBookingUsersForDegree(courseFormGroup.controls.booking_users.value, courseDates, item.id) }} /
+            {{ (item.max_participants || courseFormGroup.controls['max_participants'].value) * countSubgroups(courseDates, item.id) || 0 }}px
 </span>
           <div style="margin: auto;"></div>
           <ng-container>
             <img src="assets/icons/icon/calendar.png" class="icon16">
             <span>
-					{{courseFormGroup.controls['course_dates'].value.length
+					{{courseDates.length
             || 0}} {{'days' | translate}}
 				</span>
-            <span *ngIf="courseFormGroup.controls['course_dates'].value[0].duration">
+            <span *ngIf="courseFormGroup.controls['course_dates'].value?.[0]?.duration">
 					&nbsp;{{courseFormGroup.controls['course_dates'].value[0].duration}}
 				</span>
           </ng-container>
@@ -46,7 +47,8 @@
 
       <!-- IMPROVED SUBGROUP DESIGN WITH DATE-BASED STRUCTURE -->
       <ng-container *ngIf="item.modal">
-        <div *ngFor="let ix of asArray(getSubgroupsForDegree(getCourseDates(), item.id)); index as i"
+        <!-- Usar getAllUniqueSubgroupsForDegree para mostrar TODOS los subgrupos únicos -->
+        <div *ngFor="let ix of asArray(getSubgroupsForDegreeCached(item.id)); index as i"
              style="margin-bottom: 16px; border: 1px solid var(--color-grey2); border-radius: 8px; background-color: white; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
           <!-- Subgroup Header -->
@@ -58,8 +60,8 @@
                 </h4>
                 <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--color-dark2); background: white; padding: 4px 8px; border-radius: 12px; border: 1px solid var(--color-grey2);">
                   <img src="assets/icons/icon/people.png" class="icon16">
-                  {{ getUniqueClientsCountForSubgroup(courseFormGroup.controls.booking_users.value, item.id) }} /
-                  {{ getSubgroupCapacity(getCourseDates(), item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0)) }}
+                  {{ getUniqueClientsCountForSubgroupIndex(courseFormGroup.controls.booking_users.value, courseDates, item.id, i) }} /
+                  {{ getSubgroupCapacity(courseDates, item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0)) }}
                 </span>
               </div>
               <div style="display: flex; gap: 8px; align-items: center;">
@@ -85,11 +87,12 @@
             </div>
           </div>
 
-          <!-- Date-based Content -->
+          <!-- Date-based Content - Solo mostrar las fechas que tienen este subgrupo -->
           <div *ngIf="!isSubgroupCollapsed(item.id, i)" style="padding: 16px;">
-            <ng-container *ngIf="getCourseDates()?.length; else noMonitors">
-              <ng-container *ngFor="let course_date of getCourseDates(); let dateIndex = index">
-                <ng-container *ngIf="find(course_date.course_groups || [],'degree_id',item.id)?.course_subgroups?.[i] as subG">
+            <ng-container *ngIf="getCourseDatesForSubgroupIndex(courseDates, item.id, i)?.length; else noMonitors">
+              <!-- Iterar solo sobre las fechas que tienen este subgrupo específico -->
+              <ng-container *ngFor="let course_date of getCourseDatesForSubgroupIndex(courseDates, item.id, i); let dateIndex = index">
+                <ng-container *ngIf="getSubgroupForCourseDateIndex(course_date, item.id, i) as subG">
 
                   <!-- Date Section -->
                   <div style="margin-bottom: 16px; border: 1px solid var(--color-grey2); border-radius: 6px; background: white;">
@@ -99,8 +102,13 @@
                         <span style="font-weight: 600; font-size: 14px; color: var(--color-dark1);">
                           {{course_date.date | date:'EEEE, MMMM d, y'}}
                         </span>
+                        <span *ngIf="getIntervalLabelForCourseDate(course_date) as intervalLabel"
+                              style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #006fcb; background: #D2EFFF; padding: 2px 8px; border-radius: 12px;">
+                          <mat-icon style="font-size: 14px;">timelapse</mat-icon>
+                          {{ intervalLabel }}
+                        </span>
                         <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: white; background: #31C044; padding: 2px 8px; border-radius: 12px;">
-                          {{ getCapacityIndicatorForDate(courseFormGroup.controls.booking_users.value, item.id, i, course_date.id, getSubgroupCapacity(getCourseDates(), item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0))) }}
+                          {{ getCapacityIndicatorForDate(courseFormGroup.controls.booking_users.value, item.id, i, course_date.id, getSubgroupCapacity(courseDates, item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0))) }}
                         </span>
                       </div>
                       <span *ngIf="course_date.duration" style="font-size: 12px; background: var(--color-grey3); padding: 2px 8px; border-radius: 4px; color: var(--color-dark2);">
@@ -111,7 +119,7 @@
                     <!-- Monitor Section -->
                     <div *ngIf="!checkbox" style="padding: 12px 16px; border-bottom: 1px solid var(--color-grey2); background: white;">
                       <div style="display: flex; align-items: center; gap: 8px;">
-                        <img src="assets/icons/icon/user.png" class="icon16" style="opacity: 0.7;">
+                        <img src="assets/icons/icon/monitor.png" class="icon16" style="opacity: 0.7;">
                         <span style="font-weight: 500; color: var(--color-dark2); font-size: 13px;">{{'monitor' | translate}}:</span>
                         <span *ngIf="subG?.monitor as mon; else noMonitor" style="color: var(--color-dark1); font-weight: 500;">
                           {{ mon?.first_name }} {{ mon?.last_name }}
@@ -128,9 +136,8 @@
                         <img src="assets/icons/icon/people.png" class="icon16" style="opacity: 0.7;">
                         <span style="font-weight: 500; color: var(--color-dark2); font-size: 13px;">{{'students' | translate}}:</span>
                       </div>
-
                       <!-- Show all students for this subgroup -->
-                      <ng-container *ngFor="let user of getUsersForSpecificDate(courseFormGroup.controls.booking_users.value, item.id, course_date.id)">
+                      <ng-container *ngFor="let user of getUsersForCourseDateSubgroupIndex(courseFormGroup.controls.booking_users.value, item.id, course_date, i)">
                         <div style="padding: 8px 12px; margin-bottom: 4px; border: 1px solid var(--color-grey2); display: flex; align-items: center; background: var(--color-grey5); border-radius: 4px;">
                           <!-- Attendance Checkbox/Indicator -->
                           <mat-checkbox *ngIf="isDatePast(course_date.date)"
@@ -152,8 +159,8 @@
 
                       <!-- Empty slots -->
                       <ng-container *ngIf="checkbox">
-                        <ng-container *ngFor="let emptySlot of numUsersArray(getSubgroupCapacity(getCourseDates(), item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0)))">
-                          <div *ngIf="emptySlot >= getUniqueClientsCountForSubgroup(courseFormGroup.controls.booking_users.value, item.id)"
+                        <ng-container *ngFor="let emptySlot of numUsersArray(getSubgroupCapacity(courseDates, item.id, i, (ix.max_participants || courseFormGroup.controls['max_participants'].value || 0)))">
+                          <div *ngIf="emptySlot >= getUniqueClientsCountForSpecificDateSubgroup(courseFormGroup.controls.booking_users.value, item.id, course_date.id, subG?.id)"
                                style="padding: 8px 12px; margin-bottom: 4px; border: 1px dashed var(--color-grey3); display: flex; align-items: center; background: var(--color-grey4); border-radius: 4px; color: var(--color-grey1);">
                             <mat-icon style="font-size: 14px; width: 14px; height: 14px; margin-right: 8px; color: #C7D0D3;">
                               circle
@@ -179,4 +186,74 @@
       </ng-container>
     </div>
   </ng-container>
-</div>
+  </div>
+</ng-container>
+<ng-container *ngIf="simplifiedView">
+  <div class="course-detail-nivel">
+    <ng-container *ngFor="let level of asArray(courseFormGroup.controls['levelGrop'].value); let levelIndex = index">
+      <div *ngIf="level?.active" class="level-card">
+        <div class="level-card__header">
+          <div class="level-card__title">
+            <img src="assets/icons/icon/award.png" class="icon24" alt="level icon">
+            <div class="level-card__title-text">
+              <span class="level-card__title-main">{{ level.annotation }} {{ level.level }}</span>
+              <span class="level-card__title-secondary">
+                {{ countSubgroups(courseDates, level.id) }}g ·
+                {{ countBookingUsersForDegree(courseFormGroup.controls['booking_users']?.value, courseDates, level.id) }} /
+                {{ ((level.max_participants || courseFormGroup.controls['max_participants'].value || 0) * (countSubgroups(courseDates, level.id) || 1)) || 0 }}px
+              </span>
+            </div>
+          </div>
+          <div class="level-card__meta">
+            <div class="level-card__meta-item">
+              <img src="assets/icons/icon/calendar.png" class="icon16" alt="calendar">
+              <span>{{ courseDates.length || 0 }} {{ 'days' | translate }}</span>
+            </div>
+            <div class="level-card__meta-item" *ngIf="level.age_min !== undefined && level.age_max !== undefined">
+              <img src="assets/icons/icon/ticket.png" class="icon16" alt="age">
+              <span>{{ 'age' | translate }} {{ level.age_min }} / {{ level.age_max }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="subgroup-grid">
+          <ng-container *ngFor="let subgroup of asArray(getSubgroupsForDegreeCached(level.id)); let subgroupIndex = index">
+            <div class="subgroup-card" [class.current]="isDefaultSubgroup(subgroup)">
+              <div class="subgroup-card__body">
+                <div>
+                  <div class="subgroup-card__label">
+                    {{ level.annotation }} {{ level.level }} {{ subgroupIndex + 1 }}
+                  </div>
+                  <div class="subgroup-card__days">
+                    <span>{{ getCourseDatesForSubgroupIndex(courseDates, level.id, subgroupIndex)?.length || 0 }} {{ 'days' | translate }}</span>
+                  </div>
+                </div>
+                <div class="subgroup-card__capacity">
+                  <img src="assets/icons/icon/people.png" class="icon16" alt="people">
+                  <span>
+                    {{ getUniqueClientsCountForSubgroupIndex(courseFormGroup.controls['booking_users']?.value, courseDates, level.id, subgroupIndex) }} /
+                    {{ getSubgroupCapacity(courseDates, level.id, subgroupIndex, (subgroup?.max_participants || courseFormGroup.controls['max_participants'].value || 0)) }}
+                  </span>
+                </div>
+              </div>
+              <div class="subgroup-card__actions">
+                <button mat-raised-button color="primary" type="button"
+                        *ngIf="checkbox && !isDefaultSubgroup(subgroup)"
+                        (click)="changeMonitor.emit({ targetSubgroup: subgroup, dateIds: getSubgroupDateIds(level.id, subgroupIndex) }); $event.stopPropagation()"
+                        [disabled]="getUserInSubGroup(subgroup) >= getSubgroupCapacity(courseDates, level.id, subgroupIndex, (subgroup?.max_participants || courseFormGroup.controls['max_participants'].value || 0))">
+                  {{ 'add' | translate }}
+                </button>
+                <span class="current-label" *ngIf="isDefaultSubgroup(subgroup)">
+                  {{ 'courses.transfer.current_subgroup' | translate }}
+                </span>
+              </div>
+            </div>
+          </ng-container>
+          <div *ngIf="!asArray(getSubgroupsForDegreeCached(level.id)).length" class="empty-subgroups">
+            {{ 'text_nomonitorset' | translate }}
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</ng-container>

@@ -1,0 +1,41 @@
+<div class="dashboard">
+  <h1>Superadmin Dashboard</h1>
+
+  <div *ngIf="loading" class="loading">
+    <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
+  </div>
+
+  <div *ngIf="!loading && stats" class="cards">
+    <mat-card>
+      <div class="label">Total Schools</div>
+      <div class="value">{{ stats.school_count }}</div>
+    </mat-card>
+    <mat-card>
+      <div class="label">Active Schools</div>
+      <div class="value">{{ stats.active_school_count }}</div>
+    </mat-card>
+    <mat-card>
+      <div class="label">Admins</div>
+      <div class="value">{{ stats.admin_count }}</div>
+    </mat-card>
+    <mat-card>
+      <div class="label">Bookings</div>
+      <div class="value">{{ stats.total_bookings }}</div>
+    </mat-card>
+    <mat-card>
+      <div class="label">Revenue</div>
+      <div class="value">{{ stats.total_revenue | number:'1.0-0' }} CHF</div>
+    </mat-card>
+  </div>
+
+  <div *ngIf="stats?.monthly_bookings?.length" class="chart">
+    <h3>Monthly bookings</h3>
+    <div class="months">
+      <div class="month" *ngFor="let month of stats.monthly_bookings; trackBy: trackByMonth">
+        <div class="month-label">{{ month.month }}</div>
+        <div class="month-value">{{ month.total }}</div>
+        <div class="bar" [style.height.%]="Math.min(100, (month.total / (stats.total_bookings || 1)) * 100)"></div>
+      </div>
+    </div>
+  </div>
+</div>

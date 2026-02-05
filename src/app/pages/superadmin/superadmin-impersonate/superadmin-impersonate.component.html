@@ -1,0 +1,31 @@
+<div class="impersonate-page">
+  <h2>Impersonate school admin</h2>
+  <p>Generate an admin token that uses `admin:all` for safe impersonation.</p>
+
+  <form [formGroup]="form" (ngSubmit)="impersonate()" class="impersonate-form">
+    <mat-form-field appearance="fill">
+      <mat-label>School</mat-label>
+      <mat-select formControlName="school_id" (selectionChange)="onSchoolChange()">
+        <mat-option *ngFor="let school of schools" [value]="school.id">{{ school.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Admin user (optional)</mat-label>
+      <mat-select formControlName="user_id">
+        <mat-option value="">Auto</mat-option>
+        <mat-option *ngFor="let admin of admins" [value]="admin.id">
+          {{ admin.first_name }} {{ admin.last_name }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button mat-raised-button color="primary">Generate token</button>
+  </form>
+
+  <div *ngIf="token" class="token-area">
+    <label>Admin token (copy when needed)</label>
+    <textarea readonly>{{ token }}</textarea>
+    <button mat-stroked-button color="accent" (click)="token = null">Clear</button>
+  </div>
+</div>

@@ -7,7 +7,7 @@
     </button>
   </vex-secondary-toolbar>-->
 
-  <vex-secondary-toolbar current>
+  <vex-secondary-toolbar current *ngIf="!filterCourseId">
     <vex-breadcrumbs [crumbs]="[
     {icon2:'planificador'},
     {text:'timeline.timeline', title: true},
@@ -17,8 +17,12 @@
   <vex-page-layout-content class="-mt-6 fullwidth">
     <mat-spinner *ngIf="loading" style="margin: 0 auto"></mat-spinner>
     <div class="full-page-timeline"
-         [ngClass]="{'timeline-with-detail': showDetail || showBlock}"
+         [ngClass]="{'timeline-with-detail': showDetail || showBlock, 'timeline-embedded': filterCourseId}"
          *ngIf="!loading">
+      <div class="grouped-delete-loading" *ngIf="deletingGroupedBlocks">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>{{ 'timeline.deleting_grouped_blocks' | translate }}</span>
+      </div>
       <div class="header-navigation">
         <div class="header-navigation-flex">
           <div class="date-navigation">
@@ -157,8 +161,8 @@
         <div class="schedule-container"
              *ngIf="filteredMonitors && filteredMonitors.length && timelineView != 'month'">
           <div class="monitors-column">
-            <ng-container *ngFor="let monitor of filteredMonitors">
-              <div class="monitor">
+              <ng-container *ngFor="let monitor of filteredMonitors">
+                <div class="monitor" [ngClass]="{'monitor-disabled': isMonitorTemporarilyBlocked(monitor)}">
                 <ng-container *ngIf="monitor.id">
                   <div class="monitor-left">
 
@@ -239,18 +243,18 @@
                    *ngFor="let day of weekDays;let dayIndex = index">{{ day |
                 translate }} {{ getDayOfWeek(dayIndex) }}</div>
             </div>
-            <div class="hours-scroll">
+            <div class="hours-scroll" (scroll)="syncHoursScroll($event)">
               <div class="grid-container">
               <!-- aplicar sombreado -->
               <div class="grid-row"
                    *ngFor="let monitor of filteredMonitors;let monitorIndex = index"
                    [ngClass]="{'outside-month-day': !isDayVisibleDay() && timelineView == 'day', 'select-row': moveTask && monitor.id !== taskMoved.monitor_id,
-                        'bg-linear-no-match': moveTask && isMatch(monitor.id)}"
-                   (click)="moveMonitor(monitor,$event)">
+                        'bg-linear-no-match': moveTask && isMatch(monitor.id), 'monitor-disabled': isMonitorTemporarilyBlocked(monitor)}"
+                   (click)="moveTask && !isMonitorTemporarilyBlocked(monitor) && moveMonitor(monitor,$event)">
                 <ng-container *ngIf="timelineView == 'day'">
                   <div *ngFor="let hour of hoursRange;let last = last"
                        [ngClass]="{'grid-cell-last': last, 'grid-cell': !last}"
-                       (dblclick)="handleDbClickEvent('Clicked', $event, 'day', hour, monitor.id)">
+                       (dblclick)="!isMonitorTemporarilyBlocked(monitor) && handleDbClickEvent('Clicked', $event, 'day', hour, monitor.id)">
                     <div *ngIf="monitorIndex % 5 === 0  && monitorIndex !== 0"
                          class="hour-day-scroll">{{ hour }}</div>
                   </div>
@@ -261,7 +265,7 @@
                        [ngClass]="{'outside-month': !isDayVisibleWeek(dayIndex)}">
                     <div class="grid-cell-inside"
                          *ngFor="let hour of hoursRangeMinusLast"
-                         (dblclick)="handleDbClickEvent('Clicked', $event, 'week', dayIndex, monitor.id, hour)"></div>
+                         (dblclick)="!isMonitorTemporarilyBlocked(monitor) && handleDbClickEvent('Clicked', $event, 'week', dayIndex, monitor.id, hour)"></div>
                     <div *ngIf="monitorIndex % 5 === 0  && monitorIndex !== 0"
                          class="hour-day-scroll">{{ day }} {{
                         getDayOfWeek(dayIndex) }}</div>
@@ -273,14 +277,11 @@
               <ng-container *ngFor="let task of plannerTasks">
                 <!--DAY-->
                 <div *ngIf="timelineView == 'day'"
-                     (click)="task.block_id ? toggleBlock(task) : toggleDetail(task)"
+                     (click)="task.block_id ? toggleBlock(task, $event) : toggleDetail(task, $event)"
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ?
                      $event.preventDefault() : toggleDetailMove(task, $event)"
                      class="task-wrapper cursor-pointer" [ngClass]="[
-                                (task.booking_id && ((idDetail == task.booking_id &&
-                                hourDetail == task.hour_start && dateDetail == task.date
-                                 && monitorDetail == task.monitor_id ) || (idGroupedTasks == task.booking_id
-                                  && hourGrouped == task.hour_start && dateGrouped == task.date))) ?
+                                (isTaskHighlighted(task) || isGroupedTaskHighlighted(task)) ?
                                 (task.type === 'collective' ? 'task-selected-collective' : task.type === 'private' ? 'task-selected-private'
                                 : task.type === 'activity' ? 'task-selected-activity' : '') : '',
                                 task.class,
@@ -298,16 +299,25 @@
                         *ngIf="task.type === 'block_no_payed'">BNP&nbsp;</ng-container>
                       {{ task.name }}
                     </div>
-                    <div *ngIf="task.type === 'collective'">{{ task.name
-                      }}</div>
+                    <div *ngIf="task.type === 'collective'">{{ task.name }}
+                      <span *ngIf="task.interval_name" class="interval-badge"
+                            [style.background-color]="task.interval_color || '#6b7280'"
+                            [title]="task.interval_name">{{ task.interval_name }}</span>
+                      </div>
                     <div
                       *ngIf="(task.type === 'private' || task.type === 'activity')">{{
                         task.all_clients[0].client.first_name}} {{
-                        task.all_clients[0].client.last_name}}</div>
+                        task.all_clients[0].client.last_name}}
+                      <span *ngIf="task.interval_name" class="interval-badge"
+                            [style.background-color]="task.interval_color || '#6b7280'"
+                            [title]="task.interval_name">{{ task.interval_name }}</span>
+                    </div>
                     <div
                       *ngIf="(task.type === 'private' || task.type === 'activity')">{{getLanguageById(task.all_clients[0].client.language1_id)}}
-                      ·{{getBirthYears(task.all_clients[0].client.birth_date)}}
-                      {{'years' |translate}}</div>
+                      <ng-container *ngIf="getBirthYears(task.all_clients[0].client.birth_date) as years">
+                        - {{years}} {{'years' |translate}}
+                      </ng-container>
+                    </div>
                   </div>
                   <div
                     *ngIf="task.type=='collective' || task.type=='private' || task.type=='activity'"
@@ -350,12 +360,10 @@
                 </div>
                 <!--WEEK-->
                 <div *ngIf="timelineView == 'week'"
-                     (click)="task.block_id ? toggleBlock(task) : toggleDetail(task)"
+                     (click)="task.block_id ? toggleBlock(task, $event) : toggleDetail(task, $event)"
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ? $event.preventDefault() : toggleDetailMove(task, $event)"
                      class="task-wrapper-week cursor-pointer" [ngClass]="[
-                                (task.booking_id && ((idDetail == task.booking_id && hourDetail == task.hour_start
-                                && dateDetail == task.date && monitorDetail == task.monitor_id )
-                                || (idGroupedTasks == task.booking_id && hourGrouped == task.hour_start && dateGrouped == task.date))) ?
+                                (isTaskHighlighted(task) || isGroupedTaskHighlighted(task)) ?
                                  (task.type === 'collective' ? 'task-selected-collective' : task.type === 'private' ? 'task-selected-private'
                                 : task.type === 'activity' ? 'task-selected-activity' : '') : '',
                                 task.class,
@@ -372,6 +380,9 @@
                       *ngIf="!task.grouped_tasks || !(task.grouped_tasks.length > 1)">
                       <div class="task-block-level-week" *ngIf="task.degree"
                            [ngStyle]="{'background': task.degree.color}">{{task.degree.annotation}}
+                      <div *ngIf="task.interval_name" class="task-block-level-week"
+                           [ngStyle]="{'background': task.interval_color || '#6b7280'}">
+                        {{task.interval_name}}</div>
                         {{task.subgroup_number}}</div>
                       <div *ngIf="task.type=='collective'"
                            class="task-block-people-week">{{task.clients_number}}/{{task.max_participants}}</div>
@@ -414,7 +425,7 @@
               <ng-container
                 *ngFor="let week of weeksInMonth; let weekIndex = index">
                 <div class="monitor"
-                     [ngClass]="{'big-border': weekIndex === 0 && monitorIndex !== 0}">
+                     [ngClass]="{'big-border': weekIndex === 0 && monitorIndex !== 0, 'monitor-disabled': isMonitorTemporarilyBlocked(monitor)}">
                   <ng-container *ngIf="weekIndex === 0">
                     <ng-container *ngIf="monitor.id">
                       <div class="monitor-left">
@@ -495,7 +506,7 @@
               <div class="hours-row">
                 <div class="day" *ngFor="let day of weekDays">{{ day }}</div>
               </div>
-              <div class="hours-scroll">
+              <div class="hours-scroll" (scroll)="syncHoursScroll($event)">
                 <div class="grid-container">
               <ng-container
                 *ngFor="let monitor of filteredMonitors; let monitorIndex = index">
@@ -528,12 +539,10 @@
                 <ng-container *ngFor="let task of plannerTasks">
                 <!--MONTH-->
                 <div class="task-wrapper-week cursor-pointer"
-                     (click)="task.block_id ? toggleBlock(task) : toggleDetail(task)"
+                     (click)="task.block_id ? toggleBlock(task, $event) : toggleDetail(task, $event)"
                      (contextmenu)="task.grouped_tasks && task.grouped_tasks.length > 1 ? $event.preventDefault() : toggleDetailMove(task, $event)"
                      [ngClass]="[
-                                (task.booking_id && ((idDetail == task.booking_id && hourDetail == task.hour_start
-                                && dateDetail == task.date && monitorDetail == task.monitor_id )
-                                || (idGroupedTasks == task.booking_id && hourGrouped == task.hour_start && dateGrouped == task.date))) ?
+                                (isTaskHighlighted(task) || isGroupedTaskHighlighted(task)) ?
                                  (task.type === 'collective' ? 'task-selected-collective' : task.type === 'private' ? 'task-selected-private'
                                 : task.type === 'activity' ? 'task-selected-activity' : '') : '',
                                 task.class,
@@ -591,10 +600,10 @@
           <mat-icon class="cursor-pointer" svgIcon="mat:close"
                     (click)="hideGrouped()"></mat-icon>
         </div>
-        <div *ngFor="let task of groupedTasks" (click)="toggleDetail(task)"
+        <div *ngFor="let task of groupedTasks" (click)="toggleDetail(task, $event)"
              class="modal-grouped-task-wrapper cursor-pointer"
              (contextmenu)="toggleDetailMove(task, $event)" [ngClass]="[
-                    (task.booking_id && (idDetail == task.booking_id && hourDetail == task.hour_start && dateDetail == task.date && monitorDetail == task.monitor_id && subgroupDetail == task.course_subgroup_id)) ?
+                    isTaskHighlighted(task) ?
                       (task.type === 'collective' ? 'task-selected-collective' : task.type === 'private' ? 'task-selected-private'
                                 : task.type === 'activity' ? 'task-selected-activity' : '') : '',
                     task.class
@@ -666,17 +675,18 @@
 
         <mat-card-content>
           <div class="title-status"
+               *ngIf="taskDetail.type !== 'collective'"
                style="background-color: var(--color-grey5); ">
             <span class="col-left">
               <b>{{ 'status' | translate}}:</b>
             </span>
             <span class="col-right">
-              <div *ngIf="taskDetail.type == 'private'"><span
-                [style.color]="taskDetail?.paid ? '#66E055' : '#DFDB32'">
+                <div *ngIf="taskDetail.type == 'private'"><span
+                 [style.color]="taskDetail?.paid ? '#66E055' : '#F44336'">
                   {{(taskDetail.paid ? 'payed' : 'no_paid') | translate
                 }}</span></div>
-              <div *ngIf="taskDetail.type == 'activity'"><span
-                [style.color]="taskDetail?.paid ? '#66E055' : '#DFDB32'">
+                <div *ngIf="taskDetail.type == 'activity'"><span
+                 [style.color]="taskDetail?.paid ? '#66E055' : '#F44336'">
                   {{(taskDetail?.paid ? 'payed' : 'no_paid') | translate
                 }}</span></div>
             </span>
@@ -684,28 +694,28 @@
           <!-- Attendance Status for Private Course -->
           <div *ngIf="taskDetail.type == 'private'" class="title-status">
             <span class="col-left">
-              <b>{{ 'attendance' | translate}}:</b>
+              <b>{{ 'attendance_label' | translate}}:</b>
             </span>
             <span class="col-right">
               <div style="display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
                 <mat-icon *ngIf="taskDetail.attended" style="color: #4CAF50; font-size: 18px;" svgIcon="mat:check_circle"></mat-icon>
                 <mat-icon *ngIf="taskDetail.attended === false" style="color: #F44336; font-size: 18px;" svgIcon="mat:cancel"></mat-icon>
                 <mat-icon *ngIf="taskDetail.attended === null" style="color: #FF9800; font-size: 18px;" svgIcon="mat:help_outline"></mat-icon>
-                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attended' | translate) : taskDetail.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attendance.attended' | translate) : taskDetail.attended === false ? ('attendance.not_attended' | translate) : ('attendance.unmarked' | translate) }}</span>
               </div>
             </span>
           </div>
           <!-- Attendance Status for Activity Course -->
           <div *ngIf="taskDetail.type == 'activity'" class="title-status">
             <span class="col-left">
-              <b>{{ 'attendance' | translate}}:</b>
+              <b>{{ 'attendance_label' | translate}}:</b>
             </span>
             <span class="col-right">
               <div style="display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
                 <mat-icon *ngIf="taskDetail.attended" style="color: #4CAF50; font-size: 18px;" svgIcon="mat:check_circle"></mat-icon>
                 <mat-icon *ngIf="taskDetail.attended === false" style="color: #F44336; font-size: 18px;" svgIcon="mat:cancel"></mat-icon>
                 <mat-icon *ngIf="taskDetail.attended === null" style="color: #FF9800; font-size: 18px;" svgIcon="mat:help_outline"></mat-icon>
-                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attended' | translate) : taskDetail.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+                <span style="font-size: 14px; font-weight: 500;">{{ taskDetail.attended === true ? ('attendance.attended' | translate) : taskDetail.attended === false ? ('attendance.not_attended' | translate) : ('attendance.unmarked' | translate) }}</span>
               </div>
             </span>
           </div>
@@ -771,6 +781,22 @@
             </div>
           </ng-container>
 
+          <div *ngIf="taskDetail.meeting_point || taskDetail.meeting_point_address || taskDetail.meeting_point_instructions"
+               class="box-detail-box box-background-grey" style="margin: 0 24px 12px 24px; padding: 12px;">
+            <div style="font-weight: 600;">
+              {{ 'meeting_point' | translate }}
+            </div>
+            <div *ngIf="taskDetail.meeting_point" style="margin-top: 6px;">
+              {{ taskDetail.meeting_point }}
+            </div>
+            <div *ngIf="taskDetail.meeting_point_address">
+              {{ taskDetail.meeting_point_address }}
+            </div>
+            <div *ngIf="taskDetail.meeting_point_instructions" style="font-size: 13px; color: #575555; margin-top: 6px;">
+              {{ taskDetail.meeting_point_instructions }}
+            </div>
+          </div>
+
           <div style="padding:10px 35px;"><mat-divider
             style="border-color:transparent;"></mat-divider></div>
 
@@ -787,7 +813,7 @@
             </div>
             <div class="box-detail-box box-background-grey">
               <img
-                src="https://school.boukii.com/assets/icons/icons-outline-profile-2-user-white.svg"
+                  src="assets/img/icons/cuentagrupo.svg"
                 style="width:24px;" />
               <div>{{'groups' |translate}}</div>
               <div class="font-bold">{{taskDetail.total_subgroups}}</div>
@@ -848,8 +874,7 @@
                           {{getLanguageById(client.client.language3_id)}} ·
                         </ng-container>
                         {{getCountryById(client.client.country)}} ·
-                        {{getBirthYears(client.client.birth_date)}} {{'years'
-                        |translate}}
+                        <ng-container *ngIf="getBirthYears(client.client.birth_date) as years">{{years}} {{'years' | translate }}</ng-container>
                       </div>
                       <div style="display: flex;">
                         <vex-icon src="chat">
@@ -923,8 +948,7 @@
                       {{getLanguageById(client.client.language3_id)}} ·
                     </ng-container>
                     {{getCountryById(client.client.country)}} ·
-                    {{getBirthYears(client.client.birth_date)}} {{'years'
-                    |translate}}
+                        <ng-container *ngIf="getBirthYears(client.client.birth_date) as years">{{years}} {{'years' | translate }}</ng-container>
                   </span>
                   <div style="display: flex;">
                     <vex-icon src="chat">
@@ -987,8 +1011,10 @@
                         {{getLanguageById(taskDetail.monitor.language1_id)}} ·
                       </ng-container>
                       {{getCountryById(taskDetail.monitor.country)}} ·
-                      {{getBirthYears(taskDetail.monitor.birth_date)}} {{'years'
-                      | translate }}
+                      <ng-container *ngIf="getBirthYears(resolveBirthDate(taskDetail.monitor)) as years; else monitorAgeUnknown">
+                        {{years}} {{'years' | translate }}
+                      </ng-container>
+                      <ng-template #monitorAgeUnknown>N/D</ng-template>
                     </div>
                     <div style="display: flex;">
                       <vex-icon src="chat">
@@ -1022,70 +1048,118 @@
                   translate}}</mat-card-title>
               </div>
               <div class="monitor-bulk-controls" *ngIf="monitorAssignmentDates.length">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>{{'monitor_assignment.scope_label' | translate}}</mat-label>
-                  <mat-select [(ngModel)]="monitorAssignmentScope"
-                              (selectionChange)="onMonitorAssignmentScopeChange($event.value)">
-                    <mat-option value="single">
-                      {{'monitor_assignment.scope.single' | translate}}
-                    </mat-option>
-                    <mat-option value="from" *ngIf="monitorAssignmentDates.length > 1">
-                      {{'monitor_assignment.scope.from' | translate}}
-                    </mat-option>
-                    <mat-option value="range" *ngIf="monitorAssignmentDates.length > 1">
-                      {{'monitor_assignment.scope.range' | translate}}
-                    </mat-option>
-                  </mat-select>
+                  <div class="assignment-inline" *ngIf="taskDetail?.course?.course_type === 1 || taskDetail?.course?.course_type === 2">
+                    <mat-form-field appearance="outline" class="mini-select">
+                      <mat-label>{{'monitor_assignment.scope_label' | translate}}</mat-label>
+                      <mat-select [(ngModel)]="monitorAssignmentScope"
+                                  (selectionChange)="onMonitorAssignmentScopeChange($event.value)">
+                        <mat-option value="single">
+                          {{ 'monitor_assignment.scope.single' | translate }}
+                        </mat-option>
+                        <mat-option value="interval" *ngIf="hasMultipleIntervals()">
+                          {{ 'monitor_assignment.scope.interval' | translate }}
+                        </mat-option>
+                        <mat-option value="all" *ngIf="monitorAssignmentDates.length > 1">
+                          {{ 'monitor_assignment.scope.all' | translate }}
+                        </mat-option>
+                        <mat-option value="from" *ngIf="monitorAssignmentDates.length > 1">
+                          {{ 'monitor_assignment.scope.from' | translate }}
+                        </mat-option>
+                        <mat-option value="range" *ngIf="monitorAssignmentDates.length > 1">
+                          {{ 'monitor_assignment.scope.range' | translate }}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="mini-select"
+                                    *ngIf="monitorAssignmentScope !== 'single'">
+                      <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
+                      <mat-select [(ngModel)]="monitorAssignmentStartDate"
+                                  (selectionChange)="onMonitorAssignmentStartChange($event.value)">
+                        <mat-option *ngFor="let option of monitorAssignmentDates"
+                                    [value]="option.value">
+                          {{ option.label }}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="mini-select"
+                                    *ngIf="monitorAssignmentScope === 'range'">
+                      <mat-label>{{'monitor_assignment.end_date' | translate}}</mat-label>
+                      <mat-select [(ngModel)]="monitorAssignmentEndDate"
+                                  (selectionChange)="onMonitorAssignmentEndChange($event.value)">
+                        <mat-option *ngFor="let option of monitorAssignmentDates"
+                                    [value]="option.value">
+                          {{ option.label }}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+            <span class="days-info" *ngIf="monitorAssignmentScope !== 'single'">
+              ({{ getSelectedAssignmentSessionCount() }} {{'days' | translate}})
+            </span>
+          </div>
+        </div>
+          <div class="text-caption" *ngIf="!loadingMonitors && monitorSearchHint">
+            {{ monitorSearchHint }}
+          </div>
+      <mat-form-field appearance="outline" class="flex-auto monitor-select-field"
+                      style="width: 100%;" *ngIf="!loadingMonitors">
+        <mat-select placeholder="{{'new_monitor' | translate}}"
+                    [(ngModel)]="editedMonitor"
+                    (selectionChange)="onMonitorSelected($event.value)">
+            <mat-option *ngIf="taskDetail.monitor_id"
+                        [value]="nullMonitor">
+              {{'no_monitor_choose' | translate}}
+            </mat-option>
+            <mat-option class="monitor-search-option" disabled>
+                <mat-form-field appearance="outline" class="monitor-select-search" (click)="$event.stopPropagation()">
+                  <mat-icon matPrefix>search</mat-icon>
+                  <input matInput
+                         type="text"
+                         [value]="monitorSearchTerm"
+                         (input)="onMonitorSearchInput($event)"
+                         placeholder="{{'search' | translate}}">
                 </mat-form-field>
-                <div class="bulk-date-row"
-                     *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentDates.length > 1">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
-                    <mat-select [(ngModel)]="monitorAssignmentStartDate"
-                                (selectionChange)="onMonitorAssignmentStartChange($event.value)">
-                      <mat-option *ngFor="let option of monitorAssignmentDates"
-                                  [value]="option.value">
-                        {{ option.label }}
-                      </mat-option>
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="flex-auto"
-                                  *ngIf="monitorAssignmentScope === 'range'">
-                    <mat-label>{{'monitor_assignment.end_date' | translate}}</mat-label>
-                    <mat-select [(ngModel)]="monitorAssignmentEndDate"
-                                (selectionChange)="onMonitorAssignmentEndChange($event.value)">
-                      <mat-option *ngFor="let option of monitorAssignmentDates"
-                                  [value]="option.value">
-                        {{ option.label }}
-                      </mat-option>
-                    </mat-select>
-                  </mat-form-field>
+          </mat-option>
+          <ng-container *ngFor="let monitor of filteredMonitorOptions">
+            <mat-option *ngIf="monitor.id != taskDetail.monitor_id"
+                        [value]="monitor"
+                        [disabled]="isMonitorTemporarilyBlocked(monitor)">
+              <div class="flex items-center justify-between gap-2 monitor-select-option">
+                <div class="flex flex-column gap-1">
+                  <span>{{ monitor.first_name }} {{ monitor.last_name }}</span>
+                  <span class="text-caption"
+                        *ngIf="monitor.language1_id || monitor.language2_id || monitor.language3_id">
+                    {{ monitor.language1_id ? getLanguageById(monitor.language1_id) : '' }}
+                    <ng-container *ngIf="monitor.language2_id">
+                      &nbsp;&ndash;&nbsp;{{ getLanguageById(monitor.language2_id) }}
+                    </ng-container>
+                    <ng-container *ngIf="monitor.language3_id">
+                      &nbsp;&ndash;&nbsp;{{ getLanguageById(monitor.language3_id) }}
+                    </ng-container>
+                  </span>
+                  <span class="text-caption text-warn" *ngIf="monitor.__busyMessage">
+                    {{ monitor.__busyMessage }}
+                  </span>
+                  <span class="text-caption text-warn" *ngIf="monitor.__sportMismatchMessage">
+                    {{ monitor.__sportMismatchMessage }}
+                  </span>
                 </div>
-                <div class="bulk-selection-summary" *ngIf="monitorAssignmentScope !== 'single'">
-                  {{ getSelectedAssignmentSessionCount() }} {{'days' | translate}}
-                </div>
+                <span class="text-caption text-warn" *ngIf="hasApiAvailability && !isMonitorFromApiList(monitor)">
+                  {{ 'monitor_assignment.override_warning' | translate }}
+                </span>
               </div>
-              <mat-form-field appearance="outline" class="flex-auto"
-                              style="width: 100%;" *ngIf="!loadingMonitors">
-                <mat-select placeholder="{{'new_monitor' | translate}}"
-                            [(ngModel)]="editedMonitor">
-                  <mat-option *ngIf="taskDetail.monitor_id"
-                              [value]="nullMonitor">
-                    {{'no_monitor_choose' | translate}}
-                  </mat-option>
-                  <ng-container *ngFor="let monitor of monitorsForm">
-                    <mat-option *ngIf="monitor.id != taskDetail.monitor_id"
-                                [value]="monitor">
-                      {{ monitor.first_name }} {{ monitor.last_name }}
-                    </mat-option>
-                  </ng-container>
-                </mat-select>
-              </mat-form-field>
+            </mat-option>
+          </ng-container>
+        </mat-select>
+      </mat-form-field>
+          <div class="text-caption"
+               *ngIf="!loadingMonitors && filteredMonitorOptions.length === 0">
+            No hay monitores compatibles para este horario, deporte/nivel o idioma. Revisa deportes/grados autorizados, idiomas y bloqueos en calendario.
+          </div>
 
-              <div class="actions flex items-center justify-end gap-2">
-                <button (click)="hideEditMonitor()" mat-button
-                        type="button">{{'cancel' | translate}}</button>
-                <button (click)="saveEditedMonitor()"
+          <div class="actions flex items-center justify-end gap-2">
+            <button (click)="hideEditMonitor()" mat-button
+                    type="button">{{'cancel' | translate}}</button>
+            <button (click)="saveEditedMonitor()"
                         [disabled]="!editedMonitor" color="primary" mat-raised-button
                         matStepperNext>
                   {{'save' | translate}}
@@ -1134,8 +1208,7 @@
                           {{getLanguageById(client.client.language3_id)}} ·
                         </ng-container>
                         {{getCountryById(client.client.country)}} ·
-                        {{getBirthYears(client.client.birth_date)}} {{'years'
-                        |translate}}
+                        <ng-container *ngIf="getBirthYears(client.client.birth_date) as years">{{years}} {{'years' | translate }}</ng-container>
                       </div>
                       <div style="display: flex;">
                         <vex-icon src="chat">
@@ -1152,23 +1225,38 @@
                           title="{{client.client.phone}}">
                         </vex-icon>
                       </div>
-                      <div>
-                        <span style="float:left;cursor:pointer"
-                              (click)="detailBooking(client.booking_id)"><img
-                          src="../assets/img/icons/reservas-2.svg" /></span>
-                        <span
-                          style="float:right; text-align: right;line-height: 32px;"
-                          [style.color]="taskDetail?.paid ? '#66E055' : '#DFDB32'">
-                          {{(client.booking?.paid ? 'payed' : 'no_paid') |
-                          translate }}</span>
-                      </div>
-                      <!-- Attendance Status for Collective Course Client -->
-                      <div style="width: 100%; margin-top: 8px; clear: both;">
-                        <div style="display: flex; align-items: center; gap: 5px;">
-                          <mat-icon *ngIf="client.attended" style="color: #4CAF50; font-size: 16px;" svgIcon="mat:check_circle"></mat-icon>
-                          <mat-icon *ngIf="client.attended === false" style="color: #F44336; font-size: 16px;" svgIcon="mat:cancel"></mat-icon>
-                          <mat-icon *ngIf="client.attended === null" style="color: #FF9800; font-size: 16px;" svgIcon="mat:help_outline"></mat-icon>
-                          <span style="font-size: 12px; font-weight: 500;">{{ client.attended === true ? ('attended' | translate) : client.attended === false ? ('not_attended' | translate) : ('not_marked' | translate) }}</span>
+                      <div class="participant-meta">
+                        <div class="meta-left">
+                          <span class="booking-link" (click)="detailBooking(client.booking_id)">
+                            <img src="../assets/img/icons/reservas-2.svg" />
+                          </span>
+                        </div>
+                        <div class="meta-item">
+                          <div class="meta-label">{{ 'payment' | translate }}</div>
+                          <div
+                            class="meta-value"
+                            [ngClass]="client.booking?.paid ? 'meta-value--paid' : 'meta-value--unpaid'">
+                            {{ (client.booking?.paid ? 'payed' : 'no_paid') | translate }}
+                          </div>
+                        </div>
+                        <div class="meta-item meta-item--attendance">
+                          <div class="meta-label">{{ 'attendance_label' | translate }}</div>
+                          <div class="attendance-toggle">
+                            <mat-checkbox
+                              [checked]="isAttendedClient(client)"
+                              (change)="onAttendanceToggleClient(client, $event.checked)"
+                              color="primary">
+                            </mat-checkbox>
+                            <span
+                              class="meta-value"
+                              [ngClass]="client.attended === true ? 'meta-value--attended' : client.attended === false ? 'meta-value--absent' : 'meta-value--unmarked'">
+                              {{ client.attended === true
+                                ? ('attendance.attended' | translate)
+                                : client.attended === false
+                                  ? ('attendance.not_attended' | translate)
+                                  : ('attendance.unmarked' | translate) }}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1197,6 +1285,9 @@
               style="float: right;display: flex;gap: 6px;align-items: center;">
               <mat-icon (click)="openEditBlock()" class="cursor-pointer"
                         svgIcon="mat:edit"></mat-icon>
+              <mat-icon *ngIf="getGroupedBlockIds().length > 1" (click)="deleteGroupedBlock()"
+                        class="cursor-pointer" [matTooltip]="'delete_grouped_block' | translate"
+                        svgIcon="mat:delete_sweep"></mat-icon>
               <mat-icon (click)="deleteEditedBlock()" class="cursor-pointer"
                         svgIcon="mat:delete"></mat-icon>
             </div>
@@ -1358,8 +1449,10 @@
                     {{getLanguageById(blockDetail.monitor.language1_id)}} ·
                   </ng-container>
                   {{getCountryById(blockDetail.monitor.country)}} ·
-                  {{getBirthYears(blockDetail.monitor.birth_date)}}
-                  &ensp;{{'years' | translate}}
+                  <ng-container *ngIf="getBirthYears(resolveBirthDate(blockDetail.monitor)) as years; else blockMonitorAgeUnknown">
+                    {{years}} &ensp;{{'years' | translate}}
+                  </ng-container>
+                  <ng-template #blockMonitorAgeUnknown>N/D</ng-template>
 
                 </span>
               </div>
@@ -1388,3 +1481,6 @@
   </vex-page-layout-content>
 
 </vex-page-layout>
+
+
+

@@ -2,8 +2,26 @@
   width: 100%;
   position: relative;
 }
+
+.grouped-delete-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  color: #1f2937;
+  font-weight: 600;
+}
 .timeline-with-detail {
   width: calc(100% - 450px) !important;
+}
+
+.timeline-embedded .header-navigation {
+  top: 0;
 }
 .warning-icon-container {
   position: absolute;
@@ -158,6 +176,11 @@
   font-size: 9px;
   color: #666;
 }
+
+.monitor-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
 .day-start-week {
   position: absolute;
   top: 0px;
@@ -174,6 +197,19 @@
   font-size: 10px;
   font-weight: 500;
 }
+/* timeline.component.scss */
+.col-right, .box-detail-timeline {
+  overflow: visible;   // evita que el select quede “cortado”
+}
+
+.box-detail-timeline .mat-form-field {
+  width: 100%;         // que el select use todo el ancho
+}
+.box-detail-timeline { overflow: visible; }
+.box-detail-timeline .mat-form-field { width: 100%; }
+
+/* eleva el overlay del mat-select para que no lo tape el panel */
+.cdk-overlay-container .monitor-scope-panel { z-index: 2000; min-width: 320px; }
 .hours-container {
   flex-grow: 1;
   overflow-x: auto;
@@ -185,6 +221,8 @@
 }
 .hours-row {
   display: flex;
+  overflow-x: hidden; /* Evita doble scrollbar */
+  scroll-behavior: smooth; /* Transicion suave */
 }
 .hour {
   color: var(--is-light-theme, #121212) var(--is-dark-theme, #dee6ea);
@@ -390,6 +428,151 @@
   width: fit-content;
   background: var(--color-dark2);
   border-radius: 4px;
+}
+
+.monitor-bulk-controls {
+  margin-top: 16px;
+}
+
+.monitor-assignment-compact {
+  margin-bottom: 10px;
+
+  .assignment-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .assignment-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-dark2);
+      white-space: nowrap;
+    }
+
+    .mini-select {
+      min-width: 120px;
+      max-width: 160px;
+
+      ::ng-deep {
+        .mat-mdc-form-field-wrapper {
+          padding-bottom: 0;
+          margin-bottom: 0;
+        }
+
+        .mat-mdc-text-field-wrapper {
+          height: 36px;
+        }
+
+        .mat-mdc-form-field-infix {
+          min-height: 36px;
+          padding-top: 6px;
+          padding-bottom: 6px;
+        }
+
+        .mat-mdc-select {
+          font-size: 13px;
+        }
+
+        .mat-mdc-form-field-subscript-wrapper {
+          display: none;
+        }
+
+        .mdc-notched-outline__leading,
+        .mdc-notched-outline__notch,
+        .mdc-notched-outline__trailing {
+          border-color: rgba(0, 0, 0, 0.12);
+        }
+
+        .mat-mdc-option {
+          font-size: 13px;
+          min-height: 40px;
+        }
+      }
+    }
+
+    .days-info {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-dark2);
+      white-space: nowrap;
+    }
+  }
+}
+
+.monitor-search-option {
+  pointer-events: none;
+  margin-top: 4px;
+  margin-bottom: 10px;
+  background: #f7f7fb;
+  border-radius: 14px;
+  padding: 6px 10px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .monitor-select-search {
+    width: 100%;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+
+    ::ng-deep {
+      .mat-mdc-text-field-wrapper {
+        padding: 0;
+      }
+
+      .mat-mdc-form-field-flex {
+        padding: 0;
+        align-items: center;
+      }
+
+      .mat-mdc-form-field-infix {
+        padding: 8px 0;
+        min-height: unset;
+        border: 0;
+      }
+
+      .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+      }
+
+      .mdc-notched-outline {
+        display: none;
+      }
+    }
+  }
+
+  mat-icon {
+    color: #c7c9cf;
+    margin-right: 6px;
+    pointer-events: all;
+  }
+
+  input.mat-mdc-input-element {
+    padding: 10px 0;
+    font-size: 14px;
+    color: #2b2f3a;
+    pointer-events: all;
+  }
+}
+
+.monitor-select-search .mat-mdc-form-field-flex {
+  padding: 0;
+  align-items: center;
+}
+
+.monitor-bulk-controls .mat-mdc-select-value {
+  padding-left: 20px;
+}
+
+.monitor-bulk-controls mat-select .mat-mdc-select-value {
+  margin-left: 6px;
+}
+
+.monitor-bulk-controls .mat-mdc-form-field-infix {
+  padding-left: 20px;
 }
 
 .outside-month {
@@ -1018,6 +1201,69 @@
   }
 }
 
+.participant-meta {
+  align-items: flex-end;
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.participant-meta .meta-left {
+  display: flex;
+  align-items: center;
+}
+
+.participant-meta .booking-link {
+  cursor: pointer;
+  display: inline-flex;
+  line-height: 0;
+}
+
+.participant-meta .meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+  text-align: right;
+}
+
+.participant-meta .meta-item--attendance {
+  min-width: 150px;
+}
+
+.participant-meta .attendance-toggle {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.participant-meta .meta-label {
+  color: #8b8b8b;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.participant-meta .meta-value {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.participant-meta .meta-value--paid,
+.participant-meta .meta-value--attended {
+  color: #2e7d32;
+}
+
+.participant-meta .meta-value--unpaid,
+.participant-meta .meta-value--absent {
+  color: #d32f2f;
+}
+
+.participant-meta .meta-value--unmarked {
+  color: #f57c00;
+}
+
 .label-user {
   display: inline-block;
   width: max-content;
@@ -1062,7 +1308,6 @@
 }
 
 .monitor-bulk-controls {
-  display: flex;
   flex-direction: column;
   gap: 12px;
   margin-bottom: 16px;
@@ -1080,3 +1325,49 @@
   color: var(--color-dark2);
 }
 
+
+// Interval badge in task cards (day view)
+.interval-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  margin-left: 4px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 60px;
+  vertical-align: middle;
+}
+
+// Interval badge in detail panel
+.interval-badge-detail {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+
+.monitor-bulk-controls mat-select .mat-mdc-select-value-text {
+  margin-left: 8px;
+}
+
+.monitor-select-field {
+  ::ng-deep {
+    .mat-mdc-form-field-infix {
+      padding-left: 12px;
+    }
+
+    .mat-mdc-select {
+      padding-left: 8px;
+    }
+
+    .mat-mdc-select-value {
+      padding-left: 8px;
+    }
+  }
+}

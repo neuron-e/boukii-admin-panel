@@ -1,4 +1,4 @@
-﻿import {ChangeDetectorRef, Component, Inject, Optional, OnInit, OnDestroy} from '@angular/core';
+import {ChangeDetectorRef, Component, Inject, Optional, OnInit, OnDestroy} from '@angular/core';
 import {TranslateService} from '@ngx-translate/core';
 import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {BookingDialogComponent} from './components/booking-dialog/booking-dialog.component';
@@ -13,6 +13,15 @@ import { SchoolService } from 'src/service/school.service';
 import { BookingPersistenceService } from 'src/app/services/booking-persistence.service';
 import { Subscription } from 'rxjs';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
+import {
+  applyFlexibleDiscount as applyFlexibleDiscountUtil,
+  buildDiscountInfoList as buildDiscountInfoListUtil,
+  getApplicableDiscounts as getApplicableDiscountsUtil,
+  getAppliedDiscountInfo as getAppliedDiscountInfoUtil,
+  getIntervalDiscounts as getIntervalDiscountsUtil,
+  parseFlexibleDiscounts as parseFlexibleDiscountRules,
+  resolveIntervalName
+} from 'src/app/pages/bookings-v2/shared/discount-utils';
 
 @Component({
   selector: "bookings-create-update-v2",
@@ -45,12 +54,14 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   selectedIndexForm = null;
   selectedForm: FormGroup;
   payModal: boolean = false;
+  isEditMode: boolean = false;
   paymentMethod: number = 1; // Valor por defecto (directo)
   step: number = 1;  // Paso inicial
   selectedPaymentOptionId: PaymentMethodId | null = null;
   selectedPaymentOptionLabel: string = '';
   isPaid = false;
   isConfirmingPayment = false;
+  isSubmitting = false;
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
 
@@ -78,7 +89,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     }
 
     if (id === 3) {
-      return this.translateService.instant('payment_paylink');
+      return this.translateService.instant('send_payment_link');
+    }
+
+    if (id === 4) {
+      return this.translateService.instant('payment_card_external');
     }
 
     const method = this.paymentMethods.find(m => m.id === id);
@@ -92,11 +107,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   private getGatewayLabel(): string {
     const provider = (this.schoolService.getPaymentProvider() || '').toLowerCase();
     if (provider === 'payyo') {
-      return this.translateService.instant('payment_payyo');
+      return this.translateService.instant('payment_terminal_open', { provider: 'Payyo' });
     }
 
     const providerName = provider ? this.formatProviderName(provider) : 'Boukii Pay';
-    return this.translateService.instant('payment_gateway', { provider: providerName });
+    return this.translateService.instant('payment_terminal_open', { provider: providerName });
   }
 
   private formatProviderName(value: string): string {
@@ -123,6 +138,49 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     return this.selectedPaymentOptionId ?? 1;
   }
 
+  private ensureCreateRouteState(): void {
+    const currentUrl = this.router?.url ?? '';
+    if (currentUrl.includes('/bookings/create')) {
+      this.bookingService.resetBookingData();
+    }
+  }
+
+  private detectEditMode(): boolean {
+    const currentUrl = this.router?.url ?? '';
+    if (currentUrl.includes('/bookings/create')) {
+      return false;
+    }
+
+    if (this.externalData?.booking?.id) {
+      return true;
+    }
+
+    if (currentUrl.includes('/bookings/edit')) {
+      return true;
+    }
+
+    const existingData: any = this.bookingService.getBookingData();
+    return !!existingData?.id;
+  }
+
+  getPrimaryCtaKey(): string {
+    const methodId = this.determinePaymentMethodId();
+
+    if (methodId === 2) {
+      return 'end_reserve_pay';
+    }
+
+    if (methodId === 3) {
+      return 'send_payment_link';
+    }
+
+    if (methodId === 5) {
+      return 'confirm_without_payment_action';
+    }
+
+    return 'end_booking';
+  }
+
   constructor(
     public translateService: TranslateService,
     public dialog: MatDialog,
@@ -145,6 +203,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       this.selectedPaymentOptionId = this.paymentOptions[0].id;
       this.selectedPaymentOptionLabel = this.paymentOptions[0].label;
     }
+    this.ensureCreateRouteState();
+    this.isEditMode = this.detectEditMode();
 
     // MEJORA CRÃTICA: Inicializar sistema de persistencia
     this.initializePersistence();
@@ -156,7 +216,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     // MEJORA CRÍTICA: Verificar integridad de datos al iniciar
     const integrity = this.bookingService.validateBookingDataIntegrity();
     if (!integrity.isValid) {
-      console.warn('⚠️ Datos problemáticos detectados al inicializar:', integrity.issues);
+      console.warn('?? Datos problemáticos detectados al inicializar:', integrity.issues);
       // Limpiar datos problemáticos
       this.bookingService.resetBookingData();
     }
@@ -284,8 +344,6 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           verticalPosition: 'top'
         }
       );
-
-      console.log('ðŸ“‹ Borrador cargado exitosamente');
     } catch (error) {
       console.error('Error al cargar borrador:', error);
       this.persistenceService.removeDraft(this.currentBookingId);
@@ -320,11 +378,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (currentBookingData) {
       // Resetear vouchers para evitar aplicación automática desde borradores
       currentBookingData.vouchers = [];
-      currentBookingData.price_total = 0;
+      currentBookingData.price_total = 0; // OK: Reset al crear nueva reserva, backend recalculara
       currentBookingData.paid_total = 0;
       currentBookingData.paid = false;
       this.bookingService.setBookingData(currentBookingData);
-      console.log('🧹 BookingData limpiado al restaurar borrador para evitar bonos automáticos');
     }
   }
 
@@ -379,7 +436,6 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   private handleSyncUpdate(syncData: any): void {
     if (syncData.action === 'draft_saved') {
-      console.log('ðŸ“¡ SincronizaciÃ³n detectada desde otra tab');
     }
   }
 
@@ -433,7 +489,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.sport = sport;
     this.sportLevel = sportLevel;
     this.course = course;
-    this.dates = course_dates ? this.getSelectedDates(course_dates) : [];
+    const normalizedCourseDates = this.ensureCourseDatesSource(course, course_dates);
+    this.dates = Array.isArray(normalizedCourseDates) && normalizedCourseDates.length
+      ? this.getSelectedDates(normalizedCourseDates)
+      : [];
     //this.monitors = MOCK_MONITORS;
     this.clientObs = clientObs;
     this.schoolObs = schoolObs;
@@ -476,7 +535,10 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.sport = sport;
     this.sportLevel = sportLevel;
     this.course = course;
-    this.dates = course_dates ? this.getSelectedDates(course_dates) : [];
+    const normalizedCourseDates = this.ensureCourseDatesSource(course, course_dates);
+    this.dates = Array.isArray(normalizedCourseDates) && normalizedCourseDates.length
+      ? this.getSelectedDates(normalizedCourseDates)
+      : [];
     //this.monitors = MOCK_MONITORS;
     this.clientObs = clientObs;
     this.schoolObs = schoolObs;
@@ -553,10 +615,12 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   calculateTotal() {
     let total = 0;
-    if(!this.course) {
-      this.total = null
-      this.subtotal = null
-      this.extraPrice = null
+    const utilizerCount = Array.isArray(this.utilizers) ? this.utilizers.length : 0;
+    if (!this.course) {
+      this.total = null;
+      this.subtotal = null;
+      this.extraPrice = null;
+      this.bookingService.updateBookingData({ price_total: 0 });
     } else {
       if (this.course.course_type === 1) {
         total = this.calculateColectivePrice();
@@ -569,42 +633,39 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         total = 0;
       }
 
-      // Calcular el total de los extras
-      // Calcula el total de los extras
-      const extrasTotal = this.dates.reduce((acc, date) => {
+      const dateList = Array.isArray(this.dates) ? this.dates : [];
+      let extrasTotal = dateList.reduce((acc, date) => {
         // Para cursos colectivos
         if (this.course.course_type === 1) {
           if (date.extras && date.extras.length) {
             const extrasPrice = date.extras.reduce((extraAcc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-              return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
+              const price = parseFloat(extra.price) || 0;
+              return extraAcc + (price * (extra.quantity || 1));
             }, 0);
             return acc + extrasPrice;
           }
-        }
-        // Para cursos privados
-        else if (this.course.course_type === 2) {
-          // AsegÃºrate de que 'utilizers' estÃ¡ definido en la fecha
+        } else if (this.course.course_type === 2) {
           if (date.utilizers && date.utilizers.length) {
-            // Sumar el total de extras de cada utilizador
             date.utilizers.forEach(utilizer => {
               if (utilizer.extras && utilizer.extras.length) {
                 const extrasPrice = utilizer.extras.reduce((extraAcc, extra) => {
-                  const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-                  return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
+                  const price = parseFloat(extra.price) || 0;
+                  return extraAcc + (price * (extra.quantity || 1));
                 }, 0);
-                acc += extrasPrice; // Suma el precio de los extras del utilizador al acumulador
+                acc += extrasPrice;
               }
             });
           }
         }
-        return acc; // Retorna el acumulador
+        return acc;
       }, 0);
 
-      // Asegurarse de que el total de extras sea un nÃºmero vÃ¡lido
+      if (this.course.course_type === 1) {
+        extrasTotal = extrasTotal * Math.max(0, utilizerCount);
+      }
+
       const validExtrasTotal = isNaN(extrasTotal) ? 0 : extrasTotal;
 
-      // Calcular el total final y asegurarse de que no sea NaN
       const totalSinExtras = total;
       total += validExtrasTotal;
 
@@ -612,13 +673,12 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         total = 0;
       }
 
-      // Formatear los resultados
-      this.total = `${total.toFixed(2)} ${this.course.currency}`;
-      this.subtotal = `${totalSinExtras.toFixed(2)}`;
-      this.extraPrice = `${validExtrasTotal.toFixed(2)}`;
+      this.total = parseFloat(total.toFixed(2));
+      this.subtotal = parseFloat(totalSinExtras.toFixed(2));
+      this.extraPrice = parseFloat(validExtrasTotal.toFixed(2));
+      this.bookingService.updateBookingData({ price_total: this.total });
     }
   }
-
 
   deleteActivity(index: any) {
     this.forms.splice(index, 1);
@@ -643,56 +703,35 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
   private calculatePrivatePrice() {
     let total = 0;
+    const selectedUtilizers = Array.isArray(this.utilizers) ? this.utilizers.length : 0;
 
     if (this.course.is_flexible) {
-      // Calcula el precio basado en el intervalo y el nÃºmero de utilizadores para cada fecha
+      // Calcula el precio basado en el intervalo y el numero de utilizadores para cada fecha
       this.dates.forEach((date: any) => {
-        const duration = date.duration; // DuraciÃ³n de cada fecha
-        const selectedUtilizers = this.utilizers.length; // NÃºmero de utilizadores
+        const duration = date.duration; // Duracion de cada fecha
+        const selectedUtilizersCount = selectedUtilizers; // Numero de utilizadores
 
-        // Encuentra el intervalo de duraciÃ³n que se aplica
+        // Encuentra el intervalo de duracion que se aplica
         const interval = this.course.price_range.find(range => {
-          return range.intervalo === duration; // Comparar con la duraciÃ³n de la fecha
+          return range.intervalo === duration; // Comparar con la duracion de la fecha
         });
 
         if (interval) {
-          // Intentar acceso con número y string para compatibilidad
-          const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
+          // Intentar acceso con numero y string para compatibilidad
+          const priceForPax = parseFloat(interval[selectedUtilizersCount]) || parseFloat(interval[selectedUtilizersCount.toString()]) || 0;
           total += priceForPax; // Precio por utilizador para cada fecha
         }
-
-        // Suma el precio total de los extras para cada utilizador en esta fecha
-       /* date.utilizers.forEach((utilizer: any) => {
-          if (utilizer.extras && utilizer.extras.length) {
-            const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-              return acc + price;
-            }, 0);
-            total += extrasTotal; // Suma el total de extras por cada utilizador
-          }
-        });*/
-
       });
     } else {
       // Si el curso no es flexible
       this.dates.forEach((date: any) => {
-        const dateTotal = parseFloat(this.course.price); // Precio por nÃºmero de utilizadores
-        total += dateTotal;
-        /*date.utilizers.forEach((utilizer: any) => {
-          if (utilizer.extras && utilizer.extras.length) {
-            const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-              return acc + price;
-            }, 0);
-            total += extrasTotal; // Suma el total de extras por cada utilizador
-          }
-        });*/
+        const dateTotal = parseFloat(this.course.price); // Precio por numero de utilizadores
+        total += dateTotal * Math.max(0, selectedUtilizers);
       });
     }
 
     return total;
   }
-
   private normalizeDates(createNew: boolean = false) {
     // Limpia el array normalizedDates antes de llenarlo
     this.normalizedDates = this.forms.map(form => {
@@ -705,10 +744,21 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         step6: { clientObs, schoolObs },
       } = form.value;
 
-      const dates = course_dates ? this.getSelectedDates(course_dates) : [];
+      const normalizedCourseDates = this.ensureCourseDatesSource(course, course_dates);
+      const dates = Array.isArray(normalizedCourseDates) && normalizedCourseDates.length
+        ? this.getSelectedDates(normalizedCourseDates)
+        : [];
 
       // Calcular el total para cada actividad
-      const { total, totalSinExtras, extrasTotal } = this.calculateIndividualTotal(course, dates, utilizers);
+      const {
+        total,
+        totalSinExtras,
+        extrasTotal,
+        discountInfo,
+        courseBaseTotal,
+        courseDiscountTotal,
+        currency
+      } = this.calculateIndividualTotal(course, dates, utilizers);
 
 
       return {
@@ -719,9 +769,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         dates,
         clientObs,
         schoolObs,
-        total: `${total} ${course.currency}`, // Guardar el total calculado para esta actividad
-        totalSinExtras: totalSinExtras, // Guardar el total sin extras
-        extrasTotal: extrasTotal // Guardar el total de extras
+        total,
+        totalSinExtras,
+        extrasTotal,
+        discountInfo,
+        courseBaseTotal,
+        courseDiscountTotal,
+        currency
       };
     });
 
@@ -734,105 +788,101 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   private calculateIndividualTotal(course, dates, utilizers) {
-    let total = 0;
+    let courseBaseTotal = 0;
+    let courseSubtotalAfterDiscount = 0;
 
-    // Calcula el precio base dependiendo del tipo de curso
+    const utilizerCount = Array.isArray(utilizers) ? utilizers.length : 0;
+
     if (course.course_type === 1) {
-      total = this.calculateColectivePriceForDates(course, dates);
+      const price = parseFloat(course?.price ?? '0');
+      const basePrice = isNaN(price) ? 0 : price;
+      if (course.is_flexible) {
+        courseBaseTotal = Math.max(0, basePrice * dates.length * utilizerCount);
+      } else {
+        courseBaseTotal = Math.max(0, basePrice * utilizerCount);
+      }
+      courseSubtotalAfterDiscount = this.calculateColectivePriceForDates(course, dates) * utilizerCount;
     } else if (course.course_type === 2) {
-      total = this.calculatePrivatePriceForDates(course, dates, utilizers);
+      courseBaseTotal = this.calculatePrivatePriceForDates(course, dates, utilizers);
+      if (!course.is_flexible) {
+        courseBaseTotal = courseBaseTotal * utilizerCount;
+      }
+      courseSubtotalAfterDiscount = courseBaseTotal;
     }
 
-    // Calcula el total de los extras
-    const extrasTotal = dates.reduce((acc, date) => {
-      // Para cursos colectivos
-      if (course.course_type === 1) {
-        if (date.extras && date.extras.length) {
-          const extrasPrice = date.extras.reduce((extraAcc, extra) => {
-            const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-            return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
-          }, 0);
-          return acc + extrasPrice;
-        }
+    let extrasTotal = dates.reduce((acc, date) => {
+      if (date.extras && date.extras.length) {
+        const extrasPrice = date.extras.reduce((extraAcc, extra) => {
+          const price = parseFloat(extra.price) || 0;
+          return extraAcc + (price * (extra.quantity || 1));
+        }, 0);
+        return acc + extrasPrice;
       }
-      // Para cursos privados
-      else if (course.course_type === 2) {
-        // AsegÃºrate de que 'utilizers' estÃ¡ definido en la fecha
-        if (date.utilizers && date.utilizers.length) {
-          // Sumar el total de extras de cada utilizador
-          date.utilizers.forEach(utilizer => {
-            if (utilizer.extras && utilizer.extras.length) {
-              const extrasPrice = utilizer.extras.reduce((extraAcc, extra) => {
-                const price = parseFloat(extra.price) || 0; // Convierte el precio del extra a un nÃºmero
-                return extraAcc + (price * (extra.quantity || 1)); // Multiplica el precio del extra por la cantidad
-              }, 0);
-              acc += extrasPrice; // Suma el precio de los extras del utilizador al acumulador
-            }
-          });
-        }
+
+      if (course.course_type === 2 && date.utilizers && date.utilizers.length) {
+        date.utilizers.forEach(utilizer => {
+          if (utilizer.extras && utilizer.extras.length) {
+            const extrasPrice = utilizer.extras.reduce((extraAcc, extra) => {
+              const price = parseFloat(extra.price) || 0;
+              return extraAcc + (price * (extra.quantity || 1));
+            }, 0);
+            acc += extrasPrice;
+          }
+        });
       }
-      return acc; // Retorna el acumulador
+      return acc;
     }, 0);
 
-    // Total sin extras
-    const totalSinExtras = total;
+    if (course.course_type === 1) {
+      extrasTotal = extrasTotal * Math.max(0, utilizerCount);
+    }
 
-    // Suma el total de extras al total general
-    total += extrasTotal;
+    const discountInfo = course.is_flexible ? buildDiscountInfoListUtil(course, dates) : [];
+    const discountAmount = Math.max(0, courseBaseTotal - courseSubtotalAfterDiscount);
 
-    // Puedes retornar un objeto con ambos totales si lo prefieres
+    const totalSinExtras = courseSubtotalAfterDiscount;
+    const total = courseSubtotalAfterDiscount + extrasTotal;
+
     return {
-      total: total.toFixed(2),
-      totalSinExtras: totalSinExtras.toFixed(2),
-      extrasTotal: extrasTotal.toFixed(2),
-      currency: course.currency // Incluye la moneda si es necesario
+      total: Number(total.toFixed(2)),
+      totalSinExtras: Number(totalSinExtras.toFixed(2)),
+      extrasTotal: Number(extrasTotal.toFixed(2)),
+      currency: course.currency,
+      discountInfo: discountInfo,
+      courseBaseTotal: Number(courseBaseTotal.toFixed(2)),
+      courseDiscountTotal: Number(discountAmount.toFixed(2))
     };
   }
-
-  private parseFlexibleDiscounts(raw: any): Array<{ threshold: number; percentage: number }> {
-    if (!raw) {
-      return [];
-    }
-
-    let parsed = raw;
-    if (typeof raw === 'string') {
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        return [];
-      }
-    }
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed
-      .map((item: any) => {
-        const threshold = Number(item?.date ?? item?.count ?? item?.n ?? 0);
-        const percentage = Number(item?.percentage ?? item?.percent ?? item?.value ?? 0);
-        return { threshold, percentage };
-      })
-      .filter(item => item.threshold > 0 && !isNaN(item.percentage));
+  /**
+   * Obtiene los descuentos del intervalo específico desde settings.intervals
+   */
+  private getIntervalDiscounts(intervalId: string): any[] {
+    return getIntervalDiscountsUtil(this.course, intervalId);
   }
 
-  private applyFlexibleDiscount(baseTotal: number, selectedDatesCount: number, rawDiscounts: any): number {
-    const discounts = this.parseFlexibleDiscounts(rawDiscounts);
-    if (baseTotal <= 0 || selectedDatesCount <= 0 || discounts.length === 0) {
-      return Math.max(0, baseTotal);
+  /**
+   * Determina qué descuentos usar (por intervalo o globales)
+   */
+  private getApplicableDiscounts(intervalId?: string, targetCourse?: any): any[] {
+    const course = targetCourse || this.course;
+    return getApplicableDiscountsUtil(course, intervalId);
+  }
+
+  /**
+   * Obtiene información del descuento aplicado para mostrar en la UI
+   */
+  getAppliedDiscountInfo(selectedDatesCount: number, intervalId?: string): any {
+    const info = getAppliedDiscountInfoUtil(this.course, selectedDatesCount, intervalId);
+    if (!info) {
+      return null;
     }
 
-    const applicable = discounts
-      .filter(discount => selectedDatesCount >= discount.threshold)
-      .sort((a, b) => b.percentage - a.percentage)[0];
-
-    if (!applicable || applicable.percentage <= 0) {
-      return Math.max(0, baseTotal);
-    }
-
-    const boundedPercentage = Math.max(0, Math.min(100, applicable.percentage));
-    const discountedTotal = baseTotal * (1 - boundedPercentage / 100);
-    return Math.max(0, discountedTotal);
+    return {
+      ...info,
+      intervalName: info.fromInterval && info.intervalId
+        ? resolveIntervalName(this.course, info.intervalId)
+        : null
+    };
   }
 
   private calculateColectivePriceForDates(course, dates): number {
@@ -843,9 +893,33 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return Math.max(0, basePrice);
     }
 
-    const selectedDates = Array.isArray(dates) ? dates.length : 0;
-    const baseTotal = Math.max(0, basePrice * selectedDates);
-    return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
+    const selectedDates = Array.isArray(dates) ? dates : [];
+    if (selectedDates.length === 0) {
+      return 0;
+    }
+
+    const datesByInterval = new Map<string, any[]>();
+    selectedDates.forEach((date: any) => {
+      const intervalId = date?.interval_id ? String(date.interval_id) : 'default';
+      if (!datesByInterval.has(intervalId)) {
+        datesByInterval.set(intervalId, []);
+      }
+      datesByInterval.get(intervalId)!.push(date);
+    });
+
+    let grandTotal = 0;
+    datesByInterval.forEach((datesInInterval, intervalId) => {
+      const count = datesInInterval.length;
+      const baseTotal = Math.max(0, basePrice * count);
+      const applicableDiscounts = this.getApplicableDiscounts(
+        intervalId !== 'default' ? intervalId : undefined,
+        course
+      );
+      const discountedTotal = applyFlexibleDiscountUtil(baseTotal, count, applicableDiscounts);
+      grandTotal += discountedTotal;
+    });
+
+    return Math.max(0, grandTotal);
   }
 
   private calculatePrivatePriceForDates(course: any, dates: any, utilizers: any) {
@@ -861,40 +935,20 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         });
 
         if (interval) {
-          // Intentar acceso con número y string para compatibilidad
+          // Intentar acceso con nsero y string para compatibilidad
           const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
           total += priceForPax;
         }
-
-/*        date.utilizers.forEach(utilizer => {
-          if (utilizer.extras && utilizer.extras.length) {
-            const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0;
-              return acc + price;
-            }, 0);
-            total += extrasTotal;
-          }
-        });*/
       });
     } else {
       dates.forEach((date: any) => {
         const dateTotal = parseFloat(course.price);
         total += dateTotal;
-/*        date.utilizers.forEach(utilizer => {
-          if (utilizer.extras && utilizer.extras.length) {
-            const extrasTotal = utilizer.extras.reduce((acc, extra) => {
-              const price = parseFloat(extra.price) || 0;
-              return acc + price;
-            }, 0);
-            total += extrasTotal;
-          }
-        });*/
       });
     }
 
     return total;
   }
-
   // MÃ©todo para obtener el intervalo de precios basado en la duraciÃ³n
   private getPriceInterval(duration: number) {
     const priceRanges = this.course.price_range;
@@ -926,16 +980,42 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return 0;
     }
 
+    const utilizerCount = Array.isArray(this.utilizers) ? this.utilizers.length : 0;
+    if (utilizerCount <= 0) {
+      return 0;
+    }
+
     const price = parseFloat(course?.price ?? '0');
     const basePrice = isNaN(price) ? 0 : price;
 
     if (!course.is_flexible) {
-      return Math.max(0, basePrice);
+      return Math.max(0, basePrice) * utilizerCount;
     }
 
-    const selectedDates = Array.isArray(this.dates) ? this.dates.length : 0;
-    const baseTotal = Math.max(0, basePrice * selectedDates);
-    return this.applyFlexibleDiscount(baseTotal, selectedDates, course?.discounts);
+    // Agrupar fechas por intervalo
+    const datesByInterval = new Map<string, any[]>();
+    this.dates.forEach((date: any) => {
+      const intervalId = date.interval_id ? String(date.interval_id) : 'default';
+      if (!datesByInterval.has(intervalId)) {
+        datesByInterval.set(intervalId, []);
+      }
+      datesByInterval.get(intervalId)!.push(date);
+    });
+
+    // Calcular precio total aplicando descuentos por intervalo
+    let grandTotal = 0;
+    datesByInterval.forEach((datesInInterval, intervalId) => {
+      const datesCount = datesInInterval.length;
+      const baseTotal = Math.max(0, basePrice * datesCount);
+
+      // Obtener descuentos aplicables (por intervalo o globales)
+      const applicableDiscounts = this.getApplicableDiscounts(intervalId !== 'default' ? intervalId : undefined, course);
+      const discountedTotal = applyFlexibleDiscountUtil(baseTotal, datesCount, applicableDiscounts);
+
+      grandTotal += discountedTotal;
+    });
+
+    return Math.max(0, grandTotal) * utilizerCount;
   }
 
   // Filtra las fechas seleccionadas y calcula el precio individual para cada fecha
@@ -964,7 +1044,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           date.currency = this.course.currency || 'CHF';
         }
       });
-    } else if (this.course?.course_type === 0 && this.course?.is_flexible) {
+    } else if (this.course?.course_type === 1 && this.course?.is_flexible) {
+      // FIXED: Cambiar de course_type === 0 a === 1 (colectivos)
       // COLECTIVOS FLEX: Precio base por fecha
       selectedDates.forEach((date: any) => {
         date.price = this.course?.price || '0';
@@ -979,6 +1060,57 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     }
 
     return selectedDates;
+  }
+
+  private ensureCourseDatesSource(course: any, courseDates: any): any[] {
+    if (Array.isArray(courseDates) && courseDates.length > 0) {
+      return courseDates;
+    }
+
+    if (
+      course &&
+      course.course_type === 1 &&
+      !course.is_flexible &&
+      Array.isArray(course.course_dates) &&
+      course.course_dates.length > 0
+    ) {
+      return course.course_dates.map((courseDate: any) => ({
+        selected: true,
+        date: courseDate.date,
+        startHour: courseDate.hour_start,
+        endHour: courseDate.hour_end,
+        price: course.price || '0',
+        currency: course.currency || 'CHF',
+        extras: [],
+        monitor: this.resolveMonitorForCourseDate(courseDate)
+      }));
+    }
+
+    return Array.isArray(courseDates) ? courseDates : [];
+  }
+
+  private resolveMonitorForCourseDate(courseDate: any): any {
+    const degreeId = this.sportLevel?.id;
+    if (!degreeId || !Array.isArray(courseDate?.course_groups)) {
+      return null;
+    }
+
+    const matchingGroup = courseDate.course_groups.find(
+      (group: any) => group.degree_id === degreeId
+    );
+    if (!matchingGroup || !Array.isArray(matchingGroup.course_subgroups)) {
+      return null;
+    }
+
+    const availableSubgroup = matchingGroup.course_subgroups.find((subgroup: any) => {
+      const bookings = Array.isArray(subgroup.booking_users) ? subgroup.booking_users.length : 0;
+      const maxParticipants = typeof subgroup.max_participants === 'number'
+        ? subgroup.max_participants
+        : null;
+      return maxParticipants === null || bookings < maxParticipants;
+    });
+
+    return availableSubgroup?.monitor || null;
   }
 
   openBookingDialog() {
@@ -1007,21 +1139,21 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   sumActivityTotal(): number {
-    console.log('🔍 sumActivityTotal DEBUG - normalizedDates:', this.normalizedDates);
 
     const total = this.normalizedDates.reduce((acc, item, index) => {
-      console.log(`🔍 Processing activity ${index}:`, {
-        itemName: item.course?.name,
-        originalTotal: item.total,
-        totalAfterRegex: item.total.replace(/[^\d.-]/g, ''),
-        parsedValue: parseFloat(item.total.replace(/[^\d.-]/g, ''))
-      });
+      // Handle both number and string types for item.total
+      let numericValue: number;
 
-      const numericValue = parseFloat(item.total.replace(/[^\d.-]/g, '')); // Eliminar cualquier cosa que no sea un nÃºmero o signo
+      if (typeof item.total === 'number') {
+        numericValue = item.total;
+      } else if (typeof item.total === 'string') {
+        numericValue = parseFloat(item.total.replace(/[^\d.-]/g, ''));
+      } else {
+        numericValue = 0;
+      }
+
       return acc + numericValue;
     }, 0);
-
-    console.log('🔍 sumActivityTotal final result:', total);
     return total;
   }
 
@@ -1082,14 +1214,13 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   // MÃ©todo para finalizar la reserva
   finalizeBooking(): void {
     const bookingData = this.bookingService.getBookingData();
-    if (!bookingData) {
+    if (!bookingData || this.isSubmitting) {
       return;
     }
 
-    console.log('🔍 finalizeBooking DEBUG - bookingData antes de setCart:', {
-      price_total: bookingData.price_total,
-      normalizedDates: this.normalizedDates
-    });
+    // Asegurar que el total enviado incluya opcionales (p.e. seguro de cancelaciÃ³n)
+    const finalPriceTotal = this.buildFinalPriceTotal(bookingData);
+    bookingData.price_total = finalPriceTotal;
 
     bookingData.cart = this.bookingService.setCart(this.normalizedDates, bookingData);
 
@@ -1108,7 +1239,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
 
     // MEJORA CRÍTICA: Detectar y prevenir reservas con problemas de precios/bonos
     if (safePriceTotal === 0 && safeVouchersTotal > 0) {
-      console.error('🚨 PROBLEMA DETECTADO: Reserva con precio 0€ pero bonos aplicados', {
+      console.error('?? PROBLEMA DETECTADO: Reserva con precio 0€ pero bonos aplicados', {
         priceTotal: safePriceTotal,
         vouchersTotal: safeVouchersTotal,
         vouchers: bookingData.vouchers
@@ -1147,16 +1278,18 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     bookingData.user_id = user.id;
 
     // Enviar la reserva a la API
+    this.isSubmitting = true;
     this.crudService.post('/admin/bookings', bookingData)
       .subscribe(
         (result: any) => {
           const bookingId = result.data.id;
 
           // Manejar pagos en lÃ­nea
-          if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
+          if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) {
             this.crudService.post(`/admin/bookings/payments/${bookingId}`, result.data.basket)
               .subscribe(
                 (paymentResult: any) => {
+                  this.isSubmitting = false;
                   if (bookingData.payment_method_id === 2) {
                     if (this.dialogRef) {
                       this.dialogRef.close();
@@ -1177,6 +1310,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                   }
                 },
                 (error) => {
+                  this.isSubmitting = false;
                   if (this.dialogRef) {
                     this.dialogRef.close();
                   }
@@ -1189,6 +1323,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                 }
               );
           } else {
+            this.isSubmitting = false;
             if (this.dialogRef) {
               this.dialogRef.close();
             }
@@ -1201,6 +1336,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           }
         },
         (error) => {
+          this.isSubmitting = false;
           // Verificar si es un error de coherencia cliente-participantes
           if (error.error?.message && error.error.message.includes('Error de coherencia')) {
             this.handleClientParticipantConsistencyError(error.error.message);
@@ -1223,6 +1359,32 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       const parsed = typeof value === 'number' ? value : parseFloat(value ?? '0');
       return acc + (isNaN(parsed) ? 0 : parsed);
     }, 0);
+    
+  }
+
+  private buildFinalPriceTotal(bookingData: any): number {
+    // baseRaw ya incluye precios netos por actividad (courseSubtotalAfterDiscount)
+    const normalizedTotal = Array.isArray(this.normalizedDates) && this.normalizedDates.length
+      ? this.sumActivityTotal()
+      : null;
+    const baseRaw = Number.isFinite(normalizedTotal)
+      ? normalizedTotal
+      : (this.total !== null && this.total !== undefined && !isNaN(this.total)
+        ? this.total
+        : (bookingData?.price_total ?? 0));
+    const base = typeof baseRaw === 'number' ? baseRaw : parseFloat(String(baseRaw)) || 0;
+
+    const insurance = bookingData?.has_cancellation_insurance
+      ? Number(bookingData.price_cancellation_insurance || 0)
+      : 0;
+
+    const reduction = bookingData?.price_reduction ? Number(bookingData.price_reduction) : 0;
+    const boukiiCare = bookingData?.has_boukii_care ? Number(bookingData.price_boukii_care || 0) : 0;
+    const tva = bookingData?.has_tva ? Number(bookingData.price_tva || 0) : 0;
+
+    const total = base + insurance - reduction + boukiiCare + tva;
+    const safeTotal = isNaN(total) ? 0 : total;
+    return Number(safeTotal.toFixed(2));
   }
 
 
@@ -1353,5 +1515,19 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     });
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

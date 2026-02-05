@@ -44,9 +44,13 @@
           <!-- Name -->
           <mat-form-field appearance="outline" class="w-full">
             <mat-label>{{'discount.name' | translate}}</mat-label>
-            <input formControlName="name" matInput required>
-            <mat-error *ngIf="form.get('name')?.hasError('required')">
-              {{'error.required' | translate}}
+            <input
+              formControlName="name"
+              matInput
+              maxlength="255"
+              [placeholder]="'discount.name_placeholder' | translate">
+            <mat-error *ngIf="form.get('name')?.hasError('maxlength')">
+              {{'errors.maxlength' | translate:{ requiredLength: 255 } }}
             </mat-error>
           </mat-form-field>
 
@@ -87,7 +91,7 @@
               {{form.get('discount_type')?.value === 'percentage' ? ('discount.percentage_value' | translate) : ('discount.amount_value' | translate)}}
             </mat-label>
             <input formControlName="discount_value" matInput type="number" min="0" [max]="form.get('discount_type')?.value === 'percentage' ? 100 : null" required>
-            <span matSuffix>{{form.get('discount_type')?.value === 'percentage' ? '%' : '$'}}</span>
+            <span matSuffix>{{form.get('discount_type')?.value === 'percentage' ? '%' : currencyCode}}</span>
             <mat-error *ngIf="form.get('discount_value')?.errors">
               {{getDiscountValueError()}}
             </mat-error>
@@ -191,14 +195,14 @@
             <mat-form-field appearance="outline" class="flex-auto">
               <mat-label>{{'discount.min_booking_amount' | translate}}</mat-label>
               <input formControlName="min_booking_amount" matInput type="number" min="0">
-              <span matPrefix>$ </span>
+              <span matPrefix>{{currencyCode}} </span>
               <mat-hint>{{'discount.min_booking_hint' | translate}}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="flex-auto">
               <mat-label>{{'discount.max_discount_amount' | translate}}</mat-label>
               <input formControlName="max_discount_amount" matInput type="number" min="0">
-              <span matPrefix>$ </span>
+              <span matPrefix>{{currencyCode}} </span>
               <mat-hint>{{'discount.max_discount_hint' | translate}}</mat-hint>
             </mat-form-field>
           </div>

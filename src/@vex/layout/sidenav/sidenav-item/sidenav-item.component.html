@@ -7,7 +7,7 @@
   matRipple
   matRippleColor="var(--sidenav-item-ripple-color)"
   routerLinkActive="vex-sidenav-item--active">
-  <img [src]="isRouteActive(item) ? item.icon_active : item.icon" width="30"
+  <img *ngIf="level === 0 && item.icon" [src]="isRouteActive(item) ? item.icon_active : item.icon" width="30"
     height="30">
   <span class="vex-sidenav-item__label"
     [style.fontWeight]="isRouteActive(item) ? 700 : 400">{{ item.label |
@@ -26,8 +26,8 @@
   matRippleColor="var(--sidenav-item-ripple-color)"
   routerLinkActive="vex-sidenav-item--active">
 
-  <img [src]="item.icon" width="30" height="30" *ngIf="!isActive">
-  <img [src]="item.icon_active" width="30" height="30" *ngIf="isActive">
+  <img *ngIf="level === 0 && item.icon && !isActive" [src]="item.icon" width="30" height="30">
+  <img *ngIf="level === 0 && item.icon_active && isActive" [src]="item.icon_active" width="30" height="30">
   <span class="vex-sidenav-item__label">{{ item.label | translate }}</span>
   <span *ngIf="item.badge"
     [ngClass]="[item.badge.bgClass, item.badge.textClass]"
@@ -55,8 +55,7 @@
     class="vex-sidenav-item"
     matRipple
     matRippleColor="var(--sidenav-item-ripple-color)">
-    <mat-icon *ngIf="level === 0" [svgIcon]="item.icon"
-      class="vex-sidenav-item__icon"></mat-icon>
+    <img *ngIf="level === 0 && item.icon && !isActive" [src]="item.icon" width="30" height="30">
     <span class="vex-sidenav-item__label">{{ item.label | translate }}</span>
     <span *ngIf="item.badge"
       [ngClass]="[item.badge.bgClass, item.badge.textClass]"

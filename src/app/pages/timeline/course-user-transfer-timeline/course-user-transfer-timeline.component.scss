@@ -38,6 +38,16 @@
   justify-content: space-between;
   padding: 8px;
 }
+.current-monitor {
+  font-size: 12px;
+  margin: 4px 0 0 0;
+  color: #6b7280;
+}
+.monitor-name {
+  font-size: 12px;
+  margin: 0;
+  color: #6b7280;
+}
 
 .item-count {
   margin-left: auto;
@@ -55,3 +65,35 @@ button.mat-raised-button {
 }
 
 /* You might need to adjust the color codes to match your exact design */
+.transfer-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+.transfer-scope {
+  margin-bottom: 10px;
+}
+.transfer-scope h3 {
+  font-size: 14px;
+  margin: 0 0 8px 0;
+}
+.transfer-scope-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.transfer-scope-chip {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.transfer-scope-chip.active {
+  background: #ec407a;
+  border-color: #ec407a;
+  color: #fff;
+}

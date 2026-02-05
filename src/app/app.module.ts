@@ -11,7 +11,7 @@ import { ComponentsModule } from 'src/@vex/components/components.module';
 import { AuthService } from 'src/service/auth.service';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
-import { MAT_DATE_LOCALE } from '@angular/material/core';
+import { DateAdapter, MAT_DATE_LOCALE, NativeDateAdapter } from '@angular/material/core';
 import { HttpErrorInterceptor } from './core/http-error.interceptor';
 import { PreviewModalComponent } from './components/preview-modal/preview-modal.component';
 import { MatDialogModule } from '@angular/material/dialog';
@@ -25,6 +25,12 @@ import { ChronoService } from 'src/service/chrono.service';
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient) {
     return new TranslateHttpLoader(http, './assets/i18n/', '.json');
+}
+
+export class MondayDateAdapter extends NativeDateAdapter {
+    override getFirstDayOfWeek(): number {
+        return 1;
+    }
 }
 
 @NgModule({
@@ -51,6 +57,7 @@ export function HttpLoaderFactory(http: HttpClient) {
     providers: [
         AuthService,
         ChronoService,
+        { provide: DateAdapter, useClass: MondayDateAdapter },
         { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
         { provide: HTTP_INTERCEPTORS, useClass: HttpErrorInterceptor, multi: true },
     ],

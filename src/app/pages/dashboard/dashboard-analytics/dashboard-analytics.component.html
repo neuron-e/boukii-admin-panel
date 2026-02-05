@@ -1,370 +1,650 @@
 <vex-page-layout>
   <vex-secondary-toolbar current>
-    <vex-breadcrumbs [crumbs]="[
-      {icon:'home'},
-      {text:'menu.home', title: true},
-      {text:'dashboard', subtitle: true}
-    ]" class="flex"></vex-breadcrumbs>
+    <vex-breadcrumbs
+      [crumbs]="[
+        { icon: 'home' },
+        { text: 'dashboard.home' | translate, title: true }
+      ]"
+      class="flex-auto"
+    ></vex-breadcrumbs>
 
-    <!-- Refresh button -->
-    <button mat-icon-button (click)="refreshData()" [disabled]="loading" class="ml-auto">
-      <mat-icon [class.animate-spin]="loading">refresh</mat-icon>
-    </button>
-
-    <!-- Last updated -->
-    <span class="text-sm text-secondary ml-2" *ngIf="!loading && dashboardMetrics">
-      {{ 'last_updated' | translate }}: {{ getLastUpdated() }}
-    </span>
+    <div class="toolbar-actions">
+      <button
+        mat-icon-button
+        (click)="refreshAll()"
+        [disabled]="loading()"
+        [matTooltip]="'common.refresh' | translate"
+      >
+        <mat-icon [class.animate-spin]="loading()">refresh</mat-icon>
+      </button>
+    </div>
   </vex-secondary-toolbar>
 
-  <vex-page-layout-content class="fullwidth">
-    <!-- Loading skeleton -->
-    <div *ngIf="loading" class="p-6">
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div *ngFor="let i of [1,2,3,4]" class="card animate-pulse">
-          <div class="h-32 bg-gray-200 rounded"></div>
-        </div>
-      </div>
+  <vex-page-layout-content class="p-6">
+    <!-- Loading State -->
+    <div *ngIf="loading()" class="loading-state">
+      <mat-progress-bar mode="indeterminate" color="primary"></mat-progress-bar>
+      <p class="loading-label">{{ 'common.loading' | translate }}</p>
     </div>
 
-    <!-- Dashboard content -->
-    <div *ngIf="!loading && dashboardMetrics" class="p-6">
+    <!-- Dashboard Shell -->
+    <div class="dashboard-shell" *ngIf="!loading()">
+      <!-- ========== HERO SECTION ========== -->
+      <section class="hero-section">
+        <div class="hero-grid">
 
-      <!-- ROW 1: Bienvenida + Meteo + Quick Stats -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-        <!-- Widget de Meteo y Bienvenida (MANTENER 100% INTACTO) -->
-        <div class="lg:col-span-2">
-          <vex-widget-assistant
-            [date]="date"
-            (dateEvent)="emitDate($event)">
-          </vex-widget-assistant>
-        </div>
-
-        <!-- Quick Stats del día -->
-        <div class="card">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'today_summary' | translate }}</h3>
-              <mat-icon class="text-primary">today</mat-icon>
-            </div>
-
-            <div class="space-y-4">
-              <!-- Reservas de hoy -->
-              <div class="flex justify-between items-center">
-                <span class="body-2 text-secondary">{{ 'bookings_today' | translate }}</span>
-                <span class="subheading-2 font-medium text-primary">
-                  {{ dashboardMetrics.quickStats.reservasHoy }}
-                </span>
-              </div>
-
-              <!-- Ingresos de hoy -->
-              <div class="flex justify-between items-center">
-                <span class="body-2 text-secondary">{{ 'revenue_today' | translate }}</span>
-                <span class="subheading-2 font-medium text-green-600">
-                  {{ formatCurrency(dashboardMetrics.quickStats.ingresosHoy) }}
-                </span>
-              </div>
-
-              <!-- Ocupación actual -->
-              <div class="flex justify-between items-center">
-                <span class="body-2 text-secondary">{{ 'occupancy' | translate }}</span>
-                <span class="subheading-2 font-medium text-blue-600">
-                  {{ formatPercentage(occupancy?.total.porcentaje || 0) }}
-                </span>
-              </div>
-
-              <!-- Alertas críticas -->
-              <div class="flex justify-between items-center"
-                   [class.cursor-pointer]="totalAlerts > 0"
-                   (click)="totalAlerts > 0 && navigateToBookings()">
-                <span class="body-2 text-secondary">{{ 'critical_alerts' | translate }}</span>
-                <span class="subheading-2 font-medium"
-                      [class.text-red-600]="totalAlerts > 0"
-                      [class.text-green-600]="totalAlerts === 0">
-                  <mat-icon class="inline-block w-4 h-4 mr-1"
-                           *ngIf="totalAlerts > 0">warning</mat-icon>
-                  {{ totalAlerts }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ROW 2: Métricas Críticas de Negocio -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-
-        <!-- 🚨 Alertas Críticas -->
-        <vex-widget-quick-value-center
-          [value]="totalAlerts.toString()"
-          [bg]="totalAlerts > 0 ? '#fef2f2' : '#f0fdf4'"
-          [valueColor]="totalAlerts > 0 ? '#dc2626' : '#16a34a'"
-          icon="mat:warning"
-          [label]="'critical_alerts'"
-          [label_secondary]="'requires_attention'"
-          (click)="totalAlerts > 0 && navigateToBookings()">
-        </vex-widget-quick-value-center>
-
-        <!-- 💰 Ingresos del Mes -->
-        <vex-widget-quick-value-center
-          [value]="formatCurrency(revenue?.ingresosMes || 0)"
-          [bg]="'#f0fdf4'"
-          [valueColor]="'#059669'"
-          [icon]="getTrendIcon(revenue?.tendencia || 'stable')"
-          [label]="'monthly_revenue'"
-          [label_secondary]="'current_month'"
-          (click)="navigateToAnalytics()">
-        </vex-widget-quick-value-center>
-
-        <!-- 📊 Ocupación Privados -->
-        <vex-widget-quick-value-center
-          [value]="formatPercentage(occupancy?.cursosPrivados.porcentaje || 0)"
-          [bg]="'#eff6ff'"
-          [valueColor]="'#2563eb'"
-          icon="mat:person"
-          [label]="'private_courses'"
-          [label_secondary]="'occupancy_rate'"
-          (click)="navigateToCourses()">
-        </vex-widget-quick-value-center>
-
-        <!-- 📊 Ocupación Colectivos -->
-        <vex-widget-quick-value-center
-          [value]="formatPercentage(occupancy?.cursosColectivos.porcentaje || 0)"
-          [bg]="'#fffbeb'"
-          [valueColor]="'#d97706'"
-          icon="mat:group"
-          [label]="'collective_courses'"
-          [label_secondary]="'occupancy_rate'"
-          (click)="navigateToCourses()">
-        </vex-widget-quick-value-center>
-      </div>
-
-      <!-- ROW 3: Análisis Operativo -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-        <!-- Gráfico de Tendencias de Reservas -->
-        <div class="card">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'booking_trends' | translate }}</h3>
-              <span class="body-2 text-secondary">{{ 'last_30_days' | translate }}</span>
-            </div>
-
-            <vex-chart
-              [options]="trendChartOptions"
-              [series]="revenueChartSeries"
-              class="chart">
-            </vex-chart>
-          </div>
-        </div>
-
-        <!-- KPIs de Rendimiento -->
-        <div class="card">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'performance_kpis' | translate }}</h3>
-              <mat-icon class="text-primary">analytics</mat-icon>
-            </div>
-
-            <div class="space-y-6">
-              <!-- Ocupación Total -->
+          <!-- Welcome Card -->
+          <div class="hero-card welcome-card">
+            <div class="welcome-header">
               <div>
-                <div class="flex justify-between items-center mb-2">
-                  <span class="body-2">{{ 'total_occupancy' | translate }}</span>
-                  <span class="subheading-2 font-medium">
-                    {{ formatPercentage(occupancy?.total.porcentaje || 0) }}
+                <h1 class="welcome-title">{{ 'dashboard.welcome_back' | translate }}, {{ userName }}!</h1>
+                <mat-form-field appearance="outline" class="date-picker" color="primary">
+                  <input
+                    matInput
+                    [matDatepicker]="dashboardDatepicker"
+                    [value]="selectedDate()"
+                    (dateChange)="onDateChange($event)"
+                  />
+                  <mat-datepicker-toggle matSuffix [for]="dashboardDatepicker"></mat-datepicker-toggle>
+                  <mat-datepicker #dashboardDatepicker></mat-datepicker>
+                </mat-form-field>
+                <p class="welcome-weekday">{{ weekdayName }}</p>
+              </div>
+            </div>
+
+            <!-- Weather Section -->
+            <div class="weather-section">
+              <h3 class="section-title">{{ 'dashboard.weather' | translate }}</h3>
+              <div class="weather-timeline" *ngIf="weatherDays().length > 0; else weatherFallback">
+                <div class="weather-slot" *ngFor="let slot of weatherDays().slice(0, 6)">
+                  <span class="weather-time">{{ slot.timeLabel || formatWeatherDate(slot) }}</span>
+                  <img *ngIf="slot.icon" class="weather-icon" [src]="getWeatherIconPath(slot.icon)" [alt]="slot.phrase || ''" />
+                  <span class="weather-temp" *ngIf="slot.maxTemp !== undefined || slot.minTemp !== undefined">
+                    {{ slot.maxTemp ?? slot.minTemp ?? '-' }}&deg;
                   </span>
                 </div>
-                <mat-progress-bar
-                  mode="determinate"
-                  [value]="occupancy?.total.porcentaje || 0"
-                  class="h-2 rounded">
-                </mat-progress-bar>
               </div>
-
-              <!-- Cursos Privados -->
-              <div>
-                <div class="flex justify-between items-center mb-2">
-                  <span class="body-2">{{ 'private_courses' | translate }}</span>
-                  <span class="body-2 text-secondary">
-                    {{ occupancy?.cursosPrivados.ocupados || 0 }} /
-                    {{ (occupancy?.cursosPrivados.ocupados || 0) + (occupancy?.cursosPrivados.disponibles || 0) }}
-                  </span>
-                </div>
-                <mat-progress-bar
-                  mode="determinate"
-                  [value]="occupancy?.cursosPrivados.porcentaje || 0"
-                  color="primary"
-                  class="h-2 rounded">
-                </mat-progress-bar>
-              </div>
-
-              <!-- Cursos Colectivos -->
-              <div>
-                <div class="flex justify-between items-center mb-2">
-                  <span class="body-2">{{ 'collective_courses' | translate }}</span>
-                  <span class="body-2 text-secondary">
-                    {{ occupancy?.cursosColectivos.ocupados || 0 }} /
-                    {{ (occupancy?.cursosColectivos.ocupados || 0) + (occupancy?.cursosColectivos.disponibles || 0) }}
-                  </span>
-                </div>
-                <mat-progress-bar
-                  mode="determinate"
-                  [value]="occupancy?.cursosColectivos.porcentaje || 0"
-                  color="accent"
-                  class="h-2 rounded">
-                </mat-progress-bar>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ROW 4: Actividades Próximas y Alertas Detalladas -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-        <!-- Lista de Próximas Actividades -->
-        <div class="card">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'upcoming_activities' | translate }}</h3>
-              <button mat-icon-button (click)="navigateToPlanner()">
-                <mat-icon>schedule</mat-icon>
-              </button>
-            </div>
-
-            <div class="space-y-3" *ngIf="upcomingActivities.length > 0; else noActivities">
-              <div *ngFor="let activity of upcomingActivities"
-                   class="flex items-center p-3 rounded-lg border border-divider hover:bg-hover cursor-pointer transition-colors"
-                   (click)="navigateToBookings()">
-
-                <div class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center mr-3"
-                     [class.bg-green-100]="activity.status === 'confirmed'"
-                     [class.bg-orange-100]="activity.status === 'warning'"
-                     [class.bg-blue-100]="activity.status === 'pending'">
-                  <mat-icon class="text-sm"
-                           [class.text-green-600]="activity.status === 'confirmed'"
-                           [class.text-orange-600]="activity.status === 'warning'"
-                           [class.text-blue-600]="activity.status === 'pending'">
-                    {{ activity.type === 'private' ? 'person' : 'group' }}
-                  </mat-icon>
-                </div>
-
-                <div class="flex-grow min-w-0">
-                  <div class="flex items-center justify-between">
-                    <span class="font-medium truncate">{{ activity.clientName }}</span>
-                    <span class="text-sm text-secondary">{{ activity.time }}</span>
-                  </div>
-                  <div class="text-sm text-secondary truncate">{{ activity.courseName }}</div>
-                  <div class="text-xs" [ngClass]="getStatusColor(activity.status)" *ngIf="activity.monitor">
-                    {{ activity.monitor }}
+              <ng-template #weatherFallback>
+                <div class="weather-timeline placeholder">
+                  <div class="weather-slot" *ngFor="let slot of weatherPlaceholderSlots">
+                    <span class="weather-time">--:--</span>
+                    <span class="weather-icon-placeholder"></span>
+                    <span class="weather-temp">--</span>
                   </div>
                 </div>
+              </ng-template>
+            </div>
+          </div>
 
-                <mat-icon class="text-secondary flex-shrink-0" *ngIf="activity.status === 'warning'">
-                  warning
-                </mat-icon>
+          <!-- System Admin Card -->
+          <div class="hero-card system-admin-card">
+            <!-- Header con icono -->
+            <div class="system-header">
+              <div class="system-icon-pill">
+                <mat-icon class="header-icon">settings</mat-icon>
+              </div>
+              <div>
+                <h3>{{ 'dashboard.system_administration' | translate }}</h3>
+                <p class="subtitle">{{ 'dashboard.background_tasks_status' | translate }}</p>
               </div>
             </div>
 
-            <ng-template #noActivities>
-              <div class="text-center py-8 text-secondary">
-                <mat-icon class="text-6xl mb-4">event_available</mat-icon>
-                <p>{{ 'no_activities_scheduled' | translate }}</p>
+            <!-- 4 tarjetas horizontales -->
+            <div class="system-cards-row">
+              <!-- Pending Payments -->
+              <div class="system-metric-card clickable" (click)="openSystemDetails('pending_payments')">
+                <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.pending_payments || 0)"></span>
+                <mat-icon class="card-icon">credit_card</mat-icon>
+                <span class="card-label">
+                  {{ 'dashboard.pending_payments' | translate | uppercase }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.pending_payments' | translate">info</mat-icon>
+                </span>
+                <strong class="card-value">{{ systemStats()?.pending_payments || 0 }}</strong>
               </div>
-            </ng-template>
+
+              <!-- Course Overbooking -->
+              <div class="system-metric-card clickable" (click)="openSystemDetails('overbooked_groups')">
+                <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.overbookings || 0)"></span>
+                <mat-icon class="card-icon">warning</mat-icon>
+                <span class="card-label">
+                  {{ 'dashboard.course_overbooking' | translate | uppercase }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.overbookings' | translate">info</mat-icon>
+                </span>
+                <strong class="card-value">{{ systemStats()?.overbookings || 0 }}</strong>
+              </div>
+
+              <!-- Unassigned Courses -->
+              <div class="system-metric-card clickable" (click)="openSystemDetails('unassigned_all')">
+                <span class="status-dot" [ngClass]="getStatusDotClass(systemStats()?.unassigned_courses || 0)"></span>
+                <mat-icon class="card-icon">assignment</mat-icon>
+                <span class="card-label">
+                  {{ 'dashboard.unassigned_courses' | translate | uppercase }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.unassigned_courses' | translate">info</mat-icon>
+                </span>
+                <strong class="card-value">{{ systemStats()?.unassigned_courses || 0 }}</strong>
+              </div>
+
+              <!-- Free Monitors -->
+              <div class="system-metric-card clickable" (click)="openSystemDetails('free_monitors')">
+                <span class="status-dot" [ngClass]="getStatusDotClass(operations()?.free_monitors || 0)"></span>
+                <mat-icon class="card-icon">people</mat-icon>
+                <span class="card-label">
+                  {{ 'dashboard.free_monitors' | translate | uppercase }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.free_monitors' | translate">info</mat-icon>
+                </span>
+                <strong class="card-value">{{ operations()?.free_monitors || 0 }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <ng-template #systemDetailDialog>
+        <div class="system-detail-modal">
+          <div class="modal-header">
+            <div>
+              <h3>{{ systemDetailTitle }} <span class="count">({{ systemDetailItems().length }})</span></h3>
+              <p>{{ formatShortDate(selectedDate()) }}</p>
+            </div>
+            <button mat-icon-button [mat-dialog-close]="true">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+
+          <div *ngIf="systemDetailLoading()" class="modal-loading">
+            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          </div>
+
+          <div *ngIf="!systemDetailLoading()" class="system-detail-body">
+            <div class="modal-empty" *ngIf="systemDetailItems().length === 0">
+              {{ systemDetailEmptyLabel }}
+            </div>
+
+            <div class="system-detail-tables" *ngIf="systemDetailItems().length > 0">
+              <div class="system-detail-section" *ngFor="let section of systemDetailSections">
+                <h4 class="section-title">{{ section.title }} <span class="count">({{ section.items.length }})</span></h4>
+
+                <div class="dashboard-table-card" *ngIf="section.items.length">
+                  <div class="dashboard-table-container">
+                  <table *ngIf="section.type === 'pending_payments'">
+                    <thead>
+                      <tr>
+                        <th>{{ 'booking' | translate }}</th>
+                        <th>{{ 'dashboard.client' | translate }}</th>
+                        <th>{{ 'dashboard.participants' | translate }}</th>
+                        <th>{{ 'dashboard.time' | translate }}</th>
+                        <th>{{ 'amount' | translate }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let item of section.items">
+                        <td>#{{ item.booking_id }}</td>
+                        <td>{{ item.client_name || '-' }}</td>
+                        <td>{{ item.participants ?? '-' }}</td>
+                        <td>{{ item.time_label || '-' }}</td>
+                        <td>{{ formatCurrency(item.total_due ?? 0) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <table *ngIf="section.type === 'overbooked_groups'">
+                    <thead>
+                      <tr>
+                        <th>{{ 'dashboard.group_courses' | translate }}</th>
+                        <th>{{ 'dashboard.level' | translate }}</th>
+                        <th>{{ 'dashboard.participants' | translate }}</th>
+                        <th>{{ 'dashboard.capacity_limit' | translate }}</th>
+                        <th>{{ 'dashboard.time' | translate }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let item of section.items">
+                        <td>{{ item.course_name }}</td>
+                        <td>{{ getGroupSubgroupLabel(item) }}</td>
+                        <td>{{ item.participants ?? '-' }}</td>
+                        <td>{{ item.max_participants ?? '-' }}</td>
+                        <td>{{ item.time_label || '-' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <table *ngIf="section.type === 'unassigned_groups'">
+                    <thead>
+                      <tr>
+                        <th>{{ 'dashboard.group_courses' | translate }}</th>
+                        <th>{{ 'dashboard.level' | translate }}</th>
+                        <th>{{ 'dashboard.participants' | translate }}</th>
+                        <th>{{ 'dashboard.time' | translate }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let item of section.items">
+                        <td>{{ item.course_name }}</td>
+                        <td>{{ getGroupSubgroupLabel(item) }}</td>
+                        <td>{{ item.participants ?? '-' }}</td>
+                        <td>{{ item.time_label || '-' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <table *ngIf="section.type === 'unassigned_private'">
+                    <thead>
+                      <tr>
+                        <th>{{ 'dashboard.private_courses' | translate }}</th>
+                        <th>{{ 'dashboard.client' | translate }}</th>
+                        <th>{{ 'dashboard.participants' | translate }}</th>
+                        <th>{{ 'dashboard.time' | translate }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let item of section.items">
+                        <td>{{ item.course_name || '-' }}</td>
+                        <td>{{ item.client_name || '-' }}</td>
+                        <td>{{ item.participants ?? '-' }}</td>
+                        <td>{{ item.time_label || '-' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <table *ngIf="section.type === 'free_monitors'">
+                    <thead>
+                      <tr>
+                        <th>{{ 'dashboard.monitor' | translate }}</th>
+                        <th>{{ 'dashboard.sports' | translate }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let item of section.items">
+                        <td>{{ item.monitor_name || item.client_name || '-' }}</td>
+                        <td>{{ item.course_name || '-' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+
+
+      <!-- ========== TODAY'S OPERATIONS SECTION ========== -->
+      <section class="operations-section">
+        <div class="operations-wrapper">
+          <div class="section-header compact">
+            <div>
+              <h3>{{ 'dashboard.operations_for_date' | translate:{ date: formatShortDate(selectedDate()) } }}</h3>
+              <p>{{ 'dashboard.todays_operations_subtitle' | translate }}</p>
+            </div>
+          </div>
+
+          <div class="operations-grid-large">
+            <div class="operations-card-large" [class.occupancy-card-large]="card.isOccupancy" *ngFor="let card of todaysOperationsCards">
+              <mat-icon class="card-icon">{{ card.icon }}</mat-icon>
+              <div class="card-content">
+                <span class="value">{{ card.value }}</span>
+                <span class="label" [attr.title]="card.tooltip || card.label">
+                  {{ card.label }}
+                  <span class="info-icon info-icon--wrapper ops-tooltip" [attr.data-tooltip]="card.tooltip || card.label">
+                    <mat-icon>info</mat-icon>
+                  </span>
+                </span>
+                <span class="caption" *ngIf="card.caption">{{ card.caption }}</span>
+              </div>
+
+              <div class="badge-row" *ngIf="card.badges?.length">
+                <span class="badge" [ngClass]="badge.tone" *ngFor="let badge of card.badges">
+                  <img *ngIf="badge.iconUrl; else badgeIcon" [src]="badge.iconUrl" [alt]="badge.label || ''" />
+                  <ng-template #badgeIcon>
+                    <mat-icon>{{ badge.icon }}</mat-icon>
+                  </ng-template>
+                  <span class="badge-label" *ngIf="badge.label">{{ badge.label }}</span>
+                  <span class="badge-value">{{ badge.value }}</span>
+                </span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== COURSES & CAPACITY SECTION ========== -->
+      <section class="courses-section">
+        <div class="courses-wrapper">
+          <div class="section-header">
+            <div class="header-with-icon">
+              <mat-icon class="section-icon">trending_up</mat-icon>
+              <h3>{{ 'dashboard.courses_capacity_for_date' | translate:{ date: formatShortDate(selectedDate()) } }}</h3>
+            </div>
+          </div>
+
+          <div class="capacity-overall dark-bar">
+            <div class="capacity-header">
+              <span class="capacity-label">
+                {{ 'dashboard.overall_capacity_usage' | translate }}
+                <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.overall_capacity' | translate">info</mat-icon>
+              </span>
+              <span class="capacity-value">{{ overallCapacityPercent }}%</span>
+            </div>
+            <mat-progress-bar
+              mode="determinate"
+              [value]="overallCapacityPercent"
+              color="primary"
+              class="capacity-bar"
+            ></mat-progress-bar>
+          </div>
+
+          <div class="course-columns">
+            <div class="course-column panel-group">
+              <div class="column-header">
+                <div class="column-title">
+                  <mat-icon class="column-icon">groups</mat-icon>
+                  <h4>{{ 'dashboard.group_courses' | translate }}</h4>
+                </div>
+              </div>
+
+              <div class="column-stats">
+                <div class="stat">
+                  <span class="stat-label">
+                    {{ 'dashboard.participants' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_participants' | translate">info</mat-icon>
+                  </span>
+                  <span class="stat-value">{{ totalGroupParticipants }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">
+                    {{ 'dashboard.groups' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_groups' | translate">info</mat-icon>
+                  </span>
+                  <span class="stat-value">{{ groupSummary()?.groups ?? groupCourses().meta.total }}</span>
+                </div>
+              </div>
+
+              <div class="panel-spot-summary">
+                <span class="panel-spot-label">
+                  {{ 'dashboard.spots_sold_available' | translate }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_spots' | translate">info</mat-icon>
+                </span>
+                <div class="panel-spot-value">
+                  <span>{{ (groupSummary()?.spots_sold ?? 0) | number:'1.0-1' }}</span>
+                  <span class="panel-spot-sep">/</span>
+                  <span>{{ (groupSummary()?.spots_available ?? 0) | number:'1.0-1' }}</span>
+                  <span class="panel-spot-unit">{{ 'dashboard.spots' | translate }}</span>
+                </div>
+              </div>
+
+              <div class="panel-bar">
+                <div class="panel-bar-header">
+                  <span class="panel-bar-label">
+                    {{ 'dashboard.capacity_usage' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_capacity_usage' | translate">info</mat-icon>
+                  </span>
+                  <span class="panel-bar-percent">{{ groupCapacityUsage }}%</span>
+                </div>
+                <mat-progress-bar mode="determinate" [value]="groupCapacityUsage" class="panel-progress"></mat-progress-bar>
+              </div>
+
+              <div class="panel-remaining">
+                <span>{{ (groupSummary()?.spots_remaining ?? 0) | number:'1.0-1' }} {{ 'dashboard.spots_remaining' | translate }}</span>
+                <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.group_spots_remaining' | translate">info</mat-icon>
+              </div>
+
+              <div class="panel-subtitle">{{ 'dashboard.todays_group_courses' | translate }}</div>
+
+              <div class="course-list" (scroll)="onGroupScroll($event)">
+                <div *ngIf="groupCourses().data.length === 0" class="empty-state">
+                  {{ 'dashboard.no_group_courses_today' | translate }}
+                </div>
+
+                <div class="course-row" *ngFor="let course of groupCourses().data">
+                <div class="course-row-header">
+                  <span class="course-row-title">
+                    <span class="course-type-icon group">
+                      <img *ngIf="course.course_icon; else groupCourseFallback" [src]="course.course_icon" alt="" />
+                      <ng-template #groupCourseFallback>G</ng-template>
+                    </span>
+                    {{ course.course_name }}
+                  </span>
+                </div>
+                <div class="course-row-meta">
+                  <span>{{ 'dashboard.groups' | translate }}: <strong>{{ course.groups_count }}</strong></span>
+                  <span>{{ 'dashboard.participants' | translate }}: <strong>{{ course.participants }}</strong></span>
+                </div>
+                <div class="course-row-meta">
+                  <span>{{ 'dashboard.monitor' | translate }}: <strong>{{ course.assigned_monitors }}</strong></span>
+                  <span *ngIf="course.pending_payments > 0">{{ 'dashboard.pending' | translate }}: {{ course.pending_payments }}</span>
+                </div>
+                <div class="course-row-meta">
+                  <span>{{ 'dashboard.date' | translate }}: <strong>{{ formatShortDate(selectedDate()) }}</strong></span>
+                  <span *ngIf="course.time_label">{{ 'dashboard.time' | translate }}: <strong>{{ course.time_label }}</strong></span>
+                </div>
+              </div>
+              </div>
+            </div>
+
+            <div class="course-column panel-private">
+              <div class="column-header">
+                <div class="column-title">
+                  <mat-icon class="column-icon">person</mat-icon>
+                  <h4>{{ 'dashboard.private_lessons' | translate }}</h4>
+                </div>
+              </div>
+
+              <div class="column-stats">
+                <div class="stat">
+                  <span class="stat-label">
+                    {{ 'dashboard.participants' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_participants' | translate">info</mat-icon>
+                  </span>
+                  <span class="stat-value">{{ totalPrivateLessons }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">
+                    {{ 'dashboard.courses_today' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_courses_today' | translate">info</mat-icon>
+                  </span>
+                  <span class="stat-value">{{ privateSummary()?.courses_today ?? privateCourses().meta.total }}</span>
+                </div>
+              </div>
+
+              <div class="panel-spot-summary">
+                <span class="panel-spot-label">
+                  {{ 'dashboard.hours_sold_available' | translate }}
+                  <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_hours' | translate">info</mat-icon>
+                </span>
+                <div class="panel-spot-value">
+                  <span>{{ (privateSummary()?.hours_sold ?? 0) | number:'1.0-1' }}</span>
+                  <span class="panel-spot-sep">/</span>
+                  <span>{{ (privateSummary()?.hours_available ?? 0) | number:'1.0-1' }}</span>
+                  <span class="panel-spot-unit">{{ 'dashboard.hours' | translate }}</span>
+                </div>
+                <div class="panel-caption">{{ 'dashboard.based_on_monitors_hours' | translate }}</div>
+              </div>
+
+              <div class="panel-bar">
+                <div class="panel-bar-header">
+                  <span class="panel-bar-label">
+                    {{ 'dashboard.capacity_usage' | translate }}
+                    <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_capacity_usage' | translate">info</mat-icon>
+                  </span>
+                  <span class="panel-bar-percent">{{ privateCapacityUsage }}%</span>
+                </div>
+                <mat-progress-bar mode="determinate" [value]="privateCapacityUsage" class="panel-progress"></mat-progress-bar>
+              </div>
+
+              <div class="panel-remaining">
+                <span>{{ (privateSummary()?.hours_remaining ?? 0) | number:'1.0-1' }} {{ 'dashboard.hours_remaining' | translate }}</span>
+                <mat-icon class="info-icon" [matTooltip]="'dashboard.tooltip.private_hours_remaining' | translate">info</mat-icon>
+              </div>
+
+              <div class="panel-subtitle">{{ 'dashboard.todays_private_lessons' | translate }}</div>
+
+              <div class="course-list" (scroll)="onPrivateScroll($event)">
+                <div *ngIf="privateCourses().data.length === 0" class="empty-state">
+                  {{ 'dashboard.no_private_courses_today' | translate }}
+                </div>
+
+                <div class="course-row private-row" *ngFor="let course of privateCourses().data">
+                  <div class="course-row-header">
+                    <span class="course-row-title">
+                      <span class="course-type-icon private">
+                        <img *ngIf="course.course_icon; else privateCourseFallback" [src]="course.course_icon" alt="" />
+                        <ng-template #privateCourseFallback>P</ng-template>
+                      </span>
+                      {{ course.course_name }}
+                    </span>
+                    <span class="course-tag" [class.unpaid]="!course.is_paid">
+                      {{ course.is_paid ? ('common.paid' | translate) : ('common.unpaid' | translate) }}
+                    </span>
+                  </div>
+                <div class="course-row-meta">
+                  <span *ngIf="course.client_name">{{ course.client_name }}</span>
+                  <span *ngIf="course.time_label">{{ course.time_label }}</span>
+                </div>
+                <div class="course-row-meta">
+                  <span>{{ 'dashboard.monitor' | translate }}: <strong>{{ course.monitor_name }}</strong></span>
+                  <span>{{ 'dashboard.participants' | translate }}: <strong>{{ course.participants }}</strong></span>
+                </div>
+                <div class="course-row-meta">
+                  <span *ngIf="course.duration_hours">{{ 'dashboard.hours' | translate }}: <strong>{{ course.duration_hours | number:'1.0-1' }}</strong></span>
+                  <span *ngIf="course.date">{{ 'dashboard.date' | translate }}: <strong>{{ course.date }}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 7-DAY FORECAST SECTION ========== -->
+      <section class="forecast-section">
+        <div class="card forecast-card">
+          <div class="forecast-card-header">
+            <div>
+              <h3>{{ 'dashboard.seven_day_forecast' | translate }}</h3>
+              <p>{{ 'dashboard.forecast_subtitle' | translate }}</p>
+            </div>
+          </div>
+
+          <div class="forecast-loading" *ngIf="loadingForecast()">
+            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          </div>
+
+          <div class="forecast-list" *ngIf="!loadingForecast()">
+            <div class="forecast-empty" *ngIf="forecastDays().length === 0">
+              {{ 'dashboard.no_records' | translate }}
+            </div>
+            <div class="forecast-row" *ngFor="let day of forecastDays()">
+              <div class="forecast-date">
+                <strong>{{ formatForecastLabel(day) }}</strong>
+                <span>{{ formatForecastDate(day) }}</span>
+              </div>
+
+              <div class="forecast-metrics">
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'dashboard.courses' | translate }}</span>
+                  <span class="metric-value">{{ day.courses }}</span>
+                </div>
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'dashboard.private_courses' | translate }}</span>
+                  <span class="metric-value">{{ day.private_courses }}</span>
+                </div>
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'dashboard.group_courses' | translate }}</span>
+                  <span class="metric-value">{{ day.group_courses }}</span>
+                </div>
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'dashboard.participants' | translate }}</span>
+                  <span class="metric-value">{{ day.participants }}</span>
+                </div>
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'dashboard.assigned_monitors' | translate }}</span>
+                  <span class="metric-value">{{ day.assigned_monitors }}</span>
+                </div>
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'dashboard.unassigned_courses' | translate }}</span>
+                  <span class="metric-value">{{ day.unassigned }}</span>
+                </div>
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'dashboard.free_monitors' | translate }}</span>
+                  <span class="metric-value">{{ day.free_monitors }}</span>
+                </div>
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'common.unpaid' | translate }}</span>
+                  <span class="metric-value">{{ day.unpaid }}</span>
+                </div>
+                <div class="forecast-metric">
+                  <span class="metric-label">{{ 'dashboard.revenue_estimate' | translate }}</span>
+                  <span class="metric-value">{{ formatCurrency(day.expected_revenue, forecastCurrency()) }}</span>
+                </div>
+                <div class="forecast-metric forecast-metric--occupancy">
+                  <div class="forecast-track-header">
+                    <span class="forecast-track-label">{{ 'dashboard.occupancy' | translate }}</span>
+                    <span class="forecast-percent">{{ getForecastPercent(day) | number: '1.0-0' }}%</span>
+                  </div>
+                  <div class="forecast-track">
+                    <div
+                      class="forecast-track-fill"
+                      [style.width.%]="getForecastPercent(day)"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== COMMERCIAL PERFORMANCE SECTION (TEMP DISABLED) ========== -->
+      <!--
+      <section class="commercial-section" *ngIf="commercial()">
+        <div class="section-header">
+          <div>
+            <h3>{{ 'dashboard.commercial_performance' | translate }}</h3>
+            <p>{{ 'dashboard.commercial_subtitle' | translate }}</p>
           </div>
         </div>
 
-        <!-- Panel de Alertas Detalladas -->
         <div class="card">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="headline">{{ 'system_alerts' | translate }}</h3>
-              <mat-icon class="text-primary">notifications</mat-icon>
-            </div>
-
-            <div class="space-y-3">
-              <!-- Reservas Huérfanas -->
-              <div class="flex items-center justify-between p-3 rounded-lg"
-                   [class.bg-red-50]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
-                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
-                   (click)="criticalAlerts && criticalAlerts.reservasHuerfanas > 0 && navigateToOrphanedBookings()">
-                <div class="flex items-center">
-                  <mat-icon class="mr-3"
-                           [class.text-red-600]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0"
-                           [class.text-green-600]="!criticalAlerts || criticalAlerts.reservasHuerfanas === 0">
-                    {{ criticalAlerts && criticalAlerts.reservasHuerfanas > 0 ? 'error_outline' : 'check_circle' }}
-                  </mat-icon>
-                  <span class="body-2">{{ 'orphaned_bookings' | translate }}</span>
-                </div>
-                <span class="subheading-2 font-medium"
-                      [class.text-red-600]="criticalAlerts && criticalAlerts.reservasHuerfanas > 0">
-                  {{ criticalAlerts?.reservasHuerfanas || 0 }}
-                </span>
-              </div>
-
-              <!-- Cursos sin Monitor -->
-              <div class="flex items-center justify-between p-3 rounded-lg"
-                   [class.bg-orange-50]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
-                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
-                   (click)="criticalAlerts && criticalAlerts.cursosSinMonitor > 0 && navigateToBookings()">
-                <div class="flex items-center">
-                  <mat-icon class="mr-3"
-                           [class.text-orange-600]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0"
-                           [class.text-green-600]="!criticalAlerts || criticalAlerts.cursosSinMonitor === 0">
-                    {{ criticalAlerts && criticalAlerts.cursosSinMonitor > 0 ? 'person_off' : 'check_circle' }}
-                  </mat-icon>
-                  <span class="body-2">{{ 'courses_without_monitor' | translate }}</span>
-                </div>
-                <span class="subheading-2 font-medium"
-                      [class.text-orange-600]="criticalAlerts && criticalAlerts.cursosSinMonitor > 0">
-                  {{ criticalAlerts?.cursosSinMonitor || 0 }}
-                </span>
-              </div>
-
-              <!-- Pagos Pendientes -->
-              <div class="flex items-center justify-between p-3 rounded-lg"
-                   [class.bg-yellow-50]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
-                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
-                   (click)="criticalAlerts && criticalAlerts.pagosPendientes > 0 && navigateToBookings()">
-                <div class="flex items-center">
-                  <mat-icon class="mr-3"
-                           [class.text-yellow-600]="criticalAlerts && criticalAlerts.pagosPendientes > 0"
-                           [class.text-green-600]="!criticalAlerts || criticalAlerts.pagosPendientes === 0">
-                    {{ criticalAlerts && criticalAlerts.pagosPendientes > 0 ? 'payment' : 'check_circle' }}
-                  </mat-icon>
-                  <span class="body-2">{{ 'pending_payments' | translate }}</span>
-                </div>
-                <span class="subheading-2 font-medium"
-                      [class.text-yellow-600]="criticalAlerts && criticalAlerts.pagosPendientes > 0">
-                  {{ criticalAlerts?.pagosPendientes || 0 }}
-                </span>
-              </div>
-
-              <!-- Capacidad Crítica -->
-              <div class="flex items-center justify-between p-3 rounded-lg"
-                   [class.bg-blue-50]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
-                   [class.cursor-pointer]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
-                   (click)="criticalAlerts && criticalAlerts.capacidadCritica > 0 && navigateToCourses()">
-                <div class="flex items-center">
-                  <mat-icon class="mr-3"
-                           [class.text-blue-600]="criticalAlerts && criticalAlerts.capacidadCritica > 0"
-                           [class.text-green-600]="!criticalAlerts || criticalAlerts.capacidadCritica === 0">
-                    {{ criticalAlerts && criticalAlerts.capacidadCritica > 0 ? 'trending_up' : 'check_circle' }}
-                  </mat-icon>
-                  <span class="body-2">{{ 'critical_capacity' | translate }}</span>
-                </div>
-                <span class="subheading-2 font-medium"
-                      [class.text-blue-600]="criticalAlerts && criticalAlerts.capacidadCritica > 0">
-                  {{ criticalAlerts?.capacidadCritica || 0 }}
-                </span>
-              </div>
+          <div class="commercial-grid">
+            <div class="commercial-card" *ngFor="let card of commercialCards">
+              <span class="label">{{ card.label }}</span>
+              <span class="value">{{ card.value }}</span>
             </div>
           </div>
+
+          <div class="summary-row">
+            <span>
+              {{ 'dashboard.trend' | translate }}:
+              <span class="trend-chip" [ngClass]="commercial()!.trend">
+                <mat-icon>{{ getTrendIcon(commercial()!.trend) }}</mat-icon>
+                {{ getTrendLabel(commercial()!.trend) }}
+              </span>
+            </span>
+          </div>
+
+          <div class="sub-summary">
+            <span>
+              {{ 'dashboard.pending_payments' | translate }}:
+              <strong>{{ formatCurrency(commercial()!.pending_payments, commercial()!.currency) }}</strong>
+            </span>
+            <span>
+              {{ 'dashboard.expected_revenue_today' | translate }}:
+              <strong>{{ formatCurrency(commercial()!.expected_revenue_today, commercial()!.currency) }}</strong>
+            </span>
+            <span>
+              {{ 'dashboard.total_bookings_today' | translate }}:
+              <strong>{{ commercial()!.total_bookings_today }}</strong>
+            </span>
+            <span>
+              {{ 'dashboard.boukii_revenue_estimate' | translate }}:
+              <strong>{{ formatCurrency(commercial()!.boukii_revenue_estimate, commercial()!.currency) }}</strong>
+            </span>
+          </div>
         </div>
-      </div>
+      </section>
+      -->
 
     </div>
   </vex-page-layout-content>

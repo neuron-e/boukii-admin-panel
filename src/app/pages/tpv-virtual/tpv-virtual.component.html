@@ -1,0 +1,26 @@
+﻿<div class="tpv-virtual-container">
+  <div class="header">
+    <h1>
+      <mat-icon>point_of_sale</mat-icon>
+      {{ 'tpv_virtual.title' | translate }}
+    </h1>
+    <p>{{ 'tpv_virtual.subtitle' | translate }}</p>
+  </div>
+
+  <mat-card>
+    <div class="card-content">
+      <p>{{ 'tpv_virtual.description' | translate }}</p>
+      <button mat-raised-button
+              color="accent"
+              class="open-btn"
+              (click)="openVPOS()"
+              [disabled]="loading">
+        <mat-spinner *ngIf="loading"
+                     diameter="20"
+                     class="button-spinner"></mat-spinner>
+        <mat-icon *ngIf="!loading">point_of_sale</mat-icon>
+        {{ 'tpv_virtual.open_button' | translate }}
+      </button>
+    </div>
+  </mat-card>
+</div>

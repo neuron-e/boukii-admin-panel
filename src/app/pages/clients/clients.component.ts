@@ -7,11 +7,10 @@ import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { MOCK_PROVINCES } from 'src/app/static-data/province-data';
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
-import { BookingsCreateUpdateModalComponent } from '../bookings/bookings-create-update-modal/bookings-create-update-modal.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { BookingsCreateUpdateComponent } from '../bookings/bookings-create-update/bookings-create-update.component';
-import {BookingsCreateUpdateV2Component} from '../bookings-v2/bookings-create-update/bookings-create-update.component';
+import { BookingsCreateUpdateV2Component } from '../bookings-v2/bookings-create-update/bookings-create-update.component';
+import { saveAs } from 'file-saver';
 
 @Component({
   selector: 'vex-clients',
@@ -44,6 +43,7 @@ export class ClientsComponent {
   borderActive = -1;
   utilizerSportLoaded = false;
   allLevels = [];
+  exporting = false;
 
   constructor(private crudService: ApiCrudService, private router: Router, private translateService: TranslateService,
     private dialog: MatDialog, private snackbar: MatSnackBar) {
@@ -211,5 +211,25 @@ export class ClientsComponent {
     return this.allLevels.filter((a) => 
       a.sport_id === id && age >= a.age_min && age <= a.age_max
     );
+  }
+
+  exportClients() {
+    if (this.exporting) {
+      return;
+    }
+    this.exporting = true;
+    const lang = this.translateService.currentLang || 'en';
+    const today = new Date().toISOString().slice(0, 10);
+
+    this.crudService.getFile(`/admin/exports/clients?lang=${lang}`)
+      .subscribe((data: any) => {
+        const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, `clients_${this.user?.schools?.[0]?.slug || 'school'}_${today}.xlsx`);
+        this.exporting = false;
+      }, (error: any) => {
+        console.error('Error exporting clients', error);
+        this.snackbar.open(this.translateService.instant('download_error') || 'Error downloading export', 'Cerrar', { duration: 3000 });
+        this.exporting = false;
+      });
   }
 }

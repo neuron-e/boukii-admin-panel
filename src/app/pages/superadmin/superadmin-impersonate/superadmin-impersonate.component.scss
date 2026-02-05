@@ -1,0 +1,27 @@
+.impersonate-page {
+  color: #fff;
+
+  .impersonate-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 120px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border-radius: 10px;
+    border: none;
+    padding: 12px;
+    font-family: monospace;
+  }
+
+  .token-area {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

@@ -30,6 +30,11 @@ export class ApiCrudService extends ApiService {
     });
   }
 
+  uploadFile(url: string, formData: FormData) {
+    const headers = this.getHeaders().delete('content-type');
+    return this.http.post<ApiResponse>(this.baseUrl + url, formData, { headers });
+  }
+
   get(url: string, relations: any[] = [], filters: any = {}) {
     const params = new URLSearchParams();
 
@@ -72,9 +77,14 @@ export class ApiCrudService extends ApiService {
       relationsParams = relations.map((relation: any) => `&with[]=${relation}`).join('');
     }
 
+    const filterSegment = filter
+      ? (filter.startsWith('&') ? filter : `&${filter}`)
+      : '';
+
     // Construir la URL completa
     const url = this.baseUrl + model + '?perPage=' + perPage + '&page=' + numPage + '&order=' + order
-      + '&orderColumn=' + orderColumn + '&search=' + search + '&exclude=' + exclude + relationsParams;
+      + '&orderColumn=' + orderColumn + '&search=' + search + '&exclude=' + exclude
+      + filterSegment + relationsParams;
 
     return this.http.get<ApiResponse>(url,
       { headers: this.getHeaders() });
@@ -101,6 +111,10 @@ export class ApiCrudService extends ApiService {
     return this.http.put<ApiResponse>(this.baseUrl + model + '/' + id, data, { headers: this.getHeaders() });
   }
 
+  patch(model: string, data: any, id: any): Observable<ApiResponse> {
+    return this.http.patch<ApiResponse>(this.baseUrl + model + '/' + id, data, { headers: this.getHeaders() });
+  }
+
   restore(entity: string, id: number): Observable<any> {
     return this.http.post(`${this.baseUrl}${entity}/${id}/restore`, {});
   }
@@ -123,6 +137,10 @@ export class ApiCrudService extends ApiService {
       'target_lang': targetLanguage
     }
     return this.http.post(this.baseUrl + '/translate', params, { headers: this.getHeaders() });
+  }
+
+  translateCourse(courseId: number | string, payload: any): Observable<ApiResponse> {
+    return this.http.post<ApiResponse>(`${this.baseUrl}/admin/courses/${courseId}/translate`, payload, { headers: this.getHeaders() });
   }
 
 }

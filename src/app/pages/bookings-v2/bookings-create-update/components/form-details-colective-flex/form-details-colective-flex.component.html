@@ -52,6 +52,29 @@
     </div>
   </div>
 
+  <!-- Información general de descuentos -->
+  <div *ngIf="getGlobalDiscountBadges().length"
+       style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 10px; margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+      <mat-icon style="font-size: 20px; color: #2e7d32;">local_offer</mat-icon>
+      <strong style="color: #2e7d32; font-size: 13px;">
+        {{ 'reduction' | translate }} / {{ 'discounts' | translate }}
+      </strong>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+      <span *ngFor="let badge of getGlobalDiscountBadges()"
+            style="background: #c8e6c9; color: #2e7d32; padding: 4px 8px; border-radius: 12px; font-size: 11px;">
+        {{ badge }}
+      </span>
+    </div>
+  </div>
+   <div *ngIf="!hasIntervals() && getIntervalPriceSummary(null) as generalSummary"
+        style="background: #fdf8e4; border: 1px solid #f5e49c; border-radius: 6px; padding: 10px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px;">
+     <span>{{ 'base' | translate }}: {{ generalSummary.base | number:'0.2-2' }} {{ generalSummary.currency }}</span>
+     <span *ngIf="generalSummary.discount > 0">{{ 'discount' | translate }}: -{{ generalSummary.discount | number:'0.2-2' }} {{ generalSummary.currency }}</span>
+     <span style="font-weight: 600;">{{ 'total' | translate }}: {{ generalSummary.final | number:'0.2-2' }} {{ generalSummary.currency }}</span>
+   </div>
+
   <div formArrayName="course_dates">
     <!-- Si hay intervalos, agrupar por intervalo -->
     <ng-container *ngIf="hasIntervals()">
@@ -77,6 +100,23 @@
                     [style.transform]="isIntervalCollapsed(intervalIdx) ? 'rotate(0deg)' : 'rotate(180deg)'">
             expand_more
           </mat-icon>
+        </div>
+        <div *ngIf="getIntervalDiscountBadges(interval).length"
+             style="padding: 8px 16px; background: #fdf8e4; border-bottom: 1px solid #f5e49c; display: flex; flex-wrap: wrap; gap: 8px;">
+          <span *ngFor="let badge of getIntervalDiscountBadges(interval)"
+                style="background: #fff3cd; color: #8a6d3b; padding: 4px 10px; border-radius: 12px; font-size: 11px;">
+            {{ badge }}
+          </span>
+        </div>
+        <div *ngIf="getIntervalPriceSummary(interval.id) as intervalSummary"
+             style="padding: 6px 16px; background: #f0f4ff; border-bottom: 1px solid #d6e0ff; font-size: 12px; color: #1a237e; display: flex; flex-wrap: wrap; gap: 12px;">
+          <span>{{ 'base' | translate }}: {{ intervalSummary.base | number:'0.2-2' }} {{ intervalSummary.currency }}</span>
+          <span *ngIf="intervalSummary.discount > 0">{{ 'discount' | translate }}: -{{ intervalSummary.discount | number:'0.2-2' }} {{ intervalSummary.currency }}</span>
+          <span style="font-weight: 600;">{{ 'total' | translate }}: {{ intervalSummary.final | number:'0.2-2' }} {{ intervalSummary.currency }}</span>
+        </div>
+        <div *ngIf="getActiveDiscountMessage(interval.id)"
+             style="padding: 6px 16px; background: #e8f5e9; border-bottom: 1px solid #c8e6c9; font-size: 12px; color: #2e7d32;">
+          {{ getActiveDiscountMessage(interval.id) }}
         </div>
 
         <!-- Detalles del intervalo (debajo del header) -->
@@ -257,6 +297,11 @@
 
     <!-- Si NO hay intervalos, mostrar lista normal -->
     <ng-container *ngIf="!hasIntervals()">
+      <div *ngIf="!hasIntervals() && getActiveDiscountMessage(null)"
+           style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+        <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px; color: #2e7d32;">local_offer</mat-icon>
+        {{ getActiveDiscountMessage(null) }}
+      </div>
       <div *ngFor="let courseDate of courseDatesArray.controls; let i = index" [formGroupName]="i">
         <div class="content-wrapper" [class.first-date]="i === 0 && course.settings?.mustStartFromFirst">
           <mat-checkbox formControlName="selected" (change)="onDateSelect($event, i)"></mat-checkbox>
@@ -274,7 +319,10 @@
             </div>
 
             <!-- Selector de grupo expandible (SOLO aparece si la fecha está seleccionada) -->
-            <div *ngIf="courseDatesArray.at(i).get('selected').value" style="margin-top: 12px; width: 100%;">
+            <div *ngIf="courseDatesArray.at(i).get('selected').value"
+                 class="group-selector-wrapper"
+                 [attr.data-group-selector]="i"
+                 style="margin-top: 12px; width: 100%;">
               <!-- Botón para expandir/colapsar selector de grupos -->
               <button type="button" mat-stroked-button
                       (click)="toggleGroupSelector(i)"

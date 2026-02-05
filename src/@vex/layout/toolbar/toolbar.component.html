@@ -35,6 +35,11 @@
       <span>{{'add_task' | translate }}</span>
     </button>
 
+    <button mat-menu-item (click)="openExportCoursesDialog()">
+      <mat-icon svgIcon="mat:save"></mat-icon>
+      <span>{{ 'export_all_courses' | translate }}</span>
+    </button>
+
     <button mat-menu-item (click)="goTo('/bookings/create')">
       <mat-icon svgIcon="mat:assignment_turned_in"></mat-icon>
       <span>{{'add_booking' | translate }}</span>

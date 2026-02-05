@@ -1,23 +1,48 @@
 <vex-page-layout>
   <vex-secondary-toolbar current>
-    <vex-breadcrumbs [crumbs]="[
-      {icon:'analytics'},
+  <vex-breadcrumbs [crumbs]="[
+      {icon:'stats'},
       {text:'menu.analytics', title: true},
       {text:'dashboard', subtitle: true}
     ]" class="flex"></vex-breadcrumbs>
 
-    <div class="ml-auto flex items-center space-x-4">
+  <div class="ml-auto flex items-center space-x-4">
+      <mat-form-field appearance="outline" class="w-36">
+        <mat-label>{{ 'export_format' | translate }}</mat-label>
+        <mat-select [value]="exportFormat" (selectionChange)="exportFormat = $event.value">
+          <mat-option value="csv">CSV</mat-option>
+          <mat-option value="excel">Excel</mat-option>
+        </mat-select>
+      </mat-form-field>
       <button mat-raised-button color="primary" (click)="onExportData()" class="text-sm" [disabled]="!dashboardData">
         <mat-icon>download</mat-icon>
         {{ 'export_data' | translate }}
       </button>
-      <button mat-icon-button (click)="refreshData()" matTooltip="{{ 'refresh' | translate }}">
+      <button mat-stroked-button color="accent" class="cache-refresh-button" (click)="refreshData()" [disabled]="loading"
+              matTooltip="{{ 'analytics_refresh_cache_tooltip' | translate }}">
+        <mat-icon>cached</mat-icon>
+        {{ 'analytics_refresh_cache' | translate }}
+      </button>
+      <button mat-icon-button (click)="loadAnalyticsData()" [disabled]="loading"
+              matTooltip="{{ 'refresh' | translate }}">
         <mat-icon>refresh</mat-icon>
       </button>
     </div>
   </vex-secondary-toolbar>
 
   <vex-page-layout-content class="fullwidth">
+
+    <div class="cache-status" *ngIf="cacheMetadata || loading">
+      <mat-icon class="mr-2 text-secondary">schedule</mat-icon>
+      <span *ngIf="loading && !cacheMetadata">{{ 'analytics_cache_loading_no_cache' | translate }}</span>
+      <span *ngIf="cacheMetadata">
+        <span *ngIf="cacheMetadata.generated_at">{{ 'analytics_cache_generated_at' | translate }} {{ cacheMetadata.generated_at | date:'short' }}</span>
+        <span *ngIf="!cacheMetadata.generated_at">{{ 'analytics_cache_generated_at_na' | translate }}</span>
+        <span *ngIf="cacheNoticeKey"> - {{ cacheNoticeKey | translate }}</span>
+        <span *ngIf="aggregatesMetadata?.updated_at"> - {{ 'analytics_aggregates_updated_at' | translate }} {{ aggregatesMetadata.updated_at | date:'short' }}</span>
+        <span *ngIf="aggregatesMetadata?.refresh_blocked"> - {{ 'analytics_aggregates_refresh_blocked' | translate:{ minutes: aggregatesMetadata.refresh_available_in_minutes || 0 } }}</span>
+      </span>
+    </div>
 
     <!-- Filters Section -->
     <div class="filters-section">
@@ -46,6 +71,14 @@
                 <mat-label>{{ 'end_date' | translate }}</mat-label>
                 <input matInput type="date" formControlName="endDate">
                 <mat-icon matSuffix>calendar_today</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="filter-field">
+                <mat-label>{{ 'filter_by' | translate }}</mat-label>
+                <mat-select formControlName="dateFilter">
+                  <mat-option value="created_at">{{ 'filter_by_booking_created' | translate }}</mat-option>
+                  <mat-option value="activity">{{ 'filter_by_activity_dates' | translate }}</mat-option>
+                </mat-select>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="filter-field">
@@ -175,6 +208,10 @@
 
 
       <!-- Analytics Tabs -->
+      <div *ngIf="tabLoading[activeTab]" class="tab-loading">
+        <mat-spinner diameter="28"></mat-spinner>
+        <span>{{ 'loading_analytics' | translate }}</span>
+      </div>
       <mat-tab-group class="analytics-tabs" [(selectedIndex)]="activeTabIndex" (selectedTabChange)="onTabChange($event)">
 
         <!-- Revenue Analysis Tab -->
@@ -213,148 +250,95 @@
                    [showTrend]="false">
                  </app-kpis-card>-->
 
-                <!-- 1. TOTAL REVENUE (sin cambios) -->
+                                <!-- ===== RESUMEN EJECUTIVO: VISTA GENERAL DEL NEGOCIO ===== -->
+
+                <!-- 1. INGRESOS TOTALES RECIBIDOS -->
                 <app-kpis-card
                   [kpiData]="{
-        title: 'total_revenue' | translate,
+        title: ('revenue_received_total' | translate),
+        value: dashboardData.executive_kpis.revenue_received,
+        subtitle: ('paid' | translate),
+        format: 'currency',
+        currency: currency,
+        icon: 'monetization_on',
+        color: 'success',
+        tooltip: ('revenue_received_total_tooltip' | translate)
+      }"
+                  [showTrend]="false">
+                </app-kpis-card>
+
+                <!-- 2. INGRESOS ESPERADOS -->
+                <app-kpis-card
+                  [kpiData]="{
+        title: ('revenue_expected' | translate),
         value: dashboardData.executive_kpis.revenue_expected,
         format: 'currency',
         currency: currency,
-        trend: getTrend(dashboardData.executive_kpis.revenue_expected, 0),
-        trendValue: getTrendValue(dashboardData.executive_kpis.revenue_expected, 0),
-        icon: 'monetization_on',
-        color: 'primary'
+        icon: 'account_balance_wallet',
+        color: 'primary',
+        tooltip: ('revenue_expected_tooltip' | translate)
       }"
                   [showTrend]="false">
                 </app-kpis-card>
 
-                <!-- 2. TOTAL BOOKINGS (CORREGIDO - usar season_info.total_bookings) -->
+                <!-- 3. INGRESOS PENDIENTES -->
                 <app-kpis-card
                   [kpiData]="{
-        title: 'total_bookings' | translate,
-        value: dashboardData.season_info.total_bookings,
-        format: 'number',
-        trend: getTrend(dashboardData.season_info.total_bookings, 0),
-        trendValue: getTrendValue(dashboardData.season_info.total_bookings, 0),
-        icon: 'book_online',
-        color: 'secondary'
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!-- 3. PENDING REVENUE (CLICKEABLE) -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: 'pending_revenue' | translate,
+        title: ('pending_collection_total' | translate),
         value: dashboardData.executive_kpis.revenue_pending,
         format: 'currency',
         currency: currency,
-        trend: getTrend(dashboardData.executive_kpis.revenue_pending, 0),
-        trendValue: getTrendValue(dashboardData.executive_kpis.revenue_pending, 0),
-        icon: 'schedule',
+        icon: 'money_off',
         color: 'warning',
+        tooltip: ('pending_collection_tooltip' | translate),
         clickable: true
       }"
-                  [showTrend]="false"
-                  class="clickeable"
-                  (click)="onPendingRevenueClick()">
-                </app-kpis-card>
-
-                <!-- 4. TOTAL PARTICIPANTS (CORREGIDO) -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: 'total_participants' | translate,
-        value: dashboardData.executive_kpis.total_participants,
-        format: 'number',
-        trend: getTrend(dashboardData.executive_kpis.total_participants, 0),
-        trendValue: getTrendValue(dashboardData.executive_kpis.total_participants, 0),
-        icon: 'group',
-        color: 'primary'
-      }"
+                  (cardClick)="onPendingRevenueClick()"
                   [showTrend]="false">
                 </app-kpis-card>
 
-                <!-- 5. TOTAL CLIENTS (CORREGIDO) -->
+                <!-- 4. RESERVAS PRODUCTIVAS -->
                 <app-kpis-card
                   [kpiData]="{
-        title: 'total_clients' | translate,
-        value: dashboardData.executive_kpis.total_clients,
-        format: 'number',
-        trend: getTrend(dashboardData.executive_kpis.total_clients, 0),
-        trendValue: getTrendValue(dashboardData.executive_kpis.total_clients, 0),
-        icon: 'people',
-        color: 'info'
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!--          <app-kpis-card
-                            [kpiData]="{
-                              title: 'consistency_rate' | translate,
-                              value: dashboardData.executive_kpis.consistency_rate,
-                              format: 'percentage',
-                              trend: getTrend(dashboardData.executive_kpis.consistency_rate, 0),
-                              trendValue: getTrendValue(dashboardData.executive_kpis.consistency_rate, 0),
-                              icon: 'verified',
-                              color: dashboardData.executive_kpis.consistency_rate >= 95 ? 'success' :
-                                    dashboardData.executive_kpis.consistency_rate >= 80 ? 'warning' : 'danger'
-                            }"
-                            [showTrend]="false">
-                          </app-kpis-card>-->
-              </div>
-            </div>
-
-            <!-- Booking Classification Section -->
-            <div class="classification-section" *ngIf="dashboardData.season_info.booking_classification">
-              <h2 class="section-title">{{ 'booking_classification' | translate }}</h2>
-              <div class="classification-grid">
-
-                <!-- TOTAL BOOKINGS -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: 'total_bookings' | translate,
-        value: dashboardData.season_info.booking_classification.total_bookings,
-        format: 'number',
-        subtitle: 'Todas las reservas analizadas',
-        icon: 'analytics',
-        color: 'primary'
-      }"
-                  [showTrend]="false">
-                </app-kpis-card>
-
-                <!-- RESERVAS PRODUCTIVAS -->
-                <app-kpis-card
-                  [kpiData]="{
-        title: 'production_bookings' | translate,
+        title: ('production_bookings' | translate),
         value: dashboardData.season_info.booking_classification.production_count,
         format: 'number',
-        subtitle: (dashboardData.season_info.booking_classification.production_revenue | currency:currency),
         icon: 'check_circle',
         color: 'success'
       }"
                   [showTrend]="false">
                 </app-kpis-card>
 
-                <!-- RESERVAS CANCELADAS (CLICKEABLE) -->
+                <!-- 5. RESERVAS CANCELADAS -->
                 <app-kpis-card
                   [kpiData]="{
-        title: 'cancelled_bookings' | translate,
+        title: ('cancelled_bookings' | translate),
         value: dashboardData.season_info.booking_classification.cancelled_count,
         format: 'number',
-        subtitle: (dashboardData.season_info.booking_classification.cancelled_revenue | currency:currency),
         icon: 'cancel',
         color: 'danger',
-                clickable: true
+        clickable: true
       }"
-                  [showTrend]="false"
-                  class="clickeable"
-                  (click)="onCancelledBookingsClick()">
+                  (cardClick)="onCancelledBookingsClick()"
+                  [showTrend]="false">
                 </app-kpis-card>
 
+                <!-- 6. PARTICIPANTES (UNICOS) -->
+                <app-kpis-card
+                  [kpiData]="{
+        title: ('total_participants' | translate),
+        value: dashboardData.executive_kpis.total_participants,
+        format: 'number',
+        icon: 'group',
+        color: 'secondary',
+        tooltip: ('total_participants_tooltip' | translate)
+      }"
+                  [showTrend]="false">
+                </app-kpis-card>
               </div>
             </div>
 
-            <!-- Revenue Charts -->
+<!-- Revenue Charts -->
             <div class="charts-grid">
               <mat-card class="chart-card">
                 <mat-card-header>
@@ -377,10 +361,11 @@
               </mat-card>
             </div>
 
-            <!-- Revenue Table -->
+                        <!-- Revenue Table -->
             <mat-card class="table-card">
               <mat-card-header>
                 <mat-card-title>{{ 'revenue_details' | translate }}</mat-card-title>
+                <mat-card-subtitle>{{ 'analytics_revenue_legend' | translate }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 <div class="table-container">
@@ -390,29 +375,19 @@
                       <td mat-cell *matCellDef="let element">{{ element.month }}</td>
                     </ng-container>
 
-                    <ng-container matColumnDef="revenue">
-                      <th mat-header-cell *matHeaderCellDef>{{ 'revenue' | translate }}</th>
-                      <td mat-cell *matCellDef="let element">{{ element.revenue | currency:currency }}</td>
+                    <ng-container matColumnDef="revenueExpected">
+                      <th mat-header-cell *matHeaderCellDef>{{ 'revenue_expected' | translate }}</th>
+                      <td mat-cell *matCellDef="let element">{{ element.revenue_expected | currency:currency }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="revenueReceived">
+                      <th mat-header-cell *matHeaderCellDef>{{ 'revenue_received_total' | translate }}</th>
+                      <td mat-cell *matCellDef="let element">{{ element.revenue_received | currency:currency }}</td>
                     </ng-container>
 
                     <ng-container matColumnDef="bookings">
                       <th mat-header-cell *matHeaderCellDef>{{ 'bookings' | translate }}</th>
                       <td mat-cell *matCellDef="let element">{{ element.bookings }}</td>
-                    </ng-container>
-
-                    <ng-container matColumnDef="averageValue">
-                      <th mat-header-cell *matHeaderCellDef>{{ 'average_value' | translate }}</th>
-                      <td mat-cell *matCellDef="let element">{{ element.avg_booking_value | currency:currency }}</td>
-                    </ng-container>
-
-                    <ng-container matColumnDef="clients">
-                      <th mat-header-cell *matHeaderCellDef>{{ 'unique_clients' | translate }}</th>
-                      <td mat-cell *matCellDef="let element">{{ element.unique_clients }}</td>
-                    </ng-container>
-
-                    <ng-container matColumnDef="consistencyRate">
-                      <th mat-header-cell *matHeaderCellDef>{{ 'consistency_rate' | translate }}</th>
-                      <td mat-cell *matCellDef="let element">{{ element.consistency_rate | number:'1.0-0' }}%</td>
                     </ng-container>
 
                     <tr mat-header-row *matHeaderRowDef="revenueDisplayedColumns"></tr>
@@ -427,70 +402,6 @@
         <!-- Payment Methods Tab -->
         <mat-tab label="{{ 'payment_methods' | translate }}">
           <div class="tab-content">
-
-            <!-- Payment Overview KPIs (NUEVO - usando tu diseño) -->
-            <div class="payment-overview-section">
-              <h2 class="section-title">{{ 'payment_overview' | translate }}</h2>
-              <div class="payment-methods-summary">
-
-                <!-- Total Revenue -->
-                <div class="payment-method-card">
-                  <div class="payment-icon">
-                    <mat-icon [style.color]="chartColors.primary">monetization_on</mat-icon>
-                  </div>
-                  <div class="payment-details">
-                    <h3>{{ 'total_revenue' | translate }}</h3>
-                    <div class="payment-amount">{{ dashboardData.executive_kpis.revenue_expected | currency:currency }}</div>
-                    <div class="payment-count">{{ dashboardData.payment_methods?.total_payments || 0 }} {{ 'transactions' | translate }}</div>
-                    <div class="payment-percentage">100%</div>
-                  </div>
-                </div>
-
-                <!-- Revenue Received -->
-                <div class="payment-method-card">
-                  <div class="payment-icon">
-                    <mat-icon [style.color]="chartColors.success">check_circle</mat-icon>
-                  </div>
-                  <div class="payment-details">
-                    <h3>{{ 'revenue_received' | translate }}</h3>
-                    <div class="payment-amount">{{ dashboardData.executive_kpis.revenue_received | currency:currency }}</div>
-                    <div class="payment-count">{{ 'collected' | translate }}</div>
-                    <div class="payment-percentage">{{ (dashboardData.executive_kpis.collection_efficiency | number:'1.0-0') }}%</div>
-                  </div>
-                </div>
-
-                <!-- Revenue Pending (clickeable) -->
-                <div class="payment-method-card clickeable-card" (click)="onPendingRevenueClick()">
-                  <div class="payment-icon">
-                    <mat-icon [style.color]="chartColors.warning">schedule</mat-icon>
-                  </div>
-                  <div class="payment-details">
-                    <h3>{{ 'revenue_pending' | translate }}</h3>
-                    <div class="payment-amount">{{ dashboardData.executive_kpis.revenue_pending | currency:currency }}</div>
-                    <div class="payment-count">{{ 'pending_collection' | translate }}</div>
-                    <div class="payment-percentage">{{ ((dashboardData.executive_kpis.revenue_pending / dashboardData.executive_kpis.revenue_expected) * 100 | number:'1.0-0') }}%</div>
-                  </div>
-                  <div  class="click-hint">
-                    <mat-icon class="hint-icon">visibility</mat-icon>
-                    <span class="hint-text">{{ 'view_details' | translate }}</span>
-                  </div>
-                </div>
-
-                <!-- Average Booking Value -->
-                <div class="payment-method-card">
-                  <div class="payment-icon">
-                    <mat-icon [style.color]="chartColors.info">assessment</mat-icon>
-                  </div>
-                  <div class="payment-details">
-                    <h3>{{ 'average_booking_value' | translate }}</h3>
-                    <div class="payment-amount">{{ dashboardData.executive_kpis.average_booking_value | currency:currency }}</div>
-                    <div class="payment-count">{{ 'per_booking' | translate }}</div>
-                    <div class="payment-percentage">{{ 'avg' | translate }}</div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
 
             <!-- TU CÓDIGO ORIGINAL - Payment Methods Charts -->
             <div class="charts-grid">
@@ -535,6 +446,12 @@
         <!-- Courses Analysis Tab -->
         <mat-tab label="{{ 'courses_analysis' | translate }}">
           <div class="tab-content">
+            <mat-card class="alert-card alert-info course-note">
+              <mat-card-content>
+                <mat-icon>info</mat-icon>
+                <span>{{ 'analytics_courses_includes_unpaid' | translate }}</span>
+              </mat-card-content>
+            </mat-card>
 
             <!-- Course Performance Charts -->
             <div class="charts-grid">
@@ -550,8 +467,8 @@
 
               <mat-card class="chart-card">
                 <mat-card-header>
-                  <mat-card-title>{{ 'course_completion_rates' | translate }}</mat-card-title>
-                  <mat-card-subtitle>{{ 'success_metrics' | translate }}</mat-card-subtitle>
+                  <mat-card-title>{{ 'top_courses_by_bookings' | translate }}</mat-card-title>
+                  <mat-card-subtitle>{{ 'popularity_and_demand' | translate }}</mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content>
                   <div class="chart-container" #completionRatesChart></div>
@@ -671,31 +588,21 @@
           <div class="tab-content">
 
             <!-- Sources Charts -->
-            <div class="charts-grid">
-              <mat-card class="chart-card">
-                <mat-card-header>
-                  <mat-card-title>{{ 'sources_distribution' | translate }}</mat-card-title>
-                  <mat-card-subtitle>{{ 'by_revenue' | translate }}</mat-card-subtitle>
-                </mat-card-header>
-                <mat-card-content>
-                  <div class="chart-container" #sourcesChart></div>
-                </mat-card-content>
-              </mat-card>
-
-              <mat-card class="chart-card">
-                <mat-card-header>
-                  <mat-card-title>{{ 'source_performance' | translate }}</mat-card-title>
-                  <mat-card-subtitle>{{ 'consistency_rates' | translate }}</mat-card-subtitle>
-                </mat-card-header>
-                <mat-card-content>
-                  <div class="chart-container" #sourcePerformanceChart></div>
-                </mat-card-content>
-              </mat-card>
-            </div>
+              <div class="charts-grid">
+                <mat-card class="chart-card">
+                  <mat-card-header>
+                    <mat-card-title>{{ 'sources_distribution' | translate }}</mat-card-title>
+                    <mat-card-subtitle>{{ 'by_revenue' | translate }}</mat-card-subtitle>
+                  </mat-card-header>
+                  <mat-card-content>
+                    <div class="chart-container" #sourcesChart></div>
+                  </mat-card-content>
+                </mat-card>
+              </div>
 
             <!-- Sources Summary Cards -->
             <div class="sources-summary" *ngIf="dashboardData.booking_sources?.source_breakdown">
-              <div class="source-card" *ngFor="let source of dashboardData.booking_sources.source_breakdown">
+              <div class="source-card" *ngFor="let source of getBookingSourceBreakdown()">
                 <div class="source-icon">
                   <mat-icon [style.color]="chartColors.secondary">source</mat-icon>
                 </div>
@@ -736,6 +643,7 @@
             <!-- Aquí irá el componente MonitorsLegacy cuando esté listo -->
 
             <app-monitors-legacy
+              *ngIf="activeTab === 'monitors'"
               [filterForm]="filterForm"
               [user]="user"
               [currency]="currency">
@@ -745,124 +653,7 @@
           </div>
         </mat-tab>
 
-        <!-- Comparative Analysis Tab -->
-        <mat-tab label="{{ 'comparative_analysis' | translate }}">
-          <div class="tab-content">
-
-            <!-- Comparison Charts -->
-            <div class="charts-grid">
-              <mat-card class="chart-card full-width">
-                <mat-card-header>
-                  <mat-card-title>{{ 'booking_classification_comparison' | translate }}</mat-card-title>
-                  <mat-card-subtitle>{{ 'production_vs_test_vs_cancelled' | translate }}</mat-card-subtitle>
-                </mat-card-header>
-                <mat-card-content>
-                  <div class="chart-container" #comparisonChart></div>
-                </mat-card-content>
-              </mat-card>
-            </div>
-
-            <!-- Comparison Summary -->
-            <div class="comparison-summary" *ngIf="dashboardData.season_info.booking_classification">
-              <div class="comparison-section">
-                <h3>{{ 'booking_type_breakdown' | translate }}</h3>
-                <div class="comparison-cards">
-                  <div class="comparison-card">
-                    <div class="comparison-label">{{ 'production_bookings' | translate }}</div>
-                    <div class="comparison-value current">{{ dashboardData.season_info.booking_classification.production_count }}</div>
-                    <div class="comparison-revenue">{{ dashboardData.season_info.booking_classification.production_revenue | currency:currency }}</div>
-                  </div>
-                  <div class="comparison-card">
-                    <div class="comparison-label">{{ 'test_bookings' | translate }}</div>
-                    <div class="comparison-value neutral">{{ dashboardData.season_info.booking_classification.test_count }}</div>
-                    <div class="comparison-revenue">{{ dashboardData.season_info.booking_classification.test_revenue | currency:currency }}</div>
-                  </div>
-                  <div class="comparison-card">
-                    <div class="comparison-label">{{ 'cancelled_bookings' | translate }}</div>
-                    <div class="comparison-value previous">{{ dashboardData.season_info.booking_classification.cancelled_count }}</div>
-                    <div class="comparison-revenue">{{ dashboardData.season_info.booking_classification.cancelled_revenue | currency:currency }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </mat-tab>
-
-        <!-- Alerts & Recommendations Tab -->
-        <mat-tab label="{{ 'alerts_recommendations' | translate }}">
-          <div class="tab-content">
-
-            <!-- Executive Alerts -->
-            <div class="alerts-section" *ngIf="dashboardData.executive_alerts?.length">
-              <h3>{{ 'executive_alerts' | translate }}</h3>
-              <div class="alerts-grid">
-                <mat-card
-                  *ngFor="let alert of dashboardData.executive_alerts"
-                  class="alert-card"
-                  [ngClass]="'alert-' + alert.level">
-                  <mat-card-header>
-                    <mat-card-title>
-                      <mat-icon>{{ alert.level === 'critical' ? 'error' : alert.level === 'warning' ? 'warning' : 'info' }}</mat-icon>
-                      {{ alert.title }}
-                    </mat-card-title>
-                    <mat-card-subtitle>{{ alert.type }}</mat-card-subtitle>
-                  </mat-card-header>
-                  <mat-card-content>
-                    <p>{{ alert.description }}</p>
-                    <div class="alert-meta">
-                      <span class="impact">{{ 'impact' | translate }}: {{ alert.impact }}</span>
-                      <span class="action-required" *ngIf="alert.action_required">{{ 'action_required' | translate }}</span>
-                    </div>
-                  </mat-card-content>
-                </mat-card>
-              </div>
-            </div>
-
-            <!-- Priority Recommendations -->
-            <div class="recommendations-section" *ngIf="dashboardData.priority_recommendations?.length">
-              <h3>{{ 'priority_recommendations' | translate }}</h3>
-              <div class="recommendations-grid">
-                <mat-card
-                  *ngFor="let rec of dashboardData.priority_recommendations"
-                  class="recommendation-card"
-                  [ngClass]="'priority-' + rec.priority">
-                  <mat-card-header>
-                    <mat-card-title>{{ rec.title }}</mat-card-title>
-                    <mat-card-subtitle>
-                      <span class="priority-badge">{{ rec.priority | uppercase }}</span>
-                      <span class="category">{{ rec.category }}</span>
-                    </mat-card-subtitle>
-                  </mat-card-header>
-                  <mat-card-content>
-                    <p>{{ rec.description }}</p>
-                    <div class="recommendation-meta">
-                      <div class="meta-item">
-                        <strong>{{ 'impact' | translate }}:</strong> {{ rec.impact }}
-                      </div>
-                      <div class="meta-item">
-                        <strong>{{ 'effort' | translate }}:</strong> {{ rec.effort }}
-                      </div>
-                      <div class="meta-item">
-                        <strong>{{ 'timeline' | translate }}:</strong> {{ rec.timeline }}
-                      </div>
-                    </div>
-                    <div class="actions-list" *ngIf="rec.actions?.length">
-                      <strong>{{ 'actions' | translate }}:</strong>
-                      <ul>
-                        <li *ngFor="let action of rec.actions">{{ action }}</li>
-                      </ul>
-                    </div>
-                    <div class="expected-benefit" *ngIf="rec.expected_benefit">
-                      <strong>{{ 'expected_benefit' | translate }}:</strong> {{ rec.expected_benefit }}
-                    </div>
-                  </mat-card-content>
-                </mat-card>
-              </div>
-            </div>
-          </div>
-        </mat-tab>
-
-      </mat-tab-group>
+        </mat-tab-group>
     </div>
 
     <!-- Empty State -->
@@ -881,3 +672,8 @@
 
   </vex-page-layout-content>
 </vex-page-layout>
+
+
+
+
+

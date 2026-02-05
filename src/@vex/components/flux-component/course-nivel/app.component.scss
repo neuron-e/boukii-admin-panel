@@ -74,3 +74,158 @@ button {
     border-radius: 70% !important;
   }
 }
+
+.course-detail-nivel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.level-card {
+  background: var(--color-grey0);
+  border: 1px solid var(--color-grey2);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.level-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.level-card__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.level-card__title-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.level-card__title-main {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--color-dark1);
+}
+
+.level-card__title-secondary {
+  font-size: 12px;
+  color: var(--color-dark2);
+}
+
+.level-card__meta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.level-card__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-dark2);
+}
+
+.subgroup-grid {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.subgroup-card {
+  background: white;
+  border: 1px solid var(--color-grey3);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.subgroup-card.current {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.subgroup-card__body {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.subgroup-card__label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-dark1);
+}
+
+.subgroup-card__days {
+  font-size: 12px;
+  color: var(--color-grey1);
+  margin-top: 4px;
+}
+
+.subgroup-card__capacity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-dark2);
+}
+
+.subgroup-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.subgroup-card__actions button {
+  padding: 0 16px;
+  height: 36px;
+  border-radius: 18px;
+}
+
+.current-label {
+  font-size: 11px;
+  color: var(--color-dark2);
+  background: var(--color-grey3);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.empty-subgroups {
+  padding: 12px 16px;
+  border: 1px dashed var(--color-grey3);
+  border-radius: 8px;
+  color: var(--color-grey1);
+  font-size: 12px;
+  background: var(--color-grey4);
+}
+
+@media (max-width: 768px) {
+  .level-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .subgroup-card__body {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .course-detail-nivel {
+    gap: 16px;
+  }
+}

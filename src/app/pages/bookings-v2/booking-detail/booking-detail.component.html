@@ -8,6 +8,10 @@
     ]"
                    class="booking-breadcrumb"></vex-breadcrumbs>
 </div>
+<div class="booking-loading-overlay" *ngIf="isLoading || isCancelling">
+  <mat-progress-spinner diameter="48" mode="indeterminate"></mat-progress-spinner>
+  <div class="loading-text">{{ 'loading' | translate }}</div>
+</div>
 <div class="bookingDetailContainer">
   <button (click)="openDetailBookingDialog()"
           style="margin-bottom: 0;"
@@ -35,13 +39,16 @@
                                        [sportLevel]="activity.sportLevel"
                                        [allLevels]="allLevels"
                                        [course]="activity.course"
+                                       [subgroupLabel]="activity.subgroupLabel"
                                        [dates]="activity.dates"
                                        [monitors]="activity.monitors"
                                        [clientObs]="activity.clientObs"
                                        [schoolObs]="activity.schoolObs"
                                        [total]="activity.total"
+                                       [priceFallback]="activity.priceFallback"
                                        [isDetail]="true"
                                        [status]="activity.status"
+                                       [bookingId]="bookingData?.id"
                                        [groupedActivities]="groupedActivities"
                                        (deleteActivity)="processDelete(i)"
                                        (editActivity)="editActivity($event, i)">
@@ -59,7 +66,7 @@
                                        (deleteActivity)="processFullDelete()"
                                        (endClick)="endModal=true"
                                        (closeClick)="closeModal()"
-                                       (payClick)="bookingService.calculatePendingPrice() === 0 ? finalizeBooking() : payModal=true">
+                                        (payClick)="handlePayClick()">
     </booking-detail-reservation-detail>
   </div>
 </div>
@@ -71,12 +78,12 @@
         {{ groupedActivities[0]?.course?.currency }}
       </span>
   </ng-container>
-  <ng-container >
-    <span *ngIf="!bookingData?.paid && bookingData?.price_total - calculateTotalVoucherPrice() > 0">{{ "to_pay" | translate }}</span>
+  <ng-container>
+    <span *ngIf="!bookingData?.paid && getPendingAmount() > 0">{{ "to_pay" | translate }}</span>
   </ng-container>
-  <ng-container *ngIf="!bookingData?.paid && bookingData?.price_total - calculateTotalVoucherPrice() > 0">
-      <span class="totalPrice" *ngIf="bookingData?.price_total - calculateTotalVoucherPrice() != 0">
-        {{ bookingData?.price_total - calculateTotalVoucherPrice()  | number:'0.2-2' }}
+  <ng-container *ngIf="!bookingData?.paid && getPendingAmount() > 0">
+      <span class="totalPrice" *ngIf="getPendingAmount() != 0">
+        {{ getPendingAmount()  | number:'0.2-2' }}
         {{ groupedActivities[0]?.course?.currency}}
       </span>
   </ng-container>
@@ -91,7 +98,7 @@
       type="button"
       class="client-button"
       [disabled]="bookingData?.paid"
-      (click)="payModal = true">
+      (click)="handlePayClick()">
       {{  (bookingData?.paid ? "ispaid" : "to_pay") | translate }}
     </button>
   </div>
@@ -173,7 +180,7 @@
         <strong>{{ selectedPaymentOptionLabel || resolvePaymentLabel(determinePaymentMethodId()) }}</strong>
       </p>
 
-      <mat-checkbox [(ngModel)]="isPaid" color="primary">
+      <mat-checkbox name="paymentConfirmation" [(ngModel)]="isPaid" color="primary">
         {{ "confirm_payment_received" | translate }}
       </mat-checkbox>
 
@@ -184,7 +191,7 @@
 
     <!-- Paso 1: Selección de método de pago -->
     <div *ngIf="step === 1" style="margin: 10px 0;">
-      <mat-radio-group [(ngModel)]="paymentMethod" (change)="onPaymentMethodChange($event)">
+      <mat-radio-group name="paymentMethod" [(ngModel)]="paymentMethod" (change)="onPaymentMethodChange($event)">
         <mat-radio-button [value]="1" style="display: block;">
           {{"direct_payment" | translate}}  <!-- Efectivo / Tarjeta -->
         </mat-radio-button>
@@ -192,7 +199,7 @@
         <div *ngIf="paymentMethod === 1" style="margin: 10px 0;">
           <mat-form-field appearance="fill">
             <mat-label>{{"select_payment_method" | translate}}</mat-label>
-            <mat-select [(ngModel)]="selectedPaymentOptionId"
+            <mat-select name="paymentOption" [(ngModel)]="selectedPaymentOptionId"
                         (selectionChange)="onPaymentOptionSelectionChange($event.value)">
               <mat-option *ngFor="let option of paymentOptions" [value]="option.id" >
                 {{option.label}}
@@ -202,11 +209,21 @@
         </div>
 
         <mat-radio-button [value]="3" style="display: block;">
-          {{"online_payment" | translate}}  <!-- Online Payment -->
+          {{'send_payment_link' | translate}}  <!-- Enviar enlace de pago -->
         </mat-radio-button>
-        <mat-radio-button [value]="4" style="display: block;">
-          {{"payment_no_payment" | translate}}
+
+        <mat-radio-button [value]="7" style="display: block;">
+          {{'send_invoice_link' | translate}}
         </mat-radio-button>
+
+        <div *ngIf="paymentMethod === 7" style="margin: 10px 0;">
+          <mat-checkbox name="invoicePaymentConfirmation" [(ngModel)]="isPaid" color="primary">
+            {{ "confirm_payment_received" | translate }}
+          </mat-checkbox>
+          <p style="font-size: 12px; color: #666; margin-top: 10px;">
+            {{ "payment_confirmation_notice" | translate }}
+          </p>
+        </div>
       </mat-radio-group>
     </div>
 
@@ -217,15 +234,17 @@
       <button (click)="cancelPaymentStep()"
               class="modal-action-button secondary-button"
               mat-raised-button
-              type="button">
+              type="button"
+              [disabled]="isLoading">
         {{"cancel" | translate }}
       </button>
       <button (click)="finalizeBooking()"
               class="modal-action-button primary-button"
               color="primary"
               mat-raised-button
-              type="button">
-        {{ paymentMethod === 3 ? 'end_reserve_pay' : (paymentMethod === 4 ? 'mails.type4' : 'continue') | translate }}
+              type="button"
+              [disabled]="isLoading">
+        {{ (paymentMethod === 3 ? 'send_payment_link' : (paymentMethod === 7 ? 'send_invoice_link' : 'continue')) | translate }}
       </button>
     </ng-container>
 
@@ -234,7 +253,8 @@
       <button (click)="step = 1"
               class="modal-action-button secondary-button"
               mat-raised-button
-              type="button">
+              type="button"
+              [disabled]="isLoading">
         {{"back" | translate }}
       </button>
       <button (click)="finalizeBooking()"
@@ -242,7 +262,7 @@
               color="primary"
               mat-raised-button
               type="button"
-              [disabled]="!isPaid">
+              [disabled]="!isPaid || isLoading">
         {{ "confirm_payment" | translate }}
       </button>
     </ng-container>

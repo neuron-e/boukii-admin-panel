@@ -43,6 +43,7 @@ export class PerformanceCacheService {
     ['/admin/degrees', { ttl: 30 * 60 * 1000, persistent: true }], // 30 min
     ['/admin/monitors', { ttl: 10 * 60 * 1000, persistent: false }], // 10 min
     ['/admin/courses', { ttl: 5 * 60 * 1000, persistent: false }], // 5 min
+    ['/admin/courses/check-availability', { ttl: 60 * 1000, persistent: false }], // 1 min
     ['/admin/clients', { ttl: 2 * 60 * 1000, persistent: false }], // 2 min
   ]);
 
@@ -65,7 +66,6 @@ export class PerformanceCacheService {
       if (cached) {
         this.cacheStats.hits++;
         this.updateStats();
-        console.log(`📋 Cache HIT: ${endpoint}`, { hitRate: this.getHitRate() });
         return of(cached);
       }
     }
@@ -73,7 +73,6 @@ export class PerformanceCacheService {
     // Cache MISS - obtener datos del servidor
     this.cacheStats.misses++;
     this.updateStats();
-    console.log(`🌐 Cache MISS: ${endpoint}`, { hitRate: this.getHitRate() });
 
     const config = this.endpointConfigs.get(endpoint) || { ttl: this.DEFAULT_TTL };
 
@@ -83,7 +82,11 @@ export class PerformanceCacheService {
         this.setCache(cacheKey, data, config.ttl, config.persistent);
       }),
       catchError(error => {
-        console.error(`❌ Error fetching ${endpoint}:`, error);
+        if (endpoint === '/admin/courses/check-availability' && error?.status === 404) {
+          console.warn('Availability preview returned 404 - ignoring preload error', { params, error });
+          return of(null as T);
+        }
+        console.error(`??O Error fetching ${endpoint}:`, error);
         return throwError(() => error);
       }),
       shareReplay(1)
@@ -99,7 +102,6 @@ export class PerformanceCacheService {
       tap(() => {
         // Invalidar caches relacionados
         this.invalidateByPatterns([endpoint, ...invalidatePatterns]);
-        console.log(`🔄 Cache invalidated for patterns:`, [endpoint, ...invalidatePatterns]);
       })
     );
   }
@@ -108,13 +110,12 @@ export class PerformanceCacheService {
    * MEJORA CRÍTICA: Preload de datos relacionados
    */
   preloadRelatedData(baseEndpoint: string, relations: string[]): void {
-    console.log(`🚀 Preloading related data for ${baseEndpoint}:`, relations);
 
     // Preload en paralelo sin bloquear el hilo principal
     setTimeout(() => {
       relations.forEach(relation => {
         this.get(relation).subscribe({
-          next: () => console.log(`✅ Preloaded: ${relation}`),
+          next: () => {},
           error: (err) => console.warn(`⚠️ Failed to preload ${relation}:`, err)
         });
       });
@@ -154,7 +155,6 @@ export class PerformanceCacheService {
     }
 
     if (invalidatedCount > 0) {
-      console.log(`🗑️ Invalidated ${invalidatedCount} cache entries`);
     }
   }
 
@@ -179,7 +179,6 @@ export class PerformanceCacheService {
   clearAll(): void {
     this.memoryCache.clear();
     localStorage.removeItem(this.PERSISTENT_CACHE_KEY);
-    console.log('🧹 All cache cleared');
   }
 
   // Métodos privados
@@ -271,7 +270,6 @@ export class PerformanceCacheService {
 
         if (cleanedCount > 0) {
           localStorage.setItem(this.PERSISTENT_CACHE_KEY, JSON.stringify(cleanedCache));
-          console.log(`🧹 Cleaned ${cleanedCount} expired persistent cache entries`);
         }
       }
     } catch (error) {
@@ -328,7 +326,6 @@ export class PerformanceCacheService {
     }
 
     if (cleanedCount > 0) {
-      console.log(`🧹 Cleaned ${cleanedCount} expired cache items`);
     }
   }
 

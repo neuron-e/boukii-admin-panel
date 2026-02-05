@@ -212,15 +212,15 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
   }
 
   private loadInitialData(): void {
-    this.getBookingsByDate().subscribe(res => {
+    this.getBookingsByDate().pipe(takeUntil(this.destroy$)).subscribe(res => {
       this.setUserSessionAnalytics(false, res.data);
     });
 
-    this.getBookingsByDateSport().subscribe(res => {
+    this.getBookingsByDateSport().pipe(takeUntil(this.destroy$)).subscribe(res => {
       this.updateChartBySport(res.data);
     });
 
-    this.getSchoolSports().subscribe(res => {
+    this.getSchoolSports().pipe(takeUntil(this.destroy$)).subscribe(res => {
       this.allSports = res.data;
       const settings = typeof this.user.schools[0].settings === 'string' ?
         JSON.parse(this.user.schools[0].settings) : this.user.schools[0].settings;
@@ -237,7 +237,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
         this.filter = '';
         this.showDetail = false;
         this.reloadData(false);
-        this.getBookingsByDate().subscribe(res => {
+        this.getBookingsByDate().pipe(takeUntil(this.destroy$)).subscribe(res => {
           this.setUserSessionAnalytics(false, res.data);
         });
         break;
@@ -252,7 +252,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
       case 2: // Monitores
         this.tabActive = 'monitors';
         this.reloadData(true);
-        this.getBookingsByDate().subscribe(res => {
+        this.getBookingsByDate().pipe(takeUntil(this.destroy$)).subscribe(res => {
           this.setUserSessionAnalytics(true, res.data);
         });
         break;
@@ -268,7 +268,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
   showDetailEvent(event: any): void {
     this.showDetail = true;
     this.selectedId = event.item.id;
-    this.getMonitor().subscribe(res => {
+    this.getMonitor().pipe(takeUntil(this.destroy$)).subscribe(res => {
       this.monitor = res.data;
       this.filter += '&monitor_id=' + this.selectedId;
       this.initCourseTypeData();
@@ -342,7 +342,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
     this.resetDataValues();
 
     // Obtener datos comunes
-    this.getBookingsTotal().subscribe(res => {
+    this.getBookingsTotal().pipe(takeUntil(this.destroy$)).subscribe(res => {
       this.totalPriceSell = res.data;
     });
 
@@ -350,7 +350,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
     this.loadCourseTypeData(isMonitorsTab);
 
     // Obtener datos de deportes
-    this.getTotalHoursBySport().subscribe(res => {
+    this.getTotalHoursBySport().pipe(takeUntil(this.destroy$)).subscribe(res => {
       this.processSportData(res.data);
     });
 
@@ -358,7 +358,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
     if (this.tabActive === 'sells') {
       this.loadSellData();
     } else if (this.tabActive === 'monitors') {
-      this.getMonitorsTotal().subscribe(res => {
+      this.getMonitorsTotal().pipe(takeUntil(this.destroy$)).subscribe(res => {
         this.totalMonitorPriceSell = res.data;
       });
       this.loadMonitorsData(isMonitorsTab);
@@ -402,7 +402,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
 
   private loadCourseTypeData(isMonitorsTab: boolean): void {
     // Cargar datos para cursos colectivos (tipo 1)
-    this.getBookingsTotalByType(1).subscribe(res => {
+    this.getBookingsTotalByType(1).pipe(takeUntil(this.destroy$)).subscribe(res => {
       const collectiveText: PlotlyTextConfig = {
         'title': this.translateService.instant('course_colective'),
         'subtitle': this.translateService.instant('sales'),
@@ -419,7 +419,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
     });
 
     // Cargar datos para cursos privados (tipo 2)
-    this.getBookingsTotalByType(2).subscribe(res => {
+    this.getBookingsTotalByType(2).pipe(takeUntil(this.destroy$)).subscribe(res => {
       const privateText: PlotlyTextConfig = {
         'title': this.translateService.instant('course_private'),
         'subtitle': this.translateService.instant('sales'),
@@ -436,7 +436,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
     });
 
     // Cargar datos para actividades (tipo 3)
-    this.getBookingsTotalByType(3).subscribe(res => {
+    this.getBookingsTotalByType(3).pipe(takeUntil(this.destroy$)).subscribe(res => {
       const activityText: PlotlyTextConfig = {
         'title': this.translateService.instant('activity'),
         'subtitle': this.translateService.instant('sales'),
@@ -455,7 +455,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
 
   private loadGeneralTabData(isMonitorsTab: boolean): void {
     if (!this.showDetail) {
-      this.getActiveMonitors().subscribe(res => {
+      this.getActiveMonitors().pipe(takeUntil(this.destroy$)).subscribe(res => {
         const monitorsText: PlotlyTextConfig = {
           'title': this.translateService.instant('monitors'),
           'subtitle': this.translateService.instant('sales'),
@@ -472,7 +472,7 @@ export class AnalyticsComponent implements AfterViewInit, AfterViewChecked, OnDe
       });
     }
 
-    this.getTotalHours().subscribe(res => {
+    this.getTotalHours().pipe(takeUntil(this.destroy$)).subscribe(res => {
       const hoursText: PlotlyTextConfig = {
         'title': this.translateService.instant('hours_worked'),
         'subtitle': this.translateService.instant('hours_worked_total'),

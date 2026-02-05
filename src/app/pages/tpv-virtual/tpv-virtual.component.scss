@@ -1,0 +1,73 @@
+﻿.tpv-virtual-container {
+  padding: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+
+  .header {
+    margin-bottom: 32px;
+
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 32px;
+      font-weight: 600;
+      margin: 0;
+      color: var(--color-dark1);
+    }
+
+    p {
+      margin: 8px 0 0;
+      color: var(--color-dark2);
+      font-size: 16px;
+    }
+
+    mat-icon {
+      font-size: 36px;
+      color: var(--color-primary);
+    }
+  }
+
+  mat-card {
+    padding: 32px;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      text-align: center;
+
+      p {
+        margin: 0;
+        color: var(--color-dark2);
+        font-size: 16px;
+        max-width: 560px;
+      }
+    }
+  }
+
+  .open-btn {
+    min-width: 220px;
+    height: 48px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    .button-spinner {
+      margin-right: 4px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    padding: 16px;
+
+    mat-card {
+      padding: 24px;
+    }
+  }
+}

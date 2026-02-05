@@ -35,6 +35,8 @@ import { ComponentsModule } from 'src/@vex/components/components.module';
 import { ComponentsCustomModule } from 'src/app/components/components-custom.module';
 import { TranslateModule } from '@ngx-translate/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { BookingDetailModule } from '../../bookings-v2/booking-detail/booking-detail.module';
+import { CoursesDetailModalModule } from '../../courses-v2/pendiente/course-detail-modal/course-detail-modal.module';
 
 @NgModule({
   imports: [
@@ -78,7 +80,9 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     ComponentsModule,
     ComponentsCustomModule,
     TranslateModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    BookingDetailModule,
+    CoursesDetailModalModule
   ],
   declarations: [MonitorDetailComponent],
   exports: [MonitorDetailComponent]

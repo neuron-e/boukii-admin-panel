@@ -70,8 +70,7 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
           const isInFuture = dateMoment.isAfter(currentTime, "day");
 
           // Verificamos si la hora de inicio es posterior a la hora actual (solo si es hoy)
-          const hourStartMoment = moment(date.hour_start, "HH:mm");
-          const isValidToday = isToday && hourStartMoment.isAfter(currentTime);
+          const isValidToday = isToday;
           // Comprobar capacidad por nivel (subgrupo con hueco) y autoasignar monitor
           const monitor = this.findMonitor(date);
           const hasCapacity = !!monitor;
@@ -126,10 +125,29 @@ export class FormDetailsColectiveFlexComponent implements OnInit {
           const isAvailable = response.success; // Ajusta segÃºn la respuesta real de tu API
           resolve(isAvailable); // Resolvemos la promesa con el valor de disponibilidad
         }, (error) => {
-          this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
-            moment(error.error.data[0].date).format('YYYY-MM-DD') +
-            ' | ' + error.error.data[0].hour_start + ' - ' +
-            error.error.data[0].hour_end, 'OK', { duration: 3000 })
+          // Manejo defensivo para evitar TypeError cuando no viene estructura esperada
+          let errorData: any = null;
+          if (error && typeof error === 'object') {
+            if (error.error && typeof error.error === 'object') {
+              errorData = (error.error as any).data ?? error.error;
+            } else {
+              errorData = (error as any).data ?? null;
+            }
+          }
+
+          if (Array.isArray(errorData) && errorData.length > 0) {
+            const overlapMessage = this.utilsService.formatBookingOverlapMessage(errorData);
+            this.snackbar.open(overlapMessage, 'OK', {
+              duration: 4000,
+              panelClass: ['snackbar-multiline']
+            });
+          } else {
+            this.snackbar.open(
+              this.translateService.instant('snackbar.booking.error'),
+              'OK',
+              { duration: 3000 }
+            );
+          }
           resolve(false); // En caso de error, rechazamos la promesa
         });
     });

@@ -11,6 +11,8 @@ import {
   MatCalendar,
   MatCalendarCellCssClasses,
 } from "@angular/material/datepicker";
+import { MatDialog } from "@angular/material/dialog";
+import { TranslateService } from "@ngx-translate/core";
 import moment from "moment";
 import { ApiCrudService } from "src/service/crud.service";
 import { CustomHeader } from "../calendar/custom-header/custom-header.component";
@@ -19,8 +21,9 @@ import {UtilsService} from '../../../../../../service/utils.service';
 import { PerformanceCacheService } from 'src/app/services/performance-cache.service';
 import { VisualFeedbackService } from 'src/app/services/visual-feedback.service';
 import { AnalyticsService } from 'src/app/services/analytics.service';
-import { Observable } from 'rxjs';
-import { map, shareReplay } from 'rxjs/operators';
+import { ConfirmModalComponent } from "src/app/pages/monitors/monitor-detail/confirm-dialog/confirm-dialog.component";
+import { Observable, Subject, of, firstValueFrom } from 'rxjs';
+import { map, shareReplay, debounceTime, distinctUntilChanged, switchMap, takeUntil, catchError } from 'rxjs/operators';
 
 @Component({
   selector: "booking-step-four",
@@ -62,6 +65,11 @@ export class StepFourComponent implements OnDestroy {
   private availabilityRequests = new Map<string, Observable<any[]>>();
   private readonly availabilityTtlMs = 60 * 1000; // 1 minuto
   private checkAvailabilityCache = new Map<string, Promise<boolean>>();
+  private destroy$ = new Subject<void>();
+  private availabilityPreviewTrigger$ = new Subject<AvailabilityPreviewParams | null>();
+  previewAvailability: AvailabilityPreviewResponse | null = null;
+  previewLoading = false;
+  previewError = false;
 
 
   tabs = [
@@ -76,7 +84,9 @@ export class StepFourComponent implements OnDestroy {
     protected utilsService: UtilsService,
     private performanceCache: PerformanceCacheService,
     private feedback: VisualFeedbackService,
-    private analytics: AnalyticsService
+    private analytics: AnalyticsService,
+    private dialog: MatDialog,
+    private translateService: TranslateService
   ) {
 
 
@@ -114,6 +124,7 @@ export class StepFourComponent implements OnDestroy {
     });
 
     // MEJORA CRÍTICA: Preload de datos relacionados para mejor performance
+    this.setupAvailabilityPreviewStream();
     this.preloadRelatedData();
 
     this.getCourses(this.sportLevel);
@@ -122,6 +133,7 @@ export class StepFourComponent implements OnDestroy {
       this.updateNextMonth();
       this.autoSelectFirstDayIfCurrentMonth();
       this.getCourses(this.sportLevel);
+      this.queueAvailabilityPreview(newDate);
     });
   }
 
@@ -137,29 +149,126 @@ export class StepFourComponent implements OnDestroy {
     ];
 
     this.performanceCache.preloadRelatedData('/admin/courses', relatedEndpoints);
+    this.queueAvailabilityPreview();
+  }
 
-    // Preload capacidad para fechas cercanas si ya hay sport/level seleccionado
-    if (this.sportLevel) {
-      const today = new Date();
-      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      // Esto se ejecutará en background sin bloquear la UI
-      setTimeout(() => {
-        this.performanceCache.get('/admin/courses/check-availability', {
-          sport_id: this.sportLevel.sport_id,
-          degree_id: this.sportLevel.id,
-          date_from: today.toISOString().split('T')[0],
-          date_to: nextWeek.toISOString().split('T')[0]
-        }).subscribe({
-          next: () => console.log('🚀 Preloaded availability data'),
-          error: (err) => console.warn('⚠️ Failed to preload availability:', err)
-        });
-      }, 500);
+  private setupAvailabilityPreviewStream(): void {
+    this.availabilityPreviewTrigger$
+      .pipe(
+        debounceTime(350),
+        distinctUntilChanged((prev, curr) => this.arePreviewParamsEqual(prev, curr)),
+        switchMap(params => {
+          if (!params) {
+            this.previewLoading = false;
+            return of<AvailabilityPreviewStreamResult>({ status: 'skip' });
+          }
+
+          this.previewLoading = true;
+          this.previewError = false;
+
+          return this.performanceCache
+            .get<AvailabilityPreviewResponse>('/admin/courses/check-availability', params)
+            .pipe(
+              map(data => ({ status: 'success', data } as AvailabilityPreviewStreamResult)),
+              catchError(error => {
+                console.warn('Failed to preload availability preview', error);
+                return of<AvailabilityPreviewStreamResult>({ status: 'error' });
+              })
+            );
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(result => {
+        switch (result.status) {
+          case 'skip':
+            if (!this.shouldPreloadCollectiveAvailability()) {
+              this.previewAvailability = null;
+              this.previewError = false;
+            }
+            this.previewLoading = false;
+            break;
+          case 'success':
+            this.previewLoading = false;
+            if (result.data) {
+              this.previewAvailability = {
+                ...result.data,
+                courses: Array.isArray(result.data.courses) ? result.data.courses : []
+              };
+              this.previewError = false;
+            } else {
+              this.previewAvailability = null;
+              this.previewError = true;
+            }
+            break;
+          case 'error':
+          default:
+            this.previewLoading = false;
+            this.previewAvailability = null;
+            this.previewError = true;
+            break;
+        }
+      });
+  }
+
+  private queueAvailabilityPreview(anchorDate?: Date): void {
+    if (!this.shouldPreloadCollectiveAvailability()) {
+      this.previewAvailability = null;
+      this.previewError = false;
+      this.previewLoading = false;
+      this.availabilityPreviewTrigger$.next(null);
+      return;
     }
+
+    const { date_from, date_to } = this.buildPreviewRange(anchorDate || this.selectedDate || new Date());
+    this.availabilityPreviewTrigger$.next({
+      sport_id: this.sportLevel.sport_id,
+      degree_id: this.sportLevel.id,
+      course_type: 1,
+      date_from,
+      date_to
+    });
+  }
+
+  private buildPreviewRange(anchor: Date): { date_from: string; date_to: string } {
+    const start = new Date(anchor);
+    const end = new Date(anchor);
+    end.setDate(end.getDate() + 7);
+    return {
+      date_from: this.formatDateForApi(start),
+      date_to: this.formatDateForApi(end)
+    };
+  }
+
+  private formatDateForApi(date: Date): string {
+    return date.toISOString().split('T')[0];
+  }
+
+  private shouldPreloadCollectiveAvailability(): boolean {
+    return !!this.sportLevel && this.courseTypeId === 1;
+  }
+
+  private arePreviewParamsEqual(
+    a: AvailabilityPreviewParams | null,
+    b: AvailabilityPreviewParams | null
+  ): boolean {
+    if (a === b) {
+      return true;
+    }
+
+    if (!a || !b) {
+      return false;
+    }
+
+    return (
+      a.sport_id === b.sport_id &&
+      (a.degree_id ?? null) === (b.degree_id ?? null) &&
+      a.date_from === b.date_from &&
+      a.date_to === b.date_to
+    );
   }
 
   handleCourseSelection(course: any): void {
-    console.log('COURSE SELECTION DEBUG: Selecting course:', course.name);
 
     // Resetear selección de subgrupo cuando cambia el curso
     this.selectedSubGroup = null;
@@ -177,8 +286,6 @@ export class StepFourComponent implements OnDestroy {
     // Guardar el curso seleccionado
     this.selectedCourse = course;
     this.stepForm.get('course').setValue(course);
-
-    console.log('COURSE SELECTION DEBUG: Course set, form valid:', this.stepForm.valid);
   }
 
   /**
@@ -236,9 +343,6 @@ export class StepFourComponent implements OnDestroy {
     this.selectedSubGroups = allSubgroups;
     this.isCapacityLoading = false;
 
-    console.log('SUBGROUPS DEBUG: Total subgroups found:', allSubgroups.length);
-    console.log('SUBGROUPS DEBUG: Subgroups:', allSubgroups);
-
     // Autoseleccionar el grupo que coincide con el nivel seleccionado
     this.autoSelectMatchingSubgroup(allSubgroups);
 
@@ -261,20 +365,14 @@ export class StepFourComponent implements OnDestroy {
     );
 
     if (matchingSubgroup) {
-      console.log('AUTO-SELECT DEBUG: Found matching subgroup for level:', this.sportLevel.name);
-      console.log('AUTO-SELECT DEBUG: Subgroup:', matchingSubgroup);
 
       // Autoseleccionar el subgrupo
       this.stepForm.get('selectedSubGroup')?.setValue(matchingSubgroup);
       this.selectedSubGroup = matchingSubgroup;
-
-      console.log('AUTO-SELECT DEBUG: Subgroup auto-selected');
     } else {
-      console.log('AUTO-SELECT DEBUG: No matching subgroup found for level:', this.sportLevel.name);
       // Si no hay coincidencia, intentar seleccionar el primero con capacidad
       const firstAvailable = subgroups.find(sg => sg.capacity_info?.has_capacity);
       if (firstAvailable) {
-        console.log('AUTO-SELECT DEBUG: Selecting first available subgroup');
         this.stepForm.get('selectedSubGroup')?.setValue(firstAvailable);
         this.selectedSubGroup = firstAvailable;
       }
@@ -363,18 +461,15 @@ export class StepFourComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.clearCapacityPolling();
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.availabilityPreviewTrigger$.complete();
   }
 
   onSubgroupChange(event: any): void {
-    console.log('SUBGROUP CHANGE DEBUG: Event fired:', event);
-    console.log('SUBGROUP CHANGE DEBUG: Event value:', event.value);
-    console.log('SUBGROUP CHANGE DEBUG: Form control value after change:', this.stepForm.get('selectedSubGroup')?.value);
 
     // Forzar actualización del formulario
     this.stepForm.updateValueAndValidity();
-
-    console.log('SUBGROUP CHANGE DEBUG: Form valid after update:', this.stepForm.valid);
-    console.log('SUBGROUP CHANGE DEBUG: isFormValid() after update:', this.isFormValid());
   }
 
   updateTabs(): void {
@@ -397,14 +492,9 @@ export class StepFourComponent implements OnDestroy {
   }
 
   isFormValid() {
-    console.log('FORM VALIDATION DEBUG: Checking form validity...');
-    console.log('FORM VALIDATION DEBUG: stepForm.valid =', this.stepForm.valid);
-    console.log('FORM VALIDATION DEBUG: selectedCourse =', this.selectedCourse?.name);
-    console.log('FORM VALIDATION DEBUG: course_type =', this.selectedCourse?.course_type);
 
     // Validación básica del formulario
     if (!this.stepForm.valid) {
-      console.log('FORM VALIDATION DEBUG: ❌ Form is invalid');
       return false;
     }
 
@@ -412,20 +502,12 @@ export class StepFourComponent implements OnDestroy {
     if (this.selectedCourse?.course_type === 1) {
       const subgroupValue = this.stepForm.get('selectedSubGroup')?.value;
       const hasSubgroup = !!subgroupValue;
-      console.log('FORM VALIDATION DEBUG: Collective course - subgroup value:', subgroupValue);
-      console.log('FORM VALIDATION DEBUG: Collective course - hasSubgroup:', hasSubgroup);
 
       if (!hasSubgroup) {
-        console.log('FORM VALIDATION DEBUG: ❌ No subgroup selected for collective course');
         return false;
       }
-
-      console.log('FORM VALIDATION DEBUG: ✅ Subgroup is selected');
       return true;
     }
-
-    // Para otros tipos de curso, solo verificar validez del formulario
-    console.log('FORM VALIDATION DEBUG: ✅ Non-collective course, form is valid');
     return true;
   }
 
@@ -527,6 +609,7 @@ export class StepFourComponent implements OnDestroy {
   filterCoursesCollective() {
     const degreeId = this.sportLevel?.id;
     const neededSlots = (this.utilizers?.length ?? 1);
+    const allowPastDates = this.isSelectedDateInPast();
 
     const hasCapacityForLevel = (dateInfo: any): boolean => {
       const groups = Array.isArray(dateInfo?.course_groups) ? dateInfo.course_groups : [];
@@ -575,7 +658,16 @@ export class StepFourComponent implements OnDestroy {
       });
   }
 
-  handleDateChange(event: any) {
+  async handleDateChange(event: any) {
+    const previousDate = this.selectedDate;
+    const canProceed = await this.confirmPastDateIfNeeded(event);
+    if (!canProceed) {
+      const fallback = previousDate || this.minDate || new Date();
+      this.selectedDate = fallback;
+      this.selectedDateMoment = moment(this.selectedDate);
+      this.stepForm.get("date").patchValue(this.selectedDateMoment, { emitEvent: false });
+      return;
+    }
     // MEJORA CRÍTICA: Track cambio de fecha en calendario
     this.analytics.trackEvent({
       category: 'booking',
@@ -596,74 +688,42 @@ export class StepFourComponent implements OnDestroy {
     this.cursesInSelectedDate = this.courses.filter(course =>
       course.course_dates.some(d => {
         const courseDateMoment = moment(d.date, "YYYY-MM-DD");
-        const currentTime = moment(); // Definir la hora actual aquí
 
-        if (courseDateMoment.isSame(moment(), "day")) {
-          if(course.course_type == 1) {
-            const hourStart = moment(d.hour_start, "HH:mm");
-            return this.selectedDateMoment.isSame(courseDateMoment, 'day') && currentTime.isBefore(hourStart);
-          } else {
-            const hourEnd = moment(d.hour_end, "HH:mm");
-            return this.selectedDateMoment.isSame(courseDateMoment, 'day') && currentTime.isBefore(hourEnd);
-          }
-        } else {
-          return this.selectedDateMoment.isSame(courseDateMoment, 'day');
-        }
+        // FIXED: Permitir reservas para hoy sin restricción de horario
+        return this.selectedDateMoment.isSame(courseDateMoment, 'day');
       })
     );
+    if (this.isSelectedDateInPast()) {
+      this.getCourses(this.sportLevel);
+    }
+    this.queueAvailabilityPreview(event);
   }
 
   compareCourseDates() {
     let ret = [];
-    const currentTime = moment(); // Hora actual
     this.coursesDateByInterval.clear(); // Limpiar el mapa de intervalos
 
     this.courses.forEach((course) => {
       course.course_dates.forEach((courseDate) => {
         const courseDateMoment = moment(courseDate.date, "YYYY-MM-DD");
         const formattedDate = courseDateMoment.format("YYYY-MM-DD");
-        let shouldAdd = false;
 
-        // Si la fecha del curso es hoy, comprobar las horas
-        if (courseDateMoment.isSame(moment(), "day")) {
-          if(course.course_type == 1) {
-          const hourStart = moment(courseDate.hour_start, "HH:mm");
+        // FIXED: Permitir todas las fechas de los cursos disponibles
+        // La validación de horarios se maneja en el backend
+        ret.push(formattedDate);
 
-          // Solo añadir la fecha si el curso aún no ha empezado
-          if (currentTime.isBefore(hourStart)) {
-            shouldAdd = true;
+        // Si tiene interval_id, añadirla al mapa de intervalos
+        if (courseDate.interval_id) {
+          const intervalId = String(courseDate.interval_id);
+          if (!this.coursesDateByInterval.has(intervalId)) {
+            this.coursesDateByInterval.set(intervalId, []);
           }
-          } else {
-            const hourEnd = moment(courseDate.hour_end, "HH:mm");
-            if (currentTime.isBefore(hourEnd)) {
-              shouldAdd = true;
-            }
-          }
-        } else {
-          // Si la fecha no es hoy, añadirla sin comprobación de hora
-          shouldAdd = true;
-        }
-
-        // Si la fecha es válida, añadirla al array general y al mapa por intervalo
-        if (shouldAdd) {
-          ret.push(formattedDate);
-
-          // Si tiene interval_id, añadirla al mapa de intervalos
-          if (courseDate.interval_id) {
-            const intervalId = String(courseDate.interval_id);
-            if (!this.coursesDateByInterval.has(intervalId)) {
-              this.coursesDateByInterval.set(intervalId, []);
-            }
-            this.coursesDateByInterval.get(intervalId).push(formattedDate);
-          }
+          this.coursesDateByInterval.get(intervalId).push(formattedDate);
         }
       });
     });
 
     this.coursesDate = Array.from(new Set(ret));
-
-    // Log para debug
-    console.log('INTERVAL DEBUG: Dates by interval:', this.coursesDateByInterval);
   }
 
   dateClass() {
@@ -822,7 +882,6 @@ export class StepFourComponent implements OnDestroy {
    * DEBUG: Método simple para verificar
    */
   debugPrice(course: any): number {
-    console.log('🔍 DEBUG SIMPLE - Course Name:', course?.name, 'Original minPrice:', course?.minPrice);
     return course?.minPrice || 0;
   }
 
@@ -846,7 +905,7 @@ export class StepFourComponent implements OnDestroy {
     return course.settings.intervals.filter(interval => {
       const hasFutureDates = course.course_dates?.some(courseDate =>
         String(courseDate.interval_id) === String(interval.id) &&
-        this.utilsService.isFutureDate(courseDate)
+        this.shouldShowCourseDate(courseDate)
       );
       return hasFutureDates;
     });
@@ -863,19 +922,9 @@ export class StepFourComponent implements OnDestroy {
    * MEJORA CRÍTICA: Calcular precio correcto para cursos privados flexibles
    */
   getCorrectPriceForPrivateFlex(course: any): number {
-    console.log('🔍 getCorrectPriceForPrivateFlex DEBUG:', {
-      courseName: course?.name,
-      isFlexible: course?.is_flexible,
-      courseType: course?.course_type,
-      currentUtilizers: this.utilizers?.length || 1,
-      priceRange: course?.price_range,
-      fallbackPrice: course?.price,
-      fallbackMinPrice: course?.minPrice
-    });
 
     if (!course?.is_flexible || course?.course_type !== 2) {
       const fallback = course?.price || course?.minPrice || 0;
-      console.log('🔍 Not flexible private course, returning fallback:', fallback);
       return fallback;
     }
 
@@ -884,11 +933,8 @@ export class StepFourComponent implements OnDestroy {
       ? JSON.parse(course.price_range)
       : course?.price_range;
 
-    console.log('🔍 Parsed priceRangeCourse:', priceRangeCourse);
-
     if (!Array.isArray(priceRangeCourse) || priceRangeCourse.length === 0) {
       const fallback = course?.price || course?.minPrice || 0;
-      console.log('🔍 Invalid price range, returning fallback:', fallback);
       return fallback;
     }
 
@@ -896,13 +942,10 @@ export class StepFourComponent implements OnDestroy {
     let minPrice = Infinity;
 
     priceRangeCourse.forEach((priceRange: any, index: number) => {
-      console.log(`🔍 Processing price range ${index}:`, priceRange);
       const priceForCurrentPax = priceRange[currentUtilizers.toString()];
-      console.log(`🔍 Price for ${currentUtilizers} participants:`, priceForCurrentPax);
 
       if (priceForCurrentPax && !isNaN(parseFloat(priceForCurrentPax))) {
         const price = parseFloat(priceForCurrentPax);
-        console.log(`🔍 Parsed price: ${price}, current minPrice: ${minPrice}`);
         if (price < minPrice) {
           minPrice = price;
         }
@@ -910,7 +953,6 @@ export class StepFourComponent implements OnDestroy {
     });
 
     const finalPrice = minPrice === Infinity ? (course?.price || course?.minPrice || 0) : minPrice;
-    console.log('🔍 Final calculated price:', finalPrice);
     return finalPrice;
   }
 
@@ -987,7 +1029,6 @@ export class StepFourComponent implements OnDestroy {
 
   private filterCoursesBySelectedDate(courses: any[]): any[] {
     const selectedDateMoment = moment(this.selectedDate);
-    const today = moment();
 
     return courses.filter(course =>
       course.course_dates?.some(dateInfo => {
@@ -997,20 +1038,55 @@ export class StepFourComponent implements OnDestroy {
           return false;
         }
 
-        if (courseDateMoment.isSame(today, 'day')) {
-          if (course.course_type === 1) {
-            const hourStart = moment(dateInfo.hour_start, 'HH:mm');
-            return today.isBefore(hourStart);
-          }
-          const hourEnd = moment(dateInfo.hour_end, 'HH:mm');
-          return today.isBefore(hourEnd);
-        }
-
+        // FIXED: Permitir reservas para hoy sin restricción de horario
+        // La validación de horarios pasados se maneja en el backend
         return true;
       })
     );
   }
 
+  shouldShowCourseDate(courseDate: any): boolean {
+    if (this.isSelectedDateInPast()) {
+      return true;
+    }
+    return this.utilsService.isFutureDate(courseDate);
+  }
+
+  private isSelectedDateInPast(): boolean {
+    if (!this.selectedDate) {
+      return false;
+    }
+    return moment(this.selectedDate).isBefore(moment(), 'day');
+  }
+
+  private async confirmPastDateIfNeeded(date: Date): Promise<boolean> {
+    if (!date || !moment(date).isBefore(moment(), 'day')) {
+      return true;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmModalComponent, {
+      data: {
+        title: this.translateWithFallback('monitor_assignment.past_warning_title', 'Past date'),
+        message: this.translateWithFallback(
+          'monitor_assignment.past_warning_message',
+          'Selected date is before today. Continue?'
+        ),
+        confirmButtonText: this.translateWithFallback('continue', 'Continue'),
+        cancelButtonText: this.translateWithFallback('cancel', 'Cancel')
+      }
+    });
+
+    const confirmed = await firstValueFrom(dialogRef.afterClosed());
+    return !!confirmed;
+  }
+
+  private translateWithFallback(key: string, fallback: string): string {
+    const translated = this.translateService.instant(key);
+    if (!translated || translated === key) {
+      return fallback;
+    }
+    return translated;
+  }
   private handleAvailabilityError(error: any, sportLevel: any, cacheKey?: string): void {
     this.feedback.setLoading('courses', false);
     this.isLoading = false;
@@ -1083,6 +1159,7 @@ export class StepFourComponent implements OnDestroy {
   onTabChange(event) {
     this.courseTypeId = this.tabs[event.index].courseTypeId;
     this.getCourses(this.sportLevel);
+    this.queueAvailabilityPreview();
   }
 
   preventTabChange(event: Event) {
@@ -1094,3 +1171,37 @@ export class StepFourComponent implements OnDestroy {
 
   protected readonly CustomHeader = CustomHeader;
 }
+
+
+interface AvailabilityPreviewParams {
+  sport_id: number;
+  degree_id?: number;
+  course_type?: number;
+  date_from: string;
+  date_to: string;
+}
+
+interface AvailabilityPreviewResponse {
+  courses?: any[];
+  summary?: {
+    total_courses?: number;
+    total_dates?: number;
+    [key: string]: any;
+  };
+}
+
+type AvailabilityPreviewStreamResult =
+  | { status: 'skip' }
+  | { status: 'success'; data: AvailabilityPreviewResponse | null }
+  | { status: 'error' };
+
+
+
+
+
+
+
+
+
+
+

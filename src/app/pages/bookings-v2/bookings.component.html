@@ -1,4 +1,4 @@
-<vex-page-layout>
+﻿<vex-page-layout>
 	<!-- <vex-secondary-toolbar>
     <vex-breadcrumbs
       [crumbs]="[{text: '', icon: 'reservas-2'}, {text: 'list', icon: ''}]"
@@ -29,7 +29,11 @@
 
   <vex-page-layout-content *ngIf="showDetail"
                            class="fullwidth col-right">
-    <mat-card>
+    <mat-card class="booking-preview-card">
+      <div class="booking-preview-loading" *ngIf="detailLoading">
+        <mat-progress-spinner diameter="36" mode="indeterminate"></mat-progress-spinner>
+        <div class="loading-text">{{ 'loading' | translate }}</div>
+      </div>
       <mat-card-header style="display:block">
         <div style="width: 100%;">
 					<span style="display: inline-block;width: 80%; text-align: left;">
@@ -104,21 +108,29 @@
                 style="color:rgba(83, 65, 0, 1);background-color:#F7E399;">
 						{{'partial_cancelled' | translate | uppercase }}
 					</span>
-          <span class="col-right">
-						<span *ngIf="detailData?.status === 1 && detailData?.paid"
+					<span class="col-right">
+            <span *ngIf="detailData?.status === 1 && isFreeBooking()"
+                  style="color:#00C32B;background-color: #B2EFAD;">
+							{{'booking_free' | translate | uppercase }}
+						</span>
+						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && detailData?.paid"
                   style="color:#00C32B;background-color: #B2EFAD;">
 							{{'payed' | translate | uppercase }}
 						</span>
-						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id != 3"
+						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && !detailData?.paid && detailData?.payment_method_id != 3"
                   style="color:#FF0000;background-color: #F7BB99;">
 							{{'no_payed' | translate | uppercase }}
 						</span>
-						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 3"
-                  style="color:#FA9917;background-color: #F7E399;">
-							{{'link_send' | translate | uppercase }}
+						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && !detailData?.paid && detailData?.payment_method_id == 3"
+                    style="color:#FA9917;background-color: #F7E399;">
+							{{(detailData?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
 						</span>
-					</span>
-        </div>
+						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && !detailData?.paid && detailData?.payment_method_id == 7"
+							style="color:#FA9917;background-color: #F7E399;">
+							{{(detailData?.payment_method_status === 'invoice_overdue' ? 'invoice_overdue' : 'invoice_pending') | translate | uppercase }}
+						</span>
+ 					</span>
+ 				</div>
       </mat-card-header>
       <mat-card-content>
         <div style="width: 100%;">
@@ -189,7 +201,7 @@
             </div>
             <div class="col-right">
               <b>
-                {{bUsers.price | number:'0.2-2'}} {{ detailData?.currency }}
+                {{ (isCancelledBooking() ? 0 : (bUsers.totalAfterDiscount ?? bUsers.price)) | number:'0.2-2' }} {{ detailData?.currency }}
               </b>
             </div>
           </div>
@@ -225,17 +237,16 @@
                         }}
                         {{bUsers?.course?.sport?.name}}
                       </div>
-                      <ng-container *ngIf="bUsers?.course?.course_type == 1">
-                        <div [style.background]="bUsers?.course_sub_group.degree.color"
+                      <ng-container *ngIf="bUsers?.course?.course_type == 1 && bUsers?.course_sub_group?.degree">
+                        <div [style.background]="bUsers?.course_sub_group?.degree?.color"
                              class="placeLevel m-0 body-1">
-                          {{bUsers?.course_sub_group.degree?.annotation}}
-                          {{bUsers?.course_sub_group.degree?.name}}
+                          {{bUsers?.course_sub_group?.degree?.annotation}}
+                          {{bUsers?.course_sub_group?.degree?.name}}
                         </div>
                       </ng-container>
                       <ng-container *ngIf="bUsers?.course?.course_type !== 1">
-                        <!-- Para course_type distinto de 1 -->
-                        <ng-container *ngFor="let item of detailData?.bookingusers">
-                          <div *ngIf="item.client_id == bUsers.client_id && item.date == bUsers.date">
+                        <ng-container *ngFor="let item of bUsers?.previewDates">
+                          <div>
 														<span class="date-course">
 															<img class="icon-calendar"
                                    src="assets/img/icons/calendar-1.svg">
@@ -246,6 +257,9 @@
 															-
                               {{ item.hour_end }}h
 														</span>
+                            <span class="price">
+                              {{ item.price | number:'0.2-2' }} {{ item.currency || detailData?.currency }}
+                            </span>
                           </div>
                         </ng-container>
                       </ng-container>
@@ -271,9 +285,35 @@
                   </div>
                   <div class="col-right">
                     <!-- {{(bUsers?.course?.course_type === 1 ? 'colective' : 'private' )| translate}} {{getSportName(bUsers?.course?.sport_id)}} -->
-                    {{bUsers?.price | number:'0.2-2'}} {{bUsers?.currency}}
+                    {{ (bUsers.totalAfterDiscount ?? bUsers?.price) | number:'0.2-2' }} {{bUsers?.currency}}
                   </div>
 
+                </div>
+                <div style="margin-left: 30px; margin-top: 8px; border-top: 1px solid #dee6ea; padding-top: 8px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <span class="hour">{{ 'course_total' | translate }}</span>
+                    <span class="price">
+                      <span class="discounted-price">
+                        {{ (bUsers.baseTotal ?? bUsers?.price) | number:'0.2-2' }} {{ detailData?.currency }}
+                      </span>
+                    </span>
+                  </div>
+                  <div *ngIf="bUsers.discountAmount > 0" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; color: #1b5e20;">
+                    <span class="hour">{{ 'reduction' | translate }}</span>
+                    <span class="price">
+                      <span class="discounted-price">
+                        -{{ bUsers.discountAmount | number:'0.2-2' }} {{ detailData?.currency }}
+                      </span>
+                    </span>
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; font-weight: 600;">
+                    <span class="hour">{{ 'subtotal' | translate }}</span>
+                    <span class="price">
+                      <span class="discounted-price">
+                        {{ (isCancelledBooking() || bUsers.status === 2 ? 0 : (bUsers.totalAfterDiscount ?? bUsers?.price)) | number:'0.2-2' }} {{ detailData?.currency }}
+                      </span>
+                    </span>
+                  </div>
                 </div>
                 <!-- <div style="float: left; width: 100%;" *ngIf="bUsers.course.course_type">
                   <div style="float: left; width: 75%;color:#fff; padding:5%;margin-top: 5%;font-size:12px" [ngStyle]="{'background-color': getDegree(bUsers?.degree_id)?.color}">
@@ -288,56 +328,53 @@
                     {{'participant' | translate}}
                   </div>
                   <div class="holder-participante">
-                    <div class="col-left">
+                    <div class="col-left" *ngFor="let participant of getPreviewParticipants(bUsers)">
                       <div class="c-l">
                         <app-level-user *ngIf="detailData?.degrees_sport && detailData?.degrees_sport.length"
                                         [allLevels]="detailData?.degrees_sport"
-                                        [selectLevel]="getClientDegree(bUsers.client)"
+                                        [selectLevel]="getClientDegree(participant)"
                                         [size]="60"
-                                        [userImage]="bUsers?.client?.image !== null && bUsers?.client?.image !== '' ? bUsers?.client?.image : imageAvatar"></app-level-user>
+                                        [userImage]="participant?.image !== null && participant?.image !== '' ? participant?.image : imageAvatar"></app-level-user>
                       </div>
                       <div class="c-r">
                         <div class="course-title">
-                          {{bUsers?.client?.first_name}}
-                          {{bUsers?.client?.last_name}}
-                          <mat-icon color="warn" class="warning-icon" *ngIf="bUsers.notes || bUsers.notes_school">warning</mat-icon>
+                          {{participant?.first_name}}
+                          {{participant?.last_name}}
+                          <mat-icon color="warn" class="warning-icon" *ngIf="hasPreviewParticipantNotes(bUsers, participant?.id)">warning</mat-icon>
                         </div>
                         <div class="course-label">
-                          {{getLanguage(bUsers?.client?.language1_id)}}
-                          ·
-                          {{ getCountry(bUsers?.client?.country) }}
-                          ·
-                          {{calculateAge(bUsers?.client?.birth_date)}}
+                          {{getLanguage(participant?.language1_id)}}
+                          ú
+                          {{ getCountry(participant?.country) }}
+                          ú
+                          {{calculateAge(participant?.birth_date)}}
                           {{'years' | translate }}
                         </div>
-                        <div *ngIf="getClientDegreeObject(bUsers.client)"
-                             [style.background]="getClientDegreeObject(bUsers.client)?.color"
+                        <div *ngIf="getClientDegreeObject(participant)"
+                             [style.background]="getClientDegreeObject(participant)?.color"
                              class="placeLevel m-0 body-1">
-                          {{getClientDegreeObject(bUsers.client)?.annotation}}
-                          {{getClientDegreeObject(bUsers.client)?.name}}
+                          {{getClientDegreeObject(participant)?.annotation}}
+                          {{getClientDegreeObject(participant)?.name}}
                         </div>
-                        <div *ngIf="!getClientDegreeObject(bUsers.client)">
+                        <div *ngIf="!getClientDegreeObject(participant)">
                           {{"level"
                           | translate}} NDF
                         </div>
                         <div style="display: flex;">
                           <vex-icon src="chat"></vex-icon>
                           <vex-icon src="mail"
-                                    href="mailto:{{bUsers?.client?.email}}"
+                                    href="mailto:{{participant?.email}}"
                                     style="cursor:pointer"
-                                    title="{{bUsers?.client?.email}}">
+                                    title="{{participant?.email}}">
                           </vex-icon>
                           <vex-icon src="phone"
-                                    href="tel:{{bUsers?.client?.phone}}"
-                                    title="{{bUsers?.client?.phone}}">
+                                    href="tel:{{participant?.phone}}"
+                                    title="{{participant?.phone}}">
                           </vex-icon>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                <div>
                   <div class="subtitle">
                     <img class="icon-calendar"
                          src="assets/img/icons/monitores-3.svg">
@@ -459,11 +496,11 @@
               {{ 'ispaid' | translate }}:
             </b>
           </div>
-          <div class="col-right">
-            <b *ngIf="parseFloat(detailData?.vouchers_used_amount)">
-              {{ parseFloat(detailData?.paid_total) + parseFloat(detailData?.vouchers_used_amount)}} {{ detailData?.currency }}
-            </b>
-          </div>
+            <div class="col-right">
+              <b>
+                {{ getPreviewPaidLabel() | translate | uppercase }}
+              </b>
+            </div>
         </div>
         <div class="subtitle-sub">
           {{ 'options' | translate }}
@@ -481,16 +518,7 @@
             </div>
           </div>
 
-					<div class="list-inner-holder" *ngIf="detailData?.price_boukii_care>0">
-						<div class="col-left">
-							<mat-slide-toggle [disabled]="true"
-								[checked]="detailData?.has_boukii_care"></mat-slide-toggle>
-							Boukii Care
-						</div>
-						<div class="col-right">
-							{{detailData?.price_boukii_care | number:'0.2-2'}} {{detailData?.currency}}
-						</div>
-					</div>
+					<div class="list-inner-holder" *ngIf="false"></div>
 
 					<div class="list-inner-holder" *ngIf="getExtrasPrice()>0">
 						<div class="col-left">
@@ -512,21 +540,29 @@
 						-{{getBonusPrice() | number:'0.2-2'}} {{detailData?.currency}}
 					</div>
 				</div>
+        <div *ngIf="detailData?.price_reduction > 0" class="subtitle-sub">
+          <div class="col-left">
+            {{ 'reduction' | translate }}
+          </div>
+          <div class="col-right">
+            -{{ detailData?.price_reduction | number:'0.2-2' }} {{ detailData?.currency }}
+          </div>
+        </div>
 				<div class="title-actividad">
 					<div class="col-left">
 						<b class="title">
 							{{ 'method_paiment' | translate }}:
 						</b>
-					</div>
-					<div class="col-right">
-						{{ getPaymentMethod(detailData?.payment_method) | translate }}
-					</div>
-				</div>
+  					</div>
+  					<div class="col-right">
+  						{{ getPreviewPaymentMethodLabel() | translate }}
+  					</div>
+  				</div>
 				<!--<div *ngIf="detailData.payment_method != 6" class="list-holder">
 					<div>
 						class="col-left"
 						<div class="col-l">
-							{{ getPaymentMethod(detailData?.payment_method) | translate }}
+							{{ getPaymentMethod(detailData?.payment_method_id ?? detailData?.payment_method) | translate }}
 						</div>
 						TODO: revisar metodo de pago cuando hay varios pagos y que estado poner??
 						 <div class="col-r">
@@ -605,12 +641,23 @@
 					<div class="col-right">
 						<ul>
 							<li class="total">
-								{{detailData?.price_total | number:'0.2-2'}} {{detailData?.currency}}
+								{{ getPreviewDisplayTotal() | number:'0.2-2' }} {{detailData?.currency}}
 							</li>
 						</ul>
 					</div>
+				</div>
+				<div class="total-original-line" *ngIf="isCancelledBooking()">
+					<span>
+						{{ 'original_price' | translate }}: {{ getPreviewOriginalTotal() | number:'0.2-2' }} {{ detailData?.currency }}
+					</span>
 				</div>
 			</mat-card-content>
 		</mat-card>
 	</vex-page-layout-content>
 </vex-page-layout>
+
+
+
+
+
+

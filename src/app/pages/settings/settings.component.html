@@ -5,245 +5,184 @@
   <mat-spinner *ngIf="loading" style="margin: 0 auto"></mat-spinner>
   <div class="card" *ngIf="!loading">
     <mat-tab-group (selectedTabChange)="onFullTabChange($event)">
-      <mat-tab [formGroup]="seasonForm" label="{{'season' | translate}}">
+      <mat-tab label="{{ 'settings.school_info' | translate }}">
+        <vex-school-info-tab
+          [form]="schoolInfoForm"
+          [logoPreview]="schoolLogoPreview"
+          [myControlCountries]="myControlCountries"
+          [myControlProvinces]="myControlProvinces"
+          [filteredCountries]="filteredCountries"
+          [filteredProvinces]="filteredProvinces"
+          (save)="saveContactData()"
+          (logoUpload)="handleSchoolLogoUpload($event)"
+          (logoFile)="handleSchoolLogoFile($event)"
+          (countrySelected)="onCountrySelected($event)"
+          (provinceSelected)="onProvinceSelected($event)">
+        </vex-school-info-tab>
+      </mat-tab>
+      <mat-tab label="{{ 'season' | translate }}">
         <vex-page-layout>
           <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
-            <h1 style="font-size:24px">
-              {{'settings.new_season' |
-              translate}}
-            </h1>
-            <p style="padding: 1%; ">
-              {{'settings.new_season.save'
-              | translate}}
-            </p>
-            <div style="width: 100%; float: left;padding: 1%">
-              <div
-                style="padding: 1%;width: 100%;float: left;border: #e6e6e6 1px solid;display: flex;align-items: center;justify-content: space-between;flex-wrap: wrap;">
-                <div>
-                  <p style="font-weight: bold; ">
-                    {{'settings.new_season.general'
-                    | translate}}
-                  </p>
-                </div>
-                <div>
-                  <button (click)="saveSeason()" class="btn-primary-accent" style="float: right;">
-                    {{'settings.new_season.save' |
-                    translate}}
-                  </button>
-                </div>
-
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+              <div>
+                <h1 style="margin: 0;">{{ 'settings.new_season.title' | translate }}</h1>
+                <p style="margin: 4px 0 0;">{{ 'settings.new_season.subtitle' | translate }}</p>
               </div>
-              <div style="width: 100%; float: left; border:#e6e6e6 1px solid;padding: 1%;">
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-
-                  <div class="flex-auto">
-                    <label for="dateFrom">
-                      {{'settings.new_season.start' |
-                      translate}}
-                    </label>
-                    <mat-form-field appearance="outline" style="width: 100%">
-
-                      <input [matDatepicker]="pickerFrom" [min]="today" [(ngModel)]="selectedFrom"
-                             [value]="selectedFrom" (click)="pickerFrom.open()" matInput
-                             id="dateFrom" readonly formControlName="fromDate">
-                      <mat-datepicker-toggle [for]="pickerFrom" matSuffix></mat-datepicker-toggle>
-                      <mat-datepicker #pickerFrom [startAt]="selectedFrom"></mat-datepicker>
-                    </mat-form-field>
-                  </div>
-                  <div class="flex-auto">
-                    <label for="dateTo">
-                      {{'settings.new_season.end' |
-                      translate}}
-                    </label>
-
-                    <mat-form-field appearance="outline" style="width: 100%">
-
-                      <input [matDatepicker]="pickerTo" [disabled]="selectedFrom === null"
-                             [min]="selectedFrom" [(ngModel)]="selectedTo" [value]="selectedTo"
-                             (click)="pickerTo.open()" matInput id="dateTo" formControlName="toDate"
-                             readonly>
-                      <mat-datepicker-toggle [for]="pickerTo" matSuffix></mat-datepicker-toggle>
-                      <mat-datepicker #pickerTo [startAt]="selectedTo"></mat-datepicker>
-                    </mat-form-field>
-                  </div>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-
-                  <div class="flex-auto">
-                    <label for="hour">
-                      {{'settings.new_season.hour_start' |
-                      translate }}
-                    </label>
-                    <mat-form-field appearance="outline" style="width: 100%;">
-                      <input [matAutocomplete]="matHourFrom" id="hour" type="text"  [value]="selectedFromHour"
-                             placeholder="Hora " matInput formControlName="startHour" [(ngModel)]="selectedFromHour">
-                      <mat-autocomplete #matHourFrom="matAutocomplete">
-                        <mat-option *ngFor="let hour of hours" [value]="hour"
-                                    (onSelectionChange)="selectedFromHour = hour">
-                          {{hour}}
-                        </mat-option>
-                      </mat-autocomplete>
-                    </mat-form-field>
-                  </div>
-
-                  <div class="flex-auto">
-                    <label for="endHour">
-                      {{'settings.new_season.hour_end' |
-                      translate }}
-                    </label>
-                    <mat-form-field appearance="outline" style="width: 100%;">
-                      <input [matAutocomplete]="matHourTo" id="endHour" type="text"  [value]="selectedToHour"
-                             placeholder="Hora" matInput formControlName="endHour" [(ngModel)]="selectedToHour">
-                      <mat-autocomplete #matHourTo="matAutocomplete">
-                        <mat-option *ngFor="let hour of filteredHours" [value]="hour"
-                                    (onSelectionChange)="selectedToHour = hour">
-                          {{hour}}
-                        </mat-option>
-                      </mat-autocomplete>
-                    </mat-form-field>
-                  </div>
-                </div>
-
-                <div class="sm:flex-row gap-2 sm:gap-6">
-                  <div *ngFor="let holiday of holidays; let i = index"
-                       [ngClass]="{'margin-right': isEven(i)}" style="width: 49%; float:left;">
-                    <div style="width: 5%;float: left;margin: 4% 0 0 0;">
-                      <mat-icon (click)="deleteHoliday(i)" svgIcon="mat:delete"
-                                style="color:red;cursor:pointer"></mat-icon>
-
-                    </div>
-                    <div style="width: 95%; float:left;">
-                      <label for="holiday-{{i}}">
-                        {{'settings.new_season.holiday' |
-                        translate }}
-                      </label>
-
-                      <mat-form-field appearance="outline" style="width: 100%">
-                        <input [matDatepicker]="picker" [min]="today" [value]="holiday"
-                               (click)="picker.open()" (dateChange)="onDateSelect($event, i)"
-                               matInput id="holiday-{{i}}" readonly>
-                        <mat-datepicker-toggle [for]="picker" matSuffix></mat-datepicker-toggle>
-                        <mat-datepicker #picker [startAt]="today"></mat-datepicker>
-                      </mat-form-field>
-                    </div>
-                  </div>
-                </div>
-                <div
-                  style="width: 100%; margin: 2% 0 0 0; float:left;border: 1px solid #e6e6e6;padding: 1%;    display: flex; align-items: center;gap: 2%;">
-                  <div>
-                    <button (click)="addHoliday()" class="add-date" mat-fab>
-                      <mat-icon svgIcon="mat:add" class="icon-date"></mat-icon>
-                    </button>
-                  </div>
-                  <div>
-                    <p>
-                      {{'settings.new_season.holiday_add' | translate }}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <button mat-raised-button color="primary" (click)="saveSeason()">
+                {{ 'settings.new_season.save' | translate }}
+              </button>
             </div>
-
-            <div style="width: 100%; float: left;padding: 1%">
-              <div
-                style="padding: 1%;width: 100%;float: left;border: #e6e6e6 1px solid;display: flex;align-items: center;justify-content: space-between;flex-wrap: wrap;">
-                <div>
-
-                  <p style="font-weight: bold; ">
-                    {{'settings.school.title'
-                    | translate}}
-                  </p>
+            <form *ngIf="seasonForm" [formGroup]="seasonForm" style="border:#e6e6e6 1px solid; padding: 16px; border-radius: 16px;">
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                <div class="flex-auto">
+                  <label for="dateFrom">
+                    {{'settings.new_season.start' | translate}}
+                  </label>
+                  <mat-form-field appearance="outline" style="width: 100%">
+                    <input [matDatepicker]="pickerFrom" [min]="today" [(ngModel)]="selectedFrom"
+                           [value]="selectedFrom" (click)="pickerFrom.open()" matInput
+                           id="dateFrom" readonly formControlName="fromDate">
+                    <mat-datepicker-toggle [for]="pickerFrom" matSuffix></mat-datepicker-toggle>
+                    <mat-datepicker #pickerFrom [startAt]="selectedFrom"></mat-datepicker>
+                  </mat-form-field>
                 </div>
-                <div>
-                  <button (click)="saveContactData();" class="btn-primary-accent"
-                          style="float: right;">
-                    {{'settings.school.save' |
-                    translate}}
-                  </button>
+                <div class="flex-auto">
+                  <label for="dateTo">
+                    {{'settings.new_season.end' | translate}}
+                  </label>
+                  <mat-form-field appearance="outline" style="width: 100%">
+                    <input [matDatepicker]="pickerTo" [disabled]="selectedFrom === null"
+                           [min]="selectedFrom" [(ngModel)]="selectedTo" [value]="selectedTo"
+                           (click)="pickerTo.open()" matInput id="dateTo" formControlName="toDate"
+                           readonly>
+                    <mat-datepicker-toggle [for]="pickerTo" matSuffix></mat-datepicker-toggle>
+                    <mat-datepicker #pickerTo [startAt]="selectedTo"></mat-datepicker>
+                  </mat-form-field>
                 </div>
               </div>
-              <div style="width: 100%; float: left; border:#e6e6e6 1px solid;padding: 1%;">
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>
-                      {{'address' | translate}}
-                    </mat-label>
-
-                    <input [(ngModel)]="defaultsSchoolData.contact_address"
-                           formControlName="contact_phone" matInput required type="text">
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>Email</mat-label>
-                    <input [(ngModel)]="defaultsSchoolData.contact_email"
-                           formControlName="contact_address" matInput required type="text">
-
-                  </mat-form-field>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>
-                      {{'cp' | translate}}
-                    </mat-label>
-
-                    <input [(ngModel)]="defaultsSchoolData.contact_cp"
-                           formControlName="contact_address_number" matInput required type="text">
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>
-                      {{'phone' | translate}}
-                    </mat-label>
-                    <input [(ngModel)]="defaultsSchoolData.contact_phone"
-                           formControlName="contact_cp" matInput required type="tel">
-
-                  </mat-form-field>
-                </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
-                    <mat-label>
-                      {{'country' | translate }}
-                    </mat-label>
-                    <input [formControl]="myControlCountries" [matAutocomplete]="autoCountry"
-                           type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput
-                           formControlName="contact_country">
-                    <mat-autocomplete #autoCountry="matAutocomplete"
-                                      [displayWith]="displayFnCountry">
-                      <mat-option *ngFor="let country of filteredCountries | async"
-                                  [value]="country"
-                                  (onSelectionChange)="defaultsSchoolData.contact_country = country.id">
-                        {{country.name}}
-                      </mat-option>
-                    </mat-autocomplete>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
-                    <mat-label>
-                      {{'province' | translate }}
-                    </mat-label>
-                    <input [formControl]="myControlProvinces" [matAutocomplete]="autoProvince"
-                           type="text" placeholder="{{'Selecciona una opción' | translate}}" matInput
-                           formControlName="contact_province">
-                    <mat-autocomplete #autoProvince="matAutocomplete"
-                                      [displayWith]="displayFnProvince">
-                      <mat-option *ngFor="let province of filteredProvinces | async"
-                                  [value]="province"
-                                  (onSelectionChange)="defaultsSchoolData.contact_province = province.id">
-                        {{province.name}}
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                <div class="flex-auto">
+                  <label for="hour">
+                    {{'settings.new_season.hour_start' | translate }}
+                  </label>
+                  <mat-form-field appearance="outline" style="width: 100%;">
+                    <input [matAutocomplete]="matHourFrom" id="hour" type="text"  [value]="selectedFromHour"
+                           placeholder="Hora " matInput formControlName="startHour" [(ngModel)]="selectedFromHour">
+                    <mat-autocomplete #matHourFrom="matAutocomplete">
+                      <mat-option *ngFor="let hour of hours" [value]="hour"
+                                  (onSelectionChange)="selectedFromHour = hour">
+                        {{hour}}
                       </mat-option>
                     </mat-autocomplete>
                   </mat-form-field>
                 </div>
-                <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                  <mat-form-field appearance="outline" class="flex-auto">
-                    <mat-label>
-                      {{'city' | translate}}
-                    </mat-label>
-
-                    <input [(ngModel)]="defaultsSchoolData.contact_city"
-                           formControlName="contact_city" matInput required type="text">
+                <div class="flex-auto">
+                  <label for="endHour">
+                    {{'settings.new_season.hour_end' | translate }}
+                  </label>
+                  <mat-form-field appearance="outline" style="width: 100%;">
+                    <input [matAutocomplete]="matHourTo" id="endHour" type="text"  [value]="selectedToHour"
+                           placeholder="Hora" matInput formControlName="endHour" [(ngModel)]="selectedToHour">
+                    <mat-autocomplete #matHourTo="matAutocomplete">
+                      <mat-option *ngFor="let hour of filteredHours" [value]="hour"
+                                  (onSelectionChange)="selectedToHour = hour">
+                        {{hour}}
+                      </mat-option>
+                    </mat-autocomplete>
                   </mat-form-field>
                 </div>
+              </div>
+              <div class="sm:flex-row gap-2 sm:gap-6">
+                <div *ngFor="let holiday of holidays; let i = index"
+                     [ngClass]="{'margin-right': isEven(i)}" style="width: 49%; float:left;">
+                  <div style="width: 5%;float: left;margin: 4% 0 0 0;">
+                    <mat-icon (click)="deleteHoliday(i)" svgIcon="mat:delete"
+                              style="color:red;cursor:pointer"></mat-icon>
+                  </div>
+                  <div style="width: 95%; float:left;">
+                    <label for="holiday-{{i}}">
+                      {{'settings.new_season.holiday' |
+                      translate }}
+                    </label>
+                    <mat-form-field appearance="outline" style="width: 100%">
+                      <input [matDatepicker]="picker" [min]="today" [value]="holiday"
+                             (click)="picker.open()" (dateChange)="onDateSelect($event, i)"
+                             matInput id="holiday-{{i}}" readonly>
+                      <mat-datepicker-toggle [for]="picker" matSuffix></mat-datepicker-toggle>
+                      <mat-datepicker #picker [startAt]="today"></mat-datepicker>
+                    </mat-form-field>
+                  </div>
+                </div>
+              </div>
+              <div
+                style="width: 100%; margin: 2% 0 0 0; float:left;border: 1px solid #e6e6e6;padding: 1%;    display: flex; align-items: center;gap: 2%;">
+                <div>
+                  <button (click)="addHoliday()" class="add-date" mat-fab>
+                    <mat-icon svgIcon="mat:add" class="icon-date"></mat-icon>
+                  </button>
+                </div>
+                <div>
+                  <p>
+                    {{'settings.new_season.holiday_add' | translate }}
+                  </p>
+                </div>
+              </div>
+            </form>
+          </vex-page-layout-content>
+        </vex-page-layout>
+      </mat-tab>
+      <mat-tab label="{{ 'settings.meeting_points' | translate }}">
+        <vex-page-layout>
+          <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h1 style="margin: 0;">{{ 'settings.meeting_points.title' | translate }}</h1>
+                <p style="margin: 4px 0 0;">{{ 'settings.meeting_points.description' | translate }}</p>
+              </div>
+              <button mat-raised-button color="primary" (click)="openMeetingPointModal()">
+                {{ 'settings.meeting_points.add' | translate }}
+              </button>
+            </div>
+            <div *ngIf="meetingPointsLoading" style="display:flex; justify-content:center; padding: 24px;">
+              <mat-spinner diameter="28"></mat-spinner>
+            </div>
+            <div *ngIf="!meetingPointsLoading" style="border:#e6e6e6 1px solid; border-radius: 12px; padding: 16px;">
+              <table mat-table [dataSource]="dataSourceMeetingPoints" class="mat-elevation-z1" style="width: 100%;">
+                <ng-container matColumnDef="name">
+                  <th mat-header-cell *matHeaderCellDef> {{ 'name' | translate }} </th>
+                  <td mat-cell *matCellDef="let row">{{ row.name }}</td>
+                </ng-container>
+                <ng-container matColumnDef="address">
+                  <th mat-header-cell *matHeaderCellDef> {{ 'address' | translate }} </th>
+                  <td mat-cell *matCellDef="let row">{{ row.address }}</td>
+                </ng-container>
+                <ng-container matColumnDef="instructions">
+                  <th mat-header-cell *matHeaderCellDef> {{ 'instructions' | translate }} </th>
+                  <td mat-cell *matCellDef="let row">{{ row.instructions || '-' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="active">
+                  <th mat-header-cell *matHeaderCellDef> {{ 'active' | translate }} </th>
+                  <td mat-cell *matCellDef="let row">
+                    <span style="font-weight:600; color: #1c7ecd;" *ngIf="row.active">{{ 'active' | translate }}</span>
+                    <span style="font-weight:600; color: #a2a2a2;" *ngIf="!row.active">{{ 'inactive' | translate }}</span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef> {{ 'actions' | translate }} </th>
+                  <td mat-cell *matCellDef="let row" style="display:flex; gap: 8px;">
+                    <button mat-icon-button color="primary" (click)="openMeetingPointModal(row)">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button mat-icon-button color="warn" (click)="deleteMeetingPoint(row)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="meetingPointsDisplayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: meetingPointsDisplayedColumns"></tr>
+              </table>
+              <div *ngIf="!meetingPoints?.length" style="margin-top: 16px; text-align: center; color: #757575;">
+                {{ 'settings.meeting_points.empty' | translate }}
               </div>
             </div>
           </vex-page-layout-content>
@@ -277,13 +216,13 @@
                     | translate }}
                   </p>
                   <div class="items-icons">
-                    <ng-container *ngFor="let item of sports">
+                    <ng-container *ngFor="let item of sports; trackBy: trackBySportId">
                       <div *ngIf="item.sport_type === 1" (click)="setSport(item.id)" class="item">
                         <div *ngIf="item.sport_type === 1"
-                             [ngClass]="{'unselected-icon': sportsList.indexOf(item.id) === -1, 'selected-icon': sportsList.indexOf(item.id) !== -1}"
+                             [ngClass]="{'unselected-icon': !isSportSelected(item.id), 'selected-icon': isSportSelected(item.id)}"
                              class="icon">
                           <img
-                            [src]="sportsList.indexOf(item.id) !== -1 ? item.icon_selected : item.icon_unselected">
+                            [src]="isSportSelected(item.id) ? item.icon_selected : item.icon_unselected">
                         </div>
                         <div *ngIf="item.sport_type === 1" class="text">
                           {{
@@ -301,13 +240,13 @@
                     | translate }}
                   </p>
                   <div class="items-icons">
-                    <ng-container *ngFor="let item of sports">
+                    <ng-container *ngFor="let item of sports; trackBy: trackBySportId">
                       <div *ngIf="item.sport_type === 2" (click)="setSport(item.id)" class="item">
                         <div *ngIf="item.sport_type === 2"
-                             [ngClass]="{'unselected-icon': sportsList.indexOf(item.id) === -1, 'selected-icon': sportsList.indexOf(item.id) !== -1}"
+                             [ngClass]="{'unselected-icon': !isSportSelected(item.id), 'selected-icon': isSportSelected(item.id)}"
                              class="icon">
                           <img
-                            [src]="sportsList.indexOf(item.id) !== -1 ? item.icon_selected : item.icon_unselected">
+                            [src]="isSportSelected(item.id) ? item.icon_selected : item.icon_unselected">
                         </div>
                         <div *ngIf="item.sport_type === 2" class="text">
                           {{
@@ -325,12 +264,12 @@
                     | translate}}
                   </p>
                   <div class="items-icons">
-                    <ng-container *ngFor="let item of sports">
+                    <ng-container *ngFor="let item of sports; trackBy: trackBySportId">
                       <div *ngIf="item.sport_type === 3" (click)="setSport(item.id)" class="item">
-                        <div [ngClass]="{'unselected-icon': sportsList.indexOf(item.id) === -1, 'selected-icon': sportsList.indexOf(item.id) !== -1}"
+                        <div [ngClass]="{'unselected-icon': !isSportSelected(item.id), 'selected-icon': isSportSelected(item.id)}"
                              class="icon">
                           <img
-                            [src]="sportsList.indexOf(item.id) !== -1 ? item.icon_selected : item.icon_unselected">
+                            [src]="isSportSelected(item.id) ? item.icon_selected : item.icon_unselected">
                         </div>
                         <div class="text">{{ item.name }}</div>
                       </div>
@@ -362,7 +301,7 @@
                 </div>
 
                 <div class="items-icons" style="margin-bottom: 20px;">
-                  <ng-container *ngFor="let item of schoolSports; let i = index">
+                  <ng-container *ngFor="let item of schoolSports; trackBy: trackBySchoolSportId; let i = index">
                     <div (click)="selectSport(item)" class="item">
                       <div [ngClass]="selectedSport === item.id ? 'selected-icon' : 'unselected-icon'"
                            class="icon">
@@ -375,7 +314,7 @@
                 </div>
 
                 <!-- <div style="float: left; width: 100%;margin-bottom: 20px;margin-top: 10px;">
-                    <ng-container *ngFor="let item of schoolSports; let i = index">
+                    <ng-container *ngFor="let item of schoolSports; trackBy: trackBySchoolSportId; let i = index">
                       <div style="float: left; width: 80px; margin-right: 10px;text-align: center;">
                         <div style="cursor:pointer;width: 40px;height:40px;border-radius: 6px;" (click)="selectSport(item.id)" [ngStyle]="{'background': selectedSport === item.id ? '#e91e63' : '#e6e6e6'}">
                           <div (click)="dataSourceLevels.data = item.degrees">
@@ -390,7 +329,7 @@
                   </div> -->
 
                 <div style="float: left; width: 100%;">
-                  <!-- añadir mat table de niveles -->
+                  <!-- a├▒adir mat table de niveles -->
                   <table #reductionTable [dataSource]="dataSourceLevels" id="table-level" mat-table
                          matSort style="border: 1px solid #e6e6e6">
 
@@ -633,6 +572,18 @@
                     </mat-form-field>
                   </div>
                   <!-- Removed inner save; single save at tab header -->
+                  <div [formGroup]="bookingForm" class="mt-4">
+                    <mat-form-field appearance="outline" class="w-full">
+                      <mat-label>Minutos de antelaci├│n para privados</mat-label>
+                      <input matInput type="number" formControlName="private_min_lead_minutes" min="0">
+                      <mat-hint>Tiempo m├¡nimo antes del inicio para permitir la reserva.</mat-hint>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="w-full">
+                      <mat-label>L├¡mite de overbooking para privados</mat-label>
+                      <input matInput type="number" formControlName="private_overbooking_limit" min="0">
+                      <mat-hint>{{ 'settings.booking.privates.overbooking_limit_hint' | translate }}</mat-hint>
+                    </mat-form-field>
+                  </div>
                 </div>
               </div>
               <div class="left">
@@ -666,10 +617,10 @@
                   </div>
                   <div class="Small b12"
                        *ngIf="!PageForm.BannerPromocional.controls['desktopImg'].value">
-                    · {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
+                    ┬À {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
                     {{'image_recomendation'|translate}} 600x100px
                     <br>
-                    · {{'link_to_logo_url'|translate}}
+                    ┬À {{'link_to_logo_url'|translate}}
                   </div>
                   <div *ngIf="PageForm.BannerPromocional.controls['desktopImg'].value" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
 									border-style: dashed;
@@ -688,10 +639,10 @@
                   </div>
                   <div class="Small b12"
                        *ngIf="!PageForm.BannerPromocional.controls['mobileImg'].value">
-                    · {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
+                    ┬À {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
                     {{'image_recomendation'|translate}} 200x100px
                     <br>
-                    · {{'link_to_logo_url'|translate}}
+                    ┬À {{'link_to_logo_url'|translate}}
                   </div>
                   <div *ngIf="PageForm.BannerPromocional.controls['mobileImg'].value" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
 									border-style: dashed;
@@ -722,12 +673,12 @@
                     {{"sponsors"|translate}}
                   </div>
                   <div class="Small b12" *ngIf="(sponsorsFA?.length || 0)===0" style="width: 100%;">
-                    · {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
+                    ┬À {{'image_max'|translate}} 1Mb. {{'image_format'|translate}} PNG,JPG.
                     {{'image_recomendation'|translate}} 160x85px
                     <br>
-                    · {{'link_to_logo_url'|translate}}
+                    ┬À {{'link_to_logo_url'|translate}}
                   </div>
-                  <div *ngFor="let ctrl of sponsorsFA.controls; index as i" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
+                  <div *ngFor="let ctrl of sponsorsFA.controls; trackBy: trackByIndex; index as i" style="position: relative; border: 1px solid var(--Grey-02, #C7D0D3);
 									border-style: dashed;
 									padding: 10px;
 									width: 150px;align-content: space-evenly;
@@ -749,7 +700,7 @@
                   <div style="width: 100%;">
                     {{"info_message_description"|translate}}
                   </div>
-                  <div *ngFor="let ctrl of infoMessagesFA.controls;index as i" style="width: 100%;display: flex;
+                  <div *ngFor="let ctrl of infoMessagesFA.controls; trackBy: trackByIndex;index as i" style="width: 100%;display: flex;
 										flex-direction: row;
 										align-items: center;
 										gap: 10px;">
@@ -777,7 +728,7 @@
             <div style="padding: 20px;">
               <mat-tab-group [(selectedIndex)]="selectedTabIndex" (selectedIndexChange)="onTabLangsChange($event)">
                 <mat-tab *ngFor="let lang of Translate; let i = index; trackBy: trackLang" [label]="lang.Name">
-                  <!-- Solo renderizamos el contenido de la pestaña seleccionada o las que han sido visitadas -->
+                  <!-- Solo renderizamos el contenido de la pesta├▒a seleccionada o las que han sido visitadas -->
                   <ng-container *ngIf="loadedTabs[i]">
                     <div class="mt-4">
                       <h2 class="title m-0">{{ 'terms_conditions' | translate }}</h2>
@@ -859,7 +810,7 @@
 
                 <div class="p-6">
                   <div style="display: flex; flex-wrap: wrap; gap: 2%;">
-                    <div *ngFor="let item of blockages"
+                    <div *ngFor="let item of blockages; trackBy: trackByBlockageId"
                          style="width: 48%; display: flex; align-items: center; margin-bottom: 1rem;">
                       <mat-form-field appearance="outline" style="flex: 1; margin-right: 1rem;">
                         <span [ngStyle]="{'background-color': item.color}" matPrefix class="square-prefix"></span>
@@ -876,7 +827,8 @@
               </vex-page-layout-content>
             </vex-page-layout>
           </mat-tab>
-          <!--			<mat-tab label="{{'settings.auths' | translate}}">
+          <!--
+          <mat-tab label="{{'settings.auths' | translate}}">
               <vex-page-layout>
                 <vex-page-layout-content class="-mt-6 fullwidth"
                   style="margin: 1% 0 0 0">
@@ -969,7 +921,7 @@
       <mat-tab label="{{'bookings'|translate}}">
         <vex-page-layout>
           <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
-            <div style="float: left; width: 100%;border: 1px solid #e6e6e6;padding: 1%;margin: 0 0 2% 0;">
+            <div *ngIf="false" style="float: left; width: 100%;border: 1px solid #e6e6e6;padding: 1%;margin: 0 0 2% 0;">
               <h1 style="font-size:24px;float: left; width: 100%;">
                 {{'bookings'|translate}}
               </h1>
@@ -1007,7 +959,8 @@
                   </div>
                 </vex-page-layout-content>
               </vex-page-layout>
-            </mat-tab>-->
+            </mat-tab>
+          -->
         </mat-tab-group>
       </mat-tab>
       <mat-tab label="{{'bookings'|translate}}">
@@ -1050,31 +1003,31 @@
               </p>
 
             </div>
-            <div style="float: left; width: 100%;border: 1px solid #e6e6e6;padding: 1%;margin: 0 0 2% 0;">
+            <!--<div style="float: left; width: 100%;border: 1px solid #e6e6e6;padding: 1%;margin: 0 0 2% 0;">
               <h1 style="font-size:24px;float: left; width: 100%;">
                 <mat-slide-toggle [(ngModel)]="hasBoukiiCare"></mat-slide-toggle>
                 Boukii Care
                 <span style="color: #e6e6e6">
-<!-- BOUKII CARE DESACTIVADO - 									({{'settings.bookings.boukii_care_title' -->
+									({{'settings.bookings.boukii_care_title'
                   | translate}})
 								</span>
               </h1>
               <p style="padding: 1%; ;float: left; width: 75%;">
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text1' |translate}} -->
+                {{'settings.bookings.boukii_care_text1' |translate}}
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text2' |translate}} -->
+                {{'settings.bookings.boukii_care_text2' |translate}}
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text3' |translate}} -->
+                {{'settings.bookings.boukii_care_text3' |translate}}
                 <br>
                 <br>
-<!-- BOUKII CARE DESACTIVADO -                 {{'settings.bookings.boukii_care_text4' |translate}} -->
+                {{'settings.bookings.boukii_care_text4' |translate}}
                 <a href style="text-decoration:none; color: #f53d7c;">
                   Enlace
                 </a>
               </p>
               <div style="width:100%; float:left;">
                 <p style="width:100%; float:left;;">
-<!-- BOUKII CARE DESACTIVADO -                   {{'settings.bookings.boukii_care_price' -->
+                  {{'settings.bookings.boukii_care_price'
                   | translate}}
                 </p>
                 <mat-form-field appearance="outline" class="flex-auto">
@@ -1083,7 +1036,7 @@
                   <span matTextSuffix>{{currency || 'CHF'}}</span>
                 </mat-form-field>
               </div>
-            </div>
+            </div>-->
             <div style="float: left; width: 100%;border: 1px solid #e6e6e6;padding: 1%;margin: 0 0 2% 0;">
               <h1 style="font-size:24px;float: left; width: 100%;">
                 {{'settings.bookings.cancelations'
@@ -1113,6 +1066,27 @@
                 {{'settings.bookings.cancelations.text6' | translate}}
                 <br>
               </p>
+            </div>
+            <div style="float: left; width: 100%;border: 1px solid #e6e6e6;padding: 1%;margin: 0 0 2% 0;">
+              <h1 style="font-size:24px;float: left; width: 100%;">
+                {{ 'payment_link_validity_hours' | translate }}
+              </h1>
+              <div style="width:100%; float:left;">
+                <p style="width:100%; float:left;">
+                  {{ 'payment_link_validity_hours_hint' | translate }}
+                </p>
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>{{ 'payment_link_validity_hours' | translate }}</mat-label>
+                  <input
+                    [value]="school?.payment_link_validity_hours ?? 48"
+                    (blur)="updatePaymentLinkValidity($event)"
+                    matInput
+                    type="number"
+                    min="1"
+                    max="720">
+                  <span matTextSuffix>h</span>
+                </mat-form-field>
+              </div>
             </div>
 
             <div style="float: left; width: 100%;border: 1px solid #e6e6e6;padding: 1%;margin: 0 0 2% 0;">
@@ -1207,7 +1181,7 @@
                     </p>
                     <mat-checkbox [checked]="true">Ski</mat-checkbox>
                     <mat-checkbox>Snowboard</mat-checkbox>
-                    <mat-checkbox>Randonée</mat-checkbox>
+                    <mat-checkbox>Randon├®e</mat-checkbox>
                   </div>
                   <div style="float: left;width: 100%;padding: 1%">
                     <div style="float: left; width: 10%;">
@@ -1396,8 +1370,8 @@
                       {{'status' | translate}}
                     </th>
                     <td *matCellDef="let element" mat-cell>
-                      <mat-slide-toggle [checked]="element.status"
-                                        [disabled]="true"></mat-slide-toggle>
+                    <mat-slide-toggle [checked]="element.status"
+                                      (change)="toggleExtraStatus(element, 'Forfait', $event.checked)"></mat-slide-toggle>
 
                     </td>
                   </ng-container>
@@ -1502,7 +1476,7 @@
                                     </th>
                                     <td *matCellDef="let element" mat-cell>
                                       <mat-slide-toggle [checked]="element.status"
-                                        [disabled]="true"></mat-slide-toggle>
+                                        (change)="toggleExtraStatus(element, 'Food', $event.checked)"></mat-slide-toggle>
 
                                     </td>
                                   </ng-container>
@@ -1607,7 +1581,7 @@
                                     </th>
                                     <td *matCellDef="let element" mat-cell>
                                       <mat-slide-toggle [checked]="element.status"
-                                        [disabled]="true"></mat-slide-toggle>
+                                        (change)="toggleExtraStatus(element, 'Transport', $event.checked)"></mat-slide-toggle>
 
                                     </td>
                                   </ng-container>
@@ -1883,6 +1857,267 @@
           </vex-page-layout-content>
         </vex-page-layout>
       </mat-tab>
+ <!--     <mat-tab label="Mails y nardos">
+
+        <vex-page-layout>
+          <vex-page-layout-content class="-mt-6 fullwidth" style="margin: 1% 0 0 0">
+            <div class="main-container" style="display: flex; justify-content: space-between;">
+              &lt;!&ndash; Secci├│n del Formulario &ndash;&gt;
+              <div class="form-container" style="flex: 1; margin-right: 1%;">
+                <h1 style="font-size:24px">
+                  {{'mailbox' |
+                  translate}}
+                </h1>
+                <p style="padding: 1%; ">
+                  {{'compose' |
+                  translate}}
+                </p>
+                <div class="block w-full">
+                  <mat-form-field appearance="outline" style="width: 100%">
+                    <mat-select [(ngModel)]="mailType" (selectionChange)="setCurrentMailType()"
+                                placeholder="{{'mails.type' | translate}}">
+                      <mat-option value="booking_confirm">
+                        {{'mails.type1' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="booking_cancel">
+                        {{'mails.type2' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="booking_update">
+                        {{'mails.type3' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="payment_link">
+                        {{'mails.type4' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="payment_confirm">
+                        {{'mails.type5' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="payment_reminder">
+                        {{'mails.type9' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="voucher_confirm">
+                        {{'mails.type6' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="voucher_create">
+                        {{'mails.type7' |
+                        translate}}
+                      </mat-option>
+                      <mat-option value="course_reminder">
+                        {{'mails.type8' |
+                        translate}}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  &lt;!&ndash; <input cdkFocusInitial matInput type="text"/>
+
+                    <button (click)="toggleDropdown()" color="primary" mat-button matSuffix type="button">CC/BCC</button> &ndash;&gt;
+                </div>
+
+                &lt;!&ndash; <div [@dropdown]="dropdownOpen" class="overflow-hidden">
+                    <mat-form-field appearance="outline" class="block w-full">
+                      <mat-label>Cc</mat-label>
+                      <input matInput type="text"/>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="block w-full">
+                      <mat-label>Bcc</mat-label>
+                      <input matInput type="text"/>
+                    </mat-form-field>
+                  </div> &ndash;&gt;
+                <mat-tab-group [selectedIndex]="selectedIndex"
+                               (selectedTabChange)="onTabChange($event)">
+                <mat-tab label="{{'France' | translate }}">
+
+                    <mat-form-field appearance="outline" class="block w-full"
+                                    style="margin-top: 10px;">
+                      <mat-label>
+                        {{'subject' | translate}}
+                      </mat-label>
+                      <input [(ngModel)]="subjectFr" [value]="subjectFr" matInput type="text">
+                    </mat-form-field>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <p>
+                        {{ 'title' | translate }}
+                      </p>
+                      <angular-editor [(ngModel)]="titleFr"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <p>
+                        {{ 'message' | translate }}
+                      </p>
+                      <angular-editor [(ngModel)]="bodyFr"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+
+                </mat-tab>
+                <mat-tab label="{{'English' | translate }}">
+                  <ng-template matTabContent>
+                    <mat-form-field appearance="outline" class="block w-full"
+                                    style="margin-top: 10px;">
+                      <mat-label>
+                        {{'subject' | translate}}
+                      </mat-label>
+                      <input [(ngModel)]="subjectEn" [value]="subjectEn" matInput type="text">
+                    </mat-form-field>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <p>
+                        {{ 'title' | translate }}
+                      </p>
+                      <angular-editor [(ngModel)]="titleEn"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <angular-editor [(ngModel)]="bodyEn"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                  </ng-template>
+                </mat-tab>
+                <mat-tab label="{{'Spanish' | translate }}">
+                  <ng-template matTabContent>
+                    <mat-form-field appearance="outline" class="block w-full"
+                                    style="margin-top: 10px;">
+                      <mat-label>
+                        {{'subject' | translate}}
+                      </mat-label>
+                      <input [(ngModel)]="subjectEs" [value]="subjectEs" matInput type="text">
+                    </mat-form-field>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <p>
+                        {{ 'title' | translate }}
+                      </p>
+                      <angular-editor [(ngModel)]="titleEs"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <angular-editor [(ngModel)]="bodyEs"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                  </ng-template>
+                </mat-tab>
+                <mat-tab label="{{'Germany' | translate }}">
+                  <ng-template matTabContent>
+                    <mat-form-field appearance="outline" class="block w-full"
+                                    style="margin-top: 10px;">
+                      <mat-label>
+                        {{'subject' | translate}}
+                      </mat-label>
+                      <input [(ngModel)]="subjectDe" [value]="subjectDe" matInput type="text">
+                    </mat-form-field>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <p>
+                        {{ 'title' | translate }}
+                      </p>
+                      <angular-editor [(ngModel)]="titleDe"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <angular-editor [(ngModel)]="bodyDe"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                  </ng-template>
+                </mat-tab>
+                <mat-tab label="{{'Italian' | translate }}">
+                  <ng-template matTabContent>
+                    <mat-form-field appearance="outline" class="block w-full"
+                                    style="margin-top: 10px;">
+                      <mat-label>
+                        {{'subject' | translate}}
+                      </mat-label>
+                      <input [(ngModel)]="subjectIt" [value]="subjectIt" matInput type="text">
+                    </mat-form-field>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <p>
+                        {{ 'title' | translate }}
+                      </p>
+                      <angular-editor [(ngModel)]="titleIt"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                    <div class="vex-mail-compose-editor flex flex-col">
+                      <angular-editor [(ngModel)]="bodyIt"
+                                      [config]="editorConfig"
+                                      class="flex-auto flex flex-col"></angular-editor>
+                    </div>
+                  </ng-template>
+                </mat-tab>
+                </mat-tab-group>
+                &lt;!&ndash; <div class="vex-mail-compose-attachment mt-4 mb-2 rounded-full border px-4 py-1 flex items-center hover:bg-hover transition duration-200 ease-in-out cursor-pointer relative"
+                       matRipple>
+                    <mat-icon class="flex-none text-primary icon-sm" svgIcon="mat:picture_as_pdf"></mat-icon>
+                    <p class="flex-auto ml-4 text-sm">super-secret-design-document.pdf</p>
+
+                    <p class="text-sm text-secondary mr-2 flex-none">54kb</p>
+                    <button (click)="$event?.stopPropagation()" class="flex-none w-8 h-8 leading-none" mat-icon-button type="button">
+                      <mat-icon class="icon-sm" svgIcon="mat:close"></mat-icon>
+                    </button>
+                  </div>
+
+                  <div class="vex-mail-compose-attachment my-2 rounded-full border px-4 py-1 flex items-center hover:bg-hover transition duration-200 ease-in-out cursor-pointer relative"
+                       matRipple>
+                    <mat-icon class="flex-none text-primary icon-sm" svgIcon="mat:image"></mat-icon>
+                    <p class="flex-auto ml-4 text-sm">cute-cat-picture.jpg</p>
+
+                    <p class="text-sm text-secondary mr-2 flex-none">16kb</p>
+                    <button (click)="$event?.stopPropagation()" class="flex-none w-8 h-8 leading-none" mat-icon-button type="button">
+                      <mat-icon class="icon-sm" svgIcon="mat:close"></mat-icon>
+                    </button>
+                  </div> &ndash;&gt;
+                <div style="padding: 1%;width: 100%;float: left;border: #e6e6e6 1px solid;">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <mat-form-field appearance="outline" style="flex: 1;">
+                      <mat-label>{{'email' | translate}}</mat-label>
+                      <input [(ngModel)]="testEmail" matInput placeholder="you@example.com" type="email">
+                    </mat-form-field>
+                    <button (click)="sendTestMail()" class="btn-primary-accent" style="height: 40px;">
+                      {{'send_test' | translate}}
+                    </button>
+                  </div>
+                  <div style="float:left; width:100%">
+                    <button (click)="saveDefaultMail()" class="btn-primary-accent"
+                            style="float: right;">
+                      {{'save' |
+                      translate}}
+                    </button>
+                    <button (click)="openPreview()" class="btn-primary-accent"
+                            style="float: right; margin-right: 10px;">
+                      {{'preview' |
+                      translate}}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="preview-container" style="flex: 1; margin-left: 1%;overflow-y: auto;">
+                <h1 style="font-size:24px">
+                  {{'preview' |
+                  translate}}
+                </h1>
+                <div class="preview-content"
+                     style="border: 1px solid #e6e6e6; padding: 1%; overflow-y: auto;">
+                  &lt;!&ndash; Aqu├¡ puedes mostrar el contenido del correo en vista previa &ndash;&gt;
+                  <vex-confirm-mail [title]="getEmailContent().title" [body]="getEmailContent().body"
+                                    [type]="mailTypeTrad">
+                  </vex-confirm-mail>
+                </div>
+              </div>
+            </div>
+          </vex-page-layout-content>
+        </vex-page-layout>
+      </mat-tab>-->
     </mat-tab-group>
   </div>
 </vex-page-layout>
@@ -1998,3 +2233,5 @@
   <iframe [src]="safeUrl" width="100%" height="600px" style="border: none;" body>
   </iframe>
 </vex-flux-modal>
+
+

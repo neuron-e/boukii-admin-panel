@@ -12,6 +12,9 @@ import { MatDialog } from '@angular/material/dialog';
 import { AddTaskComponent } from './add-task/add-task.component';
 import moment from 'moment';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ApiCrudService } from 'src/service/crud.service';
+import { saveAs } from 'file-saver';
+import { ExportCoursesDialogComponent } from './export-courses-dialog/export-courses-dialog.component';
 
 @Component({
   selector: 'vex-toolbar',
@@ -44,7 +47,8 @@ export class ToolbarComponent {
     private router: Router,
     private dialog: MatDialog,
     private snackbar: MatSnackBar,
-    private translateService: TranslateService) {
+    private translateService: TranslateService,
+    private crudService: ApiCrudService) {
     this.slug = JSON.parse(localStorage.getItem('boukiiUser')).schools[0].slug;
     const initialLang = sessionStorage.getItem('lang') || this.translateService.currentLang || this.translateService.getDefaultLang() || 'es';
     this.currentLangCode = initialLang ? initialLang.toUpperCase() : 'ES';
@@ -56,6 +60,60 @@ export class ToolbarComponent {
 
   openSidenav(): void {
     this.layoutService.openSidenav();
+  }
+
+  openExportCoursesDialog(): void {
+    const dialogRef = this.dialog.open(ExportCoursesDialogComponent, {
+      width: '420px',
+      data: { lang: this.translateService.currentLang || 'en' }
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        this.downloadCoursesExport(result);
+      }
+    }, (error) => {
+      console.error('Error closing export dialog', error);
+    });
+  }
+
+  private downloadCoursesExport(params: { seasonId?: number; dateFrom?: string; dateTo?: string }): void {
+    try {
+      const userRaw = localStorage.getItem('boukiiUser');
+      const schoolId = userRaw ? JSON.parse(userRaw)?.schools?.[0]?.id : null;
+      if (!schoolId) {
+        this.snackbar.open(this.translateService.instant('no_school_selected') || 'No school selected', 'Cerrar', { duration: 3000 });
+        return;
+      }
+
+      const lang = this.translateService.currentLang || 'en';
+      const queryParts = [`lang=${lang}`];
+
+      if (params.seasonId) {
+        queryParts.push(`season_id=${params.seasonId}`);
+      } else if (params.dateFrom && params.dateTo) {
+        queryParts.push(`date_from=${params.dateFrom}`);
+        queryParts.push(`date_to=${params.dateTo}`);
+      } else {
+        this.snackbar.open('Selecciona una temporada o un rango de fechas', 'Cerrar', { duration: 3000 });
+        return;
+      }
+
+      const query = queryParts.join('&');
+
+      this.crudService.getFile(`/admin/exports/courses-by-season?${query}`)
+        .subscribe((data: any) => {
+          const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const suffix = params.seasonId ? `season_${params.seasonId}` : `${params.dateFrom}_to_${params.dateTo}`;
+          saveAs(blob, `courses_${schoolId}_${suffix}.xlsx`);
+        }, (error: any) => {
+          console.error('Error al descargar export de cursos', error);
+          this.snackbar.open(this.translateService.instant('download_error') || 'Error downloading export', 'Cerrar', { duration: 3000 });
+        });
+    } catch (e) {
+      console.error('exportCourses failed', e);
+      this.snackbar.open(this.translateService.instant('download_error') || 'Error downloading export', 'Cerrar', { duration: 3000 });
+    }
   }
 
   changeLang(lang: string) {

@@ -926,6 +926,10 @@ vex-flux-modal[ng-reflect-title*="payment"] {
   z-index: 1600 !important;
 }
 
+.snackbar-multiline .mat-mdc-snack-bar-label {
+  white-space: pre-line;
+}
+
 /* Loading overlays and spinners */
 .loading-overlay,
 .spinner-overlay {
@@ -947,4 +951,18 @@ vex-flux-modal[ng-reflect-title*="payment"] {
 .full-screen-dialog .cdk-overlay-pane,
 .mobile-dialog .cdk-overlay-pane {
   z-index: 1350 !important;
+}
+
+.cdk-overlay-pane.course-user-transfer-dialog {
+  z-index: 2200 !important;
+}
+.cdk-overlay-pane.course-user-transfer-dialog .mat-dialog-container {
+  width: min(95vw, 900px);
+  max-height: 92vh;
+  padding: 0;
+  overflow: hidden;
+}
+.cdk-overlay-pane.course-user-transfer-dialog .mat-dialog-content.container {
+  max-height: 70vh;
+  overflow: auto;
 }

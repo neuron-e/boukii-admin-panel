@@ -71,6 +71,18 @@ export class CoursesService {
       : (data.settings || {});
     const course_extras = toArray((data as any).course_extras);
     const discounts = toArray((data as any).discounts);
+    let intervalDiscountsValue: string | null = null;
+    if ((data as any).interval_discounts != null) {
+      if (typeof (data as any).interval_discounts === 'string') {
+        intervalDiscountsValue = (data as any).interval_discounts as string;
+      } else {
+        try {
+          intervalDiscountsValue = JSON.stringify((data as any).interval_discounts);
+        } catch {
+          intervalDiscountsValue = null;
+        }
+      }
+    }
 
     this.courseFormGroup.patchValue({
       ...data,
@@ -80,6 +92,7 @@ export class CoursesService {
       levelGrop: data.degrees,
       settings: settingsObj,
       discounts,
+      interval_discounts: intervalDiscountsValue,
       course_extras,
       booking_users: (data as any).booking_users,
       // Extract interval configuration from settings
@@ -89,6 +102,84 @@ export class CoursesService {
       mustBeConsecutive: settingsObj.mustBeConsecutive || false,
       mustStartFromFirst: settingsObj.mustStartFromFirst || false,
     })
+
+    // Populate course_dates FormArray manually (patchValue doesn't work well with FormArrays)
+    const courseDatesArray = this.courseFormGroup.get('course_dates') as FormArray;
+    courseDatesArray.clear();
+    let courseDates = toArray(data.course_dates);
+    const duplicateCount = this.countCourseDateSubgroupDuplicates(courseDates);
+    if (duplicateCount > 0) {
+      console.warn(`CoursesService detected ${duplicateCount} duplicate subgroup entries in course_dates; sanitizing before building the form.`);
+    }
+    courseDates = this.sanitizeCourseDatesStructure(courseDates);
+    data.course_dates = courseDates;
+
+    // Enrich course_dates with interval_id based on interval configuration
+    try {
+      // Option 1: Use existing intervals from settings if available
+      if (courseDates.length && settingsObj?.intervals && Array.isArray(settingsObj.intervals)) {
+        const intervals = settingsObj.intervals;
+        courseDates = courseDates.map((dateData: any) => {
+          // Skip if interval_id already set
+          if (dateData?.interval_id) return dateData;
+
+          // Try to find matching interval by date range
+          const dateValue = dateData?.date ? new Date(dateData.date) : null;
+          if (dateValue) {
+            const matchingInterval = intervals.find((interval: any) => {
+              const startDate = interval?.startDate ? new Date(interval.startDate) : null;
+              const endDate = interval?.endDate ? new Date(interval.endDate) : null;
+              return startDate && endDate && dateValue >= startDate && dateValue <= endDate;
+            });
+
+            if (matchingInterval) {
+              dateData.interval_id = matchingInterval.id || intervals.indexOf(matchingInterval) + 1;
+            }
+          }
+          return dateData;
+        });
+      } else if (courseDates.length) {
+        // Option 2: If no intervals in settings, check if course_dates already have interval_id from API
+        const hasIntervalIds = courseDates.some((d: any) => d?.interval_id);
+
+        if (!hasIntervalIds) {
+          // Option 3: If no interval_id anywhere, create a default single interval spanning all dates
+          // Sort dates to find min/max
+          const sortedDates = courseDates
+            .filter((d: any) => d?.date)
+            .map((d: any) => ({ ...d, dateVal: new Date(d.date) }))
+            .sort((a: any, b: any) => a.dateVal.getTime() - b.dateVal.getTime());
+
+          if (sortedDates.length > 0) {
+            // All dates get interval_id = 1 (single default interval)
+            courseDates = courseDates.map((dateData: any) => {
+              if (!dateData?.interval_id) {
+                dateData.interval_id = 1;
+              }
+              return dateData;
+            });
+
+            // Also ensure settings has a default interval for the component to reference
+            if (!settingsObj.intervals) {
+              settingsObj.intervals = [{
+                id: 1,
+                name: null, // Component will generate "Interval 1" as label
+                startDate: sortedDates[0].date,
+                endDate: sortedDates[sortedDates.length - 1].date
+              }];
+              // Update the form control with enriched settings
+              this.courseFormGroup.patchValue({ settings: settingsObj });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to enrich course_dates with interval_id:', e);
+    }
+
+    courseDates.forEach((dateData: any) => {
+      courseDatesArray.push(this.fb.control(dateData));
+    });
 
     // If booking_users is still empty, try to harvest from embedded subgroups across all dates
     try {
@@ -259,8 +350,25 @@ export class CoursesService {
 
   user: any = JSON.parse(localStorage.getItem('boukiiUser'))
 
+  private parseSettings(raw: any): any {
+    if (!raw) {
+      return {};
+    }
+    if (typeof raw === 'object') {
+      return raw;
+    }
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+
   resetcourseFormGroup() {
-    const settings = JSON.parse(JSON.parse(localStorage.getItem('boukiiUser')).schools[0].settings);
+    const schoolSettings = this.parseSettings(this.user?.schools?.[0]?.settings);
     this.courseFormGroup = this.fb.group({
       id: [null, Validators.required],
       sport_id: [null, Validators.required],
@@ -276,12 +384,15 @@ export class CoursesService {
       short_description: ["", Validators.required],
       description: ["", Validators.required],
       price: [100, [Validators.required, Validators.min(1)]],
-      currency: [settings?.taxes?.currency || 'CHF'],
+      currency: [schoolSettings?.taxes?.currency || 'CHF'],
       max_participants: [10, [Validators.required, Validators.min(1)]],
       image: ["", Validators.required],
       icon: ["", Validators.required],
       highlighted: [false],
       claim_text: [""],
+      meeting_point: [""],
+      meeting_point_address: [""],
+      meeting_point_instructions: [""],
       age_max: [99, [Validators.required, Validators.min(0), Validators.max(99)]],
       age_min: [1, [Validators.required, Validators.min(0), Validators.max(99)]],
       date_start: [null, Validators.required],
@@ -303,9 +414,10 @@ export class CoursesService {
       },
       school_id: [this.user.schools[0].id],
       station_id: [null],
-      course_dates: [{ ...this.default_course_dates }],
+      course_dates: this.fb.array([]),
       course_dates_prev: [],
       discounts: [[], Validators.required],
+      interval_discounts: [null],
       course_extras: [[], Validators.required],
       unique: [true],
       hour_min: [],
@@ -589,6 +701,98 @@ export class CoursesService {
     const newHours = String(date.getHours()).padStart(2, "0");
     const newMinutes = String(date.getMinutes()).padStart(2, "0");
     return `${newHours}:${newMinutes}`;
+  }
+
+  sanitizeCourseDatesStructure(courseDates: any[]): any[] {
+    if (!Array.isArray(courseDates)) {
+      return [];
+    }
+
+    return courseDates.map((courseDate) => this.sanitizeCourseDate(courseDate));
+  }
+
+  countCourseDateSubgroupDuplicates(courseDates: any[] | null | undefined): number {
+    if (!Array.isArray(courseDates)) {
+      return 0;
+    }
+
+    let duplicates = 0;
+    courseDates.forEach(courseDate => {
+      const groups = Array.isArray(courseDate?.course_groups) ? courseDate.course_groups : [];
+      groups.forEach(group => {
+        const original = Array.isArray(group?.course_subgroups) ? group.course_subgroups : [];
+        const sanitized = this.deduplicateSubgroups(original);
+        duplicates += Math.max(0, original.length - sanitized.length);
+      });
+    });
+    return duplicates;
+  }
+
+  private sanitizeCourseDate(courseDate: any): any {
+    if (!courseDate || typeof courseDate !== 'object') {
+      return courseDate;
+    }
+
+    const courseGroups = Array.isArray(courseDate.course_groups) ? courseDate.course_groups : [];
+    const sanitizedGroups = this.sanitizeCourseGroups(courseGroups);
+
+    return {
+      ...courseDate,
+      course_groups: sanitizedGroups,
+      groups: sanitizedGroups.map(group => ({
+        ...group,
+        subgroups: (group.course_subgroups || []).map(subgroup => ({ ...subgroup }))
+      })),
+      course_subgroups: sanitizedGroups.flatMap(group => group.course_subgroups || [])
+    };
+  }
+
+  private sanitizeCourseGroups(groups: any[]): any[] {
+    return groups.map(group => {
+      const normalizedSubgroups = this.deduplicateSubgroups(group.course_subgroups || group.subgroups || []);
+      return {
+        ...group,
+        course_subgroups: normalizedSubgroups,
+        subgroups: normalizedSubgroups.map(subgroup => ({ ...subgroup }))
+      };
+    });
+  }
+
+  private deduplicateSubgroups(subgroups: any[]): any[] {
+    if (!Array.isArray(subgroups)) {
+      return [];
+    }
+
+    const seen = new Set<string>();
+    const sanitized: any[] = [];
+    subgroups.forEach((subgroup, index) => {
+      const signature = this.buildSubgroupSignature(subgroup, index);
+      if (seen.has(signature)) {
+        return;
+      }
+      seen.add(signature);
+      sanitized.push({ ...subgroup });
+    });
+    return sanitized;
+  }
+
+  private buildSubgroupSignature(subgroup: any, index: number): string {
+    if (!subgroup || typeof subgroup !== 'object') {
+      return `idx-${index}`;
+    }
+    if (subgroup.subgroup_dates_id) {
+      return `dates-${subgroup.subgroup_dates_id}`;
+    }
+    if (subgroup.id) {
+      return `id-${subgroup.id}`;
+    }
+    if (subgroup.course_subgroup_id) {
+      return `courseSubgroup-${subgroup.course_subgroup_id}`;
+    }
+    if (subgroup.course_sub_group_id) {
+      return `courseSubGroup-${subgroup.course_sub_group_id}`;
+    }
+    return `${subgroup.degree_id ?? 'deg'}-${index}`;
   }
 
   //functions intervals course type 1

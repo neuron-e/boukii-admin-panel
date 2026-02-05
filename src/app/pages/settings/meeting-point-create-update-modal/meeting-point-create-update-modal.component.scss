@@ -1,0 +1,41 @@
+.meeting-point-modal {
+  min-width: 360px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.modal-header {
+  border-bottom: 1px solid #e0e0e0;
+  padding: 16px;
+}
+
+.modal-body {
+  padding: 0 16px;
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.modal-content mat-form-field {
+  width: 100%;
+}
+
+.modal-content mat-slide-toggle {
+  margin-top: 8px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.modal-actions button:first-child {
+  min-width: 100px;
+}

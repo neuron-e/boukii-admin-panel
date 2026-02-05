@@ -1,0 +1,109 @@
+.interval-selector-dialog {
+  min-width: 400px;
+  max-width: 600px;
+
+  h2 {
+    color: #495057;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    padding: 20px 24px;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  mat-dialog-content {
+    padding: 24px;
+    min-height: 200px;
+
+    .dialog-message {
+      color: #6c757d;
+      font-size: 14px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .interval-radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+
+      .interval-radio-option {
+        padding: 12px 16px;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        background: white;
+
+        &:hover {
+          border-color: #E91E63;
+          background: #fff5f8;
+        }
+
+        &.mat-radio-checked {
+          border-color: #E91E63;
+          background: #fff5f8;
+
+          .interval-option-content {
+            .interval-label {
+              color: #E91E63;
+              font-weight: 600;
+            }
+          }
+        }
+
+        &.all-intervals {
+          margin-top: 8px;
+          border-style: dashed;
+          border-width: 2px;
+
+          &.mat-radio-checked {
+            border-style: solid;
+          }
+
+          .all-icon {
+            color: #9C27B0;
+          }
+        }
+
+        .interval-option-content {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          margin-left: 8px;
+
+          .interval-icon {
+            color: #E91E63;
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+          }
+
+          .interval-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #495057;
+            flex: 1;
+          }
+
+          .interval-dates {
+            font-size: 12px;
+            color: #6c757d;
+            font-style: italic;
+          }
+        }
+      }
+    }
+  }
+
+  mat-dialog-actions {
+    padding: 16px 24px;
+    border-top: 1px solid #dee2e6;
+    gap: 12px;
+
+    button {
+      min-width: 100px;
+    }
+  }
+}

@@ -4,16 +4,17 @@ import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { BookingService } from '../../../../service/bookings.service';
 import { ApiCrudService } from '../../../../service/crud.service';
 import {ActivatedRoute, Router} from '@angular/router';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, map, of, switchMap } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { BookingDialogComponent } from '../bookings-create-update/components/booking-dialog/booking-dialog.component';
 import {
   CancelPartialBookingModalComponent
-} from '../../bookings/cancel-partial-booking/cancel-partial-booking.component';
-import {CancelBookingModalComponent} from '../../bookings/cancel-booking/cancel-booking.component';
+} from '../cancel-partial-booking/cancel-partial-booking.component';
+import {CancelBookingModalComponent} from '../cancel-booking/cancel-booking.component';
 import {BookingDetailDialogComponent} from './components/booking-dialog/booking-dialog.component';
 import { SchoolService } from 'src/service/school.service';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
+import { buildDiscountInfoList } from '../shared/discount-utils';
 import moment from 'moment';
 
 @Component({
@@ -36,17 +37,48 @@ export class BookingDetailV2Component implements OnInit {
   groupedActivities: any[] = [];
   id: number;
   user: any;
+  pricingSnapshot: any = null;
+  pricingAudits: any[] = [];
   paymentMethod: number = 1; // Valor por defecto (directo)
   step: number = 1;  // Paso inicial
   selectedPaymentOptionId: PaymentMethodId | null = null;
   selectedPaymentOptionLabel: string = '';
   isPaid = false;
+  isLoading = false;
+  isCancelling = false;
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
+  // Prefer stored price_total; fallback to computed/basket when missing
+  private resolveDisplayTotal(booking: any): number {
+    if (!booking) return 0;
+    const originalRaw = booking.price_total;
+    if (originalRaw !== null && originalRaw !== undefined && originalRaw !== '') {
+      const originalTotal = Number(originalRaw);
+      if (!isNaN(originalTotal)) return originalTotal;
+    }
+    const computedTotal = booking.computed_total !== undefined ? Number(booking.computed_total) : NaN;
+    const basketRaw = booking.basket;
+    let basket: any = null;
+    if (basketRaw) {
+      try {
+        basket = typeof basketRaw === 'string' ? JSON.parse(basketRaw) : basketRaw;
+      } catch {
+        basket = null;
+      }
+    }
+    const basketTotal = basket && basket.price_total !== undefined ? Number(basket.price_total) : NaN;
+    if (!isNaN(computedTotal)) return computedTotal;
+    if (!isNaN(basketTotal)) return basketTotal;
+    return 0;
+  }
 
   private activitiesChangedSubject = new Subject<void>();
 
   activitiesChanged$ = this.activitiesChangedSubject.asObservable();
+
+  get showConfirmationWithoutPaymentOption(): boolean {
+    return false;
+  }
 
   private buildDirectPaymentOptions(): Array<{ id: PaymentMethodId; label: string }> {
     const offlineIds: PaymentMethodId[] = [1, 2, 4];
@@ -65,7 +97,11 @@ export class BookingDetailV2Component implements OnInit {
     }
 
     if (Number(id) === 3) {
-      return this.translateService.instant('payment_paylink');
+      return this.translateService.instant('send_payment_link');
+    }
+
+    if (Number(id) === 4) {
+      return this.translateService.instant('payment_card_external');
     }
 
     const method = this.paymentMethods.find(m => m.id === id);
@@ -79,11 +115,11 @@ export class BookingDetailV2Component implements OnInit {
   private getGatewayLabel(): string {
     const provider = (this.schoolService.getPaymentProvider() || '').toLowerCase();
     if (provider === 'payyo') {
-      return this.translateService.instant('payment_payyo');
+      return this.translateService.instant('payment_terminal_open', { provider: 'Payyo' });
     }
 
     const providerName = provider ? this.formatProviderName(provider) : 'Boukii Pay';
-    return this.translateService.instant('payment_gateway', { provider: providerName });
+    return this.translateService.instant('payment_terminal_open', { provider: providerName });
   }
 
   private formatProviderName(value: string): string {
@@ -101,6 +137,10 @@ export class BookingDetailV2Component implements OnInit {
 
     if (this.paymentMethod === 3) {
       return 3;
+    }
+
+    if (this.paymentMethod === 7) {
+      return 7;
     }
 
     if (this.paymentMethod === 4) {
@@ -127,6 +167,13 @@ export class BookingDetailV2Component implements OnInit {
       this.paymentMethod = 3;
       this.selectedPaymentOptionId = 3;
       this.selectedPaymentOptionLabel = this.resolvePaymentLabel(3);
+      return;
+    }
+
+    if (methodId === 7) {
+      this.paymentMethod = 7;
+      this.selectedPaymentOptionId = 7;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(7);
       return;
     }
 
@@ -205,8 +252,8 @@ export class BookingDetailV2Component implements OnInit {
     });
 
     dialogRef.componentInstance.payActivity.subscribe(() => {
-      dialogRef.close()
-      this.payModal = true;
+      dialogRef.close();
+      this.handlePayClick();
     });
 
     dialogRef.componentInstance.closeClick.subscribe(() => {
@@ -214,40 +261,152 @@ export class BookingDetailV2Component implements OnInit {
     });
   }
 
+  handlePayClick(): void {
+    this.preparePaymentModalState();
+    this.payModal = true;
+  }
+
+  private preparePaymentModalState(): void {
+    this.step = 1;
+    this.isPaid = false;
+
+    if (!this.paymentOptions.length) {
+      this.paymentOptions = this.buildDirectPaymentOptions();
+    }
+
+    const fallbackOption = this.paymentOptions[0] ?? null;
+
+    if (!this.showConfirmationWithoutPaymentOption && this.paymentMethod === 4) {
+      this.paymentMethod = 1;
+      this.selectedPaymentOptionId = fallbackOption?.id ?? null;
+      this.selectedPaymentOptionLabel = fallbackOption?.label ?? '';
+    }
+
+    if (this.paymentMethod === 1 && !this.selectedPaymentOptionId && fallbackOption) {
+      this.selectedPaymentOptionId = fallbackOption.id;
+      this.selectedPaymentOptionLabel = fallbackOption.label;
+    }
+  }
+
 
   getDegrees() {
     const user = JSON.parse(localStorage.getItem("boukiiUser"))
     this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order',
       '&school_id=' + user.schools[0].id + '&active=1')
-      .subscribe((data) => this.allLevels = data.data)
+      .subscribe((data) => {
+        this.allLevels = data.data;
+        this.hydrateGroupedActivitiesLevels();
+      })
   }
 
   getBooking() {
+    this.isLoading = true;
     this.crudService
-      .get("/bookings/" + this.id, [
-        "user",
-        "clientMain.clientSports.degree",
-        "clientMain.clientSports.sport",
-        "vouchersLogs.voucher",
-        "bookingUsers.course.courseDates.courseGroups.courseSubgroups",
-        "bookingUsers.course.courseExtras",
-        "bookingUsers.bookingUserExtras.courseExtra",
-        "bookingUsers.client.clientSports.degree",
-        "bookingUsers.client.clientSports.sport",
-        "bookingUsers.courseDate",
-        "bookingUsers.monitor.monitorSportsDegrees",
-        "bookingUsers.degree",
-        "payments",
-        "bookingLogs"
-      ])
-      .subscribe((data) => {
-        this.bookingData$.next(data.data);
-        this.bookingData = data.data;
-        // Asegurar estructura de actividades agrupadas y totales calculados
-        this.groupedActivities = this.groupBookingUsersByGroupId(data.data);
-        this.mainClient = data.data.client_main;
-        this.syncPaymentSelectionFromBooking(data.data);
+      .get(`/admin/bookings/${this.id}/preview`)
+      .pipe(finalize(() => this.isLoading = false))
+      .subscribe({
+        next: (data) => this.applyBookingData(data?.data),
+        error: (error) => {
+          console.error(error);
+          this.snackBar.open(
+            this.translateService.instant('snackbar.error'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        }
       });
+  }
+
+  private applyBookingData(booking: any): void {
+    if (!booking) {
+      return;
+    }
+
+    this.bookingData$.next(booking);
+    this.bookingData = booking;
+    this.bookingService.setBookingData(this.bookingData);
+    const displayTotal = this.resolveDisplayTotal(this.bookingData);
+    const hasStoredTotal = this.bookingData?.price_total !== null
+      && this.bookingData?.price_total !== undefined
+      && this.bookingData?.price_total !== '';
+    if (!hasStoredTotal) {
+      this.bookingData.price_total = displayTotal;
+    }
+    this.groupedActivities = this.groupBookingUsersByGroupId(booking);
+    this.hydrateGroupedActivitiesLevels();
+    this.mainClient = booking.client_main;
+    this.syncPaymentSelectionFromBooking(booking);
+    this.loadPricingSnapshot();
+  }
+
+  private loadPricingSnapshot(): void {
+    if (!this.bookingData?.id) {
+      return;
+    }
+
+    this.crudService.get(`/admin/bookings/${this.bookingData.id}/pricing`)
+      .subscribe({
+        next: (response: any) => {
+          const payload = response?.data ?? response;
+          this.pricingSnapshot = payload?.snapshot ?? null;
+          this.pricingAudits = Array.isArray(payload?.audits) ? payload.audits : [];
+          if (this.bookingData) {
+            this.bookingData.pricing_snapshot = this.pricingSnapshot;
+            this.bookingData.pricing_audits = this.pricingAudits;
+          }
+        },
+        error: (error) => {
+          console.warn('Failed to load pricing snapshot', error);
+        }
+      });
+  }
+
+  private hydrateGroupedActivitiesLevels(): void {
+    if (!Array.isArray(this.groupedActivities) || this.groupedActivities.length === 0) {
+      return;
+    }
+    if (!Array.isArray(this.allLevels) || this.allLevels.length === 0) {
+      return;
+    }
+
+    const normalizeText = (value: any): string => {
+      return (value ?? '').toString().trim();
+    };
+
+    const buildDegreeLabel = (degree: any): string => {
+      if (!degree) return '';
+      const league = normalizeText(degree?.league);
+      const name = normalizeText(degree?.name);
+      return `${league} ${name}`.trim();
+    };
+
+    const formatSubgroupLabel = (degreeLabel: string, groupId: any): string => {
+      const numericId = Number(groupId);
+      const suffix = Number.isFinite(numericId)
+        ? String(numericId).padStart(2, '0')
+        : normalizeText(groupId);
+      if (!suffix) return degreeLabel;
+      const base = normalizeText(degreeLabel);
+      if (!base) return suffix;
+      return `${base} ${suffix}`.trim();
+    };
+
+    this.groupedActivities = this.groupedActivities.map(activity => {
+      if (!activity) return activity;
+      const degreeId = activity.degreeId ?? activity.sportLevel?.id ?? null;
+      const resolved = degreeId != null
+        ? this.allLevels.find((level: any) => String(level?.id) === String(degreeId)) || null
+        : activity.sportLevel;
+      const degreeLabel = buildDegreeLabel(resolved);
+      const subgroupLabel = formatSubgroupLabel(degreeLabel, activity.groupId ?? activity.subgroupLabel);
+      return {
+        ...activity,
+        sportLevel: resolved ?? activity.sportLevel,
+        subgroupLabel: subgroupLabel || activity.subgroupLabel
+      };
+    });
+
+    this.cdr.detectChanges();
   }
 
   closeModal() {
@@ -255,6 +414,45 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   groupBookingUsersByGroupId(booking: any) {
+
+    const normalizeText = (value: any): string => {
+      return (value ?? '').toString().trim();
+    };
+
+    const buildDegreeLabel = (degree: any): string => {
+      if (!degree) return '';
+      const league = normalizeText(degree?.league);
+      const name = normalizeText(degree?.name);
+      const combined = `${league} ${name}`.trim();
+      return combined;
+    };
+
+    const resolveDegreeLevel = (user: any): any => {
+      if (user?.degree) {
+        return user.degree;
+      }
+      const degreeId = user?.degree_id ?? user?.degreeId ?? user?.degree?.id;
+      if (degreeId != null && Array.isArray(this.allLevels)) {
+        return this.allLevels.find((level: any) => String(level?.id) === String(degreeId)) || null;
+      }
+      return null;
+    };
+
+    const resolveDegreeLabel = (user: any): string => {
+      const level = resolveDegreeLevel(user);
+      return buildDegreeLabel(level);
+    };
+
+    const formatSubgroupLabel = (degreeLabel: string, groupId: any): string => {
+      const numericId = Number(groupId);
+      const suffix = Number.isFinite(numericId)
+        ? String(numericId).padStart(2, '0')
+        : normalizeText(groupId);
+      if (!suffix) return degreeLabel;
+      const base = normalizeText(degreeLabel);
+      if (!base) return suffix;
+      return `${base} ${suffix}`.trim();
+    };
 
     const parseTimeToMinutes = (time: string): number | null => {
       if (!time) {
@@ -374,10 +572,15 @@ export class BookingDetailV2Component implements OnInit {
       const courseType = user.course.course_type;
 
       if (!acc[groupId]) {
+        const resolvedLevel = resolveDegreeLevel(user);
+        const degreeLabel = buildDegreeLabel(resolvedLevel);
         acc[groupId] = {
           sport: user.course.sport,
           course: user.course,
-          sportLevel: user.degree,
+          sportLevel: resolvedLevel,
+          subgroupLabel: formatSubgroupLabel(degreeLabel, groupId),
+          groupId: groupId,
+          degreeId: user?.degree_id ?? user?.degreeId ?? user?.degree?.id ?? resolvedLevel?.id ?? null,
           dates: [],
           monitors: [],
           utilizers: [],
@@ -385,11 +588,15 @@ export class BookingDetailV2Component implements OnInit {
           schoolObs: user.notes_school,
           total: user.price,
           status: user.status,
-          statusList: [] // Nuevo array para almacenar los status de los usuarios
+          statusList: [], // Nuevo array para almacenar los status de los usuarios
+          priceFallback: false
         };
       }
 
       acc[groupId].statusList.push(user.status);
+      if (user?.price_fallback || user?.computed_price) {
+        acc[groupId].priceFallback = true;
+      }
 
       // Determinar el nuevo status basado en los valores de statusList
       const uniqueStatuses = new Set(acc[groupId].statusList);
@@ -424,7 +631,8 @@ export class BookingDetailV2Component implements OnInit {
       );
       if (dateIndex === -1) {
         const courseDateFromCourse = (user.course?.course_dates || []).find((d: any) => d.id === user.course_date_id);
-        const resolvedDate = courseDateFromCourse?.date || user.course_date?.date || user.date || null;
+        const courseDateFromBooking = user.course_date;
+        const resolvedDate = courseDateFromCourse?.date || courseDateFromBooking?.date || user.date || null;
 
         const durationInfo = normalizeDurationInfo(user.formattedDuration ?? user.duration, user.hour_start, user.hour_end);
 
@@ -440,6 +648,15 @@ export class BookingDetailV2Component implements OnInit {
           utilizers: [],
           extras: [],
           booking_users: [],
+          interval_id: courseDateFromCourse?.interval_id
+            ?? courseDateFromBooking?.interval_id
+            ?? user.course_interval_id
+            ?? user.interval_id
+            ?? null,
+          interval_name: courseDateFromCourse?.interval_name
+            ?? courseDateFromBooking?.interval_name
+            ?? user.interval_name
+            ?? null
         });
       }
       const currentDate = acc[groupId].dates.find((date: any) =>
@@ -482,12 +699,26 @@ export class BookingDetailV2Component implements OnInit {
         const priceForDate = this.bookingService.calculateDatePrice(groupedActivity.course, date, true);
         date.price = priceForDate.toFixed(2);
         date.currency = groupedActivity.course?.currency || booking.currency;
+        if (priceForDate <= 0 && groupedActivity.course?.course_type === 2 && groupedActivity.course?.is_flexible) {
+          groupedActivity.priceFallback = true;
+        }
       });
 
       groupedActivity.total = groupedActivity.dates.reduce((sum: number, date: any) => {
         const parsed = parseFloat(date.price);
         return sum + (Number.isNaN(parsed) ? 0 : parsed);
       }, 0);
+
+      groupedActivity.discountInfo = buildDiscountInfoList(groupedActivity.course, groupedActivity.dates);
+      const discountAmount = groupedActivity.discountInfo?.reduce((acc: number, info: any) => {
+        const amount = info?.amountSaved ?? 0;
+        return acc + (parseFloat(amount) || 0);
+      }, 0) || 0;
+
+      groupedActivity.baseBeforeDiscount = groupedActivity.total;
+      groupedActivity.discountAmount = discountAmount;
+      groupedActivity.total = Math.max(0, groupedActivity.baseBeforeDiscount - groupedActivity.discountAmount);
+      groupedActivity.currency = groupedActivity.course?.currency || booking.currency;
     });
 
 
@@ -521,8 +752,6 @@ export class BookingDetailV2Component implements OnInit {
    */
   private handleBookingChangeWithPriceChange(data: any, index: number): void {
     const priceChange = data.priceChange;
-
-    console.log('📊 Price Change detected:', priceChange);
 
     if (priceChange.type === 'add') {
       // AÑADIR FECHAS - Incremento de precio
@@ -643,14 +872,6 @@ export class BookingDetailV2Component implements OnInit {
     // Primero actualizar la actividad
     this.processActivityUpdate(data, index);
 
-    // Luego crear el reembolso/crédito
-    // TODO: Implementar lógica de reembolso según el método de pago original
-    console.log('💰 Refund to process:', {
-      amount: priceChange.difference,
-      currency: this.bookingData.price_currency,
-      bookingId: this.bookingData.id
-    });
-
     // Ejemplo: Crear voucher de crédito
     this.createCreditVoucherForRefund(priceChange.difference);
   }
@@ -659,8 +880,6 @@ export class BookingDetailV2Component implements OnInit {
    * Crea un voucher de crédito para el reembolso
    */
   private createCreditVoucherForRefund(amount: number): void {
-    // TODO: Implementar creación de voucher
-    console.log('🎟️ Creating credit voucher for:', amount);
 
     this.snackBar.open(
       this.translateService.instant('refund_credit_voucher_created', { amount: amount.toFixed(2) }),
@@ -712,8 +931,10 @@ export class BookingDetailV2Component implements OnInit {
 
         dialogRef.afterClosed().subscribe((data: any) => {
           if (data) {
+            this.isCancelling = true;
             this.bookingService.processCancellation(
               data, this.bookingData, this.hasOtherActiveGroups(group), this.user, group)
+              .pipe(finalize(() => this.isCancelling = false))
               .subscribe({
                 next: () => {
                   this.getBooking();
@@ -756,9 +977,11 @@ export class BookingDetailV2Component implements OnInit {
 
       dialogRef.afterClosed().subscribe((data: any) => {
         if (data) {
+          this.isCancelling = true;
           this.bookingService.processCancellation(
             data, this.bookingData, false, this.user, null,
             this.bookingData.booking_users.map(b => b.id), this.bookingData.price_total)
+            .pipe(finalize(() => this.isCancelling = false))
             .subscribe({
               next: () => {
                 this.getBooking();
@@ -785,8 +1008,10 @@ export class BookingDetailV2Component implements OnInit {
 
   cancelFull() {
     const bookingUserIds = this.bookingData.booking_users.map(b => b.id)
+    this.isCancelling = true;
     this.crudService.post('/admin/bookings/cancel',
       { bookingUsers: bookingUserIds })
+      .pipe(finalize(() => this.isCancelling = false))
       .subscribe((response) => {
         let bookingData = {
           ...response.data,
@@ -807,13 +1032,15 @@ export class BookingDetailV2Component implements OnInit {
 
     // MEJORA: Unificar cancelación vía BookingService.processCancellation
     // para mantener consistencia en logs y auditoría
+    this.isCancelling = true;
     this.bookingService.processCancellation(
       { type: 'no_refund' },
       this.bookingData,
       this.hasOtherActiveGroups(group),
       this.user,
       group
-    ).subscribe({
+    ).pipe(finalize(() => this.isCancelling = false))
+    .subscribe({
       next: () => {
         this.getBooking();
         this.snackBar.open(
@@ -837,7 +1064,7 @@ export class BookingDetailV2Component implements OnInit {
 
   // Método para finalizar la reserva
   finalizeBooking(): void {
-    if (!this.bookingData) {
+    if (!this.bookingData || this.isLoading) {
       return;
     }
 
@@ -864,9 +1091,8 @@ export class BookingDetailV2Component implements OnInit {
       paid_total: 0
     };
 
-    const priceTotalRaw = bookingData.price_total as any;
-    const priceTotalNum = typeof priceTotalRaw === 'number' ? priceTotalRaw : parseFloat(priceTotalRaw ?? '0');
-    const safePriceTotal = isNaN(priceTotalNum) ? 0 : priceTotalNum;
+    const priceTotalRaw = this.resolveDisplayTotal(bookingData);
+    const safePriceTotal = isNaN(priceTotalRaw) ? 0 : priceTotalRaw;
 
     const vouchersTotal = this.calculateTotalVoucherPrice();
     const safeVouchersTotal = isNaN(vouchersTotal) ? 0 : vouchersTotal;
@@ -879,50 +1105,56 @@ export class BookingDetailV2Component implements OnInit {
 
     // MEJORA: Requerir confirmación explícita para pagos offline
     // Solo marcar como pagado si hay confirmación explícita del admin
-    if ((paymentMethodId === 1 || paymentMethodId === 4) && this.isPaid) {
+    if ((paymentMethodId === 1 || paymentMethodId === 4 || paymentMethodId === 7) && this.isPaid) {
       bookingData.paid = true;
       bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
     }
-
     // Enviar la reserva a la API
+    this.isLoading = true;
     this.crudService.post(`/admin/bookings/update/${this.id}/payment`, bookingData)
-      .subscribe(
-        (result: any) => {
-          // Manejar pagos en línea
-          if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) {
-            this.crudService.post(`/admin/bookings/payments/${this.id}`, result.data.basket)
-              .subscribe(
-                (paymentResult: any) => {
-                  if (bookingData.payment_method_id === 2) {
-                    window.open(paymentResult.data, "_self");
-                  } else {
-                    this.snackBar.open(
-                      this.translateService.instant('snackbar.booking_detail.send_mail'),
-                      this.getCloseActionLabel(),
-                      { duration: 1000 }
-                    );
-                  }
-                },
-                (error) => {
-                  this.showErrorSnackbar(this.translateService.instant('snackbar.booking.payment.error'));
-                }
-              );
-          } else {
-            this.snackBar.open(
-              this.translateService.instant('snackbar.booking_detail.update'),
-              this.getCloseActionLabel(),
-              { duration: 3000 }
-            );
-            this.payModal = false;
-            this.bookingData$.next(result.data);
-            this.bookingData = result.data;
-            this.syncPaymentSelectionFromBooking(result.data);
+      .pipe(
+        switchMap((result: any) => {
+          if ((bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) && !bookingData.paid) {
+            return this.crudService
+              .post(`/admin/bookings/payments/${this.id}`, result.data.basket)
+              .pipe(map((paymentResult: any) => ({ result, paymentResult })));
           }
+          return of({ result });
+        }),
+        finalize(() => {
+          this.isLoading = false;
+        })
+      )
+      .subscribe({
+        next: ({ result, paymentResult }: any) => {
+          // Manejar pagos en línea
+          if ((bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) && !bookingData.paid) {
+            if (bookingData.payment_method_id === 2) {
+              window.open(paymentResult.data, "_self");
+            } else {
+              this.snackBar.open(
+                this.translateService.instant('snackbar.booking_detail.send_mail'),
+                this.getCloseActionLabel(),
+                { duration: 1000 }
+              );
+            }
+            return;
+          }
+
+          this.snackBar.open(
+            this.translateService.instant('snackbar.booking_detail.update'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+          this.payModal = false;
+          this.bookingData$.next(result.data);
+          this.bookingData = result.data;
+          this.syncPaymentSelectionFromBooking(result.data);
         },
-        (error) => {
+        error: () => {
           this.showErrorSnackbar(this.translateService.instant('snackbar.booking.payment.error'));
         }
-      );
+      });
   }
 
   calculateTotalVoucherPrice(): number {
@@ -936,6 +1168,14 @@ export class BookingDetailV2Component implements OnInit {
       const num = typeof value === 'number' ? value : parseFloat(value ?? '0');
       return total + (isNaN(num) ? 0 : num);
     }, 0);
+  }
+
+  getPendingAmount(): number {
+    if (!this.bookingData) {
+      return 0;
+    }
+    this.bookingService.setBookingData(this.bookingData);
+    return this.bookingService.calculatePendingPrice();
   }
 
 
@@ -954,6 +1194,9 @@ export class BookingDetailV2Component implements OnInit {
     } else if (value === 3) {
       this.selectedPaymentOptionId = 3;
       this.selectedPaymentOptionLabel = this.resolvePaymentLabel(3);
+    } else if (value === 7) {
+      this.selectedPaymentOptionId = 7;
+      this.selectedPaymentOptionLabel = this.resolvePaymentLabel(7);
     } else if (value === 4) {
       this.selectedPaymentOptionId = 5;
       this.selectedPaymentOptionLabel = this.resolvePaymentLabel(5);
@@ -1062,6 +1305,7 @@ export class BookingDetailV2Component implements OnInit {
    * MEJORA: Separar la lógica de actualización de actividad
    */
   processActivityUpdate(data: any, index: any): void {
+    this.isLoading = true;
     this.crudService.post('/admin/bookings/update',
       {
         dates: data.course_dates,
@@ -1069,13 +1313,28 @@ export class BookingDetailV2Component implements OnInit {
         group_id: this.groupedActivities[index].dates[0].booking_users[0].group_id,
         booking_id: this.id
       })
-      .subscribe((response) => {
-        this.getBooking();
-        this.snackBar.open(
-          this.translateService.instant('snackbar.booking_detail.update'),
-          this.getCloseActionLabel(),
-          { duration: 3000 }
-        );
+      .pipe(finalize(() => this.isLoading = false))
+      .subscribe({
+        next: (response) => {
+          if (response?.data) {
+            this.applyBookingData(response.data);
+          } else {
+            this.getBooking();
+          }
+          this.snackBar.open(
+            this.translateService.instant('snackbar.booking_detail.update'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        },
+        error: (error) => {
+          console.error(error);
+          this.snackBar.open(
+            this.translateService.instant('snackbar.error'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        }
       });
   }
 
@@ -1089,3 +1348,5 @@ export class BookingDetailV2Component implements OnInit {
 
 
 }
+
+

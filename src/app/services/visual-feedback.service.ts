@@ -109,9 +109,6 @@ export class VisualFeedbackService {
         options.onAction!();
       });
     }
-
-    // Log para debugging
-    console.log(`📢 Feedback [${type.toUpperCase()}]: ${message}`);
   }
 
   /**
@@ -198,7 +195,6 @@ export class VisualFeedbackService {
       const state = currentStates.get(operationId);
       if (state) {
         const duration = Date.now() - state.startTime;
-        console.log(`⏱️ Operación ${operationId} completada en ${duration}ms`);
         currentStates.delete(operationId);
 
         // Cerrar snackbar de loading si existe
@@ -349,7 +345,6 @@ export class VisualFeedbackService {
       .join('\n');
 
     console.group('🚨 Errores en operación en lote:');
-    console.log(errorMessages);
     console.groupEnd();
 
     this.error('Revisa la consola para ver los detalles de los errores');

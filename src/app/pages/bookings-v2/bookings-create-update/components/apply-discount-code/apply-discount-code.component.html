@@ -1,0 +1,36 @@
+<form>
+  <div class="flex items-center" mat-dialog-title>
+    <h2 class="headline m-0 flex-auto">{{ 'discount_code' | translate }}</h2>
+    <button class="text-secondary" mat-dialog-close mat-icon-button type="button">
+      <mat-icon svgIcon="mat:close"></mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="flex flex-col gap-4">
+    <mat-form-field appearance="outline" style="width:100%">
+      <mat-label>{{ 'discount_code' | translate }}</mat-label>
+      <input matInput [(ngModel)]="code" name="code" [disabled]="loading" />
+    </mat-form-field>
+
+    <button mat-flat-button color="primary" type="button" (click)="validateCode()" [disabled]="loading">
+      <mat-spinner diameter="16" *ngIf="loading"></mat-spinner>
+      <span *ngIf="!loading">{{ 'validate' | translate }}</span>
+    </button>
+
+    <div *ngIf="validationResult" class="validation-success">
+      <p class="m-0">
+        {{ 'valid' | translate }} - {{ 'discount' | translate }}:
+        {{ validationResult.discount_amount | number:'0.2-2' }} {{ defaults.currency || '' }}
+      </p>
+    </div>
+
+    <div *ngIf="errorMessage" class="validation-error">
+      {{ errorMessage }}
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <app-form-button form="stroked" name="cancel" [mat-dialog-close]="false"></app-form-button>
+    <app-form-button form="flat" name="confirm" (click)="confirm()" [disabled]="!validationResult"></app-form-button>
+  </mat-dialog-actions>
+</form>

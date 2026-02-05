@@ -1,4 +1,7 @@
 <ng-container >
+  <div class="booking-loading-overlay" *ngIf="isSubmitting">
+    <div class="loading-text">{{ 'loading' | translate }}</div>
+  </div>
 	<div class="barWrapper">
 		<vex-breadcrumbs [crumbs]="[
       { icon: 'reservas' },
@@ -231,10 +234,10 @@
         </div>
 
         <mat-radio-button [value]="3" style="display: block;">
-          {{"online_payment" | translate}}  <!-- Online Payment -->
+          {{'send_payment_link' | translate}}  <!-- Enviar enlace de pago -->
         </mat-radio-button>
-        <mat-radio-button [value]="4" style="display: block;">
-          {{"payment_no_payment" | translate}}  <!-- Sin Pago -->
+        <mat-radio-button *ngIf="!isEditMode" [value]="4" style="display: block;">
+          {{'confirm_without_payment_action' | translate}}  <!-- Sin Pago -->
         </mat-radio-button>
       </mat-radio-group>
     </div>
@@ -255,6 +258,7 @@
   <div footer style="display: flex;">
     <!-- Botón Cancelar -->
     <button (click)="cancelPaymentStep()"
+            [disabled]="isSubmitting"
             style="height: 38px; width: 150px; border-radius: 3px; margin-top: 20px; margin-left: auto;"
             mat-raised-button type="button" class="client-button">
       {{"cancel" | translate }}
@@ -263,22 +267,25 @@
     <!-- Botón de Confirmar (Solo si Efectivo o Tarjeta) -->
     <button *ngIf="step === 1 && (selectedPaymentOptionId === 1 || selectedPaymentOptionId === 4)"
             (click)="goToNextStep()"
+            [disabled]="isSubmitting"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
-      {{"confirm_booking" | translate }}
+      {{"continue" | translate }}
     </button>
 
     <!-- Botón Finalizar Pago o Finalizar Reserva -->
     <button *ngIf="step === 1 && !(selectedPaymentOptionId === 1 || selectedPaymentOptionId === 4)"
             (click)="finalizeBooking()"
+            [disabled]="isSubmitting"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
-      {{ (paymentMethod === 3 || paymentMethod === 4 ? 'end_booking' : 'end_reserve_pay') | translate }}
+      {{ getPrimaryCtaKey() | translate }}
     </button>
 
     <!-- Botón Finalizar Reserva (Solo si Confirmación de Pago es Sí) -->
     <button *ngIf="step === 2"
             (click)="finalizeBooking()"
+            [disabled]="!isPaid || isSubmitting"
             style="height: 38px; width: 200px; border-radius: 3px; margin-top:20px; margin-left: 20px;"
             color="primary" mat-raised-button type="button" class="client-button">
       {{"end_booking" | translate }}
@@ -293,4 +300,3 @@
     </button>-->
   </div>
 </vex-flux-modal>
-

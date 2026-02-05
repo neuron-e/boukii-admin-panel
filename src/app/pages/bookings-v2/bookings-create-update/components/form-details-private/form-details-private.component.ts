@@ -127,7 +127,7 @@ export class FormDetailsPrivateComponent implements OnInit {
   }
 
   inUseDatesFilter = (d: Date): boolean => {
-    return this.utilService.inUseDatesFilter(d, this.myHolidayDates, this.course);
+    return this.utilService.inUseDatesFilter(d, this.myHolidayDates, this.course, true);
   }
   addCourseDate(initialData: any = null) {
     const utilizerArray = this.fb.array(
@@ -172,23 +172,14 @@ export class FormDetailsPrivateComponent implements OnInit {
 
     // MEJORA CRÍTICA: Calcular precio correcto para cursos flexibles
     let price;
-    console.log('🔍 PRECIO DEBUG - Datos de entrada:', {
-      isFlexible: this.course.is_flexible,
-      defaultDuration,
-      utilizersLength: this.utilizers?.length,
-      coursePrice: this.course.price,
-      priceRange: this.course.price_range
-    });
 
     if (this.course.is_flexible && defaultDuration && this.utilizers?.length) {
       // Para cursos flexibles, calcular precio basado en duración y número de participantes
       const tempDate = { duration: defaultDuration };
       price = this.calculatePrice(tempDate);
-      console.log('🔍 PRECIO DEBUG - Precio calculado para flexible:', price);
     } else {
       // Para cursos no flexibles, usar precio base
       price = parseFloat(this.course.price);
-      console.log('🔍 PRECIO DEBUG - Precio fijo para no flexible:', price);
     }
 
     const courseDateGroup = this.fb.group({
@@ -265,26 +256,11 @@ export class FormDetailsPrivateComponent implements OnInit {
           const isAvailable = response.success; // Ajusta según la respuesta real de tu API
           resolve(isAvailable); // Resolvemos la promesa con el valor de disponibilidad
         }, (error) => {
-          console.log('🔍 checkbooking ERROR:', error);
-
-          // Verificar si hay datos de solapamiento en el error
-          if (error?.error?.data && Array.isArray(error.error.data) && error.error.data.length > 0) {
-            const conflictData = error.error.data[0];
-            this.snackbar.open(
-              this.translateService.instant('snackbar.booking.overlap') +
-              moment(conflictData.date).format('YYYY-MM-DD') +
-              ' | ' + conflictData.hour_start + ' - ' + conflictData.hour_end,
-              'OK',
-              { duration: 3000 }
-            );
-          } else {
-            // Error genérico sin datos específicos
-            this.snackbar.open(
-              this.translateService.instant('snackbar.booking.overlap'),
-              'OK',
-              { duration: 3000 }
-            );
-          }
+          const overlapMessage = this.utilService.formatBookingOverlapMessage(error?.error?.data);
+          this.snackbar.open(overlapMessage, 'OK', {
+            duration: 4000,
+            panelClass: ['snackbar-multiline']
+          });
           resolve(false); // En caso de error, rechazamos la promesa
         });
     });
@@ -379,6 +355,8 @@ export class FormDetailsPrivateComponent implements OnInit {
     });
 
     courseDateGroup.get('date').valueChanges.subscribe(() => {
+      const dateValue = courseDateGroup.get('date').value;
+      this.warnPastDateIfNeeded(dateValue);
       if(courseDateGroup.get('duration').value && courseDateGroup.get('startHour').value) {
         this.checkAval(courseDateGroup).then((isAvailable) => {
           if (isAvailable) {
@@ -418,12 +396,6 @@ export class FormDetailsPrivateComponent implements OnInit {
   }
 
   private calculatePrice(date) {
-    console.log('🔍 calculatePrice DEBUG - Entrada:', {
-      date,
-      courseIsFlexible: this.course.is_flexible,
-      utilizersLength: this.utilizers.length,
-      priceRange: this.course.price_range
-    });
 
     let total = 0;
 
@@ -431,26 +403,17 @@ export class FormDetailsPrivateComponent implements OnInit {
       // Calcula el precio basado en el intervalo y el número de utilizadores para cada fecha
 
       const duration = date.duration; // Duración de cada fecha
-      const selectedUtilizers = this.utilizers.length; // Número de utilizadores
-
-      console.log('🔍 calculatePrice DEBUG - Busqueda:', {
-        duration,
-        selectedUtilizers,
-        availableIntervals: this.course.price_range?.map(r => r.intervalo)
-      });
+      const selectedUtilizers = this.utilizers.length;
 
       // Encuentra el intervalo de duración que se aplica
       const interval = this.course.price_range.find(range => {
         return range.intervalo === duration; // Comparar con la duración de la fecha
       });
 
-      console.log('🔍 calculatePrice DEBUG - Interval encontrado:', interval);
-
       if (interval) {
         // Intentar acceso con número y string para compatibilidad
         const priceForPax = parseFloat(interval[selectedUtilizers]) || parseFloat(interval[selectedUtilizers.toString()]) || 0;
-        total += priceForPax; // Precio por utilizador para cada fecha
-        console.log('🔍 calculatePrice DEBUG - Precio calculado:', priceForPax);
+        total += priceForPax;
       } else {
         // Fallback: sin price_range válido, usar precio base del curso por nº de utilizadores
         const base = parseFloat(this.course?.price ?? '0');
@@ -529,6 +492,22 @@ export class FormDetailsPrivateComponent implements OnInit {
     return total;
   }
 
+  private warnPastDateIfNeeded(dateValue: any): void {
+    if (!dateValue) {
+      return;
+    }
+    const isPast = moment(dateValue).isBefore(moment(), 'day');
+    if (!isPast) {
+      return;
+    }
+
+    const translated = this.translateService.instant('monitor_assignment.past_warning_message');
+    const message = translated && translated !== 'monitor_assignment.past_warning_message'
+      ? translated
+      : 'Selected date is before today.';
+
+    this.snackbar.open(message, this.translateService.instant('close'), { duration: 4000 });
+  }
   getMonitorsAvailable(dateGroup) {
     const index = this.courseDates.controls.indexOf(dateGroup);
 
@@ -564,3 +543,6 @@ export class FormDetailsPrivateComponent implements OnInit {
 
 
 }
+
+
+

@@ -2,6 +2,7 @@ import {Component, Inject} from '@angular/core';
 import {UntypedFormGroup} from '@angular/forms';
 import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {ApiCrudService} from '../../../../service/crud.service';
+import {UtilsService} from '../../../../service/utils.service';
 import {TranslateService} from '@ngx-translate/core';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import moment from 'moment/moment';
@@ -23,7 +24,8 @@ export class EditDateComponent {
   date;
 
   constructor(@Inject(MAT_DIALOG_DATA) public defaults: any, private crudService: ApiCrudService, private dialogRef: MatDialogRef<any>,
-              private translateService: TranslateService, private dialog: MatDialog, private snackbar: MatSnackBar) {
+              private translateService: TranslateService, private dialog: MatDialog, private snackbar: MatSnackBar,
+              private utilsService: UtilsService) {
 
   }
 
@@ -151,6 +153,7 @@ export class EditDateComponent {
             hour_start: this.hourStart.replace(': 00', '').replace(':00', ''),
             hour_end: this.calculateHourEnd(this.hourStart, this.duration),
             date: moment(date.date).format('YYYY-MM-DD'),
+            degree_id: this.defaults.degree_id
           })
         });
         this.crudService.post('/admin/bookings/checkbooking', checkAval)
@@ -161,7 +164,8 @@ export class EditDateComponent {
                   hour_start: this.hourStart,
                   hour_end: this.calculateHourEnd(this.hourStart, this.duration) + ':00',
                   date: moment(date.date).format('YYYY-MM-DD'),
-                  course_date_id: date.id
+                  course_date_id: date.id,
+                  degree_id: this.defaults.degree_id
                 }, element.id))
             });
             forkJoin(updateBookingUserRQS)
@@ -181,10 +185,11 @@ export class EditDateComponent {
               });
 
           }, (error) => {
-            this.snackbar.open(this.translateService.instant('snackbar.booking.overlap') +
-              moment(error.error.data[0].date).format('YYYY-MM-DD') + ' | '
-              + error.error.data[0].hour_start + ' - ' + error.error.data[0].hour_end, 'OK',
-              {duration: 3000})
+            const overlapMessage = this.utilsService.formatBookingOverlapMessage(error?.error?.data);
+            this.snackbar.open(overlapMessage, 'OK', {
+              duration: 4000,
+              panelClass: ['snackbar-multiline']
+            });
           });
 
       }

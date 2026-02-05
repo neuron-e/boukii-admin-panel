@@ -21,6 +21,7 @@ import { NgxMatDatetimePickerModule, NgxMatTimepickerModule } from '@angular-mat
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {MatExpansionModule} from '@angular/material/expansion';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CourseUserTransferTimelineComponent } from './course-user-transfer-timeline.component';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -50,6 +51,7 @@ import { TranslateModule } from '@ngx-translate/core';
     MatSlideToggleModule,
     MatCheckboxModule,
     MatExpansionModule,
+    MatProgressSpinnerModule,
     TranslateModule
   ],
   declarations: [CourseUserTransferTimelineComponent],

@@ -14,11 +14,12 @@ import { SalaryCreateUpdateModalComponent } from './salary-create-update-modal/s
 import { stagger20ms } from 'src/@vex/animations/stagger.animation';
 import { LEVELS } from 'src/app/static-data/level-data';
 import { AbstractControl, FormArray, FormControl, FormGroup, UntypedFormBuilder, UntypedFormGroup, ValidationErrors, Validators } from '@angular/forms';
-import { Observable, forkJoin, map, startWith } from 'rxjs';
+import { Observable, forkJoin, map, startWith, finalize } from 'rxjs';
 import { MOCK_COUNTRIES } from 'src/app/static-data/countries-data';
 import { MOCK_PROVINCES } from 'src/app/static-data/province-data';
 import { MatTable, MatTableDataSource } from '@angular/material/table';
 import { MatDatepicker, MatDatepickerInputEvent } from '@angular/material/datepicker';
+import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import * as moment from 'moment';
 import { ApiCrudService } from 'src/service/crud.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -26,7 +27,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { ExtraCreateUpdateModalComponent } from './extra-create-update-modal/extra-create-update-modal.component';
 import { LevelGoalsModalComponent } from './level-goals-modal/level-goals-modal.component';
+import { MeetingPointCreateUpdateModalComponent } from './meeting-point-create-update-modal/meeting-point-create-update-modal.component';
 import { SchoolService } from 'src/service/school.service';
+import { MeetingPointService } from 'src/service/meeting-point.service';
 import { TranslateService } from '@ngx-translate/core';
 import { DateAdapter } from '@angular/material/core';
 import { dropdownAnimation } from '../../../@vex/animations/dropdown.animation';
@@ -74,6 +77,8 @@ export class SettingsComponent implements OnInit {
   titleDe: any = '';
   currentMails: any = [];
   selectedIndex = 0;
+  testEmail: string = '';
+  initialDegreesBound = false;
 
   emailTypes = [
     { value: 'booking_confirm', label: 'mails.type1' },
@@ -118,6 +123,7 @@ export class SettingsComponent implements OnInit {
   filteredHours: string[];
 
   seasonForm: UntypedFormGroup;
+  schoolInfoForm: UntypedFormGroup;
   myControlCountries = new FormControl();
   myControlProvinces = new FormControl();
 
@@ -125,6 +131,18 @@ export class SettingsComponent implements OnInit {
   filteredProvinces: Observable<any[]>;
 
   school: any = [];
+  schoolLogoPreview: string | null = null;
+  schoolLogoBase64: string | null = null;
+  defaultsSchoolData = {
+    contact_phone: null,
+    contact_address: null,
+    contact_address_number: null,
+    contact_cp: null,
+    contact_city: null,
+    contact_country: null,
+    contact_province: null,
+    contact_email: null
+  };
   blockages = [];
   mockLevelData = LEVELS;
   mockCountriesData = MOCK_COUNTRIES;
@@ -146,6 +164,10 @@ export class SettingsComponent implements OnInit {
   dataSourceFood = new MatTableDataSource([]);
   displayedSportColumns: string[] = ['id', 'sport', 'name', 'price', 'tva', 'status', 'edit', 'delete'];
   displayedExtrasColumns: string[] = ['id', 'product', 'name', 'price', 'tva', 'status', 'edit', 'delete'];
+  meetingPoints: any[] = [];
+  meetingPointsLoading = false;
+  meetingPointsDisplayedColumns: string[] = ['name', 'address', 'instructions', 'active', 'actions'];
+  dataSourceMeetingPoints = new MatTableDataSource([]);
   currencies: string[] = ['CHF', 'EUR', 'GBP']
   tva = 0;
   currency = '';
@@ -164,18 +186,8 @@ export class SettingsComponent implements OnInit {
   sports: any = [];
   sportsList: any = [];
   schoolSports: any = [];
+  private sportsListSet: Set<number> = new Set(); // Cache for O(1) lookups
   season: any = null;
-
-  defaultsSchoolData = {
-    contact_phone: null,
-    contact_address: null,
-    contact_address_number: null,
-    contact_cp: null,
-    contact_city: null,
-    contact_country: null,
-    contact_province: null,
-    contact_email: null
-  }
 
   defaultsCommonExtras = {
     forfait: [],
@@ -240,6 +252,7 @@ export class SettingsComponent implements OnInit {
   constructor(private ngZone: NgZone, private fb: UntypedFormBuilder, private crudService: ApiCrudService,
               private snackbar: MatSnackBar, private cdr: ChangeDetectorRef,
               private dialog: MatDialog, private schoolService: SchoolService,
+              private meetingPointService: MeetingPointService,
               public layoutService: LayoutService, private sanitizer: DomSanitizer,
               private translateService: TranslateService, private dateAdapter: DateAdapter<Date>) {
     this.filteredHours = this.hours;
@@ -252,6 +265,7 @@ export class SettingsComponent implements OnInit {
   ngOnInit() {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.loadedTabs = this.Translate.map(() => false);
+    this.testEmail = this.user?.email || '';
     // Marca la primera pestaña como cargada
     this.loadedTabs[0] = true;
     /*this.mockLevelData.forEach(element => {
@@ -266,9 +280,48 @@ export class SettingsComponent implements OnInit {
           .subscribe(() =>{})
         });
       })*/
+    this.initializeForms();
     this.generateHours();
     this.getData();
 
+  }
+
+  private initializeForms() {
+    this.schoolInfoForm = this.fb.group({
+      contact_phone: [null],
+      contact_address: [null],
+      contact_address_number: [null],
+      contact_cp: [null],
+      contact_city: [null],
+      contact_country: [null],
+      contact_province: [null],
+      contact_email: [null]
+    });
+
+    this.seasonForm = this.fb.group({
+      fromDate: [null],
+      toDate: [null],
+      startHour: [null],
+      endHour: [null]
+    });
+
+    this.seasonForm.get('startHour')?.valueChanges.subscribe(selectedHour => {
+      this.filterHours(selectedHour);
+    });
+
+    this.filteredCountries = this.myControlCountries.valueChanges.pipe(
+      startWith(''),
+      map(value => typeof value === 'string' ? value : value?.name),
+      map(name => name ? this._filterCountries(name) : this.mockCountriesData.slice())
+    );
+
+    this.filteredProvinces = this._filterProvinces();
+
+    this.myControlCountries.valueChanges.subscribe(country => {
+      this.myControlProvinces.setValue('');
+      const countryId = country && country.id ? country.id : null;
+      this.filteredProvinces = this._filterProvinces(countryId);
+    });
   }
 
 
@@ -278,19 +331,42 @@ export class SettingsComponent implements OnInit {
       .subscribe((data) => {
 
         this.school = data.data;
+        // Refrescar snapshot local del usuario con settings actualizados para futuros defaults
+        const raw = localStorage.getItem('boukiiUser');
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed?.schools?.length) {
+              parsed.schools[0].settings = this.school.settings;
+              localStorage.setItem('boukiiUser', JSON.stringify(parsed));
+              this.user = parsed;
+            }
+          } catch {
+            // ignore parsing errors
+          }
+        }
+        this.schoolLogoPreview = this.school?.logo || null;
+        this.schoolLogoBase64 = null;
+        this.populateSchoolContactFields(this.school);
         this.getDegrees();
 
-        forkJoin([this.getSchoolSeason(), this.getSports(), this.getBlockages(), this.getSchoolSports(), this.getEmails()])
+        // Load critical data first (emails loaded on-demand when tab is opened)
+        forkJoin([this.getSchoolSeason(), this.getSports(), this.getBlockages(), this.getSchoolSports()])
           .subscribe((data: any) => {
             this.season = data[0].data.filter((s) => s.is_active)[0];
             this.sports = data[1].data;
             this.blockages = data[2].data;
             this.schoolSports = data[3].data;
-            this.currentMails = data[4].data;
-            data[3].data.forEach((element, idx) => {
-              this.sportsList.push(element.sport_id);
+            // Reset sportsList and sportsListSet
+            this.sportsList = [];
+            this.sportsListSet.clear();
 
-              const sportData = this.sports.find((s) => s.id === element.sport_id);
+            data[3].data.forEach((element, idx) => {
+              const sportId = element.sport_id;
+              this.sportsList.push(sportId);
+              this.sportsListSet.add(sportId); // O(1) lookups for template
+
+              const sportData = this.sports.find((s) => s.id === sportId);
               this.schoolSports[idx].name = sportData.name;
               this.schoolSports[idx].icon_selected = sportData.icon_selected;
               this.schoolSports[idx].icon_unselected = sportData.icon_unselected;
@@ -298,58 +374,28 @@ export class SettingsComponent implements OnInit {
             });
 
             if (this.season) {
-
               this.holidays = JSON.parse(this.season.vacation_days);
+            } else {
+              this.holidays = [];
             }
+
             this.getSchoolSportDegrees();
 
-            this.selectedFrom = moment(this.season?.start_date).toDate();
-            this.selectedFromHour = this.season?.hour_start?.split(':').slice(0, 2).join(':'); // "18:00"
-            this.selectedToHour = this.season?.hour_end?.split(':').slice(0, 2).join(':'); // "18:00"
-            this.selectedTo = moment(this.season?.end_date).toDate();
+            this.selectedFrom = this.season?.start_date ? moment(this.season.start_date).toDate() : null;
+            this.selectedFromHour = this.season?.hour_start ? this.season.hour_start.split(':').slice(0, 2).join(':') : null;
+            this.selectedToHour = this.season?.hour_end ? this.season.hour_end.split(':').slice(0, 2).join(':') : null;
+            this.selectedTo = this.season?.end_date ? moment(this.season.end_date).toDate() : null;
 
+            this.seasonForm.patchValue({
+              fromDate: this.selectedFrom,
+              toDate: this.selectedTo,
+              startHour: this.season?.hour_start ?? null,
+              endHour: this.season?.hour_end ?? null
+            }, { emitEvent: false });
 
-            this.seasonForm = this.fb.group({
-              fromDate: [moment(this.season?.start_date).toDate()],
-              toDate: [moment(this.season?.end_date).toDate()],
-              startHour: [this.season?.hour_start],
-              endHour: [this.season?.hour_end],
-              contact_phone: [this.school.contact_phone],
-              contact_address: [this.school.contact_address],
-              contact_address_number: [this.school.contact_address_number],
-              contact_cp: [this.school.contact_cp],
-              contact_country: [this.school.contact_country],
-              contact_province: [this.school.contact_province],
-              contact_city: [this.school.contact_city]
+            this.filterHours(this.selectedFromHour);
 
-            });
-
-            this.defaultsSchoolData.contact_phone = this.school.contact_phone;
-            this.defaultsSchoolData.contact_address = this.school.contact_address;
-            this.defaultsSchoolData.contact_address_number = this.school.contact_address_number;
-            this.defaultsSchoolData.contact_cp = this.school.contact_cp;
-            this.defaultsSchoolData.contact_city = this.school.contact_city;
-            this.defaultsSchoolData.contact_province = this.school.contact_province;
-            this.defaultsSchoolData.contact_country = this.school.contact_country;
-            this.defaultsSchoolData.contact_email = this.school.contact_email;
-
-
-            this.myControlCountries.setValue(this.mockCountriesData.find((c) => c.id === +this.defaultsSchoolData.contact_country));
-            this.myControlProvinces.setValue(this.mockProvincesData.find((c) => c.id === +this.defaultsSchoolData.contact_province));
-            this.seasonForm.get('startHour').valueChanges.subscribe(selectedHour => {
-              this.filterHours(selectedHour);
-            });
-
-            this.filteredCountries = this.myControlCountries.valueChanges.pipe(
-              startWith(''),
-              map(value => typeof value === 'string' ? value : value.name),
-              map(name => name ? this._filterCountries(name) : this.mockCountriesData.slice())
-            );
-
-            this.myControlCountries.valueChanges.subscribe(country => {
-              this.myControlProvinces.setValue('');  // Limpia la selección anterior de la provincia
-              this.filteredProvinces = this._filterProvinces(country.id);
-            });
+            // Meeting points loaded on-demand when accessing Extras tab
 
             const settings = typeof this.school.settings === 'string' ? JSON.parse(this.school.settings) : this.school.settings;
             this.people = settings && settings.prices_range.people ? settings.prices_range.people : this.people;
@@ -432,11 +478,14 @@ export class SettingsComponent implements OnInit {
               conditions: this.PageForm.Conditions,
               sponsors: sponsorsFA,
               infoMessages: infoMessagesFA,
+              private_min_lead_minutes: [settings?.booking?.private_min_lead_minutes ?? 30, [Validators.min(0)]],
+              private_overbooking_limit: [settings?.booking?.private_overbooking_limit ?? 0, [Validators.min(0)]],
             });
 
-            setTimeout(() => {
+            // Initialize levels data source if schoolSports available
+            if (this.schoolSports && this.schoolSports.length > 0 && this.schoolSports[0].degrees) {
               this.dataSourceLevels.data = this.schoolSports[0].degrees;
-            }, 500);
+            }
 
             this.loading = false;
           });
@@ -505,6 +554,53 @@ export class SettingsComponent implements OnInit {
       this.titleIt = '';
       this.subjectIt = '';
     }
+  }
+
+  private getCurrentLangCode(): string {
+    const langs = ['fr', 'en', 'es', 'de', 'it'];
+    return langs[this.selectedIndex] || 'fr';
+  }
+
+  private getMailContentForLang(lang: string): { subject: string; title: string; body: string } {
+    switch (lang) {
+      case 'en':
+        return { subject: this.subjectEn || '', title: this.titleEn || '', body: this.bodyEn || '' };
+      case 'es':
+        return { subject: this.subjectEs || '', title: this.titleEs || '', body: this.bodyEs || '' };
+      case 'de':
+        return { subject: this.subjectDe || '', title: this.titleDe || '', body: this.bodyDe || '' };
+      case 'it':
+        return { subject: this.subjectIt || '', title: this.titleIt || '', body: this.bodyIt || '' };
+      case 'fr':
+      default:
+        return { subject: this.subjectFr || '', title: this.titleFr || '', body: this.bodyFr || '' };
+    }
+  }
+
+  sendTestMail() {
+    if (!this.testEmail) {
+      this.snackbar.open(this.translateService.instant('email_required') || 'Email is required', 'OK', { duration: 3000 });
+      return;
+    }
+
+    const lang = this.getCurrentLangCode();
+    const content = this.getMailContentForLang(lang);
+    const body = `${content.title || ''}\n\n${content.body || ''}`.trim();
+
+    const payload = {
+      subject: content.subject || 'Test email',
+      body,
+      emails: [this.testEmail]
+    };
+
+    this.crudService.post('/admin/mails/send', payload)
+      .subscribe({
+        next: () => this.snackbar.open(this.translateService.instant('mail_sent') || 'Test email sent', 'OK', { duration: 3000 }),
+        error: (err) => {
+          console.error('Error sending test mail', err);
+          this.snackbar.open(this.translateService.instant('download_error') || 'Error sending email', 'OK', { duration: 3000 });
+        }
+      });
   }
 
   openPreview(): void {
@@ -632,8 +728,20 @@ export class SettingsComponent implements OnInit {
 
 
   onFullTabChange(event: any) {
-    if (event.index == 7) {
-      this.setCurrentMailType();
+    const tabLabel = (event?.tab?.textLabel || '').toLowerCase();
+    const isMailsTab = tabLabel.includes('mail');
+
+    if (isMailsTab && (!this.currentMails || this.currentMails.length === 0)) {
+      this.getEmails().subscribe((data: any) => {
+        this.currentMails = data.data;
+        this.setCurrentMailType();
+      });
+    }
+
+    // Lazy load meeting points when accessing Meeting Points tab (3rd tab, index 2)
+    const isMeetingPointsTab = event?.index === 2 || tabLabel.includes('meeting');
+    if (isMeetingPointsTab && (!this.meetingPoints || this.meetingPoints.length === 0)) {
+      this.loadMeetingPoints();
     }
   }
 
@@ -677,9 +785,9 @@ export class SettingsComponent implements OnInit {
     return province && province.name ? province.name : '';
   }
 
-  private _filter(name: string, countryId: number): any[] {
+  private _filter(name: string, countryId?: number): any[] {
     const filterValue = name.toLowerCase();
-    return this.mockProvincesData.filter(province => province.country_id === countryId && province.name.toLowerCase().includes(filterValue));
+    return this.mockProvincesData.filter(province => (!countryId || province.country_id === countryId) && province.name.toLowerCase().includes(filterValue));
   }
 
   private _filterCountries(name: string): any[] {
@@ -687,12 +795,29 @@ export class SettingsComponent implements OnInit {
     return this.mockCountriesData.filter(country => country.name.toLowerCase().includes(filterValue));
   }
 
-  private _filterProvinces(countryId: number): Observable<any[]> {
+  private _filterProvinces(countryId?: number): Observable<any[]> {
     return this.myControlProvinces.valueChanges.pipe(
       startWith(''),
       map(value => typeof value === 'string' ? value : value.name),
-      map(name => name ? this._filter(name, countryId) : this.mockProvincesData.filter(p => p.country_id === countryId).slice())
+      map(name => {
+        const provinces = countryId ? this.mockProvincesData.filter(p => p.country_id === countryId) : this.mockProvincesData;
+        return name ? this._filter(name, countryId) : provinces.slice();
+      })
     );
+  }
+
+  onCountrySelected(event: MatAutocompleteSelectedEvent) {
+    const country = event.option.value;
+    const countryId = country?.id ?? null;
+    this.schoolInfoForm.patchValue({ contact_country: countryId, contact_province: null });
+    this.myControlProvinces.setValue('', { emitEvent: false });
+    this.filteredProvinces = this._filterProvinces(countryId);
+  }
+
+  onProvinceSelected(event: MatAutocompleteSelectedEvent) {
+    const province = event.option.value;
+    const provinceId = province?.id ?? null;
+    this.schoolInfoForm.patchValue({ contact_province: provinceId });
   }
 
   editGoal(data: any, id: number) {
@@ -813,23 +938,89 @@ export class SettingsComponent implements OnInit {
 
   saveContactData() {
 
-    const data = {
-      contact_phone: this.defaultsSchoolData.contact_phone,
-      contact_address: this.defaultsSchoolData.contact_address,
-      contact_address_number: this.defaultsSchoolData.contact_address_number,
-      contact_cp: this.defaultsSchoolData.contact_cp,
-      contact_city: this.defaultsSchoolData.contact_city,
-      contact_country: this.defaultsSchoolData.contact_country,
-      contact_province: this.defaultsSchoolData.contact_province,
-      contact_email: this.defaultsSchoolData.contact_email,
-    }
+    const contactForm = this.schoolInfoForm ? this.schoolInfoForm.getRawValue() : {};
+    const data: any = {
+      contact_phone: contactForm.contact_phone ?? null,
+      contact_address: contactForm.contact_address ?? null,
+      contact_address_number: contactForm.contact_address_number ?? null,
+      contact_cp: contactForm.contact_cp ?? null,
+      contact_city: contactForm.contact_city ?? null,
+      contact_country: contactForm.contact_country ?? null,
+      contact_province: contactForm.contact_province ?? null,
+      contact_email: contactForm.contact_email ?? null,
+    };
 
     this.crudService.update('/schools', data, this.school.id)
-      .subscribe((res) => {
+      .subscribe((res: any) => {
+        this.school = res.data;
+        this.schoolLogoPreview = this.school?.logo || this.schoolLogoPreview;
+        this.schoolLogoBase64 = null;
+        this.populateSchoolContactFields(this.school);
         this.snackbar.open(this.translateService.instant('snackbar.settings.save'), this.translateService.instant('cancel'), { duration: 3000 });
         this.schoolService.refreshSchoolData();
         //this.getData();
       });
+  }
+
+  public handleSchoolLogoUpload(base64: string) {
+    this.schoolLogoBase64 = base64;
+    this.schoolLogoPreview = base64;
+  }
+
+  public handleSchoolLogoFile(file: File) {
+    if (!file || !this.school?.id) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    this.crudService.uploadFile(`/schools/${this.school.id}/logo`, formData)
+      .subscribe((response: any) => {
+        if (response?.success && response?.data) {
+          this.school = response.data;
+          this.schoolLogoPreview = this.school?.logo || this.schoolLogoPreview;
+          this.schoolLogoBase64 = null;
+          this.populateSchoolContactFields(this.school);
+          this.schoolService.refreshSchoolData();
+        }
+      });
+  }
+
+  private populateSchoolContactFields(school: any) {
+    if (!school) {
+      return;
+    }
+
+    this.defaultsSchoolData.contact_phone = school.contact_phone;
+    this.defaultsSchoolData.contact_address = school.contact_address;
+    this.defaultsSchoolData.contact_address_number = school.contact_address_number;
+    this.defaultsSchoolData.contact_cp = school.contact_cp;
+    this.defaultsSchoolData.contact_city = school.contact_city;
+    this.defaultsSchoolData.contact_country = school.contact_country;
+    this.defaultsSchoolData.contact_province = school.contact_province;
+    this.defaultsSchoolData.contact_email = school.contact_email;
+
+    this.schoolInfoForm.patchValue({
+      contact_phone: school.contact_phone,
+      contact_address: school.contact_address,
+      contact_address_number: school.contact_address_number,
+      contact_cp: school.contact_cp,
+      contact_city: school.contact_city,
+      contact_country: school.contact_country,
+      contact_province: school.contact_province,
+      contact_email: school.contact_email
+    });
+
+    const countryId = school.contact_country ? +school.contact_country : null;
+    const provinceId = school.contact_province ? +school.contact_province : null;
+
+    const selectedCountry = this.mockCountriesData.find((c) => c.id === countryId) || null;
+    this.filteredProvinces = this._filterProvinces(countryId);
+    this.myControlCountries.setValue(selectedCountry, { emitEvent: false });
+
+    const selectedProvince = this.mockProvincesData.find((p) => p.id === provinceId) || null;
+    this.myControlProvinces.setValue(selectedProvince, { emitEvent: false });
   }
 
   saveSchoolSports() {
@@ -872,7 +1063,8 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -883,8 +1075,25 @@ export class SettingsComponent implements OnInit {
       degrees: this.dataSourceLevels.data
     }
 
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(data) }, this.school.id)
+    const settingsPayload = this.buildSettingsPayload(data);
+
+    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
       .subscribe(() => {
+        this.school.settings = settingsPayload;
+        // Persistir settings actualizados en el usuario para evitar snapshots obsoletos en formularios (p.ej. price_range por defecto)
+        const userRaw = localStorage.getItem('boukiiUser');
+        if (userRaw) {
+          try {
+            const parsed = JSON.parse(userRaw);
+            if (parsed?.schools?.length) {
+              parsed.schools[0].settings = settingsPayload;
+              localStorage.setItem('boukiiUser', JSON.stringify(parsed));
+              this.schoolService.user = parsed;
+            }
+          } catch {
+            // ignore parsing errors
+          }
+        }
         this.snackbar.open(this.translateService.instant('snackbar.settings.prices'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
       })
@@ -903,7 +1112,11 @@ export class SettingsComponent implements OnInit {
       this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.school.id + '&sport_id=' + element)
         .subscribe((data) => {
           this.schoolSports[idx].degrees = data.data;
-          this.selectedSport = this.schoolSports[0].id;
+          if (!this.initialDegreesBound && idx === 0) {
+            this.selectedSport = this.schoolSports[0].id;
+            this.dataSourceLevels.data = this.schoolSports[0].degrees;
+            this.initialDegreesBound = true;
+          }
         });
     });
   }
@@ -916,14 +1129,16 @@ export class SettingsComponent implements OnInit {
   }
 
   setSport(id: number) {
-    let index = this.sportsList.indexOf(id);
+    const index = this.sportsList.indexOf(id);
 
-    if (this.sportsList.length === 0) {
+    if (index === -1) {
+      // Add sport
       this.sportsList.push(id);
-    } else if (this.sportsList.length > 0 && index === -1) {
-      this.sportsList.push(id);
-    } else if (this.sportsList.length > 0 && index !== -1) {
+      this.sportsListSet.add(id);
+    } else {
+      // Remove sport
       this.sportsList.splice(index, 1);
+      this.sportsListSet.delete(id);
     }
   }
 
@@ -956,7 +1171,8 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -966,8 +1182,11 @@ export class SettingsComponent implements OnInit {
       extras: { forfait: this.dataSourceForfait.data, food: this.dataSourceFood.data, transport: this.dataSourceTransport.data },
       degrees: this.dataSourceLevels.data
     }
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(data) }, this.school.id)
+    const settingsPayload = this.buildSettingsPayload(data);
+
+    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
       .subscribe(() => {
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.auths'), 'OK', { duration: 3000 });
         this.getData();
         this.schoolService.refreshSchoolData();
@@ -1063,27 +1282,63 @@ export class SettingsComponent implements OnInit {
 
   }
 
-  deleteExtra(index: number, type: string) {
-    if (type === 'Forfait') {
-
-      this.dataSourceForfait.data.splice(index, 1);
-      this.dateTableForfait.renderRows();
-    } else if (type === 'Food') {
-      this.dataSourceFood.data.splice(index, 1);
-      this.dateTableFood.renderRows();
-    } else if (type === 'Transport') {
-      this.dataSourceTransport.data.splice(index, 1);
-      this.dateTableTransport.renderRows();
+  deleteExtra(index: number, type: 'Forfait' | 'Food' | 'Transport') {
+    const source = this.getExtrasDataSource(type);
+    const currentData = Array.isArray(source.data) ? source.data : [];
+    if (index < 0 || index >= currentData.length) {
+      return;
     }
 
+    const updatedData = currentData.filter((_: any, idx: number) => idx !== index);
+    this.updateExtrasData(type, updatedData);
     this.saveExtra();
+  }
+
+  toggleExtraStatus(extra: any, type: 'Forfait' | 'Food' | 'Transport', checked: boolean) {
+    const source = this.getExtrasDataSource(type);
+    const data = [...(Array.isArray(source.data) ? source.data : [])];
+    const idx = data.findIndex((item: any) => item?.id === extra?.id);
+    if (idx === -1) {
+      return;
+    }
+
+    data[idx] = { ...data[idx], status: checked };
+    this.updateExtrasData(type, data);
+    this.saveExtra();
+  }
+
+  private getExtrasDataSource(type: 'Forfait' | 'Food' | 'Transport'): MatTableDataSource<any> {
+    if (type === 'Forfait') {
+      return this.dataSourceForfait;
+    }
+    if (type === 'Food') {
+      return this.dataSourceFood;
+    }
+    return this.dataSourceTransport;
+  }
+
+  private updateExtrasData(type: 'Forfait' | 'Food' | 'Transport', data: any[]): void {
+    const source = this.getExtrasDataSource(type);
+    source.data = data;
+    this.refreshExtrasTable(type);
+  }
+
+  private refreshExtrasTable(type: 'Forfait' | 'Food' | 'Transport') {
+    if (type === 'Forfait') {
+      this.dateTableForfait?.renderRows();
+    } else if (type === 'Food') {
+      this.dateTableFood?.renderRows();
+    } else {
+      this.dateTableTransport?.renderRows();
+    }
   }
 
   saveExtra() {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1094,8 +1349,11 @@ export class SettingsComponent implements OnInit {
       degrees: this.dataSourceLevels.data
     }
 
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(data) }, this.school.id)
+    const settingsPayload = this.buildSettingsPayload(data);
+
+    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(settingsPayload) }, this.school.id)
       .subscribe(() => {
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.extras'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
 
@@ -1104,12 +1362,70 @@ export class SettingsComponent implements OnInit {
       })
   }
 
+  loadMeetingPoints() {
+    this.meetingPointsLoading = true;
+    this.meetingPointService.list()
+      .pipe(finalize(() => {
+        this.meetingPointsLoading = false;
+      }))
+      .subscribe({
+        next: (data) => {
+          this.meetingPoints = Array.isArray(data) ? data : [];
+          this.dataSourceMeetingPoints.data = this.meetingPoints;
+        },
+        error: () => {
+          this.meetingPoints = [];
+          this.dataSourceMeetingPoints.data = [];
+        }
+      });
+  }
+
+  openMeetingPointModal(meetingPoint?: any) {
+    const dialogRef = this.dialog.open(MeetingPointCreateUpdateModalComponent, {
+      width: '480px',
+      maxWidth: '100vw',
+      data: meetingPoint ? { ...meetingPoint } : { name: '', address: '', instructions: '', active: true }
+    });
+
+    dialogRef.afterClosed().subscribe((result: any) => {
+      if (!result) {
+        return;
+      }
+
+      if (result.id) {
+        this.meetingPointService.update(result.id, result)
+          .subscribe(() => {
+            this.snackbar.open(this.translateService.instant('settings.meeting_points.snackbarUpdated'), 'OK', { duration: 3000 });
+            this.loadMeetingPoints();
+          });
+      } else {
+        this.meetingPointService.create(result)
+          .subscribe(() => {
+            this.snackbar.open(this.translateService.instant('settings.meeting_points.snackbarCreated'), 'OK', { duration: 3000 });
+            this.loadMeetingPoints();
+          });
+      }
+    });
+  }
+
+  deleteMeetingPoint(meetingPoint: any) {
+    if (!meetingPoint || !meetingPoint.id) {
+      return;
+    }
+    this.meetingPointService.delete(meetingPoint.id)
+      .subscribe(() => {
+        this.snackbar.open(this.translateService.instant('settings.meeting_points.snackbarDeleted'), 'OK', { duration: 3000 });
+        this.loadMeetingPoints();
+      });
+  }
+
   saveTaxes() {
 
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1120,9 +1436,17 @@ export class SettingsComponent implements OnInit {
       degrees: this.dataSourceLevels.data
     }
 
-    this.crudService.update('/schools', { name: this.school.name, description: this.school.description, settings: JSON.stringify(data) }, this.school.id)
+    const settingsPayload = this.buildSettingsPayload(data);
+
+    this.crudService.update('/schools', {
+      name: this.school.name,
+      description: this.school.description,
+      settings: JSON.stringify(settingsPayload),
+      payment_link_validity_hours: this.school.payment_link_validity_hours ?? 48
+    }, this.school.id)
       .subscribe(() => {
 
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.taxes'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
         this.getData();
@@ -1138,7 +1462,8 @@ export class SettingsComponent implements OnInit {
     const data = {
       taxes: {
         cancellation_insurance_percent: this.hasCancellationInsurance ? this.cancellationInsurancePercent : 0,
-    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0, currency: this.currency,
+    // BOUKII CARE DESACTIVADO -         boukii_care_price: this.hasBoukiiCare ? this.boukiiCarePrice : 0,
+        currency: this.currency,
         tva: this.hasTVA ? this.tva : 0
       },
       cancellations: { with_cancellation_insurance: this.cancellationRem, without_cancellation_insurance: this.cancellationNoRem },
@@ -1162,16 +1487,21 @@ export class SettingsComponent implements OnInit {
           youtube: this.bookingForm.value.social?.youtube || null,
           tiktok: this.bookingForm.value.social?.tiktok || null,
           linkedin: this.bookingForm.value.social?.linkedin || null,
-        }
+        },
+        private_min_lead_minutes: this.bookingForm.value.private_min_lead_minutes ?? 30,
+        private_overbooking_limit: this.bookingForm.value.private_overbooking_limit ?? 0
       }
     }
+
+    const settingsPayload = this.buildSettingsPayload(data);
 
     this.crudService.update('/schools', {
       name: this.school.name,
       description: this.school.description,
-      settings: JSON.stringify(data)
+      settings: JSON.stringify(settingsPayload)
     }, this.school.id)
       .subscribe(() => {
+        this.school.settings = settingsPayload;
         this.snackbar.open(this.translateService.instant('snackbar.settings.save'), 'OK', { duration: 3000 });
         this.schoolService.refreshSchoolData();
         this.bookingForm.enable({ emitEvent: false });
@@ -1205,6 +1535,44 @@ export class SettingsComponent implements OnInit {
 
   trackLang(index: number, lang: any) {
     return lang.Code;
+  }
+
+  // TrackBy functions for performance optimization
+  trackBySportId(index: number, sport: any): number {
+    return sport?.id ?? index;
+  }
+
+  trackBySchoolSportId(index: number, schoolSport: any): number {
+    return schoolSport?.id ?? index;
+  }
+
+  trackByDegreeId(index: number, degree: any): number {
+    return degree?.id ?? index;
+  }
+
+  trackByExtraId(index: number, extra: any): string | number {
+    return extra?.id ?? index;
+  }
+
+  trackByBlockageId(index: number, blockage: any): number {
+    return blockage?.id ?? index;
+  }
+
+  trackByHolidayIndex(index: number, holiday: any): number {
+    return index;
+  }
+
+  trackByMeetingPointId(index: number, meetingPoint: any): number {
+    return meetingPoint?.id ?? index;
+  }
+
+  trackByIndex(index: number): number {
+    return index;
+  }
+
+  // Optimized sport selection check (O(1) instead of O(n))
+  isSportSelected(sportId: number): boolean {
+    return this.sportsListSet.has(sportId);
   }
 
   updateConditions(field: string, lang: string, value: any) {
@@ -1243,6 +1611,13 @@ export class SettingsComponent implements OnInit {
   updateCancelationRem(event: any) {
 
     this.cancellationRem = parseInt(event.target.value);
+  }
+
+  updatePaymentLinkValidity(event: any) {
+    const value = parseInt(event.target.value);
+    if (value >= 1 && value <= 720) {
+      this.school.payment_link_validity_hours = value;
+    }
   }
 
   get sponsorsFA(): FormArray {
@@ -1401,5 +1776,25 @@ export class SettingsComponent implements OnInit {
     this.infoMessagesFA.markAsDirty();
     this.PageForm.MessageInformation.reset();
     this.PageModal.MessageInformation = false;
+  }
+
+  private getCurrentSettings(): any {
+    const current = this.school?.settings;
+    if (!current) {
+      return {};
+    }
+    if (typeof current === 'string') {
+      try {
+        return JSON.parse(current);
+      } catch {
+        return {};
+      }
+    }
+    return current;
+  }
+
+  private buildSettingsPayload(partial: any): any {
+    const current = this.getCurrentSettings();
+    return { ...current, ...partial };
   }
 }

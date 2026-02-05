@@ -49,11 +49,8 @@ interface MonitorDetailData {
 interface MonitorKPIs {
   totalWorkedHours: number;
   totalNwdHours: number;
-  totalBookingHours: number;
-  totalMonitorHours: number;
   busy: number;
   total: number;
-  totalPriceSell: number;
 }
 
 @Component({
@@ -64,8 +61,8 @@ interface MonitorKPIs {
       <mat-card class="loading-card">
         <mat-card-content class="loading-content">
           <mat-spinner diameter="40"></mat-spinner>
-          <h3>Cargando análisis de monitores...</h3>
-          <p>Procesando datos de horas trabajadas</p>
+          <h3>{{ 'loading_monitor_analysis' | translate }}</h3>
+          <p>{{ 'processing_work_hours_data' | translate }}</p>
         </mat-card-content>
       </mat-card>
     </div>
@@ -82,9 +79,9 @@ interface MonitorKPIs {
             <div class="kpi-content">
               <div class="kpi-info">
                 <div class="kpi-value">{{ kpis.busy }}/{{ kpis.total }}</div>
-                <div class="kpi-label">Monitores Activos</div>
+                <div class="kpi-label">{{ 'active_monitors' | translate }}</div>
                 <div class="kpi-change">
-                  <span>{{ getOccupancyPercentage() }}% ocupación</span>
+                  <span>{{ getOccupancyPercentage() }}% {{ 'occupancy' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">people</mat-icon>
@@ -98,9 +95,9 @@ interface MonitorKPIs {
             <div class="kpi-content">
               <div class="kpi-info">
                 <div class="kpi-value">{{ kpis.totalWorkedHours | number:'1.0-2' }}h</div>
-                <div class="kpi-label">Horas Trabajadas</div>
+                <div class="kpi-label">{{ 'worked_hours' | translate }}</div>
                 <div class="kpi-change">
-                  <span>{{ getEfficiencyPercentage() }}% eficiencia</span>
+                  <span>{{ getEfficiencyPercentage() }}% {{ 'efficiency' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">schedule</mat-icon>
@@ -114,9 +111,9 @@ interface MonitorKPIs {
             <div class="kpi-content">
               <div class="kpi-info">
                 <div class="kpi-value">{{ formatCurrency(getTotalFilteredCost()) }}</div>
-                <div class="kpi-label">Ingresos Monitores</div>
+                <div class="kpi-label">{{ 'monitor_income' | translate }}</div>
                 <div class="kpi-change">
-                  <span>{{ getAverageHourlyRate() + this.currency}}/hora promedio</span>
+                  <span>{{ getAverageHourlyRate() }} {{ currency }}/{{ 'average_hour' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">monetization_on</mat-icon>
@@ -129,10 +126,10 @@ interface MonitorKPIs {
           <mat-card-content>
             <div class="kpi-content">
               <div class="kpi-info">
-                <div class="kpi-value">{{ getTotalBookingHours() }}h</div>
-                <div class="kpi-label">Horas Cursos</div>
+                <div class="kpi-value">{{ getTotalBookingHours() }}</div>
+                <div class="kpi-label">{{ 'course_hours' | translate }}</div>
                 <div class="kpi-change">
-                  <span>+{{ kpis.totalNwdHours | number:'1.0-2'}}h bloqueos</span>
+                  <span>+{{ kpis.totalNwdHours | number:'1.0-2'}}h {{ 'blockages' | translate }}</span>
                 </div>
               </div>
               <mat-icon class="kpi-icon">school</mat-icon>
@@ -148,8 +145,8 @@ interface MonitorKPIs {
         <!-- Distribución de Horas por Tipo -->
         <mat-card class="chart-card">
           <mat-card-header>
-            <mat-card-title>Distribución de Horas por Tipo</mat-card-title>
-            <mat-card-subtitle>Análisis temporal de actividades</mat-card-subtitle>
+            <mat-card-title>{{ 'hours_distribution_by_type' | translate }}</mat-card-title>
+            <mat-card-subtitle>{{ 'temporal_activities_analysis' | translate }}</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
             <div id="hoursTypeChart" class="chart-container"></div>
@@ -159,8 +156,8 @@ interface MonitorKPIs {
         <!-- Horas por Deporte -->
         <mat-card class="chart-card">
           <mat-card-header>
-            <mat-card-title>Horas por Deporte</mat-card-title>
-            <mat-card-subtitle>Tendencias por especialidad</mat-card-subtitle>
+            <mat-card-title>{{ 'hours_by_sport' | translate }}</mat-card-title>
+            <mat-card-subtitle>{{ 'trends_by_specialty' | translate }}</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
             <div id="hoursSportChart" class="chart-container"></div>
@@ -172,23 +169,23 @@ interface MonitorKPIs {
       <!-- ==================== DETAILED TABLE ==================== -->
       <mat-card class="table-card">
         <mat-card-header>
-          <mat-card-title>Análisis Detallado por Monitor</mat-card-title>
-          <mat-card-subtitle>{{ monitorsData.length }} monitores analizados</mat-card-subtitle>
+          <mat-card-title>{{ 'detailed_monitor_analysis' | translate }}</mat-card-title>
+          <mat-card-subtitle>{{ monitorsData.length }} {{ 'monitors_analyzed' | translate }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
 
           <!-- Table Filters -->
           <div class="table-filters">
             <mat-form-field appearance="outline" class="filter-field">
-              <mat-label>Buscar monitor</mat-label>
+              <mat-label>{{ 'search_monitor' | translate }}</mat-label>
               <input matInput [(ngModel)]="searchFilter" (input)="applyTableFilter()">
               <mat-icon matSuffix>search</mat-icon>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-field">
-              <mat-label>Filtrar por deporte</mat-label>
+              <mat-label>{{ 'filter_by_sport' | translate }}</mat-label>
               <mat-select [(ngModel)]="sportFilter" (selectionChange)="applyTableFilter()">
-                <mat-option value="">Todos los deportes</mat-option>
+                <mat-option value="">{{ 'all_sports' | translate }}</mat-option>
                 <mat-option *ngFor="let sport of availableSports" [value]="sport">
                   {{ sport }}
                 </mat-option>
@@ -201,7 +198,7 @@ interface MonitorKPIs {
 
             <!-- Monitor Column -->
             <ng-container matColumnDef="monitor">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Monitor</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'monitor' | translate }}</th>
               <td mat-cell *matCellDef="let row" class="monitor-cell">
                 <div class="monitor-info">
                   <span class="monitor-name">{{ row.monitor }}</span>
@@ -211,7 +208,7 @@ interface MonitorKPIs {
 
             <!-- Sport Column -->
             <ng-container matColumnDef="sport">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Deporte</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'sport' | translate }}</th>
               <td mat-cell *matCellDef="let row">
                 <mat-chip class="sport-chip">{{ row.sport }}</mat-chip>
               </td>
@@ -219,37 +216,37 @@ interface MonitorKPIs {
 
             <!-- Hours Collective -->
             <ng-container matColumnDef="hours_collective">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Colectivas</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'collective_hours_abbr' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ row.hours_collective }}h</td>
             </ng-container>
 
             <!-- Hours Private -->
             <ng-container matColumnDef="hours_private">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Privadas</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'private_hours_abbr' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ row.hours_private }}h</td>
             </ng-container>
 
             <!-- Hours Activities -->
             <ng-container matColumnDef="hours_activities">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Actividades</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'activities_hours_abbr' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ row.hours_activities }}h</td>
             </ng-container>
 
             <!-- Hours NWD -->
             <ng-container matColumnDef="hours_nwd_payed">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Bloqueos</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'nwd_hours_abbr' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ row.hours_nwd_payed }}h</td>
             </ng-container>
 
             <!-- Hour Price -->
             <ng-container matColumnDef="hour_price">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Precio/Hora</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'price_per_hour' | translate }}</th>
               <td mat-cell *matCellDef="let row">{{ formatCurrency(row.hour_price) }}</td>
             </ng-container>
 
             <!-- Total Hours -->
             <ng-container matColumnDef="total_hours">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Total Horas</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'total_hours' | translate }}</th>
               <td mat-cell *matCellDef="let row" class="total-hours-cell">
                 <strong>{{ row.total_hours }}h</strong>
               </td>
@@ -257,7 +254,7 @@ interface MonitorKPIs {
 
             <!-- Total Cost -->
             <ng-container matColumnDef="total_cost">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Costo Total</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'total_cost' | translate }}</th>
               <td mat-cell *matCellDef="let row" class="total-cost-cell">
                 <strong>{{ formatCurrency(row.total_cost) }}</strong>
               </td>
@@ -271,11 +268,11 @@ interface MonitorKPIs {
           <!-- Table Footer -->
           <div class="table-footer" *ngIf="filteredMonitorsData.length > 0">
             <div class="footer-stats">
-              <span>{{ filteredMonitorsData.length }} monitores</span>
+              <span>{{ filteredMonitorsData.length }} {{ 'monitors' | translate }}</span>
               <span>•</span>
-              <span>{{ getTotalFilteredHours() }}h totales</span>
+              <span>{{ getTotalFilteredHours() }}h {{ 'total_lowercase' | translate }}</span>
               <span>•</span>
-              <span>{{ formatCurrency(getTotalFilteredCost()) }} costo total</span>
+              <span>{{ formatCurrency(getTotalFilteredCost()) }} {{ 'total_cost_lowercase' | translate }}</span>
             </div>
           </div>
 
@@ -283,19 +280,27 @@ interface MonitorKPIs {
       </mat-card>
 
       <!-- ==================== MONITOR DETAIL SECTION ==================== -->
-      <mat-card *ngIf="selectedMonitor && monitorDetailData.length > 0" class="detail-card">
+      <mat-card *ngIf="selectedMonitor" class="detail-card">
         <mat-card-header>
           <div class="detail-header">
-            <mat-card-title>
-              <mat-icon>person</mat-icon>
-              Detalle de {{ selectedMonitor.monitor }}
-            </mat-card-title>
-            <mat-card-subtitle>
-              {{ monitorDetailData.length }} días trabajados
-            </mat-card-subtitle>
-            <button mat-icon-button (click)="closeDetail()" class="close-button">
-              <mat-icon>close</mat-icon>
-            </button>
+            <div class="detail-title-section">
+              <mat-card-title>
+                <mat-icon>person</mat-icon>
+                {{ 'detail_of' | translate }} {{ selectedMonitor.monitor }}
+              </mat-card-title>
+              <mat-card-subtitle>
+                {{ monitorDetailData.length }} {{ 'days_worked' | translate }}
+              </mat-card-subtitle>
+            </div>
+            <div class="detail-actions">
+              <button mat-raised-button color="primary" (click)="exportMonitorDetail()" class="export-button" [disabled]="monitorDetailData.length === 0">
+                <mat-icon>download</mat-icon>
+                {{ 'export_monitor' | translate }}
+              </button>
+              <button mat-icon-button (click)="closeDetail()" class="close-button">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
           </div>
         </mat-card-header>
         <mat-card-content>
@@ -303,29 +308,36 @@ interface MonitorKPIs {
           <!-- Loading Detail -->
           <div *ngIf="loadingDetail" class="detail-loading">
             <mat-spinner diameter="30"></mat-spinner>
-            <span>Cargando detalle del monitor...</span>
+            <span>{{ 'loading_monitor_detail' | translate }}</span>
+          </div>
+
+          <!-- Empty State -->
+          <div *ngIf="!loadingDetail && monitorDetailData.length === 0" class="empty-state">
+            <mat-icon>event_busy</mat-icon>
+            <p>{{ 'no_hours_recorded' | translate }}</p>
+            <small>{{ 'monitor_no_data_message' | translate }}</small>
           </div>
 
           <!-- Detail Content -->
-          <div *ngIf="!loadingDetail" class="detail-content">
+          <div *ngIf="!loadingDetail && monitorDetailData.length > 0" class="detail-content">
 
             <!-- Detail KPIs -->
             <div class="detail-kpis">
               <div class="detail-kpi">
                 <div class="detail-kpi-value">{{ getDetailTotalHours() }}</div>
-                <div class="detail-kpi-label">Total Horas</div>
+                <div class="detail-kpi-label">{{ 'total_hours' | translate }}</div>
               </div>
               <div class="detail-kpi">
                 <div class="detail-kpi-value">{{ formatCurrency(getDetailTotalCost()) }}</div>
-                <div class="detail-kpi-label">Total Ingresos</div>
+                <div class="detail-kpi-label">{{ 'total_income' | translate }}</div>
               </div>
               <div class="detail-kpi">
-                <div class="detail-kpi-value">{{ getDetailAverageHourlyRate() }}€/h</div>
-                <div class="detail-kpi-label">Tarifa Promedio</div>
+                <div class="detail-kpi-value">{{ getDetailAverageHourlyRate() }} {{ currency }}/h</div>
+                <div class="detail-kpi-label">{{ 'average_rate' | translate }}</div>
               </div>
               <div class="detail-kpi">
                 <div class="detail-kpi-value">{{ monitorDetailData.length }}</div>
-                <div class="detail-kpi-label">Días Activos</div>
+                <div class="detail-kpi-label">{{ 'active_days' | translate }}</div>
               </div>
             </div>
 
@@ -334,7 +346,7 @@ interface MonitorKPIs {
 
               <!-- Date Column -->
               <ng-container matColumnDef="date">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Fecha</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'date' | translate }}</th>
                 <td mat-cell *matCellDef="let row">
                   {{ formatDate(row.date) }}
                 </td>
@@ -342,7 +354,7 @@ interface MonitorKPIs {
 
               <!-- Sport Column -->
               <ng-container matColumnDef="sport">
-                <th mat-header-cell *matHeaderCellDef>Deporte</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'sport' | translate }}</th>
                 <td mat-cell *matCellDef="let row">
                   <div class="sport-info">
                     <img [src]="row.sport?.icon_prive" [alt]="row.sport?.name" class="sport-icon">
@@ -353,31 +365,31 @@ interface MonitorKPIs {
 
               <!-- Collective Hours -->
               <ng-container matColumnDef="hours_collective">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Colectivas</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'collective_hours_abbr' | translate }}</th>
                 <td mat-cell *matCellDef="let row">{{ row.hours_collective }}</td>
               </ng-container>
 
               <!-- Private Hours -->
               <ng-container matColumnDef="hours_private">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Privadas</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'private_hours_abbr' | translate }}</th>
                 <td mat-cell *matCellDef="let row">{{ row.hours_private }}</td>
               </ng-container>
 
               <!-- Activities Hours -->
               <ng-container matColumnDef="hours_activities">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Actividades</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'activities_hours_abbr' | translate }}</th>
                 <td mat-cell *matCellDef="let row">{{ row.hours_activities }}</td>
               </ng-container>
 
               <!-- NWD Hours -->
               <ng-container matColumnDef="hours_nwd_payed">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>H. Bloqueos</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'nwd_hours_abbr' | translate }}</th>
                 <td mat-cell *matCellDef="let row">{{ row.hours_nwd_payed }}</td>
               </ng-container>
 
               <!-- Total Hours -->
               <ng-container matColumnDef="total_hours">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Total Horas</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'total_hours' | translate }}</th>
                 <td mat-cell *matCellDef="let row" class="total-hours-cell">
                   <strong>{{ row.total_hours }}</strong>
                 </td>
@@ -385,7 +397,7 @@ interface MonitorKPIs {
 
               <!-- Hour Price -->
               <ng-container matColumnDef="hour_price">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Precio/Hora</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'price_per_hour' | translate }}</th>
                 <td mat-cell *matCellDef="let row">
                   {{ formatCurrency(row.hour_price) }}
                 </td>
@@ -393,7 +405,7 @@ interface MonitorKPIs {
 
               <!-- Total Cost -->
               <ng-container matColumnDef="total_cost">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Total</th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'total' | translate }}</th>
                 <td mat-cell *matCellDef="let row" class="total-cost-cell">
                   <strong>{{ formatCurrency(row.total_cost) }}</strong>
                 </td>
@@ -432,18 +444,13 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
 
   // Nuevas propiedades para almacenar las respuestas de los endpoints
   private monitorBookingsResponse: any[] = [];
-  private monitorHoursResponse: any = {};
   private monitorActiveResponse: any = {};
-  private monitorTotalPriceResponse: any = {};
   filteredMonitorsData: MonitorLegacyData[] = [];
   kpis: MonitorKPIs = {
     totalWorkedHours: 0,
     totalNwdHours: 0,
-    totalBookingHours: 0,
-    totalMonitorHours: 0,
     busy: 0,
-    total: 0,
-    totalPriceSell: 0
+    total: 0
   };
 
   // ==================== COURSE TYPE COLORS CONFIGURATION ====================
@@ -520,6 +527,115 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
     this.monitorDetailData = [];
   }
 
+  /**
+   * Export individual monitor detail to CSV
+   */
+  exportMonitorDetail(): void {
+    if (!this.selectedMonitor || !this.monitorDetailData || this.monitorDetailData.length === 0) {
+      console.warn('⚠️ No monitor detail data available for export');
+      return;
+    }
+
+    // Generate CSV content
+    const csvContent = this.generateMonitorDetailCsv();
+    const fileName = `monitor_${this.selectedMonitor.monitor.replace(/\s+/g, '_')}_${this.getCurrentDateString()}.csv`;
+
+    // Download
+    this.downloadCsv(csvContent, fileName);
+  }
+
+  /**
+   * Generate CSV content from monitor detail data
+   */
+  private generateMonitorDetailCsv(): string {
+    let csv = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+
+    // Get current language for date formatting
+    const currentLang = this.translateService.currentLang || 'es';
+
+    // Header info
+    csv += `"${this.translateService.instant('monitor_detail_title')}"\n`;
+    csv += `"${this.translateService.instant('monitor')}: ${this.selectedMonitor?.monitor || ''}"\n`;
+    csv += `"${this.translateService.instant('sport')}: ${this.selectedMonitor?.sport || ''}"\n`;
+    csv += `"${this.translateService.instant('export_date')}: ${new Date().toLocaleString(currentLang)}"\n`;
+    csv += `"${this.translateService.instant('period')}: ${this.filterForm?.value.startDate || ''} - ${this.filterForm?.value.endDate || ''}"\n`;
+    csv += `"${this.translateService.instant('total_days_worked')}: ${this.monitorDetailData.length}"\n\n`;
+
+    // Summary KPIs
+    csv += `"${this.translateService.instant('summary_uppercase')}"\n`;
+    csv += `"${this.translateService.instant('total_hours')}","${this.getDetailTotalHours()}"\n`;
+    csv += `"${this.translateService.instant('total_income')}","${this.formatCurrency(this.getDetailTotalCost())}"\n`;
+    csv += `"${this.translateService.instant('average_rate')}","${this.getDetailAverageHourlyRate()} ${this.currency}/h"\n`;
+    csv += `"${this.translateService.instant('active_days')}","${this.monitorDetailData.length}"\n\n`;
+
+    // Column headers
+    csv += `"${this.translateService.instant('date')}",`;
+    csv += `"${this.translateService.instant('sport')}",`;
+    csv += `"${this.translateService.instant('collective_hours_abbr')}",`;
+    csv += `"${this.translateService.instant('private_hours_abbr')}",`;
+    csv += `"${this.translateService.instant('activities_hours_abbr')}",`;
+    csv += `"${this.translateService.instant('nwd_hours_abbr')}",`;
+    csv += `"${this.translateService.instant('total_hours')}",`;
+    csv += `"${this.translateService.instant('price_per_hour')}",`;
+    csv += `"${this.translateService.instant('total')}"\n`;
+
+    // Data rows
+    this.monitorDetailData.forEach(row => {
+      csv += `"${this.formatDate(row.date)}",`;
+      csv += `"${row.sport?.name || ''}",`;
+      csv += `"${row.hours_collective}",`;
+      csv += `"${row.hours_private}",`;
+      csv += `"${row.hours_activities}",`;
+      csv += `"${row.hours_nwd_payed}",`;
+      csv += `"${row.total_hours}",`;
+      csv += `"${this.formatNumberForCsv(row.hour_price)}",`;
+      csv += `"${this.formatNumberForCsv(row.total_cost)}"\n`;
+    });
+
+    // Totals row
+    csv += '\n';
+    csv += `"${this.translateService.instant('total').toUpperCase()}","","","","","","${this.getDetailTotalHours()}","","${this.formatCurrency(this.getDetailTotalCost())}"\n`;
+
+    return csv;
+  }
+
+  /**
+   * Download CSV file
+   */
+  private downloadCsv(content: string, filename: string): void {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * Get current date string for filename
+   */
+  private getCurrentDateString(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Format number for CSV export
+   */
+  private formatNumberForCsv(value: number | null | undefined): string {
+    if (value === null || value === undefined || isNaN(value)) {
+      return '0.00';
+    }
+    return value.toFixed(2);
+  }
+
   private async loadMonitorDetail(monitorId: number): Promise<void> {
     const params = this.buildDetailQueryParams(monitorId);
 
@@ -574,6 +690,9 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
    */
   private formatDateWithMonthName(dateString: string): string {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
     const month = date.toLocaleString('default', { month: 'long' }).toLowerCase();
     const year = date.getFullYear();
 
@@ -607,51 +726,45 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
 
   // ==================== DATA LOADING (USING LEGACY ENDPOINTS) ====================
 
-  private async loadAllMonitorData():  Promise<void> {
+  private async loadAllMonitorData(): Promise<void> {
     this.loading = true;
 
     try {
-      const [
-        bookings,
-        active,
-        hours,
-        total,
-        byDate,
-        _unused,
-        bySport
-      ] = await Promise.all([
+      const coreResults = await Promise.allSettled([
         this.loadMonitorsBookings(),
-        this.loadActiveMonitors(),
-        this.loadTotalHours(),
-        this.loadBookingsTotal(),
-        this.loadBookingsByDate(),
-        this.loadHoursByDate(),
-        this.loadHoursBySport()
+        this.loadActiveMonitors()
       ]);
 
-      this.monitorBookingsResponse = bookings.data;
-      this.monitorActiveResponse = active.data;
-      this.monitorHoursResponse = hours.data;
-      this.monitorTotalPriceResponse = total.data;
-      this.hoursTypeData = byDate.data;
-      this.hoursSportData = this.transformSportData(bySport.data);
+      const [bookings, active] = coreResults;
+
+      if (bookings.status === 'fulfilled') {
+        this.monitorBookingsResponse = bookings.value.data;
+      } else {
+        console.error('Error loading monitor bookings:', bookings.reason);
+        this.monitorBookingsResponse = [];
+      }
+
+      if (active.status === 'fulfilled') {
+        this.monitorActiveResponse = active.value.data;
+      } else {
+        console.error('Error loading active monitors:', active.reason);
+        this.monitorActiveResponse = {};
+      }
 
       this.processAllData();
       this.createCharts();
-      this.loading = false;
-      this.cdr.detectChanges();
-    } catch(error) {
+    } catch (error) {
       console.error('Error loading monitor data:', error);
-      this.loading = false;
     } finally {
       this.loading = false;
+      this.cdr.detectChanges();
     }
   }
 
   private processMonitorsData(): void {
     this.monitorsData = this.monitorBookingsResponse.map(m => ({
       monitor: `${m.first_name}`,
-      sport: m.sport_name || 'Todos los deportes',
+      sport: m.sport?.name || m.sport_name || this.translateService.instant('all_sports'),
       hours_collective: m.hours_collective || 0,
       hours_private: m.hours_private || 0,
       hours_activities: m.hours_activities || 0,
@@ -664,22 +777,23 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   private processKPIs(): void {
+    const totalBookingMinutes = this.getTotalBookingMinutes();
+    const totalNwdMinutes = this.getTotalNwdMinutes();
+    const totalWorkedMinutes = totalBookingMinutes + totalNwdMinutes;
+
     this.kpis = {
-      totalWorkedHours: this.monitorHoursResponse.totalWorkedHours || 0,
-      totalNwdHours: this.monitorHoursResponse.totalNwdHours || 0,
-      totalBookingHours: this.monitorHoursResponse.totalBookingHours || 0,
-      totalMonitorHours: this.monitorHoursResponse.totalMonitorHours || 0,
+      totalWorkedHours: totalWorkedMinutes / 60,
+      totalNwdHours: totalNwdMinutes / 60,
       busy: this.monitorActiveResponse.busy || 0,
-      total: this.monitorActiveResponse.total || 0,
-      totalPriceSell: this.monitorTotalPriceResponse || 0
+      total: this.monitorActiveResponse.total || 0
     };
   }
 
   private transformSportData(data: any): Record<string, Record<string, number>> {
     const result: Record<string, Record<string, number>> = {};
     Object.values(data).forEach((entry: any) => {
-      const sport = entry.sport?.name || 'Otro';
-      const date = entry.date || 'Sin fecha';
+      const sport = entry.sport?.name || this.translateService.instant('other_label');
+      const date = entry.date || this.translateService.instant('total');
       const hours = entry.hours || 0;
 
       if (!result[date]) result[date] = {};
@@ -699,22 +813,6 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   private loadActiveMonitors(): Promise<any> {
     return this.crudService.list(
       '/admin/statistics/bookings/monitors/active',
-      1, 10000, 'desc', 'id',
-      this.buildQueryParams()
-    ).toPromise();
-  }
-
-  private loadTotalHours(): Promise<any> {
-    return this.crudService.list(
-      '/admin/statistics/bookings/monitors/hours',
-      1, 10000, 'desc', 'id',
-      this.buildQueryParams()
-    ).toPromise();
-  }
-
-  private loadBookingsTotal(): Promise<any> {
-    return this.crudService.list(
-      '/admin/statistics/total',
       1, 10000, 'desc', 'id',
       this.buildQueryParams()
     ).toPromise();
@@ -797,8 +895,15 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   getEfficiencyPercentage(): number {
-    return this.kpis.totalMonitorHours > 0 ?
-      Math.round((this.kpis.totalWorkedHours / this.kpis.totalMonitorHours) * 100) : 0;
+    const totalBookingMinutes = this.getTotalBookingMinutes();
+    const totalNwdMinutes = this.getTotalNwdMinutes();
+    const totalWorkedMinutes = totalBookingMinutes + totalNwdMinutes;
+
+    if (totalWorkedMinutes === 0) {
+      return 0;
+    }
+
+    return Math.round((totalBookingMinutes / totalWorkedMinutes) * 100);
   }
 
 /*  getAverageHourlyRate(): number {
@@ -821,13 +926,50 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
     return `${rate.toFixed(2)}`;
   }
 
-  getTotalBookingHours(): string {
-    const totalMinutes = this.monitorsData.reduce((sum, m) => {
+  private getTotalBookingMinutes(): number {
+    return this.monitorsData.reduce((sum, m) => {
       const collective = this.parseHoursToMinutes(m.hours_collective?.toString() ?? '0h 00m');
       const privateH = this.parseHoursToMinutes(m.hours_private?.toString() ?? '0h 00m');
       const activities = this.parseHoursToMinutes(m.hours_activities?.toString() ?? '0h 00m');
       return sum + collective + privateH + activities;
     }, 0);
+  }
+
+  private getTotalNwdMinutes(): number {
+    return this.monitorsData.reduce((sum, m) => {
+      return sum + this.parseHoursToMinutes(m.hours_nwd_payed?.toString() ?? '0h 00m');
+    }, 0);
+  }
+
+  private getBookingMinutesByType(): { collective: number; private: number } {
+    return this.monitorsData.reduce(
+      (acc, monitor) => {
+        acc.collective += this.parseHoursToMinutes(monitor.hours_collective?.toString() ?? '0h 00m');
+        acc.private += this.parseHoursToMinutes(monitor.hours_private?.toString() ?? '0h 00m');
+        return acc;
+      },
+      { collective: 0, private: 0 }
+    );
+  }
+
+  private getBookingMinutesBySport(): Record<string, number> {
+    const allSportsLabel = this.translateService.instant('all_sports');
+    return this.monitorsData.reduce((acc, monitor) => {
+      const sport = monitor.sport || this.translateService.instant('all_sports');
+      if (!sport || sport === allSportsLabel) {
+        return acc;
+      }
+      const minutes =
+        this.parseHoursToMinutes(monitor.hours_collective?.toString() ?? '0h 00m') +
+        this.parseHoursToMinutes(monitor.hours_private?.toString() ?? '0h 00m') +
+        this.parseHoursToMinutes(monitor.hours_activities?.toString() ?? '0h 00m');
+      acc[sport] = (acc[sport] ?? 0) + minutes;
+      return acc;
+    }, {} as Record<string, number>);
+  }
+
+  getTotalBookingHours(): string {
+    const totalMinutes = this.getTotalBookingMinutes();
 
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
@@ -890,16 +1032,34 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   formatCurrency(amount: number): string {
-    return `${amount.toFixed(2)} ${this.currency}`;
+    return new Intl.NumberFormat(this.getLocale(), {
+      style: 'currency',
+      currency: this.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
   }
 
   formatDate(dateString: string): string {
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
+    return date.toLocaleDateString(this.getLocale(), {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
+  }
+
+  private getLocale(): string {
+    const lang = this.translateService.currentLang || 'en';
+    const localeMap: { [key: string]: string } = {
+      en: 'en-US',
+      es: 'es-ES',
+      fr: 'fr-FR',
+      de: 'de-DE',
+      it: 'it-IT'
+    };
+
+    return localeMap[lang] || lang;
   }
 
   // ==================== TABLE FILTERING ====================
@@ -926,39 +1086,27 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   private createHoursTypeChart(): void {
-    const dates = Object.keys(this.hoursTypeData);
-
-    const traces = [
-      {
-        x: dates,
-        y: dates.map(date => this.hoursTypeData[date]?.[1] || 0),
-        mode: 'lines+markers',
-        name: 'Cursos Colectivos',
-        line: { color: this.courseTypeColors[1] } // ✅ COLOR CONSISTENTE
-      },
-      {
-        x: dates,
-        y: dates.map(date => this.hoursTypeData[date]?.[2] || 0),
-        mode: 'lines+markers',
-        name: 'Cursos Privados',
-        line: { color: this.courseTypeColors[2] } // ✅ COLOR CONSISTENTE
-      },
-      {
-        x: dates,
-        y: dates.map(date => this.hoursTypeData[date]?.[3] || 0),
-        mode: 'lines+markers',
-        name: 'Actividades',
-        line: { color: this.courseTypeColors[3] } // ✅ COLOR CONSISTENTE
-      }
+    const totals = this.getBookingMinutesByType();
+    const labels = [
+      this.translateService.instant('collective'),
+      this.translateService.instant('private')
     ];
+    const values = [totals.collective / 60, totals.private / 60];
+
+    const traces = [{
+      x: labels,
+      y: values,
+      type: 'bar',
+      marker: { color: [this.courseTypeColors[1], this.courseTypeColors[2]] }
+    }];
 
     const layout = {
-      title: 'Distribución de Horas por Tipo de Curso',
-      xaxis: this.createTranslatedXAxisConfig(dates),
-      yaxis: { title: 'Horas' },
+      title: this.translateService.instant('hours_distribution_by_type'),
+      xaxis: { title: this.translateService.instant('course_type') },
+      yaxis: { title: this.translateService.instant('hours_label') },
       paper_bgcolor: 'rgba(0,0,0,0)',
       plot_bgcolor: 'rgba(0,0,0,0)',
-      showlegend: true,
+      showlegend: false,
       height: 300
     };
 
@@ -966,34 +1114,24 @@ export class MonitorsLegacyComponent implements OnInit, OnDestroy {
   }
 
   private createHoursSportChart(): void {
-    const dates = Object.keys(this.hoursSportData);
-    const sports: Record<string, number[]> = {};
+    const totals = this.getBookingMinutesBySport();
+    const labels = Object.keys(totals);
+    const values = labels.map(label => totals[label] / 60);
 
-    // Organizar datos por deporte
-    dates.forEach(date => {
-      const dayData = this.hoursSportData[date];
-      Object.keys(dayData).forEach(sport => {
-        if (!sports[sport]) {
-          sports[sport] = [];
-        }
-        sports[sport].push(dayData[sport]);
-      });
-    });
-
-    const traces = Object.keys(sports).map(sport => ({
-      x: dates,
-      y: sports[sport],
-      mode: 'lines+markers',
-      name: sport
-    }));
+    const traces = [{
+      x: labels,
+      y: values,
+      type: 'bar',
+      marker: { color: '#3A57A7' }
+    }];
 
     const layout = {
-      title: 'Horas Trabajadas por Deporte',
-      xaxis: this.createTranslatedXAxisConfig(dates), // ✅ CAMBIO PRINCIPAL
-      yaxis: { title: 'Horas' },
+      title: this.translateService.instant('hours_by_sport'),
+      xaxis: { title: this.translateService.instant('sport') },
+      yaxis: { title: this.translateService.instant('hours_label') },
       paper_bgcolor: 'rgba(0,0,0,0)',
       plot_bgcolor: 'rgba(0,0,0,0)',
-      showlegend: true,
+      showlegend: false,
       height: 300
     };
 

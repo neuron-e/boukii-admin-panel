@@ -27,23 +27,37 @@
     <div *ngIf="!isLoading">
       <div class="calendarWrapper">
         <div *ngIf="!showTwoMonths" class="one-month">
-          <mat-calendar [startAt]="selectedDate" [minDate]="minDate" [(selected)]="selectedDate"
+          <mat-calendar [startAt]="selectedDate" [(selected)]="selectedDate"
                         [dateClass]="dateClass()" (monthSelected)="getCourses(sportLevel)"
                         (selectedChange)="handleDateChange($event)"></mat-calendar>
         </div>
 
         <div *ngIf="showTwoMonths" class="two-months">
           <div class="no-arrows no-next">
-            <mat-calendar [startAt]="selectedDate" [minDate]="minDate" [(selected)]="selectedDate"
+            <mat-calendar [startAt]="selectedDate" [(selected)]="selectedDate"
                           [dateClass]="dateClass()" (monthSelected)="getCourses(sportLevel)"
                           (selectedChange)="handleDateChange($event)" [headerComponent]="CustomHeader"></mat-calendar>
           </div>
           <div class="no-arrows no-previous">
-            <mat-calendar #secondCalendar [startAt]="nextMonthDate" [minDate]="minDate" [(selected)]="selectedDate"
+            <mat-calendar #secondCalendar [startAt]="nextMonthDate" [(selected)]="selectedDate"
                           [dateClass]="dateClass()" (monthSelected)="getCourses(sportLevel)"
                           (selectedChange)="handleDateChange($event)" [headerComponent]="CustomHeader"></mat-calendar>
           </div>
         </div>
+      </div>
+
+      <div class="availability-preview-banner" *ngIf="courseTypeId === 1">
+        <mat-icon color="primary">insights</mat-icon>
+        <span *ngIf="previewLoading">{{ 'loading' | translate }}</span>
+        <span *ngIf="!previewLoading && !previewError && (previewAvailability?.courses?.length || 0) > 0">
+          {{ previewAvailability?.summary?.total_dates || previewAvailability?.courses?.length }} fechas precargadas
+        </span>
+        <span *ngIf="!previewLoading && !previewError && (previewAvailability?.courses?.length || 0) === 0">
+          {{ 'bookings_page.description.no_dates_month' | translate }}
+        </span>
+        <span *ngIf="!previewLoading && previewError">
+          Preview no disponible
+        </span>
       </div>
 
       <mat-radio-group aria-label="Select an option" formControlName="course" class="courses-wrapper">
@@ -96,7 +110,7 @@
                   </div>
                   <div *ngFor="let courseDate of item.course_dates">
                     <div class="courseDate"
-                         *ngIf="utilsService.isFutureDate(courseDate) && String(courseDate.interval_id) === String(interval.id)"
+                         *ngIf="shouldShowCourseDate(courseDate) && String(courseDate.interval_id) === String(interval.id)"
                          style="margin-left: 8px;">
                       <img src="assets/img/icons/calendar-1.svg" />
                       <span class="courseDate_day">
@@ -111,7 +125,7 @@
               <!-- Si no tiene intervalos, mostrar normal -->
               <ng-container *ngIf="!hasIntervals(item)">
                 <ng-container *ngFor="let courseDate of item.course_dates">
-                  <div class="courseDate" *ngIf="utilsService.isFutureDate(courseDate)">
+                  <div class="courseDate" *ngIf="shouldShowCourseDate(courseDate)">
                     <img src="assets/img/icons/calendar-1.svg" />
                     <span class="courseDate_day">
                       {{ courseDate.date | date:'dd-MM-yyyy' }}
@@ -223,3 +237,5 @@
     </div>
   </form>
 </ng-template>
+
+

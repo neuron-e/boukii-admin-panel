@@ -67,8 +67,8 @@
               }}
 						</span>
           </mat-checkbox>
-          <mat-checkbox [checked]="courseActivity"
-                        (change)="courseActivity = !courseActivity;filterData(false, 1)" color="primary">
+            <mat-checkbox *ngIf="entity.includes('courses')" [checked]="courseActivity"
+                          (change)="courseActivity = !courseActivity;filterData(false, 1)" color="primary">
 						<span style="color:#00BEFFFF">
 							{{'activity' | translate
               }}
@@ -308,8 +308,13 @@
         </button>
       </div>
       </ng-container>
-      <table #dataTable *ngIf="!loading" [dataSource]="dataSource" (matSortChange)="sortData($event)" @stagger
-             class="w-full" mat-table matSort>
+        <div class="table-loader" *ngIf="loading">
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <div class="table-loader-label">{{ 'common.loading' | translate }}</div>
+        </div>
+
+        <table #dataTable *ngIf="!loading" [dataSource]="dataSource" (matSortChange)="sortData($event)" @stagger
+               class="w-full" mat-table matSort>
 
         <!-- - Note that these columns can be defined in any order.
               The actual rendered columns are set as a property on the row definition" -->
@@ -395,7 +400,7 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
-              {{ getPaymentMethod(row[column.property]) | translate }}
+              {{ getPaymentMethodByRow(row, column.property) | translate }}
             </td>
           </ng-container>
         </ng-container>
@@ -407,7 +412,7 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
-              {{ getPaymentMethod(row[column.property]) | translate }}
+              {{ getPaymentMethodByRow(row, column.property) | translate }}
             </td>
           </ng-container>
         </ng-container>
@@ -695,8 +700,13 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses"
-                [style.color]=" row[column.property] ? '#CEE741' : 'red'" mat-cell>
-              {{ (row[column.property] ? 'yes' : 'no')| translate | uppercase }}
+                [style.color]="getPaymentStatusColor(row, column.property)" mat-cell>
+              <ng-container *ngIf="isFreeBookingRow(row); else paidStatus">
+                {{ 'booking_free_short' | translate | uppercase }}
+              </ng-container>
+              <ng-template #paidStatus>
+                {{ (row[column.property] ? 'yes' : 'no')| translate | uppercase }}
+              </ng-template>
             </td>
           </ng-container>
         </ng-container>
@@ -1036,10 +1046,8 @@
             <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
               {{ column.label | translate }}
             </th>
-            <td *matCellDef="let row;let i = index" [ngClass]="column.cssClasses" mat-cell>
-              {{ row[column.property] ?
-              row[column.property] : (getShortestDuration(data[i]?.course_dates) | translate)
-              }}
+            <td *matCellDef="let row; let i = index" [ngClass]="column.cssClasses" mat-cell>
+              {{ resolveDurationDisplay(row, data[i]?.course_dates, column.property) }}
             </td>
           </ng-container>
         </ng-container>
@@ -1134,18 +1142,16 @@
               {{ column.label | translate }}
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
-              <span *ngIf="row[column.property]"
-                    class="px-2 py-1 rounded text-xs font-medium"
-                    [ngClass]="{
-                      'bg-green-100 text-green-800': row[column.property] === 1 || row[column.property] === true || row[column.property] === 'active',
-                      'bg-red-100 text-red-800': row[column.property] === 0 || row[column.property] === false || row[column.property] === 'inactive'
-                    }">
-                {{ row[column.property] === 1 || row[column.property] === true ? 'Activo' : 'Inactivo' }}
-              </span>
-              <span *ngIf="!row[column.property] && row[column.property] !== 0"
-                    class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                Sin estado
-              </span>
+              <ng-container *ngIf="getBadgeLabel(row[column.property]) as badgeLabel; else noBadge">
+                <span class="px-2 py-1 rounded text-xs font-medium" [ngClass]="getBadgeClass(row[column.property])">
+                  {{ badgeLabel | translate }}
+                </span>
+              </ng-container>
+              <ng-template #noBadge>
+                <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                  {{ 'no_status' | translate }}
+                </span>
+              </ng-template>
             </td>
           </ng-container>
         </ng-container>
@@ -1158,7 +1164,7 @@
             </th>
             <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
               <span class="font-medium">
-                {{ row[column.property] | currency:'EUR':'symbol':'1.0-2' }}
+                {{ row[column.property] | currency:currencyCode:'symbol':'1.0-2' }}
               </span>
             </td>
           </ng-container>
@@ -1278,7 +1284,7 @@
 				{{'update' | translate}}
 			</span>
     </button>
-    <button *ngIf="canDelete" (click)="delete(item)" mat-menu-item>
+    <button *ngIf="canDelete && !entity.includes('vouchers')" (click)="delete(item)" mat-menu-item>
       <mat-icon svgIcon="mat:delete"></mat-icon>
       <span>
 				{{'delete_title' | translate}}

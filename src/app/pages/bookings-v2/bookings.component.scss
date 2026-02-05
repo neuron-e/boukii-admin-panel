@@ -513,6 +513,39 @@
   }
 }
 
+.total-original-line {
+  width: 100%;
+  background-color: #f4f6f8;
+  color: #8a8a8a;
+  font-size: 0.85em;
+  font-weight: 400;
+  padding: 8px 35px;
+  border-top: 1px solid #e3e8ec;
+  text-align: right;
+}
+
+.booking-preview-card {
+  position: relative;
+}
+
+.booking-preview-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 5;
+}
+
+.booking-preview-loading .loading-text {
+  font-family: var(--font-dm);
+  font-size: 0.9rem;
+  color: var(--color-dark1);
+}
+
 .list-holder {
   padding: 0px 35px;
   font-size: 1em;

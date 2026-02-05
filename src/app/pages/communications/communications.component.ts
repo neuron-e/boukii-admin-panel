@@ -98,46 +98,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   isResizing = false;
 
   // Rich text editor now uses @kolkov/angular-editor
-  editorConfig: AngularEditorConfig = {
-    editable: true,
-    spellcheck: true,
-    height: 'auto',
-    minHeight: '400px',
-    maxHeight: '800px',
-    width: 'auto',
-    minWidth: '0',
-    translate: 'yes',
-    enableToolbar: true,
-    showToolbar: true,
-    placeholder: 'Escribe aquí el contenido de tu newsletter...',
-    defaultParagraphSeparator: 'p',
-    defaultFontName: 'Arial',
-    defaultFontSize: '3',
-    uploadUrl: '',
-    uploadWithCredentials: false,
-    sanitize: true,
-    toolbarPosition: 'top',
-    toolbarHiddenButtons: [
-      ['subscript', 'superscript'],
-      ['insertUnorderedList', 'insertOrderedList'],
-      ['fontName']
-    ],
-    customClasses: [
-      {
-        name: 'Quote',
-        class: 'quote',
-      },
-      {
-        name: 'Texto Destacado',
-        class: 'redText'
-      },
-      {
-        name: 'Título Principal',
-        class: 'titleText',
-        tag: 'h1',
-      }
-    ]
-  };
+  editorConfig!: AngularEditorConfig;
 
   newsletterStats: NewsletterStats = {
     totalSubscribers: 0,
@@ -227,6 +188,48 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     private translateService: TranslateService,
     private mailService: MailService
   ) {
+    // Initialize editor config with translations
+    this.editorConfig = {
+      editable: true,
+      spellcheck: true,
+      height: 'auto',
+      minHeight: '400px',
+      maxHeight: '800px',
+      width: 'auto',
+      minWidth: '0',
+      translate: 'yes',
+      enableToolbar: true,
+      showToolbar: true,
+      placeholder: this.translateService.instant('communications.editor_placeholder'),
+      defaultParagraphSeparator: 'p',
+      defaultFontName: 'Arial',
+      defaultFontSize: '3',
+      uploadUrl: '',
+      uploadWithCredentials: false,
+      sanitize: true,
+      toolbarPosition: 'top',
+      toolbarHiddenButtons: [
+        ['subscript', 'superscript'],
+        ['insertUnorderedList', 'insertOrderedList'],
+        ['fontName']
+      ],
+      customClasses: [
+        {
+          name: this.translateService.instant('communications.editor_class_quote'),
+          class: 'quote',
+        },
+        {
+          name: this.translateService.instant('communications.editor_class_highlighted'),
+          class: 'redText'
+        },
+        {
+          name: this.translateService.instant('communications.editor_class_main_title'),
+          class: 'titleText',
+          tag: 'h1',
+        }
+      ]
+    };
+
     this.createForm();
     this.mails$ = this.mailService.mails$;
     // Initialize filteredMails$ with mails$ as default
@@ -353,7 +356,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
           recipients_config: n.recipients_config,
           created_at: n.created_at
         }));
-        console.log('Loaded recent newsletters (sent):', this.recentNewsletters.length);
       },
       error: (error) => {
         console.error('Error loading recent newsletters:', error);
@@ -395,7 +397,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
           recipients_config: n.recipients_config,
           created_at: n.created_at
         }));
-        console.log('Loaded draft newsletters:', this.draftNewsletters.length);
       },
       error: (error) => {
         console.error('Error loading draft newsletters:', error);
@@ -405,30 +406,39 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private reloadAllNewsletterData(): void {
-    console.log('Reloading all newsletter data...');
     this.loadRecentNewsletters();
     this.loadDraftNewsletters();
     this.loadNewsletterStats();
   }
 
   private loadSubscriberStats(): void {
-    // Load active clients (those with active bookings)
-    this.crudService.get('/admin/clients/stats').subscribe({
+    // Load subscriber stats from newsletter subscribers endpoint
+    this.crudService.get('/admin/newsletters/subscriber-stats').subscribe({
       next: (response) => {
         const data = response.data || {};
         this.subscriberStats = {
-          active: data.active || 0,
-          inactive: data.inactive || 0,
-          vip: data.vip || 0
+          active: data.active || data.active_count || 0,
+          inactive: data.inactive || data.inactive_count || 0,
+          vip: data.vip || data.vip_count || 0
         };
       },
       error: (error) => {
         console.error('Error loading subscriber stats:', error);
-        this.subscriberStats = {
-          active: 0,
-          inactive: 0,
-          vip: 0
-        };
+        // Fallback: try to calculate from clients endpoint
+        this.crudService.get('/admin/clients').subscribe({
+          next: (clientsResponse) => {
+            const clients = clientsResponse.data?.data || clientsResponse.data || [];
+            // Calculate stats from client list
+            const active = clients.filter((c: any) => c.active || c.accepts_newsletter).length;
+            const inactive = clients.filter((c: any) => !c.active && !c.accepts_newsletter).length;
+            const vip = clients.filter((c: any) => c.vip || c.is_vip).length;
+
+            this.subscriberStats = { active, inactive, vip };
+          },
+          error: () => {
+            this.subscriberStats = { active: 0, inactive: 0, vip: 0 };
+          }
+        });
       }
     });
   }
@@ -674,7 +684,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
 
   // Recent Newsletters Actions
   viewNewsletter(newsletter: Newsletter): void {
-    console.log('View newsletter:', newsletter);
     // For now, redirect to view message functionality until specific newsletter view dialog is created
     this.viewNewsletterDetails(newsletter);
   }
@@ -740,7 +749,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       next: (response) => {
         // Remove from local array without showing notification
         this.draftNewsletters = this.draftNewsletters.filter(d => d.id !== draftId);
-        console.log('Draft auto-deleted after newsletter sent:', draftId);
       },
       error: (error) => {
         console.error('Error auto-deleting draft:', error);
@@ -753,7 +761,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   // Subscriber Management
 
   importSubscribers(): void {
-    console.log('Import subscribers');
 
     // Create a file input element for CSV import
     const input = document.createElement('input');
@@ -796,7 +803,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   exportSubscribers(): void {
-    console.log('Export subscribers');
 
     this.crudService.getFile('/admin/subscribers/export').subscribe({
       next: (response: Blob) => {
@@ -828,7 +834,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
 
   // Quick Actions
   createFromTemplate(): void {
-    console.log('Create from template');
     // Show custom templates section and allow selection
     // Show custom templates section
     // this.showCustomTemplates = true; // Property doesn't exist, commenting out
@@ -842,7 +847,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   scheduleNewsletter(): void {
-    console.log('Schedule newsletter');
 
     if (!this.newsletterForm.valid) {
       this.markFormGroupTouched();
@@ -887,7 +891,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   viewAnalytics(): void {
-    console.log('View analytics');
     this.selectedTabIndex = 2; // Switch to analytics tab
   }
 
@@ -966,8 +969,15 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   showCreateTemplate = false;
   showNewsletterPreview = false;
   showTemplatePreview = false;
+  showSubscriberList = false;
   previewContent: any = {};
   templatePreviewContent: any = {};
+
+  // Subscriber list data
+  subscriberListType: string = 'all';
+  subscriberListTitle: string = '';
+  subscribersList: any[] = [];
+  loadingSubscribersList = false;
 
   // Handle message click to mark as read and show details
   onMessageClick(mail: any): void {
@@ -1064,7 +1074,6 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
         }
       },
       error: (error) => {
-        console.log('Error fetching recipients for message', messageId, ':', error);
         // Cache empty array to avoid repeated API calls
         this.messageRecipientsCache.set(messageId, []);
       },
@@ -1101,7 +1110,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     if (message.to) {
       recipients.push({
         type: 'client',
-        name: message.to_name || 'Cliente',
+        name: message.to_name || this.translateService.instant('client'),
         email: message.to
       });
     }
@@ -1111,7 +1120,7 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       recipients.push({
         type: 'client',
         name: message.client_name,
-        email: message.client_email || 'cliente@email.com'
+        email: message.client_email || this.translateService.instant('client_email_placeholder')
       });
     }
 
@@ -1124,43 +1133,32 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private getCourseParticipants(message: any): any[] {
+    // TODO API: This method should fetch real course participants from the API
+    // Endpoint needed: GET /admin/courses/{course_id}/participants or similar
+    // Should return: { participants: [{ name, email, type }] }
+    // Currently returning hardcoded placeholder data
+
     // Extract course info from message content or subject
     const courseInfo = this.extractCourseInfo(message);
     const participants = [];
 
-    // Generate realistic participants based on actual message content
-    if (courseInfo.isFlexidates) {
-      // Extract actual course details from content
-      const content = message.body || message.message || message.content || '';
+    // TEMPORARY: Using placeholder data until API endpoint is available
+    // This should be replaced with actual API call when backend is ready
+    if (message.course_id) {
+      // Once API is ready, use:
+      // this.crudService.get(`/admin/courses/${message.course_id}/participants`).subscribe(...)
 
-      // Try to extract actual names from the content
-      if (content.includes('Cher(s) client(s)')) {
-        participants.push(
-          { type: 'client', name: 'Clients Flexidates', email: 'flexidates@ess-veveyse.ch' }
-        );
-      }
-
-      // Add course participants based on course type mentioned
-      if (content.includes('Jardin des P\'tits Loups des Dimanches')) {
-        participants.push({ type: 'client', name: 'Familles Jardin P\'tits Loups Dim', email: 'familles.dimanche@ess-veveyse.ch' });
-      }
-      if (content.includes('Jardin des P\'tits Loups des Samedis')) {
-        participants.push({ type: 'client', name: 'Familles Jardin P\'tits Loups Sam', email: 'familles.samedi@ess-veveyse.ch' });
-      }
-      if (content.includes('Flexidates Samedi')) {
-        participants.push({ type: 'client', name: 'Clients Flexidates Samedi', email: 'flexidates.samedi@ess-veveyse.ch' });
-      }
-      if (content.includes('Flexidates Dimanche')) {
-        participants.push({ type: 'client', name: 'Clients Flexidates Dimanche', email: 'flexidates.dimanche@ess-veveyse.ch' });
-      }
-    }
-
-    // For other course-related emails
-    if (courseInfo.isCancellation || courseInfo.isUpdate) {
       participants.push({
         type: 'client',
-        name: 'Clients du cours concerné',
-        email: 'participants.cours@ess-veveyse.ch'
+        name: this.translateService.instant('course_participants'),
+        email: this.translateService.instant('course_participants_email_placeholder')
+      });
+    } else if (courseInfo.isFlexidates || courseInfo.isCancellation || courseInfo.isUpdate) {
+      // Fallback for messages without course_id
+      participants.push({
+        type: 'client',
+        name: this.translateService.instant('course_participants'),
+        email: this.translateService.instant('course_participants_email_placeholder')
       });
     }
 
@@ -1180,17 +1178,17 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   private getSystemMessageRecipients(message: any): any[] {
-    // For system messages, return admins/staff who receive notifications
+    // TODO API: This should fetch system admins/notification recipients from API
+    // Endpoint needed: GET /admin/system-recipients or /admin/settings/notification-emails
+    // Should return: { recipients: [{ name, email, role }] }
+    // Currently returning placeholder data
+
+    // TEMPORARY: Using placeholder until API endpoint is available
     return [
       {
         type: 'system',
-        name: 'ESS Veveyse Admin',
-        email: 'admin@ess-veveyse.ch'
-      },
-      {
-        type: 'system',
-        name: 'Support Boukii',
-        email: 'support@boukii.com'
+        name: this.translateService.instant('system_admin'),
+        email: this.translateService.instant('system_admin_email_placeholder')
       }
     ];
   }
@@ -1371,8 +1369,8 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
       recipients: newsletter.recipients,
       id: newsletter.id,
       from: newsletter.from || newsletter.sent_by || {
-        name: 'Sistema Boukii',
-        email: 'noreply@boukii.com'
+        name: this.translateService.instant('system_sender_name'),
+        email: this.translateService.instant('system_sender_email')
       }
     };
     this.closeSentNewsletters();
@@ -1420,11 +1418,63 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
   }
 
   viewSubscriberGroup(groupType: string): void {
-    this.snackBar.open(
-      this.translateService.instant('communications.viewing_subscriber_group', { group: groupType }),
-      'OK',
-      { duration: 2000 }
-    );
+    this.subscriberListType = groupType;
+    this.loadingSubscribersList = true;
+    this.showSubscriberList = true;
+
+    // Set title based on type
+    const titleKeys: { [key: string]: string } = {
+      'all': 'communications.all_subscribers',
+      'active': 'communications.active_subscribers',
+      'vip': 'communications.vip_subscribers',
+      'inactive': 'communications.inactive_subscribers'
+    };
+    this.subscriberListTitle = this.translateService.instant(titleKeys[groupType] || 'communications.subscribers');
+
+    // Load subscribers based on type
+    const endpoint = `/admin/newsletters/subscribers?type=${groupType}`;
+    this.crudService.get(endpoint).subscribe({
+      next: (response) => {
+        this.subscribersList = response.data?.data || response.data || [];
+        this.loadingSubscribersList = false;
+      },
+      error: (error) => {
+        console.error('Error loading subscriber list:', error);
+        this.loadingSubscribersList = false;
+
+        // Fallback: load from clients endpoint and filter
+        this.crudService.get('/admin/clients').subscribe({
+          next: (clientsResponse) => {
+            let clients = clientsResponse.data?.data || clientsResponse.data || [];
+
+            // Filter based on type
+            if (groupType === 'active') {
+              clients = clients.filter((c: any) => c.active || c.accepts_newsletter);
+            } else if (groupType === 'inactive') {
+              clients = clients.filter((c: any) => !c.active && !c.accepts_newsletter);
+            } else if (groupType === 'vip') {
+              clients = clients.filter((c: any) => c.vip || c.is_vip);
+            }
+            // 'all' returns all clients
+
+            this.subscribersList = clients;
+          },
+          error: () => {
+            this.subscribersList = [];
+            this.snackBar.open(
+              this.translateService.instant('communications.error_loading_subscribers'),
+              'OK',
+              { duration: 3000 }
+            );
+          }
+        });
+      }
+    });
+  }
+
+  closeSubscriberList(): void {
+    this.showSubscriberList = false;
+    this.subscribersList = [];
   }
 
   exportSubscribersList(): void {
@@ -1606,9 +1656,9 @@ export class CommunicationsComponent implements OnInit, AfterViewInit {
     if (!content) return '';
     // Replace known variables with sample data for preview only
     return content
-      .replace(/\{\{\s*name\s*\}\}/g, 'María García')
-      .replace(/\{\{\s*email\s*\}\}/g, 'maria@example.com')
-      .replace(/\{\{\s*school_name\s*\}\}/g, 'Boukii Escuela')
+      .replace(/\{\{\s*name\s*\}\}/g, this.translateService.instant('preview_sample_name'))
+      .replace(/\{\{\s*email\s*\}\}/g, this.translateService.instant('preview_sample_email'))
+      .replace(/\{\{\s*school_name\s*\}\}/g, this.translateService.instant('preview_sample_school'))
       .replace(/\{\{\s*date\s*\}\}/g, new Date().toLocaleDateString())
       .replace(/\{\{\s*cta_url\s*\}\}/g, '#');
   }

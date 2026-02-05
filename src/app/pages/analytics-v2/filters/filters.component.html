@@ -118,9 +118,9 @@
 
       <!-- Season -->
       <mat-form-field *ngIf="seasons.length > 0" appearance="outline">
-        <mat-label>Temporada</mat-label>
+        <mat-label>{{ 'season' | translate }}</mat-label>
         <mat-select formControlName="seasonId">
-          <mat-option [value]="null">Todas las temporadas</mat-option>
+          <mat-option [value]="null">{{ 'settings.sports.all_sessions' | translate }}</mat-option>
           <mat-option *ngFor="let season of seasons" [value]="season.value">
             <mat-icon *ngIf="season.icon">{{ season.icon }}</mat-icon>
             {{ season.label }}
@@ -130,7 +130,7 @@
 
       <!-- Optimization Level -->
       <mat-form-field appearance="outline">
-        <mat-label>Nivel de Optimización</mat-label>
+        <mat-label>{{'optimization_level' | translate}}</mat-label>
         <mat-select formControlName="optimizationLevel">
           <mat-option *ngFor="let level of optimizationLevels" [value]="level.value">
             <mat-icon *ngIf="level.icon">{{ level.icon }}</mat-icon>
@@ -148,7 +148,7 @@
       <mat-form-field *ngIf="sports.length > 0" appearance="outline">
         <mat-label>Deporte</mat-label>
         <mat-select formControlName="sportId">
-          <mat-option [value]="null">Todos los deportes</mat-option>
+          <mat-option [value]="null">{{'all_sports' | translate}}</mat-option>
           <mat-option *ngFor="let sport of sports" [value]="sport.value" [disabled]="sport.disabled">
             <mat-icon *ngIf="sport.icon">{{ sport.icon }}</mat-icon>
             {{ sport.label }}
@@ -158,9 +158,9 @@
 
       <!-- Course Type -->
       <mat-form-field appearance="outline">
-        <mat-label>Tipo de Curso</mat-label>
+        <mat-label>{{'table.filter.course' | translate}}</mat-label>
         <mat-select formControlName="courseType">
-          <mat-option [value]="null">Todos los tipos</mat-option>
+          <mat-option [value]="null">{{'All Course Types' | translate}}</mat-option>
           <mat-option *ngFor="let type of courseTypes" [value]="type.value">
             <mat-icon *ngIf="type.icon">{{ type.icon }}</mat-icon>
             {{ type.label }}
@@ -170,9 +170,9 @@
 
       <!-- Source -->
       <mat-form-field appearance="outline">
-        <mat-label>Fuente de Reserva</mat-label>
+        <mat-label>{{'booking_source' | translate}}</mat-label>
         <mat-select formControlName="source">
-          <mat-option [value]="null">Todas las fuentes</mat-option>
+          <mat-option [value]="null">{{'all' | translate}}</mat-option>
           <mat-option *ngFor="let source of sources" [value]="source.value">
             <mat-icon *ngIf="source.icon">{{ source.icon }}</mat-icon>
             {{ source.label }}
@@ -198,7 +198,7 @@
               [disabled]="!isDateRangeValid"
               type="button">
         <mat-icon>search</mat-icon>
-        Aplicar Filtros
+        {{ 'timeline.apply_filters' | translate }}
       </button>
     </div>
 

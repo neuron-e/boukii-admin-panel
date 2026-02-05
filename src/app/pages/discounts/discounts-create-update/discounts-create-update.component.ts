@@ -13,6 +13,7 @@ import { ApiCrudService } from 'src/service/crud.service';
 import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
 import { stagger20ms } from 'src/@vex/animations/stagger.animation';
 import { TranslateService } from '@ngx-translate/core';
+import { SchoolService } from 'src/service/school.service';
 
 function discountValueValidator(control: AbstractControl): ValidationErrors | null {
   const formGroup = control.parent;
@@ -111,6 +112,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
 
   private lastCourseSearch = '';
   private lastClientSearch = '';
+  currencyCode: string;
 
   @ViewChild('courseInput') courseInput: ElementRef<HTMLInputElement>;
   @ViewChild('clientInput') clientInput: ElementRef<HTMLInputElement>;
@@ -121,16 +123,18 @@ export class DiscountsCreateUpdateComponent implements OnInit {
     private snackbar: MatSnackBar,
     private router: Router,
     private translateService: TranslateService,
+    private schoolService: SchoolService,
     @Optional() public dialogRef: MatDialogRef<DiscountsCreateUpdateComponent>,
     @Optional() @Inject(MAT_DIALOG_DATA) public data: any
   ) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.mode = data?.mode || 'create';
     this.id = data?.id ?? null;
+    this.currencyCode = this.getDefaultCurrency();
 
     this.form = this.fb.group({
       code: [null, Validators.required],
-      name: [null, Validators.required],
+      name: [null, [Validators.maxLength(255)]],
       description: [null],
       discount_type: ['percentage', Validators.required],
       discount_value: [null, [Validators.required, discountValueValidator]],
@@ -147,6 +151,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadCurrency();
     this.setupFilters();
     this.loadCourses();
     this.loadClients();
@@ -195,6 +200,26 @@ export class DiscountsCreateUpdateComponent implements OnInit {
         return typeof value === 'string' ? this.filterClients(term) : of([]);
       })
     );
+  }
+
+  private loadCurrency(): void {
+    this.schoolService.getSchoolData().subscribe({
+      next: (response: any) => {
+        const settings = this.parseSettingsPayload(response?.data?.settings ?? response?.settings);
+        const currency = this.resolveCurrencyCandidate(
+          response?.data?.taxes?.currency,
+          response?.data?.currency,
+          response?.currency,
+          settings?.taxes?.currency,
+          this.user?.schools?.[0]?.taxes?.currency,
+          this.user?.schools?.[0]?.currency
+        );
+        this.currencyCode = currency || this.currencyCode;
+      },
+      error: () => {
+        this.currencyCode = this.getDefaultCurrency();
+      }
+    });
   }
 
   private loadCourses(searchTerm: string = ''): void {
@@ -419,7 +444,7 @@ export class DiscountsCreateUpdateComponent implements OnInit {
   }
 
   getDiscountCode(): void {
-    this.crudService.get('/discount-codes/' + this.id, ['courses', 'clients']).subscribe({
+    this.crudService.get('/discount-codes/' + this.id).subscribe({
       next: (response: any) => {
         const discount = response?.data;
         if (!discount) {
@@ -573,5 +598,40 @@ export class DiscountsCreateUpdateComponent implements OnInit {
 
   navigateToList(): void {
     this.router.navigate(['/vouchers'], { queryParams: { tab: 'discounts' } });
+  }
+
+  private parseSettingsPayload(raw: any): any {
+    if (!raw) {
+      return null;
+    }
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+    if (typeof raw === 'object') {
+      return raw;
+    }
+    return null;
+  }
+
+  private resolveCurrencyCandidate(...candidates: Array<string | null | undefined>): string | null {
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  private getDefaultCurrency(): string {
+    return (
+      this.resolveCurrencyCandidate(
+        this.user?.schools?.[0]?.taxes?.currency,
+        this.user?.schools?.[0]?.currency
+      ) || 'EUR'
+    );
   }
 }

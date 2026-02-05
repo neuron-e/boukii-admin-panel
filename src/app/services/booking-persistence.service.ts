@@ -53,8 +53,6 @@ export class BookingPersistenceService {
         bookingId,
         timestamp: draft.timestamp
       });
-
-      console.log('📝 Borrador guardado:', bookingId);
     } catch (error) {
       console.warn('Error al guardar borrador:', error);
       this.handleStorageError(error);
@@ -84,8 +82,6 @@ export class BookingPersistenceService {
         console.warn('Borrador pertenece a otro usuario');
         return null;
       }
-
-      console.log('📋 Borrador cargado:', bookingId);
       return draft;
     } catch (error) {
       console.warn('Error al cargar borrador:', error);
@@ -106,8 +102,6 @@ export class BookingPersistenceService {
       bookingId,
       timestamp: Date.now()
     });
-
-    console.log('🗑️ Borrador eliminado:', bookingId);
   }
 
   /**
@@ -170,7 +164,6 @@ export class BookingPersistenceService {
       keysToRemove.forEach(key => localStorage.removeItem(key));
 
       if (keysToRemove.length > 0) {
-        console.log(`🧹 Limpieza completada: ${keysToRemove.length} borradores expirados eliminados`);
       }
     } catch (error) {
       console.warn('Error en limpieza de borradores:', error);

@@ -88,7 +88,7 @@
 
             <mat-form-field appearance="outline" class="flex-auto">
               <mat-label>{{'birth_date' | translate}}</mat-label>
-              <input type="date" class="flex-auto" formControlName="fromDate" [max]="minDate" [(ngModel)]="defaults.birth_date" required>
+              <input matInput type="date" class="flex-auto" formControlName="fromDate" [max]="minDate" [(ngModel)]="defaults.birth_date" required>
               <mat-error *ngIf="formPersonalInfo.controls?.fromDate?.errors?.['required']">
                 {{'clients.creation.errors.monitor_date' | translate }}
               </mat-error>
@@ -238,26 +238,14 @@
             </mat-table>
           </div>
 
-          <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-            <mat-form-field appearance="outline" class="flex-auto">
-              <mat-label>{{'observation_general' | translate}}</mat-label>
-              <textarea formControlName="summary" matInput [(ngModel)]="defaultsObservations.general"></textarea>
-            </mat-form-field>
-          </div>
+          
+<div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+  <mat-form-field appearance="outline" class="flex-auto">
+    <mat-label>{{'client_observations' | translate}}</mat-label>
+    <textarea formControlName="observation" matInput></textarea>
+  </mat-form-field>
+</div>
 
-          <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-            <mat-form-field appearance="outline" class="flex-auto">
-              <mat-label>{{'observation_school' |translate}}</mat-label>
-              <textarea formControlName="notes" matInput [(ngModel)]="defaultsObservations.notes"></textarea>
-            </mat-form-field>
-          </div>
-
-          <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-            <mat-form-field appearance="outline" class="flex-auto">
-              <mat-label>{{'historical' | translate }}</mat-label>
-              <textarea formControlName="hitorical" matInput [(ngModel)]="defaultsObservations.historical"></textarea>
-            </mat-form-field>
-          </div>
 
           <!-- Newsletter Checkbox -->
           <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin-top: 20px;">

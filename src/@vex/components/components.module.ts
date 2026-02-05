@@ -13,17 +13,18 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import {MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBarModule} from '@angular/material/snack-bar';
 import { AioTableComponent } from './aio-table/aio-table.component';
 import { LayoutModule } from '@angular/cdk/layout';
 import { PageLayoutModule } from './page-layout/page-layout.module';
 import { BreadcrumbsModule } from './breadcrumbs/breadcrumbs.module';
-import { BookingsCreateUpdateModule } from 'src/app/pages/bookings/bookings-create-update/bookings-create-update.module';
-import { CoursesCreateUpdateModule } from 'src/app/pages/courses/courses-create-update/courses-create-update.module';
+import { BookingsCreateUpdateModule } from 'src/app/pages/bookings-v2/bookings-create-update/bookings-create-update.module';
+import { CoursesCreateUpdateModule } from 'src/app/pages/courses-v2/courses-create-update/courses-create-update.module';
 import { DateTimeDialogComponent } from './date-time-dialog/date-time-dialog.component';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
+import { DateAdapter, MatNativeDateModule, NativeDateAdapter } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
 import { ReductionDialogComponent } from './reduction-dialog/reduction-dialog.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -55,6 +56,7 @@ import { ComponenteButtonModule } from './form/button/app.module';
     LayoutModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
     BookingsCreateUpdateModule,
     CoursesCreateUpdateModule,
     MatAutocompleteModule,
@@ -66,6 +68,14 @@ import { ComponenteButtonModule } from './form/button/app.module';
 
   ],
   providers: [
+    {
+      provide: DateAdapter,
+      useClass: class MondayDateAdapter extends NativeDateAdapter {
+        override getFirstDayOfWeek(): number {
+          return 1;
+        }
+      }
+    },
     {
       provide: MAT_SNACK_BAR_DEFAULT_OPTIONS,
       useValue: { verticalPosition: 'top', horizontalPosition: 'center', duration: 3000 }

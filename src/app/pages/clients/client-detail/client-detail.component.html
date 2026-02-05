@@ -37,6 +37,12 @@
             {{defaults.first_name}}
             {{defaults.last_name}}
           </h1>
+          <div class="flex items-center gap-2" style="margin-top: 4px;">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold"
+                  [ngClass]="defaultsUser?.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+              {{ defaultsUser?.active ? ('active' | translate) : ('inactive' | translate) }}
+            </span>
+          </div>
           <div style="display: flex;">
             <vex-icon src="chat"></vex-icon>
             <vex-icon src="mail" href="mailto:{{defaults.email}}" style="cursor:pointer"
@@ -414,71 +420,28 @@
 
 
             <div *ngIf="showPersonalInfo" class="px-6 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="py-3 flex items-center">
+              <div class="py-3 flex items-start">
                 <div @scaleIn
                      class="w-10 h-10 rounded-full bg-primary-600/10 text-primary-600 ltr:mr-3 rtl:ml-3 flex items-center justify-center">
                   <mat-icon class="icon-sm" svgIcon="logo:task"></mat-icon>
                 </div>
 
-
                 <div @fadeInRight>
                   <p class="m-0 caption text-hint">
-                    {{'observation_school'|
-                    translate }}
+                    {{'client_observations' | translate}}
                   </p>
-                  <p class="m-0 body-1">
-                    {{defaultsObservations?.notes ||
-                  ('not_assigned' | translate)}}
-                  </p>
+                  <div class="m-0 body-1" *ngIf="observationHistory.length; else noObservations">
+                    <div *ngFor="let obs of observationHistory" style="white-space: pre-line;">
+                      {{ obs }}
+                    </div>
+                  </div>
+                  <ng-template #noObservations>
+                    <p class="m-0 body-1">
+                      {{ 'not_assigned' | translate }}
+                    </p>
+                  </ng-template>
                 </div>
-
-
               </div>
-
-
-              <div class="py-3 flex items-center">
-                <div @scaleIn
-                     class="w-10 h-10 rounded-full bg-primary-600/10 text-primary-600 ltr:mr-3 rtl:ml-3 flex items-center justify-center">
-                  <mat-icon class="icon-sm" svgIcon="logo:task"></mat-icon>
-                </div>
-
-
-                <div @fadeInRight>
-                  <p class="m-0 caption text-hint">
-                    {{'observation_general' |
-                    translate}}
-                  </p>
-                  <p class="m-0 body-1">
-                    {{defaultsObservations?.general ||
-                  ('not_assigned' | translate)}}
-                  </p>
-                </div>
-
-
-              </div>
-
-              <div class="py-3 flex items-center">
-                <div @scaleIn
-                     class="w-10 h-10 rounded-full bg-primary-600/10 text-primary-600 ltr:mr-3 rtl:ml-3 flex items-center justify-center">
-                  <mat-icon class="icon-sm" svgIcon="logo:task"></mat-icon>
-                </div>
-
-
-                <div @fadeInRight>
-                  <p class="m-0 caption text-hint">
-                    {{'historical' |
-                    translate}}
-                  </p>
-                  <p class="m-0 body-1">
-                    {{defaultsObservations?.historical ||
-                  ('not_assigned' | translate)}}
-                  </p>
-                </div>
-
-
-              </div>
-
-
             </div>
           </div>
         </div>
@@ -508,18 +471,31 @@
            word-wrap: break-word">
             {{'sport_evolution' | translate }}
           </span>
-            <div #sliderContainer (scroll)="onScroll()" class="flowcard">
-              <div class="arrowflowcard">
-                <img (click)="scrollLeft(-1)" src="assets/icons/arrow-left-1.png" style="cursor: pointer;"
-                     class="icon60 flecha">
-                <img (click)="scrollLeft(1)" src="assets/icons/arrow-right-1.png" style="cursor: pointer;"
-                     class="icon60 flecha">
+            <div *ngIf="!loading && selectedSport && sportCardGroups.length>0" class="sport-card-groups">
+              <div *ngFor="let group of sportCardGroups" class="sport-card-group">
+                <div class="sport-card-group-header">
+                  <span class="group-badge" [style.background]="group.color">{{ group.label }}</span>
+                </div>
+                <div class="sport-card-grid">
+                  <app-user-detail-sport-card *ngFor="let item of group.items" [selectedSport]="selectedSport"
+                                              [level]="item.degree" [goals]="item.goals">
+                  </app-user-detail-sport-card>
+                </div>
               </div>
-              <div *ngIf="!loading && selectedSport && sportCard.length>0" class="flex-sections-user flowcardGroup">
-                <app-user-detail-sport-card *ngFor="let item of sportCard; index as i" [selectedSport]="selectedSport"
-                                            [level]="item.degree" [goals]="item.goals" [center]="i === centeredCardIndex">
-                </app-user-detail-sport-card>
-              </div>
+            </div>
+            <!-- Empty state cuando no hay deportes -->
+            <div *ngIf="!loading && (!selectedSport || sportCardGroups.length === 0)"
+                 style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; color: #8B9099;">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.3; margin-bottom: 16px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 6v6l4 2"></path>
+              </svg>
+              <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #374151;">
+                {{ 'no_sports_yet' | translate }}
+              </p>
+              <p style="margin: 0; font-size: 14px; color: #8B9099; max-width: 300px;">
+                {{ 'add_sports_message' | translate }}
+              </p>
             </div>
           </div>
         </div>
@@ -581,7 +557,7 @@
                           <div style="float: left; width:100%;margin: 2% 0 0 0;">
 
 
-                            <mat-progress-bar [value]="calculateGoalsScore()"
+                            <mat-progress-bar [value]="calculateGoalsScore()" [ngClass]="getProgressClass(calculateGoalsScore())"
                               [color]="selectedSport?.level?.color" mode="determinate"></mat-progress-bar>
 
 
@@ -648,10 +624,7 @@
                               style="height: 150px;width: 150px;object-fit: cover;">
 
 
-                            <video *ngIf="file.type === 'video'" width="150" heigth="150" controls>
-                              <source [src]="file.file" type="video/mp4">
-                              <source [src]="file.file" type="video/ogg">
-                            </video>
+                            <video *ngIf="file.type === 'video'" [src]="file.file" width="150" height="150" controls playsinline></video>
 
 
                           </ng-container>
@@ -1132,11 +1105,15 @@
 							{{'no_payed' | translate | uppercase }}
 						</span>
 						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 3"
-                  style="color:#FA9917;background-color: #F7E399;">
-							{{'link_send' | translate | uppercase }}
+                    style="color:#FA9917;background-color: #F7E399;">
+							{{(detailData?.payment_method_status === 'link_expired' ? 'link_expired' : 'link_send') | translate | uppercase }}
 						</span>
-					</span>
-                  </div>
+						<span *ngIf="detailData?.status === 1 && !detailData?.paid && detailData?.payment_method_id == 7"
+							style="color:#FA9917;background-color: #F7E399;">
+							{{(detailData?.payment_method_status === 'invoice_overdue' ? 'invoice_overdue' : 'invoice_pending') | translate | uppercase }}
+						</span>
+ 					</span>
+ 				</div>
                 </mat-card-header>
                 <mat-card-content>
                   <div style="width: 100%;">
@@ -1498,16 +1475,7 @@
                       </div>
                     </div>
 
-                    <div class="list-inner-holder">
-                      <div class="col-left">
-                        <mat-slide-toggle [disabled]="true"
-                                          [checked]="detailData?.has_boukii_care"></mat-slide-toggle>
-                        Boukii Care
-                      </div>
-                      <div class="col-right">
-                        {{detailData?.price_boukii_care | number:'0.2-2'}} {{detailData?.currency}}
-                      </div>
-                    </div>
+                    <div class="list-inner-holder" *ngIf="false"></div>
 
                     <div class="list-inner-holder">
                       <div class="col-left">
@@ -1724,6 +1692,15 @@
                                    [edit]="true" [width]="200" [height]="200" [roundCropper]="true">
               </vex-flux-upload-img>
 
+              <div class="flex items-center justify-end" style="margin: 8px 0 4px 0;">
+                {{'active' | translate}}
+                <mat-slide-toggle
+                  [(ngModel)]="defaultsUser.active"
+                  [ngModelOptions]="{standalone: true}"
+                  style="margin-left: 8px;">
+                </mat-slide-toggle>
+              </div>
+
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0;">
                 <mat-form-field appearance="outline" class="flex-auto">
                   <mat-label>
@@ -1744,133 +1721,6 @@
                   <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
                 </mat-form-field>
               </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>Email</mat-label>
-                  <input formControlName="email" matInput required
-                         type="mail">
-                  <mat-icon class="mr-2" matPrefix>
-                    main
-                  </mat-icon>
-                </mat-form-field>
-
-
-                <!-- <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>{{'username' | translate }}</mat-label>
-                  <input formControlName="username" matInput type="text"
-                    [(ngModel)]="defaultsUser.username">
-                  <mat-icon class="mr-2" matPrefix
-                    svgIcon="logo:task"></mat-icon>
-                </mat-form-field> -->
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>Password</mat-label>
-                  <input formControlName="password" matInput
-                         type="password">
-                  <mat-icon class="mr-2" matPrefix svgIcon="logo:lock"></mat-icon>
-                </mat-form-field>
-              </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <div style="float:right">
-                  {{'active' |translate}}
-                  <mat-slide-toggle [checked]="checkClientStatus(clientSchool)"
-                                    (change)="setActive($event)"></mat-slide-toggle>
-                </div>
-              </div>
-              <div class="actions flex items-center justify-end gap-2">
-                <button (click)="editing = false; selectedTabIndex = 0" mat-button type="button">
-                  {{'cancel' |
-                  translate }}
-                </button>
-                <button (click)="goTo('/clients')" mat-button type="button">
-                  {{'go_list' | translate }}
-                </button>
-                <button [disabled]="formInfoAccount.invalid" (click)="save()" color="primary"
-                        mat-raised-button>
-                  {{'save' | translate}}
-                </button>
-                <button [disabled]="formInfoAccount.invalid" color="primary" mat-raised-button
-                        matStepperNext>
-                  {{'next' | translate}}
-                </button>
-              </div>
-            </form>
-          </mat-step>
-          <mat-step [stepControl]="formPersonalInfo">
-            <form [formGroup]="formPersonalInfo">
-              <ng-template matStepLabel>
-                {{'personal_data' | translate
-                }}
-              </ng-template>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0;">
-
-
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>{{'birth_date' | translate}}</mat-label>
-                  <input type="date" matInput class="flex-auto" formControlName="fromDate" [max]="minDate" required>
-                  <mat-error *ngIf="formPersonalInfo.controls?.fromDate?.errors?.['required']">
-                    {{'clients.creation.errors.monitor_date' | translate }}
-                  </mat-error>
-                </mat-form-field>
-
-
-              </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'phone' | translate }}
-                  </mat-label>
-
-
-                  <input formControlName="phone" matInput type="tel">
-                  <mat-icon class="mr-2" matPrefix>
-                    phone
-                  </mat-icon>
-                </mat-form-field>
-
-
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'mobile' | translate }}
-                  </mat-label>
-                  <input formControlName="mobile" matInput required
-                         type="tel">
-                  <mat-icon class="mr-2" matPrefix>
-                    phone
-                  </mat-icon>
-                </mat-form-field>
-              </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'address' | translate }}
-                  </mat-label>
-
-
-                  <input formControlName="address" matInput
-                         type="text">
-                  <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
-                </mat-form-field>
-
-
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'cp' | translate }}
-                  </mat-label>
-                  <input formControlName="postalCode" matInput type="text">
-                  <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
-                </mat-form-field>
-              </div>
-
 
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                 <mat-form-field appearance="outline" class="vex-flex-form-field flex-auto">
@@ -1941,9 +1791,87 @@
                         mat-raised-button>
                   {{'save' | translate}}
                 </button>
-                <button [disabled]="formPersonalInfo.invalid" color="primary" mat-raised-button
+                <button [disabled]="formInfoAccount.invalid" color="primary" mat-raised-button
                         matStepperNext>
                   {{'next' |translate}}
+                </button>
+              </div>
+            </form>
+          </mat-step>
+
+
+          <mat-step [stepControl]="formPersonalInfo">
+            <form [formGroup]="formPersonalInfo">
+              <ng-template matStepLabel>
+                {{'personal_data' | translate}}
+              </ng-template>
+
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6" style="margin: 3% 0 0 0;">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'birth_date' | translate}}
+                  </mat-label>
+                  <input formControlName="fromDate" matInput type="date" [max]="minDate" required>
+                  <mat-icon class="mr-2" matPrefix svgIcon="mat:calendar_today"></mat-icon>
+                </mat-form-field>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'phone' | translate}}
+                  </mat-label>
+                  <input formControlName="phone" matInput type="tel">
+                  <mat-icon class="mr-2" matPrefix>phone</mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'mobile' | translate}}
+                  </mat-label>
+                  <input formControlName="mobile" matInput required type="tel">
+                  <mat-icon class="mr-2" matPrefix>phone</mat-icon>
+                  <mat-error *ngIf="formPersonalInfo.controls?.mobile?.errors?.['required']">
+                    {{'clients.creation.errors.mobile' | translate}}
+                  </mat-error>
+                </mat-form-field>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'address' | translate}}
+                  </mat-label>
+                  <input formControlName="address" matInput type="text">
+                  <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="flex-auto">
+                  <mat-label>
+                    {{'cp' | translate}}
+                  </mat-label>
+                  <input formControlName="postalCode" matInput type="text">
+                  <mat-icon class="mr-2" matPrefix svgIcon="logo:task"></mat-icon>
+                </mat-form-field>
+              </div>
+
+              <div class="actions flex items-center justify-end gap-2">
+                <button (click)="editing = false; selectedTabIndex = 0" mat-button type="button">
+                  {{'cancel' | translate}}
+                </button>
+                <button (click)="goTo('/clients')" mat-button type="button">
+                  {{'go_list' | translate}}
+                </button>
+                <button [disabled]="formInfoAccount.invalid" (click)="save()" color="primary"
+                        mat-raised-button>
+                  {{'save' | translate}}
+                </button>
+                <button mat-button matStepperPrevious type="button">
+                  {{'back' | translate}}
+                </button>
+                <button [disabled]="formPersonalInfo.invalid" color="primary" mat-raised-button
+                        matStepperNext>
+                  {{'next' | translate}}
                 </button>
               </div>
             </form>
@@ -2100,12 +2028,14 @@
                         <mat-label>
                           {{'level' | translate }}
                         </mat-label>
-                        <input [formControl]="levelForm" [matAutocomplete]="autoLevel"
+                        <input [matAutocomplete]="autoLevel" [value]="element?.level?.name"
+                               [(ngModel)]="element.level" [ngModelOptions]="{standalone: true}"
                                type="text" placeholder="Pick one"
                                aria-label="Number" matInput>
                         <mat-autocomplete #autoLevel="matAutocomplete"
                                           [displayWith]="displayFnLevel">
-                          <mat-option *ngFor="let level of element.degrees" [value]="level">
+                          <mat-option *ngFor="let level of element.degrees" [value]="level"
+                                      (onSelectionChange)="assignLevelToNewSport(element, level)">
                             {{level.annotation}} - {{level.name}}
                           </mat-option>
                         </mat-autocomplete>
@@ -2137,7 +2067,7 @@
                 <button (click)="goTo('/clients')" mat-button type="button">
                   {{'go_list' | translate }}
                 </button>
-                <button [disabled]="formPersonalInfo.invalid" color="primary" mat-raised-button>
+                <button [disabled]="formSportInfo.invalid" color="primary" mat-raised-button>
                   {{'save' |translate}}
                 </button>
               </div>
@@ -2158,31 +2088,9 @@
               <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
                 <mat-form-field appearance="outline" class="flex-auto">
                   <mat-label>
-                    {{'observation_general' |translate}}
+                    {{'client_observations' | translate}}
                   </mat-label>
-                  <textarea formControlName="summary"
-                            matInput></textarea>
-                </mat-form-field>
-              </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'observation_school' |translate}}
-                  </mat-label>
-                  <textarea formControlName="notes"
-                            matInput></textarea>
-                </mat-form-field>
-              </div>
-
-
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-6">
-                <mat-form-field appearance="outline" class="flex-auto">
-                  <mat-label>
-                    {{'historical' | translate }}
-                  </mat-label>
-                  <textarea formControlName="hitorical"
+                  <textarea formControlName="observation"
                             matInput></textarea>
                 </mat-form-field>
               </div>
@@ -2216,7 +2124,7 @@
                 <button (click)="goTo('/clients')" mat-button type="button">
                   {{'go_list' | translate }}
                 </button>
-                <button [disabled]="formPersonalInfo.invalid" (click)="save()" color="primary"
+                <button [disabled]="formOtherInfo.invalid" (click)="save()" color="primary"
                         mat-raised-button>
                   {{'save' | translate}}
                 </button>
@@ -2288,7 +2196,7 @@
 
 
                   <div style="float: left; width:100%;margin: 2% 0 0 0;">
-                    <mat-progress-bar [value]="calculateGoalsScore()"
+                    <mat-progress-bar [value]="calculateGoalsScore()" [ngClass]="getProgressClass(calculateGoalsScore())"
                       [color]="selectedSport?.level?.color" mode="determinate"></mat-progress-bar>
 
 
@@ -2384,18 +2292,32 @@
            word-wrap: break-word">
             {{'sport_evolution' | translate }}
           </span>
-            <div #sliderContainer (scroll)="onScroll()" class="flowcard">
-              <div class="arrowflowcard">
-                <img (click)="scrollLeft(-1)" src="assets/icons/arrow-left-1.png" style="cursor: pointer;"
-                     class="icon60 flecha">
-                <img (click)="scrollLeft(1)" src="assets/icons/arrow-right-1.png" style="cursor: pointer;"
-                     class="icon60 flecha">
+            <div *ngIf="!loading && selectedSport && sportCardGroups.length>0" class="sport-card-groups">
+              <div *ngFor="let group of sportCardGroups" class="sport-card-group">
+                <div class="sport-card-group-header">
+                  <span class="group-dot" [style.background]="group.color"></span>
+                  <span class="group-label">{{ group.color }}</span>
+                </div>
+                <div class="sport-card-grid">
+                  <app-user-detail-sport-card *ngFor="let item of group.items" [selectedSport]="selectedSport"
+                                              [level]="item.degree" [goals]="item.goals">
+                  </app-user-detail-sport-card>
+                </div>
               </div>
-              <div *ngIf="!loading && selectedSport && sportCard.length>0" class="flex-sections-user flowcardGroup">
-                <app-user-detail-sport-card *ngFor="let item of sportCard; index as i" [selectedSport]="selectedSport"
-                                            [level]="item.degree" [goals]="item.goals" [center]="i === centeredCardIndex">
-                </app-user-detail-sport-card>
-              </div>
+            </div>
+            <!-- Empty state cuando no hay deportes -->
+            <div *ngIf="!loading && (!selectedSport || sportCardGroups.length === 0)"
+                 style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; color: #8B9099;">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.3; margin-bottom: 16px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 6v6l4 2"></path>
+              </svg>
+              <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #374151;">
+                {{ 'no_sports_yet' | translate }}
+              </p>
+              <p style="margin: 0; font-size: 14px; color: #8B9099; max-width: 300px;">
+                {{ 'add_sports_message' | translate }}
+              </p>
             </div>
           </div>
         </div>

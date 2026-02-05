@@ -29,52 +29,71 @@
           {{ 'gift_vouchers' | translate }}
         </ng-template>
       </mat-tab>
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="mr-2">redeem</mat-icon>
+          {{ 'gift_vouchers_purchased' | translate }}
+        </ng-template>
+      </mat-tab>
     </mat-tab-group>
 
     <!-- Table view for Purchase Vouchers and Discount Codes -->
-    <vex-aio-table *ngIf="entity && selectedTab !== 2" [columns]="columns" [entity]="entity" [deleteEntity]="deleteEntity"
+    <vex-aio-table *ngIf="entity && selectedTab !== 2 && selectedTab !== 3" [columns]="columns" [entity]="entity" [deleteEntity]="deleteEntity"
                    [title]="currentTitle"
-                   [route]="currentRoute" [createComponent]="createComponent" [canDelete]="false"
+                   [route]="currentRoute" [createComponent]="createComponent" [canDelete]="true"
                    [canDeactivate]="false" [sectionIcon]="icon"
                    [with]="currentWith" [search]="searchParams"
+                   [currencyCode]="currencyCode"
                    [createOnModal]="true" [widthModal]="'800px'" [heigthModal]="'90vh'"></vex-aio-table>
 
-    <!-- Card view for Gift Vouchers -->
+    <!-- Card/Table view for Gift Vouchers (vouchers with is_gift=1) -->
     <div *ngIf="selectedTab === 2" class="gift-vouchers-container">
       <div class="header-section">
         <h2 class="title">{{ 'gift_vouchers' | translate }}</h2>
-        <button mat-raised-button color="primary" (click)="createGiftVoucher()">
-          <mat-icon class="mr-2">add</mat-icon>
-          {{ 'create_gift_voucher' | translate }}
-        </button>
+        <div class="header-actions">
+          <mat-button-toggle-group [value]="giftVouchersViewMode" (change)="toggleGiftVouchersView()" class="view-toggle">
+            <mat-button-toggle value="cards">
+              <mat-icon>view_module</mat-icon>
+              {{ 'card_view' | translate }}
+            </mat-button-toggle>
+            <mat-button-toggle value="table">
+              <mat-icon>view_list</mat-icon>
+              {{ 'table_view' | translate }}
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
       </div>
 
-      <div class="cards-grid" *ngIf="giftVouchers && giftVouchers.length > 0">
+      <!-- Cards View -->
+      <div class="cards-grid" *ngIf="giftVouchersViewMode === 'cards' && giftVouchers && giftVouchers.length > 0">
         <mat-card *ngFor="let voucher of giftVouchers" class="gift-card"
                   [ngClass]="'gift-card-' + (voucher.id % 4)">
           <div class="card-gradient">
             <div class="card-header">
               <mat-icon class="gift-icon">card_giftcard</mat-icon>
-              <span class="voucher-amount">{{ voucher.quantity | currency:'EUR':'symbol':'1.0-0' }}</span>
+              <span class="voucher-amount">{{ voucher.amount | currency:currencyCode:'symbol':'1.0-0' }}</span>
             </div>
 
             <div class="card-content">
-              <p class="message" *ngIf="voucher.notes || voucher.description">{{ voucher.notes || voucher.description }}</p>
-              <div class="recipient-info" *ngIf="voucher.client">
+              <p class="message" *ngIf="voucher.personal_message">{{ voucher.personal_message }}</p>
+              <div class="recipient-info" *ngIf="voucher.recipient_name">
                 <mat-icon class="small-icon">person</mat-icon>
-                <span>{{ voucher.client.first_name }} {{ voucher.client.last_name }}</span>
+                <span>{{ voucher.recipient_name }}</span>
               </div>
-              <div class="recipient-info" *ngIf="!voucher.client">
-                <mat-icon class="small-icon">card_giftcard</mat-icon>
-                <span>{{ 'Generic Voucher' | translate }}</span>
+              <div class="recipient-info" *ngIf="voucher.buyer_name">
+                <mat-icon class="small-icon">shopping_cart</mat-icon>
+                <span>{{ 'from' | translate }}: {{ voucher.buyer_name }}</span>
               </div>
             </div>
 
             <div class="card-footer">
               <div class="code-section">
-                <span class="code-label">Código:</span>
+                <span class="code-label">{{ 'code' | translate }}:</span>
                 <span class="code-value">{{ voucher.code }}</span>
-                <button mat-icon-button (click)="copyCode(voucher.code)" class="copy-btn">
+                <button mat-icon-button
+                        (click)="copyCode(voucher.code)"
+                        [matTooltip]="'copy_code' | translate"
+                        class="copy-btn">
                   <mat-icon>content_copy</mat-icon>
                 </button>
               </div>
@@ -82,38 +101,168 @@
                 <mat-icon class="small-icon">calendar_today</mat-icon>
                 <span>{{ voucher.created_at | date:'dd/MM/yyyy' }}</span>
               </div>
-              <div class="status-badge" [ngClass]="voucher.payed ? 'status-used' : 'status-active'">
-                {{ voucher.payed ? 'Usado' : 'Activo' }}
+              <div class="status-badge" [ngClass]="voucher.is_paid ? (voucher.balance > 0 ? 'status-active' : 'status-used') : 'status-used'">
+                {{ voucher.status | translate }}
               </div>
             </div>
           </div>
 
           <mat-card-actions>
-            <button mat-icon-button [matMenuTriggerFor]="menu">
+            <button mat-icon-button
+                    [matMenuTriggerFor]="menuGift"
+                    [matTooltip]="'actions' | translate">
               <mat-icon>more_vert</mat-icon>
             </button>
-            <mat-menu #menu="matMenu">
-              <button mat-menu-item (click)="viewVoucher(voucher)">
+            <mat-menu #menuGift="matMenu">
+              <button mat-menu-item (click)="viewGiftVoucher(voucher)">
                 <mat-icon>visibility</mat-icon>
-                <span>Ver detalles</span>
+                <span>{{ 'view_details' | translate }}</span>
               </button>
-              <button mat-menu-item (click)="editVoucher(voucher)">
-                <mat-icon>edit</mat-icon>
-                <span>Editar</span>
-              </button>
-              <button mat-menu-item (click)="openTransferDialog(voucher)"
-                      [disabled]="!voucher.is_transferable || voucher.transferred_at">
-                <mat-icon>send</mat-icon>
-                <span>Transferir</span>
+              <button mat-menu-item (click)="deleteGiftVoucher(voucher)">
+                <mat-icon>delete</mat-icon>
+                <span>{{ 'delete_title' | translate }}</span>
               </button>
             </mat-menu>
           </mat-card-actions>
         </mat-card>
       </div>
 
-      <div class="empty-state" *ngIf="!giftVouchers || giftVouchers.length === 0">
+      <!-- Table View -->
+      <div class="table-view" *ngIf="giftVouchersViewMode === 'table'">
+        <vex-aio-table
+          #giftVouchersTableRef
+          [columns]="giftVouchersTableColumns"
+          [entity]="giftVouchersTableEntity"
+          [deleteEntity]="giftVouchersTableDeleteEntity"
+          [title]="'gift_vouchers'"
+          [route]="giftVouchersTableRoute"
+          [createComponent]="giftVouchersCreateComponent"
+          [canDelete]="true"
+          [canDeactivate]="false"
+          [sectionIcon]="icon"
+          [with]="giftVouchersTableWith"
+          [search]="giftVouchersTableSearch"
+          [currencyCode]="currencyCode"
+          [createOnModal]="true"
+          [widthModal]="'800px'"
+          [heigthModal]="'90vh'"
+          [withHeader]="false"
+          [withFilters]="false">
+        </vex-aio-table>
+      </div>
+
+      <div class="empty-state" *ngIf="giftVouchersViewMode === 'cards' && (!giftVouchers || giftVouchers.length === 0)">
         <mat-icon class="empty-icon">card_giftcard</mat-icon>
         <p>{{ 'no_gift_vouchers_found' | translate }}</p>
+      </div>
+    </div>
+
+    <!-- Card/Table view for Gift Vouchers Purchased -->
+    <div *ngIf="selectedTab === 3" class="gift-vouchers-purchased-container">
+      <div class="header-section">
+        <h2 class="title">{{ 'gift_vouchers_purchased' | translate }}</h2>
+        <div class="header-actions">
+          <mat-button-toggle-group [value]="giftVouchersPurchasedViewMode" (change)="toggleGiftVouchersPurchasedView()" class="view-toggle">
+            <mat-button-toggle value="cards">
+              <mat-icon>view_module</mat-icon>
+              {{ 'card_view' | translate }}
+            </mat-button-toggle>
+            <mat-button-toggle value="table">
+              <mat-icon>view_list</mat-icon>
+              {{ 'table_view' | translate }}
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+      </div>
+
+      <!-- Cards View -->
+      <div class="cards-grid" *ngIf="giftVouchersPurchasedViewMode === 'cards' && giftVouchersPurchased && giftVouchersPurchased.length > 0">
+        <mat-card *ngFor="let voucher of giftVouchersPurchased" class="gift-card"
+                  [ngClass]="'gift-card-' + (voucher.id % 4)">
+          <div class="card-gradient">
+            <div class="card-header">
+              <mat-icon class="gift-icon">redeem</mat-icon>
+              <span class="voucher-amount">{{ voucher.amount | currency:currencyCode:'symbol':'1.0-0' }}</span>
+            </div>
+
+            <div class="card-content">
+              <p class="message" *ngIf="voucher.personal_message">{{ voucher.personal_message }}</p>
+              <div class="recipient-info">
+                <mat-icon class="small-icon">person</mat-icon>
+                <span>{{ voucher.recipient_name || 'N/A' }}</span>
+              </div>
+              <div class="recipient-info" *ngIf="voucher.buyer_name">
+                <mat-icon class="small-icon">shopping_cart</mat-icon>
+                <span>{{ 'from' | translate }}: {{ voucher.buyer_name }}</span>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="code-section">
+                <span class="code-label">{{ 'code' | translate }}:</span>
+                <span class="code-value">{{ voucher.code }}</span>
+                <button mat-icon-button
+                        (click)="copyCode(voucher.code)"
+                        [matTooltip]="'copy_code' | translate"
+                        class="copy-btn">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+              <div class="date-section">
+                <mat-icon class="small-icon">calendar_today</mat-icon>
+                <span>{{ voucher.created_at | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="status-badge" [ngClass]="voucher.is_paid ? 'status-used' : 'status-active'">
+                {{ voucher.is_paid ? ('paid' | translate) : ('pending' | translate) }}
+              </div>
+            </div>
+          </div>
+
+          <mat-card-actions>
+            <button mat-icon-button
+                    [matMenuTriggerFor]="menuPurchased"
+                    [matTooltip]="'actions' | translate">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #menuPurchased="matMenu">
+            <button mat-menu-item (click)="viewGiftVoucherPurchased(voucher)">
+              <mat-icon>visibility</mat-icon>
+              <span>{{ 'view_details' | translate }}</span>
+            </button>
+            <button mat-menu-item (click)="deleteGiftVoucherPurchased(voucher)">
+              <mat-icon>delete</mat-icon>
+              <span>{{ 'delete_title' | translate }}</span>
+            </button>
+            </mat-menu>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+
+      <!-- Table View -->
+      <div class="table-view" *ngIf="giftVouchersPurchasedViewMode === 'table'">
+        <vex-aio-table
+          #giftVouchersPurchasedTableRef
+          [columns]="giftVouchersPurchasedTableColumns"
+          [entity]="giftVouchersPurchasedTableEntity"
+          [deleteEntity]="giftVouchersPurchasedTableDeleteEntity"
+          [title]="'gift_vouchers_purchased'"
+          [route]="giftVouchersPurchasedTableRoute"
+          [createComponent]="giftVouchersPurchasedCreateComponent"
+          [canDelete]="true"
+          [canDeactivate]="false"
+          [sectionIcon]="icon"
+          [with]="giftVouchersPurchasedTableWith"
+          [search]="giftVouchersPurchasedTableSearch"
+          [currencyCode]="currencyCode"
+          [createOnModal]="false"
+          [withHeader]="false"
+          [withFilters]="false">
+        </vex-aio-table>
+      </div>
+
+      <div class="empty-state" *ngIf="giftVouchersPurchasedViewMode === 'cards' && (!giftVouchersPurchased || giftVouchersPurchased.length === 0)">
+        <mat-icon class="empty-icon">redeem</mat-icon>
+        <p>{{ 'no_gift_vouchers_purchased_found' | translate }}</p>
       </div>
     </div>
   </vex-page-layout-content>

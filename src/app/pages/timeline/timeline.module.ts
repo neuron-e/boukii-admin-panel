@@ -28,17 +28,21 @@ import { TimelineComponent } from './timeline.component';
 import { TimelineRoutingModule } from './timeline-routing.module';
 import { ComponentsCustomModule } from '../../components/components-custom.module';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { BookingDetailModalModule } from '../bookings/booking-detail-modal/booking-detail-modal.module';
+import { BookingDetailModule } from '../bookings-v2/booking-detail/booking-detail.module';
 import { CourseUserTransferTimelineModalModule } from './course-user-transfer-timeline/course-user-transfer-timeline.module';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { TranslateModule } from '@ngx-translate/core';
 import { ConfirmUnmatchMonitorModule } from './confirm-unmatch-monitor/confirm-unmatch-monitor.module';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from 'src/@vex/components/icon/app.component';
 import { EditDateComponent } from './edit-date/edit-date.component';
+import { MonitorAssignmentDialogModule } from './monitor-assignment-dialog/monitor-assignment-dialog.module';
+import { MonitorPartialAvailabilityDialogModule } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-partial-availability-dialog.module';
+import { GroupedBlockDeleteDialogComponent } from './grouped-block-delete-dialog/grouped-block-delete-dialog.component';
 
 @NgModule({
-  declarations: [TimelineComponent, EditDateComponent],
+  declarations: [TimelineComponent, EditDateComponent, GroupedBlockDeleteDialogComponent],
   imports: [
     CommonModule,
     FormsModule,
@@ -70,12 +74,15 @@ import { EditDateComponent } from './edit-date/edit-date.component';
     ComponentsModule,
     ComponentsCustomModule,
     MatProgressSpinnerModule,
-    BookingDetailModalModule,
+    BookingDetailModule,
     CourseUserTransferTimelineModalModule,
     TranslateModule,
     MatDatepickerModule,
     ConfirmUnmatchMonitorModule,
-    MatAutocompleteModule
+    MatAutocompleteModule,
+    MatTooltipModule,
+    MonitorAssignmentDialogModule,
+    MonitorPartialAvailabilityDialogModule
   ],
   exports: [TimelineComponent]
 })

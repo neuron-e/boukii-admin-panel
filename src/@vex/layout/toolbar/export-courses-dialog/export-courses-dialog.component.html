@@ -1,0 +1,42 @@
+<h2 mat-dialog-title>Exportar cursos</h2>
+
+<mat-dialog-content class="export-dialog-content" [formGroup]="form">
+  <p>Selecciona una temporada o indica un rango de fechas.</p>
+
+  <mat-form-field appearance="outline" class="w-full">
+    <mat-label>Temporada</mat-label>
+    <mat-select formControlName="seasonId" (selectionChange)="onSeasonSelected()" [disabled]="loadingSeasons">
+      <mat-option *ngFor="let season of seasons" [value]="season.id">
+        {{ season.name || ('Temporada ' + season.id) }}
+        <span *ngIf="season.start_date && season.end_date">
+          ({{ season.start_date }} - {{ season.end_date }})
+        </span>
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <div class="date-row">
+    <mat-form-field appearance="outline" class="date-field">
+      <mat-label>Desde</mat-label>
+      <input matInput [matDatepicker]="pickerFrom" formControlName="dateFrom" (dateChange)="onDatePicked()">
+      <mat-datepicker-toggle matSuffix [for]="pickerFrom"></mat-datepicker-toggle>
+      <mat-datepicker #pickerFrom></mat-datepicker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="date-field">
+      <mat-label>Hasta</mat-label>
+      <input matInput [matDatepicker]="pickerTo" formControlName="dateTo" (dateChange)="onDatePicked()">
+      <mat-datepicker-toggle matSuffix [for]="pickerTo"></mat-datepicker-toggle>
+      <mat-datepicker #pickerTo></mat-datepicker>
+    </mat-form-field>
+  </div>
+
+  <div class="error" *ngIf="selectionError">
+    Selecciona una temporada o un rango de fechas válido.
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancelar</button>
+  <button mat-flat-button color="primary" (click)="confirm()">Exportar</button>
+</mat-dialog-actions>

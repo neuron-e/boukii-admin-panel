@@ -3,6 +3,16 @@ export const environment = {
   // Your web app's Firebase configuration
   // For Firebase JS SDK v7.20.0 and later, measurementId is optional
   baseUrl: 'https://api.boukii.com',
+  wsConfig: {
+    enabled: false, // TODO: set to true and load from env during deploy
+    key: 'PUSHER_APP_KEY',
+    cluster: 'mt1',
+    wsHost: 'localhost',
+    wsPort: 6001,
+    forceTLS: true,
+    disableStats: true,
+    enabledTransports: ['ws', 'wss'],
+  },
   firebaseConfig: {
     apiKey: "AIzaSyAVqgEm3-_sMPLqxySQpyHKEfLtQ1_7pHI",
     authDomain: "boukii-test.firebaseapp.com",

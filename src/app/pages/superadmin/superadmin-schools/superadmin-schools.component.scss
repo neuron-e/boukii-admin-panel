@@ -1,0 +1,48 @@
+.schools-page {
+  color: #fff;
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 16px;
+  }
+
+  table {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    overflow: hidden;
+
+    th, td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    th {
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    td {
+      color: rgba(255, 255, 255, 0.87);
+    }
+  }
+
+  .active {
+    color: #40ff94;
+  }
+
+  .inactive {
+    color: #ff6c6c;
+  }
+
+  .loading {
+    display: flex;
+    justify-content: center;
+    margin: 48px 0;
+  }
+}

@@ -1,4 +1,4 @@
-import {ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild} from '@angular/core';
+import {ChangeDetectorRef, Component, OnInit, ViewChild} from '@angular/core';
 import { FormControl, UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { MatTable, _MatTableDataSource } from '@angular/material/table';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -25,6 +25,8 @@ import { TranslateService } from '@ngx-translate/core';
 import { DateAdapter } from '@angular/material/core';
 import { switchMap } from 'rxjs/operators';
 import { SchoolService } from 'src/service/school.service';
+import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor.component';
+import { EvaluationHistoryComponent } from './evaluation-history/evaluation-history.component';
 
 
 @Component({
@@ -85,6 +87,10 @@ export class ClientDetailComponent {
   selectedGoal = [];
   evaluations = [];
   evaluationFullfiled = [];
+  evaluationComments: {[key: number]: any[]} = {};
+  evaluationCommentsLoading: {[key: number]: boolean} = {};
+  evaluationHistory: {[key: number]: any[]} = {};
+  evaluationHistoryLoading: {[key: number]: boolean} = {};
   maxSelection = 6;
   today: Date;
   minDate: Date;
@@ -127,12 +133,12 @@ export class ClientDetailComponent {
 
   defaultsObservations = {
     id: null,
-    general: '',
     notes: '',
-    historical: '',
     client_id: null,
     school_id: null
   }
+  observationHistory: string[] = [];
+  newObservationNote = '';
 
   defaultsUser = {
     id: null,
@@ -158,6 +164,7 @@ export class ClientDetailComponent {
   clients = [];
   clientSchool = [];
   goals = [];
+  sportCardGroups: Array<{ label: string; color: string; items: any[] }> = [];
   bookingUsersUnique = [];
   bonus = [];
   mainId: any;
@@ -259,9 +266,7 @@ export class ClientDetailComponent {
       });
 
       this.formOtherInfo = this.fb.group({
-        summary: [''],
-        notes: [''],
-        hitorical: ['']
+        observation: ['']
       });
 
     }));
@@ -314,18 +319,16 @@ export class ClientDetailComponent {
               this.evaluationFullfiled.push(element);
             });
           });
-          if (data.data.observations.length > 0) {
-            this.defaultsObservations = data.data.observations[0];
-          } else {
-            this.defaultsObservations = {
-              id: null,
-              general: '',
-              notes: '',
-              historical: '',
-              client_id: null,
-              school_id: null
-            };
-          }
+          const observations = Array.isArray(data.data.observations) ? data.data.observations : [];
+          this.observationHistory = observations
+            .map((obs: any) => this.normalizeObservationText(obs))
+            .filter((text: string) => text.length > 0);
+          this.defaultsObservations = {
+            id: null,
+            notes: '',
+            client_id: null,
+            school_id: null
+          };
           this.currentImage = data.data.image;
           if (!onChangeUser) {
             this.mainClient = data.data;
@@ -385,11 +388,105 @@ export class ClientDetailComponent {
             this.myControlStations.setValue(this.stations.find((s) => s.id === this.defaults.active_station)?.name);
             this.myControlCountries.setValue(this.countries.find((c) => c.id === +this.defaults.country));
             this.myControlProvinces.setValue(this.provinces.find((c) => c.id === +this.defaults.province));
+            this.patchForms();
 
             this.loading = false;
           });
 
         }))
+  }
+
+  private patchForms(): void {
+    this.patchAccountForm();
+    this.patchPersonalInfoForm();
+    this.patchOtherInfoForm();
+  }
+
+  private patchAccountForm(): void {
+    if (!this.formInfoAccount) {
+      return;
+    }
+
+    this.formInfoAccount.patchValue({
+      image: this.defaults?.image || '',
+      first_name: this.defaults?.first_name || '',
+      last_name: this.defaults?.last_name || '',
+      email: this.defaults?.email || '',
+      username: this.defaultsUser?.username || '',
+      password: ''
+    }, { emitEvent: false });
+  }
+
+  private patchPersonalInfoForm(): void {
+    if (!this.formPersonalInfo) {
+      return;
+    }
+
+    this.formPersonalInfo.patchValue({
+      fromDate: this.formatDateForInput(this.defaults?.birth_date),
+      phone: this.defaults?.telephone || '',
+      mobile: this.defaults?.phone || '',
+      address: this.defaults?.address || '',
+      postalCode: this.defaults?.cp || ''
+    }, { emitEvent: false });
+  }
+
+  private patchOtherInfoForm(): void {
+    if (!this.formOtherInfo) {
+      return;
+    }
+
+    this.formOtherInfo.patchValue({
+      observation: ''
+    }, { emitEvent: false });
+  }
+
+  private formatDateForInput(value: any): string | null {
+    if (!value) {
+      return null;
+    }
+
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.substring(0, 10);
+    }
+
+    const parsed = new Date(value);
+    if (isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
+    const day = `${parsed.getDate()}`.padStart(2, '0');
+    return `${parsed.getFullYear()}-${month}-${day}`;
+  }
+
+  private syncFormsToModel(): void {
+    if (this.formInfoAccount) {
+      const account = this.formInfoAccount.getRawValue();
+      this.defaults.first_name = account.first_name?.trim() || this.defaults.first_name;
+      this.defaults.last_name = account.last_name?.trim() || this.defaults.last_name;
+      this.defaults.email = account.email?.trim() || this.defaults.email;
+      this.defaultsUser.username = account.username?.trim() || this.defaultsUser.username;
+      if (account.password && account.password.trim().length > 0) {
+        this.defaultsUser.password = account.password.trim();
+      } else {
+        this.defaultsUser.password = '';
+      }
+    }
+
+    if (this.formPersonalInfo) {
+      const personal = this.formPersonalInfo.getRawValue();
+      this.defaults.birth_date = personal.fromDate || this.defaults.birth_date;
+      this.defaults.telephone = personal.phone || '';
+      this.defaults.phone = personal.mobile || '';
+      this.defaults.address = personal.address || '';
+      this.defaults.cp = personal.postalCode || '';
+    }
+
+    if (this.formOtherInfo) {
+      const other = this.formOtherInfo.getRawValue();
+      this.newObservationNote = (other.observation || '').trim();
+    }
   }
 
   getSchoolSportDegrees() {
@@ -403,6 +500,11 @@ export class ClientDetailComponent {
             sport.name = sport.sport.name;
             sport.icon_selected = sport.sport.icon_selected;
             sport.icon_unselected = sport.sport.icon_unselected;
+            sport.degrees = sport.degrees.filter((level: any) => this.isDegreeActive(level));
+            if (this.defaults?.birth_date) {
+              const age = this.calculateAge(this.defaults.birth_date);
+              sport.degrees = sport.degrees.filter((level: any) => age >= level.age_min && age <= level.age_max);
+            }
             sport.degrees.forEach(degree => {
               degree.degrees_school_sport_goals.forEach(goal => {
                 this.goals.push(goal);
@@ -417,7 +519,7 @@ export class ClientDetailComponent {
                 element.degrees = sport.degrees;
                 element.degrees = element.degrees.filter(level => {
                   const age = this.calculateAge(this.defaults.birth_date);
-                  return age >= level.age_min && age <= level.age_max;
+                  return this.isDegreeActive(level) && age >= level.age_min && age <= level.age_max;
                 });
               }
             });
@@ -427,7 +529,7 @@ export class ClientDetailComponent {
           this.schoolSports.forEach(element => {
             element.degrees = element.degrees.filter(level => {
               const age = this.calculateAge(this.defaults.birth_date);
-              return age >= level.age_min && age <= level.age_max;
+              return this.isDegreeActive(level) && age >= level.age_min && age <= level.age_max;
             });
             if (!this.sportsCurrentData.data.find((s) => s.sport_id === element.sport_id)) {
               availableSports.push(element);
@@ -597,6 +699,17 @@ export class ClientDetailComponent {
       if (index >= 0) {
         this.selectedNewSports.splice(index, 1);
       } else {
+        // Check if sport already exists in current sports (without level check at this stage)
+        const existsInCurrent = this.sportsCurrentData.data.find(s => s.sport_id === sport.sport_id);
+        if (existsInCurrent) {
+          this.snackbar.open(
+            this.translateService.instant('Este deporte ya está en tu lista. Puedes editar su nivel en la tabla superior.'),
+            'OK',
+            { duration: 4000 }
+          );
+          return;
+        }
+
         this.selectedNewSports.push(sport);
       }
 
@@ -609,6 +722,46 @@ export class ClientDetailComponent {
       // Detectar cambios manualmente para asegurarse de que Angular reconozca los cambios
       this.cdr.detectChanges();
     }
+  }
+
+  /**
+   * Asignar nivel a un deporte nuevo y validar duplicados
+   */
+  assignLevelToNewSport(element: any, level: any): void {
+    if (!element || !level) {
+      return;
+    }
+
+    // Validar si ya existe este deporte con este nivel
+    const duplicateInCurrent = this.sportsCurrentData.data.find(
+      s => s.sport_id === element.sport_id && s.level?.id === level.id
+    );
+
+    if (duplicateInCurrent) {
+      this.snackbar.open(
+        this.translateService.instant('Ya tienes este deporte con este nivel en tu lista actual'),
+        'OK',
+        { duration: 4000 }
+      );
+      return;
+    }
+
+    const duplicateInNew = this.sportsData.data.find(
+      s => s.sport_id === element.sport_id && s !== element && s.level?.id === level.id
+    );
+
+    if (duplicateInNew) {
+      this.snackbar.open(
+        this.translateService.instant('Ya seleccionaste este deporte con este nivel'),
+        'OK',
+        { duration: 4000 }
+      );
+      return;
+    }
+
+    // Asignar nivel al elemento
+    element.level = level;
+    this.cdr.detectChanges();
   }
 
   getSelectedSportsNames(): string {
@@ -776,7 +929,26 @@ export class ClientDetailComponent {
     return `${year}-${month}-${day}`;
   };
 
+  private normalizeObservationText(obs: any): string {
+    if (!obs) return '';
+    const parts: string[] = [];
+    const notes = (obs.notes || '').trim();
+    const general = (obs.general || '').trim();
+    const historical = (obs.historical || '').trim();
+    if (notes) {
+      parts.push(notes);
+    }
+    if (general) {
+      parts.push(`General: ${general}`);
+    }
+    if (historical) {
+      parts.push(`Historial: ${historical}`);
+    }
+    return parts.join('\n').trim();
+  }
+
   save() {
+    this.syncFormsToModel();
     this.setLanguages();
 
     if (this.currentImage === this.defaults.image) {
@@ -801,8 +973,12 @@ export class ClientDetailComponent {
             this.snackbar.open(this.translateService.instant('snackbar.client.update'), 'OK', { duration: 3000 });
             this.defaultsObservations.client_id = client.data.id;
             this.defaultsObservations.school_id = this.user.schools[0].id;
-            if (this.defaultsObservations.id) this.crudService.update('/client-observations', this.defaultsObservations, this.defaultsObservations.id).subscribe(() => { })
-            else this.crudService.create('/client-observations', this.defaultsObservations).subscribe(() => { })
+            if (this.newObservationNote) {
+              this.crudService.create('/client-observations', {
+                ...this.defaultsObservations,
+                notes: this.newObservationNote
+              }).subscribe(() => { });
+            }
             this.sportsData.data.forEach(element => {
               this.crudService.create('/client-sports', {
                 client_id: client.data.id,
@@ -928,6 +1104,7 @@ export class ClientDetailComponent {
         });
       }
     }
+    this.sportCardGroups = this.groupSportCardsByColor(this.sportCard);
     this.coloring = false;
   }
 
@@ -947,7 +1124,35 @@ export class ClientDetailComponent {
         this.selectedGoal.push(element);
       }
     });
+    this.sportCardGroups = this.groupSportCardsByColor(this.sportCard);
     this.coloring = false;
+  }
+
+  private isDegreeActive(level: any): boolean {
+    if (!level) return false;
+    if (level.active === 0 || level.active === false) return false;
+    if (level.status === 0 || level.status === false) return false;
+    if (level.is_active === 0 || level.is_active === false) return false;
+    return true;
+  }
+
+  private groupSportCardsByColor(cards: any[]): Array<{ label: string; color: string; items: any[] }> {
+    const groups: {[key: string]: any[]} = {};
+    cards.forEach(card => {
+      const league = card?.degree?.league || 'N/A';
+      if (!groups[league]) {
+        groups[league] = [];
+      }
+      groups[league].push(card);
+    });
+
+    return Object.keys(groups)
+      .map(label => ({
+        label,
+        color: groups[label][0]?.degree?.color || '#9ca3af',
+        items: groups[label].sort((a: any, b: any) => a.degree.degree_order - b.degree.degree_order)
+      }))
+      .sort((a, b) => a.items[0].degree.degree_order - b.items[0].degree.degree_order);
   }
 
   lightenColor(hexColor: any, percent: any) {
@@ -1105,21 +1310,22 @@ export class ClientDetailComponent {
 
 
   calculateGoalsScore() {
-    let ret = 0;
     if (this.selectedSport?.level) {
       const goals = this.goals.filter((g) => g.degree_id == this.selectedSport.level.id);
+      if (!goals.length) return 0;
       const maxPoints = goals.length * 10;
+      let ret = 0;
       for (const goal of goals) {
         this.evaluationFullfiled.forEach(element => {
           if (element.degrees_school_sport_goals_id === goal.id) {
-            ret += element.score;
+            ret += this.normalizeGoalScore(element.score);
           }
         });
-        ret = ret > maxPoints ? maxPoints : ret
-        return (ret / maxPoints) * 100;
       }
+      ret = ret > maxPoints ? maxPoints : ret;
+      return Math.round((ret / maxPoints) * 100);
     }
-    return ret;
+    return 0;
   }
 
   getDegrees() {
@@ -1131,7 +1337,7 @@ export class ClientDetailComponent {
 
   getDegreeScore(goal: any) {
     const d = this.evaluationFullfiled.find(element => element.degrees_school_sport_goals_id === goal)
-    if (d) return d.score
+    if (d) return this.normalizeGoalScore(d.score)
     return 0
   }
 
@@ -1222,6 +1428,8 @@ export class ClientDetailComponent {
         return 'payment_no_payment';
       case 6:
         return 'bonus';
+      case 7:
+        return 'payment_invoice';
 
       default:
         return 'payment_no_payment'
@@ -1383,9 +1591,11 @@ export class ClientDetailComponent {
           // Apply age filtering using the client's birth date
           if (clientData.birth_date) {
             const age = this.calculateAge(clientData.birth_date);
-            ret = element.degrees.filter(level => age >= level.age_min && age <= level.age_max);
+            ret = element.degrees.filter(level =>
+              this.isDegreeActive(level) && age >= level.age_min && age <= level.age_max
+            );
           } else {
-            ret = element.degrees;
+            ret = element.degrees.filter(level => this.isDegreeActive(level));
           }
         }
       });
@@ -1395,19 +1605,20 @@ export class ClientDetailComponent {
     if (ret.length === 0 && this.allLevels && sportId && clientData) {
       if (clientData.birth_date) {
         const age = this.calculateAge(clientData.birth_date);
-        ret = this.allLevels.filter(level => 
-          level.sport_id === sportId && 
-          age >= level.age_min && 
+        ret = this.allLevels.filter(level =>
+          level.sport_id === sportId &&
+          this.isDegreeActive(level) &&
+          age >= level.age_min &&
           age <= level.age_max
         );
       } else {
-        ret = this.allLevels.filter(level => level.sport_id === sportId);
+        ret = this.allLevels.filter(level => level.sport_id === sportId && this.isDegreeActive(level));
       }
     }
     
     // Last fallback: return all levels if we still have nothing
     if (ret.length === 0 && this.allLevels) {
-      ret = this.allLevels;
+      ret = this.allLevels.filter(level => this.isDegreeActive(level));
     }
 
     return ret;
@@ -1418,7 +1629,7 @@ export class ClientDetailComponent {
     
     // If we don't have client data or sport selection, return all levels
     if (!clientData || !clientData.birth_date || !this.detailData?.sport) {
-      return this.allLevels;
+      return this.allLevels.filter(level => this.isDegreeActive(level));
     }
     
     const age = this.calculateAge(clientData.birth_date);
@@ -1426,6 +1637,7 @@ export class ClientDetailComponent {
     // Filter all levels by sport and age
     return this.allLevels.filter(level => 
       level.sport_id === this.detailData.sport.id && 
+      this.isDegreeActive(level) &&
       age >= level.age_min && 
       age <= level.age_max
     );
@@ -1624,6 +1836,47 @@ export class ClientDetailComponent {
     this.detailData = null;
   }
 
+  openEvaluationEditor(level: any, goals: any[], sport: any): void {
+    const evaluations = this.getEvaluationsData(level);
+    const sportId = sport?.sport_id || sport?.id;
+    const levels = sportId ? this.allLevels.filter(item => item.sport_id === sportId) : [];
+    const dialogRef = this.dialog.open(EvaluationEditorComponent, {
+      width: '900px',
+      data: {
+        clientId: this.id,
+        level,
+        goals,
+        sport,
+        evaluations,
+        clientSport: this.clientSport,
+        levels
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((changed) => {
+      if (changed) {
+        this.getData(this.id, true).subscribe();
+      }
+    });
+  }
+
+  async openEvaluationHistory(level: any, goals: any[], sport: any): Promise<void> {
+    const evaluation = this.getEvaluationForLevel(level);
+    if (evaluation?.id) {
+      await this.loadEvaluationHistory(evaluation.id);
+    }
+    this.dialog.open(EvaluationHistoryComponent, {
+      width: '900px',
+      data: {
+        level,
+        sport,
+        goals,
+        evaluation,
+        history: evaluation?.id ? this.getEvaluationHistory(evaluation.id) : []
+      }
+    });
+  }
+
   getGoalImage(goal: any): string {
     let ret = '';
     if (goal.length > 0) {
@@ -1650,34 +1903,161 @@ export class ClientDetailComponent {
     return ret;
   }
 
-  @ViewChild('sliderContainer', { static: false }) sliderContainer!: ElementRef;
-  centeredCardIndex: number = 0;
-  sportCard: any[] = [];
-
-  scrollLeft(num: number) {
-    this.sliderContainer.nativeElement.scrollBy({ left: num * 300, behavior: 'smooth' });
-  }
-  onScroll() {
-    this.updateCenteredCardIndex();
+  getEvaluationForLevel(level: any): any {
+    const evaluations = this.getEvaluationsData(level);
+    if (!evaluations.length) return null;
+    return evaluations.sort((a: any, b: any) => b.id - a.id)[0];
   }
 
-  private updateCenteredCardIndex() {
-    const container = this.sliderContainer.nativeElement;
-    const containerCenter = container.scrollLeft + container.clientWidth / 2;
-
-    let closestIndex = 0;
-    let closestDistance = Infinity;
-
-    const cards = container.querySelectorAll('app-user-detail-sport-card');
-    cards.forEach((card: HTMLElement, index: number) => {
-      const cardCenter = card.offsetLeft + card.clientWidth / 2;
-      const distance = Math.abs(containerCenter - cardCenter);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
+  getGoalsNotStartedCount(goals: any[]): number {
+    if (!goals?.length) return 0;
+    let completed = 0;
+    goals.forEach(goal => {
+      if (this.getDegreeScore(goal.id) >= 10) {
+        completed += 1;
       }
     });
+    return Math.max(0, goals.length - completed);
+  }
 
-    this.centeredCardIndex = closestIndex;
+  getGoalsCompletedCount(goals: any[]): number {
+    if (!goals?.length) return 0;
+    let completed = 0;
+    goals.forEach(goal => {
+      if (this.getDegreeScore(goal.id) >= 10) {
+        completed += 1;
+      }
+    });
+    return completed;
+  }
+
+  getMediaCounts(level: any): { images: number; videos: number } {
+    const evaluation = this.getEvaluationForLevel(level);
+    const files = evaluation?.files || [];
+    let images = 0;
+    let videos = 0;
+    files.forEach((file: any) => {
+      if (file.type === 'image') images += 1;
+      if (file.type === 'video') videos += 1;
+    });
+    return { images, videos };
+  }
+
+  getEvaluationComments(evaluationId: number): any[] {
+    return this.evaluationComments[evaluationId] || [];
+  }
+
+  async loadEvaluationComments(evaluationId: number): Promise<void> {
+    if (!evaluationId || this.evaluationCommentsLoading[evaluationId]) return;
+    this.evaluationCommentsLoading[evaluationId] = true;
+    try {
+      const response: any = await this.crudService.get(`/admin/evaluations/${evaluationId}/comments`).toPromise();
+      this.evaluationComments[evaluationId] = response.data || [];
+    } catch (error) {
+      console.error('Error loading evaluation comments:', error);
+      this.evaluationComments[evaluationId] = [];
+    } finally {
+      this.evaluationCommentsLoading[evaluationId] = false;
+    }
+  }
+
+  async addEvaluationComment(evaluationId: number, comment: string): Promise<void> {
+    if (!evaluationId || !comment?.trim()) return;
+    await this.crudService.post(`/admin/evaluations/${evaluationId}/comments`, { comment }).toPromise();
+    await this.loadEvaluationComments(evaluationId);
+  }
+
+  async addEvaluationFilesForLevel(level: any, files: File[]): Promise<void> {
+    if (!files?.length) return;
+    const evaluation = await this.ensureEvaluation(level);
+    for (const file of files) {
+      const base64 = await this.readFileAsBase64(file);
+      if (!base64) continue;
+      const payload = {
+        evaluation_id: evaluation.id,
+        name: '',
+        type: file.type.startsWith('video/') ? 'video' : 'image',
+        file: base64
+      };
+      await this.crudService.create('/evaluation-files', payload).toPromise();
+    }
+    await this.getData(this.id, true).toPromise();
+  }
+
+  getEvaluationHistory(evaluationId: number): any[] {
+    return this.evaluationHistory[evaluationId] || [];
+  }
+
+  async loadEvaluationHistory(evaluationId: number): Promise<void> {
+    if (!evaluationId || this.evaluationHistoryLoading[evaluationId]) return;
+    this.evaluationHistoryLoading[evaluationId] = true;
+    try {
+      const response: any = await this.crudService.get(`/admin/evaluations/${evaluationId}/history`).toPromise();
+      this.evaluationHistory[evaluationId] = response.data || [];
+    } catch (error) {
+      console.error('Error loading evaluation history:', error);
+      this.evaluationHistory[evaluationId] = [];
+    } finally {
+      this.evaluationHistoryLoading[evaluationId] = false;
+    }
+  }
+
+  async ensureEvaluation(level: any): Promise<any> {
+    const existing = this.getEvaluationForLevel(level);
+    if (existing) return existing;
+    const payload = {
+      client_id: this.id,
+      degree_id: level.id,
+      observations: ''
+    };
+    const response: any = await this.crudService.create('/evaluations', payload).toPromise();
+    return response.data;
+  }
+
+  async updateGoalScore(level: any, goalId: number, score: number): Promise<void> {
+    const evaluation = await this.ensureEvaluation(level);
+    const existing = this.evaluationFullfiled.find((element: any) => element.degrees_school_sport_goals_id === goalId && element.evaluation_id === evaluation.id);
+    const normalizedScore = this.normalizeGoalScore(score);
+    const payload = {
+      evaluation_id: evaluation.id,
+      degrees_school_sport_goals_id: goalId,
+      score: normalizedScore
+    };
+    if (existing?.id) {
+      await this.crudService.update('/evaluation-fulfilled-goals', payload, existing.id).toPromise();
+    } else {
+      await this.crudService.create('/evaluation-fulfilled-goals', payload).toPromise();
+    }
+    await this.getData(this.id, true).toPromise();
+  }
+
+  async clearGoalScore(level: any, goalId: number): Promise<void> {
+    const evaluation = this.getEvaluationForLevel(level);
+    if (!evaluation?.id) return;
+    const existing = this.evaluationFullfiled.find((element: any) => element.degrees_school_sport_goals_id === goalId && element.evaluation_id === evaluation.id);
+    if (!existing?.id) return;
+    await this.crudService.delete('/evaluation-fulfilled-goals', existing.id).toPromise();
+    await this.getData(this.id, true).toPromise();
+  }
+
+  private readFileAsBase64(file: File): Promise<string | null> {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  sportCard: any[] = [];
+
+  getProgressClass(progress: number): string {
+    if (progress >= 100) return 'progress--complete';
+    if (progress > 0) return 'progress--partial';
+    return 'progress--empty';
+  }
+
+  private normalizeGoalScore(score: number): number {
+    return Number(score) >= 10 ? 10 : 0;
   }
 }
