@@ -113,11 +113,6 @@ const childrenRoutes: VexRoutes = [
         loadChildren: () => import('./pages/chrono/chrono.module').then(m => m.ChronoModule),
         canActivate: [AuthGuard],
       },
-      {
-        path: 'superadmin',
-        loadChildren: () => import('./pages/superadmin/superadmin.module').then(m => m.SuperadminModule),
-        canActivate: [SuperadminGuard]
-      }
     ]
   }
 ];
@@ -132,6 +127,17 @@ const routes: Routes = [
   {
     path: 'login',
     loadChildren: () => import('./pages/login/login.module').then(m => m.LoginModule),
+  },
+  {
+    path: 'superadmin',
+    component: CustomLayoutComponent,
+    canActivate: [SuperadminGuard],
+    children: [
+      {
+        path: '',
+        loadChildren: () => import('./pages/superadmin/superadmin.module').then(m => m.SuperadminModule),
+      }
+    ]
   },
   {
     path: 'forgot-password',

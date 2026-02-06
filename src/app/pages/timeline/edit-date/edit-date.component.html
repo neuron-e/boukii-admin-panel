@@ -3,10 +3,6 @@
     <h2 class="headline m-0 flex-auto">{{'bookings_page.edit_dates.title' |
       translate }}</h2>
 
-    <!--<button [matMenuTriggerFor]="settingsMenu" class="text-secondary" mat-icon-button type="button">
-      <mat-icon svgIcon="mat:more_vert"></mat-icon>
-    </button>-->
-
     <button class="text-secondary" mat-dialog-close mat-icon-button
             type="button">
       <mat-icon svgIcon="mat:close"></mat-icon>
@@ -18,25 +14,26 @@
   <mat-dialog-content class="flex flex-col">
 
     <mat-dialog-actions align="end">
-      <button color="primary" mat-flat-button (click)="closeModal()">{{'confirm'
+      <button color="primary" mat-flat-button (click)="closeModal()" [disabled]="!selectedDate">{{'confirm'
         | translate}}</button>
       <button color="primary" mat-flat-button [mat-dialog-close]="false">{{'no'
         | translate}}</button>
     </mat-dialog-actions>
 
     <ng-container>
+      <!-- Hour selector for private courses -->
       <ng-container
         *ngIf="(defaults.course.course_type === 2 || defaults.course.course_type === 3)">
-        <mat-form-field appearance="outline" class="flex-auto" style="width: 48%">
+        <mat-form-field appearance="outline" class="flex-auto full-width">
           <mat-label>{{ 'hour' | translate }}</mat-label>
           <mat-select [(ngModel)]="hourStart" [ngModelOptions]="{ standalone: true }">
             <mat-option
               *ngFor="let time of generateCourseHours(
-        date?.hour_start || defaults.course.course_dates[0].hour_start,
-        date?.hour_end || defaults.course.course_dates[0].hour_end,
-        '5min',
-        '5min'
-      )"
+                date?.hour_start || defaults.course.hour_start || '09:00',
+                date?.hour_end || defaults.course.hour_end || '18:00',
+                '5min',
+                '5min'
+              )"
               [value]="time"
               [disabled]="!isValidTime(time)"
             >
@@ -46,17 +43,31 @@
         </mat-form-field>
       </ng-container>
 
-      <mat-form-field appearance="outline" class="flex-auto" style="width: 48%">
+      <!-- Date picker with popup calendar -->
+      <mat-form-field appearance="outline" class="flex-auto full-width date-picker-field">
         <mat-label>{{'dates' | translate}}</mat-label>
-        <mat-select [(ngModel)]="selectedCourseDateId"
-                    [ngModelOptions]="{standalone: true}">
-          <mat-option *ngFor="let date of defaults.course.course_dates" [value]="date.id"
-                      [disabled]="!isAfter(date)">
-            {{ date.date | date: 'dd-MM-yyyy' }}
-          </mat-option>
-        </mat-select>
+        <input matInput
+               [matDatepicker]="datePicker"
+               [matDatepickerFilter]="dateFilter"
+               [(ngModel)]="selectedDate"
+               [ngModelOptions]="{ standalone: true }"
+               (dateChange)="onDateSelected($event.value)"
+               readonly
+               (click)="datePicker.open()">
+        <mat-datepicker-toggle matSuffix [for]="datePicker">
+          <mat-icon matDatepickerToggleIcon svgIcon="mat:calendar_today"></mat-icon>
+        </mat-datepicker-toggle>
+        <mat-datepicker #datePicker
+                        [dateClass]="dateClass"
+                        [startAt]="selectedDate || minDate">
+        </mat-datepicker>
       </mat-form-field>
 
+      <!-- Loading indicator -->
+      <div *ngIf="loading" class="loading-hint">
+        <mat-spinner diameter="16"></mat-spinner>
+        <span>{{'loading' | translate}}...</span>
+      </div>
 
     </ng-container>
 

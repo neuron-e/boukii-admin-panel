@@ -43,6 +43,10 @@
             <mat-label>{{ "monitor" | translate }}</mat-label>
             <mat-select formControlName="monitor">
               <ng-container *ngIf="possibleMonitors[i]?.length; else noMonitors">
+                <!-- MEJORA 3: Option to unassign monitor -->
+                <mat-option [value]="null">
+                  {{ 'no_monitor_choose' | translate }}
+                </mat-option>
                 <mat-option *ngFor="let monitor of possibleMonitors[i]" [value]="monitor">
                   {{ monitor.first_name }} {{ monitor.last_name }}
                 </mat-option>

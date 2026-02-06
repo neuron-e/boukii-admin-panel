@@ -120,6 +120,9 @@ export class SidenavItemComponent implements OnInit, OnChanges {
   }
 
   isRouteActive(item: any) {
-    return location.pathname.includes(item.route);
+    if (!item?.route || typeof item.route !== 'string') {
+      return false;
+    }
+    return this.router.isActive(item.route, false);
   }
 }

@@ -325,6 +325,7 @@
   "booking_edit_remove_dates_info": "Vas a cancelar algunas fechas de esta reserva.",
   "booking_edit_warning_collective_fix": "Curso colectivo fix: No se pueden modificar fechas",
   "booking_edit_warning_flex_add_remove": "Añadir fechas incrementará el precio. Quitar fechas genera una cancelación parcial.",
+  "booking_edit_paid_collective_limit": "Collettivo flessibile pagato: puoi rimuovere date, ma non aggiungerne oltre il numero originale ({{count}}).",
   "booking_id": "ID Prenotazione",
   "booking_info": "Informazioni sulla prenotazione",
   "booking_must_start_from_first_day": "Devi selezionare la prima data disponibile del corso per effettuare una prenotazione.",
@@ -370,6 +371,7 @@
   "bookings_page.detail.full_cancel": "Annulla completamente la prenotazione",
   "bookings_page.edit.title": "Modifica Prenotazione",
   "bookings_page.edit_dates.title": "Modifica le date di prenotazione",
+  "bookings_page.edit_dates.available_dates_hint": "Date disponibili del corso",
   "bookings_page.multiple_date": "Varie date",
   "bookings_page.reductions.amount": "Quantità",
   "bookings_page.reductions.discount": "Tasso di sconto",
@@ -1745,6 +1747,8 @@
   "snackbar.booking.no_sport_2": " associato. ",
   "snackbar.booking.no_sport_3": "Questo partecipante non ha sport associati. ",
   "snackbar.booking.overlap": "C'è una sovrapposizione per il cliente in questa prenotazione: ",
+  "snackbar.booking.time_out_of_range": "L'orario selezionato è fuori dall'intervallo disponibile.",
+  "snackbar.booking.max_dates_reached": "Non puoi aggiungere più date a una prenotazione pagata.",
   "snackbar.booking.overlap_title": "Sovrapposizione rilevata per questo cliente:",
   "snackbar.booking.overlap_item": "{{date}} | {{time}} | {{course}} | Prenotazione #{{bookingId}}",
   "snackbar.booking.overlap_unknown_course": "Corso",
@@ -2427,5 +2431,12 @@
   "settings.booking.privates.min_lead_hint": "Minuti minimi prima dell'orario di inizio per consentire una prenotazione privata.",
   "settings.booking.privates.min_lead_label": "Tempo di anticipo per prenotazioni private (minuti)",
   "settings.booking.privates.overbooking_limit_hint": "Prenotazioni extra consentite quando nessun istruttore è libero (0 = nessun overbooking).",
-  "settings.booking.privates.overbooking_limit_label": "Limite di overbooking per le lezioni private"
+  "settings.booking.privates.overbooking_limit_label": "Limite di overbooking per le lezioni private",
+  "superadmin.title": "Superadmin",
+  "superadmin.dashboard": "Dashboard",
+  "superadmin.schools": "Scuole",
+  "superadmin.new_school": "Nuova scuola",
+  "superadmin.roles": "Ruoli",
+  "superadmin.admins": "Amministratori",
+  "superadmin.impersonate": "Impersona"
 }

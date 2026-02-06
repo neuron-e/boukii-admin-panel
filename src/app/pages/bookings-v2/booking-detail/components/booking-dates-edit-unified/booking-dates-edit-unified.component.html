@@ -42,7 +42,7 @@
   </div>
 
   <!-- Price Change Summary -->
-  <div class="price-change-summary" *ngIf="priceChange">
+  <div class="price-change-summary" *ngIf="priceChange && !limitedEditMode">
     <div class="price-change-header">
       <mat-icon [ngClass]="{
         'price-increase': priceChange.type === 'add',
@@ -90,31 +90,64 @@
   <!-- Form Content -->
   <form class="edit-form-wrapper" [formGroup]="stepForm" *ngIf="!(isFix && isCollective)">
 
-    <!-- FLEX COURSES (Collective or Private) -->
-    <div *ngIf="isFlex" formArrayName="course_dates" class="dates-list">
-      <div *ngFor="let courseDate of courseDatesArray.controls; let i = index"
+    <!-- EDIT ONLY MODE -->
+    <div *ngIf="limitedEditMode" formArrayName="edit_dates" class="dates-list">
+      <div *ngFor="let editDate of editDatesArray.controls; let i = index"
            [formGroupName]="i"
-           class="date-row"
-           [class.date-selected]="isSelected(i)">
-
-        <div class="date-checkbox">
-          <mat-checkbox formControlName="selected" (change)="onDateSelect($event, i)"></mat-checkbox>
-        </div>
+           class="date-row date-selected">
 
         <div class="date-content">
           <div class="date-main-info">
-            <span class="date-label">{{ formatDate(courseDatesArray.at(i).get('date')?.value) }}</span>
-            <span class="time-label">
-              {{ courseDatesArray.at(i).get('startHour')?.value }}h -
-              {{ courseDatesArray.at(i).get('endHour')?.value }}h
-            </span>
+            <mat-form-field appearance="outline" class="date-select-field">
+              <mat-label>{{ "date" | translate }}</mat-label>
+              <mat-select formControlName="date" (selectionChange)="onEditDateChange(i)">
+                <mat-option *ngFor="let option of availableDates" [value]="option.date">
+                  {{ formatDate(option.date) }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>calendar_today</mat-icon>
+            </mat-form-field>
+
+            <div class="time-label">
+              <mat-form-field appearance="outline">
+                <mat-label>{{ "start_time" | translate }}</mat-label>
+                <input matInput type="time" formControlName="startHour"
+                       [readonly]="!isPrivate"
+                       (change)="onEditTimeChange(i)">
+                <mat-icon matPrefix>access_time</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>{{ "end_time" | translate }}</mat-label>
+                <input matInput type="time" formControlName="endHour" [disabled]="true">
+                <mat-icon matPrefix>access_time</mat-icon>
+              </mat-form-field>
+            </div>
+
+            <div class="duration-note" *ngIf="isPrivate">
+              {{ "duration" | translate }}:
+              {{ editDatesArray.at(i).get('durationMinutes')?.value }} min
+            </div>
+
+            <mat-form-field appearance="outline" class="monitor-select" *ngIf="isPrivate">
+              <mat-label>{{ "monitor" | translate }}</mat-label>
+              <mat-select formControlName="monitor_id">
+                <mat-option *ngIf="loadingMonitorsByIndex[i]" disabled>
+                  {{ "loading" | translate }}
+                </mat-option>
+                <mat-option *ngFor="let monitor of getAvailableMonitors(i)" [value]="monitor.id">
+                  {{ monitor.full_name || (monitor.first_name + ' ' + monitor.last_name) }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>person</mat-icon>
+            </mat-form-field>
+
             <span class="price-label">
-              {{ courseDatesArray.at(i).get('price')?.value | number:'1.2-2' }}
+              {{ editDatesArray.at(i).get('price')?.value | number:'1.2-2' }}
               {{ course.currency }}
             </span>
           </div>
 
-          <!-- Participants (for flex courses) -->
           <div class="date-participants" *ngIf="utilizers.length > 0">
             <mat-form-field appearance="outline" class="participants-field">
               <mat-label>{{ "participants" | translate }}</mat-label>
@@ -122,21 +155,81 @@
               <mat-icon matPrefix>people</mat-icon>
             </mat-form-field>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- Extras -->
-          <div class="date-extras" *ngIf="posibleExtras.length > 0">
-            <mat-form-field appearance="outline" class="extras-field">
-              <mat-label>{{ "extras" | translate }}</mat-label>
-              <mat-select multiple formControlName="extras" (selectionChange)="onExtraChange(i)">
-                <mat-option *ngFor="let extra of posibleExtras" [value]="extra">
-                  <span class="extra-name">{{ extra.name }} - {{ extra.description }}</span>
-                  <span class="extra-price">{{ extra.price | number:'1.2-2' }} {{ course.currency }}</span>
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-            <span class="extras-total-price">
-              {{ isSelected(i) ? (totalExtraPrice[i] | number:'1.2-2') : '0.00' }} {{ course.currency }}
+    <!-- FLEX COURSES (Collective or Private) -->
+    <div *ngIf="isFlex && !limitedEditMode" class="paid-flex-warning">
+      <mat-icon>info</mat-icon>
+      <span *ngIf="isPaid && isCollective">
+        {{ "booking_edit_paid_collective_limit" | translate:{ count: initialData.length } }}
+      </span>
+    </div>
+    <div *ngIf="isFlex && !limitedEditMode" formArrayName="course_dates" class="dates-list">
+      <div *ngFor="let group of getIntervalEditGroups()" class="interval-group">
+        <div class="interval-header">
+          <div class="interval-label">{{ group.label }}</div>
+          <div class="interval-discounts" *ngIf="group.discounts?.length">
+            <span *ngFor="let discount of group.discounts" class="interval-discount">
+              {{ discount.value }}{{ discount.type === 'percentage' ? '%' : ' ' + (discount.currency || course?.currency || '') }}
+              · {{ discount.threshold }} {{ 'days' | translate }}
+              <span *ngIf="discount.amountSaved">
+                -{{ discount.amountSaved | number:'0.2-2' }} {{ discount.currency || course?.currency }}
+              </span>
             </span>
+          </div>
+        </div>
+
+        <div *ngFor="let item of group.dates"
+             [formGroupName]="item.index"
+             class="date-row"
+             [class.date-selected]="isSelected(item.index)">
+
+          <div class="date-checkbox">
+            <mat-checkbox formControlName="selected"
+                          [disabled]="isPaid && isCollective && isFlex && !isDateOriginallySelected(courseDatesArray.at(item.index).get('date')?.value)"
+                          (change)="onDateSelect($event, item.index)">
+            </mat-checkbox>
+          </div>
+
+          <div class="date-content">
+            <div class="date-main-info">
+              <span class="date-label">{{ formatDate(courseDatesArray.at(item.index).get('date')?.value) }}</span>
+              <span class="time-label">
+                {{ courseDatesArray.at(item.index).get('startHour')?.value }}h -
+                {{ courseDatesArray.at(item.index).get('endHour')?.value }}h
+              </span>
+              <span class="price-label">
+                {{ courseDatesArray.at(item.index).get('price')?.value | number:'1.2-2' }}
+                {{ course.currency }}
+              </span>
+            </div>
+
+            <!-- Participants (for flex courses) -->
+            <div class="date-participants" *ngIf="utilizers.length > 0">
+              <mat-form-field appearance="outline" class="participants-field">
+                <mat-label>{{ "participants" | translate }}</mat-label>
+                <input matInput disabled [value]="utilizersDisplayNames">
+                <mat-icon matPrefix>people</mat-icon>
+              </mat-form-field>
+            </div>
+
+            <!-- Extras -->
+            <div class="date-extras" *ngIf="posibleExtras.length > 0">
+              <mat-form-field appearance="outline" class="extras-field">
+                <mat-label>{{ "extras" | translate }}</mat-label>
+                <mat-select multiple formControlName="extras" (selectionChange)="onExtraChange(item.index)">
+                  <mat-option *ngFor="let extra of posibleExtras" [value]="extra">
+                    <span class="extra-name">{{ extra.name }} - {{ extra.description }}</span>
+                    <span class="extra-price">{{ extra.price | number:'1.2-2' }} {{ course.currency }}</span>
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+              <span class="extras-total-price">
+                {{ isSelected(item.index) ? (totalExtraPrice[item.index] | number:'1.2-2') : '0.00' }} {{ course.currency }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -180,7 +273,7 @@
     </button>
     <button mat-flat-button color="primary" type="button"
             (click)="submitForm()"
-            [disabled]="!isFormValid()"
+            [disabled]="!isFormValid() && !limitedEditMode"
             class="confirm-button">
       {{ "confirm" | translate }}
     </button>

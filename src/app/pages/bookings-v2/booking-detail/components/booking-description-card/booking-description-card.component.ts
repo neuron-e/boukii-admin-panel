@@ -80,6 +80,7 @@ export class BookingDescriptionCard implements OnChanges {
   @Input() status = 1;
   @Input() index: number = 1;
   @Input() bookingId: number | null = null;
+  @Input() isPaid: boolean | null = null;
   uniqueMonitors: any[] = []; // Monitores únicos
   private _dates: any[] = [];
   discountInfoList: AppliedDiscountInfo[] = [];
@@ -450,7 +451,8 @@ export class BookingDescriptionCard implements OnChanges {
         utilizers: utilizers,
         sportLevel: this.sportLevel,
         initialData: dates,
-        groupedActivities: this.groupedActivities
+        groupedActivities: this.groupedActivities,
+        isPaid: this.isPaid ?? false
       }
     });
 
@@ -462,18 +464,22 @@ export class BookingDescriptionCard implements OnChanges {
 
         // Calcular el nuevo total
         if (result.course_dates) {
-          this.total = result.course_dates.reduce((acc: number, date: any) => {
-            let datePrice = parseFloat(date.price || 0);
+          if (result.keepTotal) {
+            this.total = (result.total ?? this.total);
+          } else {
+            this.total = result.course_dates.reduce((acc: number, date: any) => {
+              let datePrice = parseFloat(date.price || 0);
 
-            // Sumar extras si existen
-            if (date.extras && date.extras.length > 0) {
-              const extrasPrice = date.extras.reduce((sum: number, extra: any) =>
-                sum + parseFloat(extra.price || 0), 0);
-              datePrice += extrasPrice;
-            }
+              // Sumar extras si existen
+              if (date.extras && date.extras.length > 0) {
+                const extrasPrice = date.extras.reduce((sum: number, extra: any) =>
+                  sum + parseFloat(extra.price || 0), 0);
+                datePrice += extrasPrice;
+              }
 
-            return acc + datePrice;
-          }, 0).toFixed(2);
+              return acc + datePrice;
+            }, 0).toFixed(2);
+          }
         }
 
         result.total = this.total;

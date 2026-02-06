@@ -325,6 +325,7 @@
   "booking_edit_remove_dates_info": "You are canceling some dates from this booking.",
   "booking_edit_warning_collective_fix": "Fixed collective course: Cannot modify dates",
   "booking_edit_warning_flex_add_remove": "Adding dates will increase the price. Removing dates creates a partial cancellation.",
+  "booking_edit_paid_collective_limit": "Paid collective flex: you can remove dates, but you cannot add more than the original number of dates ({{count}}).",
   "booking_id": "Booking ID",
   "booking_info": "Reservation information",
   "booking_must_start_from_first_day": "You must select the first available date of the course to make a booking.",
@@ -370,6 +371,7 @@
   "bookings_page.detail.full_cancel": "Cancel reservation completely",
   "bookings_page.edit.title": "Edit Booking",
   "bookings_page.edit_dates.title": "Modify reservation dates",
+  "bookings_page.edit_dates.available_dates_hint": "Available course dates",
   "bookings_page.multiple_date": "Various dates",
   "bookings_page.reductions.amount": "Amount",
   "bookings_page.reductions.discount": "Discount rate",
@@ -1743,6 +1745,8 @@
   "snackbar.booking.no_sport_2": " associated. ",
   "snackbar.booking.no_sport_3": "This user does not have any associated sports. ",
   "snackbar.booking.overlap": "There is an overlap for the client in this reservation: ",
+  "snackbar.booking.time_out_of_range": "Selected time is outside the available range.",
+  "snackbar.booking.max_dates_reached": "You cannot add more dates to a paid booking.",
   "snackbar.booking.overlap_title": "Overlap detected for this client:",
   "snackbar.booking.overlap_item": "{{date}} | {{time}} | {{course}} | Booking #{{bookingId}}",
   "snackbar.booking.overlap_unknown_course": "Course",
@@ -2423,5 +2427,12 @@
   "Configuration": "Configuration",
   "Gift Message": "Gift Message",
   "Select Template": "Select Template",
-  "Template and Message": "Template and Message"
+  "Template and Message": "Template and Message",
+  "superadmin.title": "Superadmin",
+  "superadmin.dashboard": "Dashboard",
+  "superadmin.schools": "Schools",
+  "superadmin.new_school": "New school",
+  "superadmin.roles": "Roles",
+  "superadmin.admins": "Admins",
+  "superadmin.impersonate": "Impersonate"
 }

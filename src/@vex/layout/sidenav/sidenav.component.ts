@@ -28,7 +28,9 @@ export class SidenavComponent implements OnInit {
 
   userMenuOpen$: Observable<boolean> = of(false);
 
-  items = this.navigationService.items;
+  get items() {
+    return this.navigationService.items;
+  }
   user: any = null;
 
   constructor(private navigationService: NavigationService,

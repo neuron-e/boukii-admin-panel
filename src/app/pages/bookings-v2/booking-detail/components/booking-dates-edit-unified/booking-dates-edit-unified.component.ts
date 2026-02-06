@@ -5,7 +5,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import moment from 'moment';
 import { ApiCrudService } from '../../../../../../service/crud.service';
+import { firstValueFrom } from 'rxjs';
 import { UtilsService } from '../../../../../../service/utils.service';
+import { applyFlexibleDiscount, buildDiscountInfoList, getApplicableDiscounts, resolveIntervalName } from 'src/app/pages/bookings-v2/shared/discount-utils';
 
 export interface BookingEditData {
   course: any;
@@ -13,6 +15,7 @@ export interface BookingEditData {
   sportLevel: any;
   initialData: any[];
   groupedActivities: any[];
+  isPaid?: boolean;
 }
 
 export interface PriceChange {
@@ -36,6 +39,8 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
   sportLevel: any;
   initialData: any[];
   groupedActivities: any[];
+  isPaid: boolean = false;
+  isEditingContext: boolean = false;
 
   // Course type flags
   isPrivate: boolean = false;
@@ -59,10 +64,13 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
   originalPrice: number = 0;
   currentPrice: number = 0;
   priceChange: PriceChange | null = null;
+  limitedEditMode: boolean = true;
 
   // Extras
   posibleExtras: any[] = [];
   totalExtraPrice: number[] = [];
+  availableMonitorsByIndex: Record<number, any[]> = {};
+  loadingMonitorsByIndex: Record<number, boolean> = {};
 
   // Warnings
   warnings: string[] = [];
@@ -83,6 +91,8 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     this.sportLevel = data.sportLevel;
     this.initialData = data.initialData || [];
     this.groupedActivities = data.groupedActivities || [];
+    this.isPaid = data.isPaid ?? false;
+    this.isEditingContext = this.initialData.length > 0;
     this.stepForm = this.fb.group({});
   }
 
@@ -113,6 +123,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     this.isCollective = this.course.course_type === 1;
     this.isFlex = this.course.is_flexible === true || this.course.is_flexible === 1;
     this.isFix = !this.isFlex;
+    this.limitedEditMode = this.isPrivate && this.isPaid;
   }
 
   /**
@@ -122,11 +133,27 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     // Detectar intervalos
     this.intervals = this.course.course_intervals || [];
     this.hasIntervals = this.intervals.length > 0;
+    if (!this.hasIntervals) {
+      this.intervals = this.buildIntervalsFromSettings();
+      this.hasIntervals = this.intervals.length > 0;
+    }
 
     // Si hay initial data, detectar el intervalo seleccionado
-    if (this.initialData.length > 0 && this.hasIntervals) {
+    if (this.initialData.length > 0) {
       const firstDate = this.initialData[0];
-      this.selectedIntervalId = this.findIntervalForDate(firstDate.date);
+      if (firstDate?.interval_id && !this.hasIntervals) {
+        const courseDates = Array.isArray(this.course?.course_dates) ? this.course.course_dates : [];
+        this.intervals = [{
+          id: firstDate.interval_id,
+          week_number: null,
+          name: resolveIntervalName(this.course, String(firstDate.interval_id)) ?? null,
+          interval_dates: courseDates.filter((date: any) => String(date.interval_id) === String(firstDate.interval_id))
+        }];
+        this.hasIntervals = this.intervals.length > 0;
+      }
+      if (this.hasIntervals) {
+        this.selectedIntervalId = this.findIntervalForDate(firstDate.date);
+      }
     }
 
     // Obtener flags del curso o intervalo seleccionado
@@ -156,9 +183,10 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
   }
 
   private findIntervalForDate(dateStr: string): string | null {
+    const normalized = this.normalizeDate(dateStr);
     for (const interval of this.intervals) {
       const intervalDates = interval.interval_dates || [];
-      if (intervalDates.some((d: any) => d.date === dateStr)) {
+      if (intervalDates.some((d: any) => this.normalizeDate(d.date) === normalized)) {
         return this.normalizeIntervalId(interval);
       }
     }
@@ -172,22 +200,88 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     return false;
   }
 
+  private buildIntervalsFromSettings(): any[] {
+    const settingsRaw = this.course?.settings;
+    let settings = settingsRaw;
+    if (typeof settingsRaw === 'string') {
+      try {
+        settings = JSON.parse(settingsRaw);
+      } catch {
+        settings = null;
+      }
+    }
+    const intervals = Array.isArray(settings?.intervals) ? settings.intervals : [];
+    if (!intervals.length) return [];
+
+    const courseDates = Array.isArray(this.course?.course_dates) ? this.course.course_dates : [];
+    return intervals.map((interval: any) => {
+      const id = interval?.id ?? interval?.week_number ?? null;
+      const intervalDates = courseDates.filter((date: any) => String(date.interval_id) === String(id));
+      return {
+        id,
+        week_number: interval?.week_number ?? null,
+        name: interval?.name ?? null,
+        interval_dates: intervalDates
+      };
+    });
+  }
+
+  private calculateFlexTotal(dates: any[]): number {
+    if (!Array.isArray(dates) || dates.length === 0) {
+      return 0;
+    }
+    const grouped = new Map<string, any[]>();
+    dates.forEach((date: any) => {
+      const key = date?.interval_id ? String(date.interval_id) : 'default';
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(date);
+    });
+
+    let total = 0;
+    grouped.forEach((datesInInterval, intervalId) => {
+      const baseTotal = datesInInterval.reduce((acc: number, date: any) => {
+        let value = parseFloat((date?.price ?? this.course?.price ?? this.course?.minPrice ?? 0).toString()) || 0;
+        if (Array.isArray(date?.extras) && date.extras.length > 0) {
+          const extrasPrice = date.extras.reduce((sum: number, extra: any) =>
+            sum + parseFloat(extra.price || 0), 0);
+          value += extrasPrice;
+        }
+        return acc + value;
+      }, 0);
+
+      const applicableDiscounts = getApplicableDiscounts(
+        this.course,
+        intervalId !== 'default' ? intervalId : undefined
+      );
+      const discountedTotal = applyFlexibleDiscount(baseTotal, datesInInterval.length, applicableDiscounts);
+      total += discountedTotal;
+    });
+
+    return total;
+  }
+
   /**
    * Calcula el precio original de la reserva
    */
   private calculateOriginalPrice(): void {
-    this.originalPrice = this.initialData.reduce((total, date) => {
-      let datePrice = parseFloat(date.price || this.course.price || 0);
+    if (this.isFlex) {
+      this.originalPrice = this.calculateFlexTotal(this.initialData);
+    } else {
+      this.originalPrice = this.initialData.reduce((total, date) => {
+        let datePrice = parseFloat(date.price || this.course.price || 0);
 
-      // Sumar extras
-      if (date.extras && date.extras.length > 0) {
-        const extrasPrice = date.extras.reduce((sum: number, extra: any) =>
-          sum + parseFloat(extra.price || 0), 0);
-        datePrice += extrasPrice;
-      }
+        // Sumar extras
+        if (date.extras && date.extras.length > 0) {
+          const extrasPrice = date.extras.reduce((sum: number, extra: any) =>
+            sum + parseFloat(extra.price || 0), 0);
+          datePrice += extrasPrice;
+        }
 
-      return total + datePrice;
-    }, 0);
+        return total + datePrice;
+      }, 0);
+    }
 
     this.currentPrice = this.originalPrice;
   }
@@ -198,6 +292,8 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
   private initializeForm(): void {
     if (this.isFix && this.isCollective) {
       this.initializeCollectiveFixForm();
+    } else if (this.limitedEditMode) {
+      this.initializeEditOnlyForm();
     } else if (this.isFlex && this.isCollective) {
       this.initializeCollectiveFlexForm();
     } else if (this.isFix && this.isPrivate) {
@@ -262,6 +358,61 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
   }
 
   /**
+   * EDIT ONLY: permite mover fechas existentes sin añadir/quitar ni recalcular precio
+   */
+  private initializeEditOnlyForm(): void {
+    this.availableDates = this.getAvailableDatesForSelection();
+    // Ensure current dates are selectable even if not in available list
+    const existingDates = new Set(this.availableDates.map(d => d.date));
+    this.initialData.forEach((date) => {
+      if (date?.date && !existingDates.has(date.date)) {
+        this.availableDates.push({
+          date: date.date,
+          hour_start: date.startHour,
+          hour_end: date.endHour
+        });
+        existingDates.add(date.date);
+      }
+    });
+    this.availableDates = this.availableDates
+      .filter(d => d?.date)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const datesArray = this.fb.array(
+      this.initialData.map((date) => {
+        const durationMinutes = this.getDurationMinutes(date.startHour, date.endHour);
+        const bookingUser = Array.isArray(date?.booking_users) ? date.booking_users[0] : null;
+        const bookingUserId = bookingUser?.id ?? date.booking_user_id ?? date.bookingUserId ?? null;
+        const startHour = date.startHour ?? bookingUser?.hour_start ?? date.hour_start ?? '';
+        const endHour = date.endHour ?? bookingUser?.hour_end ?? date.hour_end ?? '';
+        const monitor = date.monitor ?? bookingUser?.monitor ?? null;
+        const monitorId = date.monitor_id ?? bookingUser?.monitor_id ?? monitor?.id ?? null;
+        return this.fb.group({
+          source: [date],
+          date: [date.date, Validators.required],
+          startHour: [startHour, Validators.required],
+          endHour: [endHour, Validators.required],
+          durationMinutes: [durationMinutes],
+          lastValidStart: [startHour],
+          lastValidEnd: [endHour],
+          course_date_id: [date.course_date_id ?? date.course_date?.id ?? null],
+          booking_user_id: [bookingUserId],
+          monitor_id: [monitorId],
+          monitor: [monitor],
+          price: [date.price],
+          currency: [date.currency],
+          extras: [date.extras || []]
+        });
+      })
+    );
+
+    this.stepForm.addControl('edit_dates', datesArray);
+    this.priceChange = null;
+    if (this.isPrivate) {
+      this.editDatesArray.controls.forEach((_, index) => this.loadAvailableMonitors(index));
+    }
+  }
+
+  /**
    * Obtiene las fechas disponibles según intervalos y flags
    */
   private getAvailableDatesForSelection(): any[] {
@@ -285,7 +436,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
       const hourStartMoment = moment(date.hour_start, 'HH:mm');
       const isValidToday = isToday && hourStartMoment.isAfter(now);
 
-      const hasCapacity = this.checkCapacity(date);
+      const hasCapacity = this.isEditingContext ? true : this.checkCapacity(date);
 
       return (isInFuture || isValidToday) && hasCapacity;
     });
@@ -325,6 +476,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
       currency: [this.course.currency || 'CHF'],
       extras: this.fb.control<any[]>({ value: [], disabled: !selected || !this.posibleExtras.length }),
       monitor: [monitor],
+      interval_id: [courseDate.interval_id ?? courseDate.interval?.id ?? null],
       course_date_id: [courseDate.id]
     });
 
@@ -347,7 +499,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
 
     if (this.isFix && this.isCollective) {
       this.warnings.push(this.translateService.instant('booking_edit_warning_collective_fix'));
-    } else if (this.isFlex) {
+    } else if (this.isFlex && !this.limitedEditMode) {
       this.warnings.push(this.translateService.instant('booking_edit_warning_flex_add_remove'));
     }
 
@@ -381,6 +533,19 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     const extrasControl = courseDateGroup.get('extras');
 
     if (isChecked) {
+      const dateValue = courseDateGroup.get('date')?.value;
+      const isOriginallySelected = this.isDateOriginallySelected(dateValue);
+      if (this.isPaid && this.isCollective && this.isFlex && !isOriginallySelected) {
+        courseDateGroup.get('selected')?.setValue(false);
+        extrasControl?.disable();
+        extrasControl?.setValue([]);
+        this.snackbar.open(
+          this.translateService.instant('snackbar.booking.max_dates_reached'),
+          'OK',
+          { duration: 3000 }
+        );
+        return;
+      }
       // Validar disponibilidad
       this.checkAvailability(index).then(isAvailable => {
         if (isAvailable) {
@@ -444,7 +609,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     });
   }
 
-  private checkLocalOverlap(bookingUsers: any[]): boolean {
+  private checkLocalOverlap(bookingUsers: any[], ignoreBookingUserIds: number[] = []): boolean {
     for (const activity of this.groupedActivities) {
       for (const bookingUser of bookingUsers) {
         const matchingUtilizer = activity.utilizers?.find(
@@ -453,6 +618,10 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
 
         if (matchingUtilizer) {
           for (const activityDate of activity.dates) {
+            const activityBookingUserId = activityDate.booking_user_id ?? activityDate.id;
+            if (ignoreBookingUserIds.includes(activityBookingUserId)) {
+              continue;
+            }
             const formattedActivityDate = moment(activityDate.date).format('YYYY-MM-DD');
             const formattedBookingDate = moment(bookingUser.date).format('YYYY-MM-DD');
 
@@ -505,18 +674,76 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
       .map(control => control.get('date')?.value);
   }
 
+  getIntervalEditGroups(): Array<{ id: string | null; label: string; dates: Array<{ control: FormGroup; index: number }>; discounts: any[] }> {
+    const groups = new Map<string, { id: string | null; label: string; dates: Array<{ control: FormGroup; index: number }>; discounts: any[] }>();
+    this.courseDatesArray.controls.forEach((control, index) => {
+      const intervalId = (control.get('interval_id')?.value ?? null);
+      const key = intervalId ? String(intervalId) : 'default';
+      if (!groups.has(key)) {
+        groups.set(key, {
+          id: intervalId,
+          label: this.resolveIntervalLabel(intervalId),
+          dates: [],
+          discounts: []
+        });
+      }
+      groups.get(key)!.dates.push({ control: control as FormGroup, index });
+    });
+
+    groups.forEach((group) => {
+      const selectedDates = group.dates
+        .filter(item => item.control.get('selected')?.value)
+        .map(item => ({
+          ...item.control.value,
+          interval_id: item.control.get('interval_id')?.value ?? null,
+          date: item.control.get('date')?.value
+        }));
+      group.discounts = buildDiscountInfoList(this.course, selectedDates);
+    });
+
+    return Array.from(groups.values());
+  }
+
+  private resolveIntervalLabel(intervalId: string | null): string {
+    if (!intervalId) {
+      return this.translateService.instant('interval');
+    }
+    const fromSettings = resolveIntervalName(this.course, String(intervalId));
+    if (fromSettings) return fromSettings;
+    const fromIntervals = this.intervals.find(i => String(i.id) === String(intervalId) || String(i.week_number) === String(intervalId));
+    return fromIntervals?.name ?? `${this.translateService.instant('interval')} ${intervalId}`;
+  }
+
+  isDateOriginallySelected(dateValue: string): boolean {
+    const normalized = this.normalizeDate(dateValue);
+    return this.initialData.some(d => this.normalizeDate(d.date) === normalized);
+  }
+
   /**
    * Calcula el precio actual y el cambio
    */
   private calculateCurrentPrice(): void {
-    this.currentPrice = this.courseDatesArray.controls.reduce((total, control, index) => {
-      if (!control.get('selected')?.value) return total;
+    if (this.isFlex) {
+      const selectedDates = this.courseDatesArray.controls
+        .filter(control => control.get('selected')?.value)
+        .map((control, index) => ({
+          ...control.value,
+          extras: control.get('extras')?.value || [],
+          price: control.get('price')?.value,
+          interval_id: control.get('interval_id')?.value ?? control.get('interval_id')?.value,
+          date: control.get('date')?.value
+        }));
+      this.currentPrice = this.calculateFlexTotal(selectedDates);
+    } else {
+      this.currentPrice = this.courseDatesArray.controls.reduce((total, control, index) => {
+        if (!control.get('selected')?.value) return total;
 
-      let datePrice = parseFloat(control.get('price')?.value || 0);
-      datePrice += this.totalExtraPrice[index] || 0;
+        let datePrice = parseFloat(control.get('price')?.value || 0);
+        datePrice += this.totalExtraPrice[index] || 0;
 
-      return total + datePrice;
-    }, 0);
+        return total + datePrice;
+      }, 0);
+    }
 
     this.calculatePriceChange();
   }
@@ -568,6 +795,10 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
     return this.stepForm.get('course_dates') as FormArray;
   }
 
+  get editDatesArray(): FormArray {
+    return this.stepForm.get('edit_dates') as FormArray;
+  }
+
   isSelected(index: number): boolean {
     return this.courseDatesArray.at(index).get('selected')?.value || false;
   }
@@ -578,6 +809,7 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
 
   isFormValid(): boolean {
     if (this.isFix && this.isCollective) return false;
+    if (this.limitedEditMode) return true;
     if (this.errors.length > 0) return false;
     return this.stepForm.valid;
   }
@@ -585,13 +817,33 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
   /**
    * Submit form
    */
-  submitForm(): void {
-    if (!this.isFormValid()) {
+  async submitForm(): Promise<void> {
+    if (!this.isFormValid() && !this.limitedEditMode) {
       this.snackbar.open(
         this.translateService.instant('please_complete_required_fields'),
         'OK',
         { duration: 3000 }
       );
+      return;
+    }
+
+    if (this.limitedEditMode) {
+      try {
+        const isValid = await this.validateEditedDates();
+        if (!isValid) return;
+        this.dialogRef.close({
+          course_dates: this.buildEditedDatesPayload(),
+          priceChange: null,
+          keepTotal: true,
+          total: this.originalPrice
+        });
+      } catch {
+        this.snackbar.open(
+          this.translateService.instant('snackbar.booking.payment.error'),
+          'OK',
+          { duration: 3000 }
+        );
+      }
       return;
     }
 
@@ -603,5 +855,278 @@ export class BookingDatesEditUnifiedComponent implements OnInit {
 
   cancel(): void {
     this.dialogRef.close();
+  }
+
+  private async validateEditedDates(): Promise<boolean> {
+    if (!this.editDatesArray || this.editDatesArray.length === 0) {
+      this.snackbar.open(
+        this.translateService.instant('please_complete_required_fields'),
+        'OK',
+        { duration: 3000 }
+      );
+      return false;
+    }
+    for (let i = 0; i < this.editDatesArray.length; i += 1) {
+      const group = this.editDatesArray.at(i) as FormGroup;
+      const selectedDate = group.get('date')?.value;
+      const dateConfig = this.availableDates.find(d => d.date === selectedDate);
+      const durationMinutes = group.get('durationMinutes')?.value ?? 0;
+      const startHour = group.get('startHour')?.value;
+      if (!selectedDate || !startHour) {
+        this.snackbar.open(
+          this.translateService.instant('please_complete_required_fields'),
+          'OK',
+          { duration: 3000 }
+        );
+        return false;
+      }
+      if (!this.isPrivate && !this.isStartWithinDateRange(dateConfig, startHour, durationMinutes)) {
+        this.snackbar.open(
+          this.translateService.instant('snackbar.booking.time_out_of_range'),
+          'OK',
+          { duration: 3000 }
+        );
+        return false;
+      }
+      const isAvailable = await this.checkEditAvailability(i);
+      if (!isAvailable) {
+        return false;
+      }
+      if (this.isPrivate) {
+        await this.loadAvailableMonitors(i);
+        const monitorId = group.get('monitor_id')?.value;
+        if (!monitorId) {
+          this.snackbar.open(
+            this.translateService.instant('snackbar.booking.user_no_monitor'),
+            'OK',
+            { duration: 3000 }
+          );
+          return false;
+        }
+        const list = this.availableMonitorsByIndex[i] || [];
+        if (!list.some(m => m.id === monitorId)) {
+          this.snackbar.open(
+            this.translateService.instant('snackbar.booking.no_match'),
+            'OK',
+            { duration: 3000 }
+          );
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  onEditDateChange(index: number): void {
+    const group = this.editDatesArray.at(index) as FormGroup;
+    const selectedDate = group.get('date')?.value;
+    const dateConfig = this.availableDates.find(d => d.date === selectedDate);
+    if (!dateConfig) return;
+
+    const durationMinutes = group.get('durationMinutes')?.value ?? 0;
+    if (this.isCollective) {
+      group.patchValue({
+        startHour: dateConfig.hour_start,
+        endHour: dateConfig.hour_end,
+        lastValidStart: dateConfig.hour_start,
+        lastValidEnd: dateConfig.hour_end
+      }, { emitEvent: false });
+      return;
+    }
+
+    const startHour = dateConfig.hour_start || group.get('startHour')?.value;
+    const endHour = this.addMinutesToTime(startHour, durationMinutes);
+    group.patchValue({
+      startHour,
+      endHour,
+      lastValidStart: startHour,
+      lastValidEnd: endHour
+    }, { emitEvent: false });
+    if (this.isPrivate) {
+      this.loadAvailableMonitors(index);
+    }
+  }
+
+  onEditTimeChange(index: number): void {
+    if (!this.isPrivate) return;
+    const group = this.editDatesArray.at(index) as FormGroup;
+    const durationMinutes = group.get('durationMinutes')?.value ?? 0;
+    const startHour = group.get('startHour')?.value;
+    if (!startHour) return;
+    const endHour = this.addMinutesToTime(startHour, durationMinutes);
+    group.patchValue({ endHour }, { emitEvent: false });
+    group.patchValue(
+      { lastValidStart: startHour, lastValidEnd: endHour },
+      { emitEvent: false }
+    );
+    if (this.isPrivate) {
+      this.loadAvailableMonitors(index);
+    }
+  }
+
+  private checkEditAvailability(index: number): Promise<boolean> {
+    return new Promise(resolve => {
+      const group = this.editDatesArray.at(index) as FormGroup;
+      const bookingUserIds = this.editDatesArray.controls
+        .map(control => (control as FormGroup).get('booking_user_id')?.value)
+        .filter(Boolean);
+      const bookingUsers = this.utilizers.map(utilizer => ({
+        client_id: utilizer.id,
+        hour_start: group.get('startHour')?.value,
+        hour_end: group.get('endHour')?.value,
+        date: moment(group.get('date')?.value).format('YYYY-MM-DD')
+      }));
+
+      if (!this.limitedEditMode && this.checkLocalOverlap(bookingUsers, bookingUserIds)) {
+        this.snackbar.open(
+          this.translateService.instant('snackbar.booking.localOverlap'),
+          'OK',
+          { duration: 3000 }
+        );
+        resolve(false);
+        return;
+      }
+
+      this.crudService.post('/admin/bookings/checkbooking', {
+        bookingUsers,
+        bookingUserIds
+      }).subscribe({
+        next: (response: any) => {
+          if (!response?.success) {
+            this.snackbar.open(
+              this.translateService.instant('snackbar.booking.localOverlap'),
+              'OK',
+              { duration: 3000 }
+            );
+          }
+          resolve(!!response?.success);
+        },
+        error: (error) => {
+          const overlapMessage = this.utilsService.formatBookingOverlapMessage(error.error?.data);
+          this.snackbar.open(overlapMessage, 'OK', {
+            duration: 4000,
+            panelClass: ['snackbar-multiline']
+          });
+          resolve(false);
+        }
+      });
+    });
+  }
+
+  private buildEditedDatesPayload(): any[] {
+    return this.editDatesArray.controls.map((control) => {
+      const group = control as FormGroup;
+      const source = group.get('source')?.value || {};
+      const durationMinutes = group.get('durationMinutes')?.value ?? 0;
+      const startHour = group.get('startHour')?.value;
+      const endHour = this.isPrivate
+        ? this.addMinutesToTime(startHour, durationMinutes)
+        : group.get('endHour')?.value;
+      const bookingUserId = group.get('booking_user_id')?.value ?? source?.booking_user_id ?? null;
+      const dateValue = group.get('date')?.value;
+      const normalizedDate = this.normalizeDate(dateValue);
+      const selectedDate = this.availableDates.find(d => this.normalizeDate(d.date) === normalizedDate);
+      const sourceBookingUser = Array.isArray(source?.booking_users) ? source.booking_users[0] : null;
+      const courseDateId = group.get('course_date_id')?.value
+        ?? selectedDate?.id
+        ?? selectedDate?.course_date_id
+        ?? source?.course_date_id
+        ?? sourceBookingUser?.course_date_id
+        ?? source?.course_date?.id
+        ?? null;
+      const priceValue = sourceBookingUser?.price ?? source?.price;
+      const bookingUsers = Array.isArray(source?.booking_users)
+        ? source.booking_users.map((user: any) => ({ id: user.id }))
+        : (bookingUserId ? [{ id: bookingUserId }] : []);
+      return {
+        ...source,
+        selected: false,
+        booking_users: bookingUsers,
+        date: dateValue,
+        startHour,
+        endHour,
+        course_date_id: courseDateId,
+        monitor_id: group.get('monitor_id')?.value ?? source?.monitor_id ?? null,
+        price: priceValue
+      };
+    });
+  }
+
+  private async loadAvailableMonitors(index: number): Promise<void> {
+    if (!this.isPrivate) return;
+    const group = this.editDatesArray.at(index) as FormGroup;
+    const date = group.get('date')?.value;
+    const startHour = group.get('startHour')?.value;
+    const durationMinutes = group.get('durationMinutes')?.value ?? 0;
+    if (!date || !startHour || durationMinutes <= 0) return;
+
+    const endHour = this.addMinutesToTime(startHour, durationMinutes);
+    this.loadingMonitorsByIndex[index] = true;
+    const payload = {
+      sportId: this.course?.sport_id,
+      minimumDegreeId: this.sportLevel?.id,
+      startTime: startHour.length <= 5 ? startHour : startHour.replace(':00', ''),
+      endTime: endHour.length <= 5 ? endHour : endHour.replace(':00', ''),
+      date: moment(date).format('YYYY-MM-DD'),
+      clientIds: this.utilizers.map(u => u.id),
+      bookingUserIds: this.initialData.map(d => d.id).filter(Boolean)
+    };
+
+    try {
+      const response: any = await firstValueFrom(this.crudService.post('/admin/monitors/available', payload));
+      const list = Array.isArray(response?.data) ? response.data : [];
+      const currentMonitor = group.get('monitor')?.value;
+      const currentMonitorId = group.get('monitor_id')?.value;
+      if (currentMonitorId && currentMonitor && !list.some(m => m.id === currentMonitorId)) {
+        list.unshift(currentMonitor);
+      }
+      this.availableMonitorsByIndex[index] = list;
+      if (!this.availableMonitorsByIndex[index].length) {
+        this.snackbar.open(this.translateService.instant('snackbar.booking.no_match'), 'OK', { duration: 3000 });
+      }
+    } catch (error) {
+      this.availableMonitorsByIndex[index] = [];
+    } finally {
+      this.loadingMonitorsByIndex[index] = false;
+    }
+  }
+
+  getAvailableMonitors(index: number): any[] {
+    return this.availableMonitorsByIndex[index] || [];
+  }
+
+  private getDurationMinutes(start: string, end: string): number {
+    if (!start || !end) return 0;
+    const startMoment = moment(start, 'HH:mm');
+    const endMoment = moment(end, 'HH:mm');
+    return Math.max(0, endMoment.diff(startMoment, 'minutes'));
+  }
+
+  private isStartWithinDateRange(dateConfig: any, startHour: string, durationMinutes: number): boolean {
+    if (!dateConfig?.hour_start || !dateConfig?.hour_end) return true;
+    const rangeStart = this.timeToMinutes(dateConfig.hour_start);
+    const rangeEnd = this.timeToMinutes(dateConfig.hour_end);
+    const start = this.timeToMinutes(startHour);
+    if (rangeStart === null || rangeEnd === null || start === null) return true;
+    const maxStart = Math.max(rangeStart, rangeEnd - durationMinutes);
+    return start >= rangeStart && start <= maxStart;
+  }
+
+  private timeToMinutes(time: string): number | null {
+    if (!time) return null;
+    const parts = time.split(':').map(part => parseInt(part, 10));
+    if (parts.length < 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) return null;
+    const hours = parts[0];
+    const minutes = parts[1];
+    return hours * 60 + minutes;
+  }
+
+  private addMinutesToTime(start: string, minutes: number): string {
+    return moment(start, 'HH:mm').add(minutes, 'minutes').format('HH:mm');
+  }
+
+  private normalizeDate(value: string): string {
+    if (!value) return '';
+    return moment(value).format('YYYY-MM-DD');
   }
 }

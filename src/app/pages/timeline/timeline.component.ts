@@ -2127,6 +2127,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
     const isGroupCourse = baseCourseType === 1;
 
+    // For private courses, get the actual client/person IDs to filter by participant
+    // Using client_id (the person) instead of booking_user_id (which is unique per date)
+    const taskClientIds = !isGroupCourse ? this.getClientIdsFromTask(task) : [];
+
     return tasksSource.filter(candidate => {
       if (!candidate) return false;
 
@@ -2142,7 +2146,21 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         if (!courseId) {
           return true;
         }
-        return candidate.course_id === courseId;
+        if (candidate.course_id !== courseId) {
+          return false;
+        }
+        // For private courses, also filter by client_id to match same participant
+        // But only if BOTH tasks have client IDs; otherwise fall back to course_id match
+        if (taskClientIds.length > 0) {
+          const candidateClientIds = this.getClientIdsFromTask(candidate);
+          if (candidateClientIds.length > 0) {
+            // Both have client IDs - check for overlap (same person)
+            const hasOverlap = taskClientIds.some(id => candidateClientIds.includes(id));
+            return hasOverlap;
+          }
+          // Candidate doesn't have client IDs - fall back to course_id match
+        }
+        return true;
       }
 
       return false;
@@ -4975,6 +4993,23 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       const resolvedId = this.resolveBookingUserId(client);
       if (resolvedId != null) {
         ids.add(resolvedId);
+      }
+    });
+    return Array.from(ids);
+  }
+
+  /** Extracts actual client/person IDs (not booking_user_ids) from task's all_clients */
+  private getClientIdsFromTask(task: any): number[] {
+    if (!task) {
+      return [];
+    }
+    const ids = new Set<number>();
+    const clients = Array.isArray(task.all_clients) ? task.all_clients : [];
+    clients.forEach((entry: any) => {
+      // Get the actual client/person ID, not the booking_user_id
+      const clientId = entry?.client?.id ?? entry?.client_id ?? null;
+      if (clientId != null) {
+        ids.add(Number(clientId));
       }
     });
     return Array.from(ids);

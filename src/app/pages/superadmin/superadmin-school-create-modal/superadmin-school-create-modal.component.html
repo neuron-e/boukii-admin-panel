@@ -1,0 +1,55 @@
+<div class="school-create">
+  <div class="school-create__header">
+    <div>
+      <h3>New school</h3>
+      <p>Basic info and main admin.</p>
+    </div>
+    <button mat-icon-button (click)="close()" aria-label="Close">
+      <mat-icon svgIcon="mat:close"></mat-icon>
+    </button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="school-create__form">
+    <mat-form-field appearance="fill">
+      <mat-label>School name</mat-label>
+      <input matInput formControlName="name" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Contact email</mat-label>
+      <input matInput formControlName="contact_email" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Slug (optional)</mat-label>
+      <input matInput formControlName="slug" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Admin first name</mat-label>
+      <input matInput formControlName="admin_first_name" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Admin last name</mat-label>
+      <input matInput formControlName="admin_last_name" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Admin email</mat-label>
+      <input matInput formControlName="admin_email" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Admin password</mat-label>
+      <input matInput type="password" formControlName="admin_password" />
+    </mat-form-field>
+
+    <div class="school-create__actions">
+      <button mat-stroked-button type="button" (click)="close()">Cancel</button>
+      <button mat-raised-button color="primary" type="submit" [disabled]="loading">
+        {{ loading ? 'Saving...' : 'Create school' }}
+      </button>
+    </div>
+  </form>
+</div>

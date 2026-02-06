@@ -152,8 +152,7 @@
                src="assets/img/icons/edit-grey.svg" style="float: right" class="icon24">
         </ng-container>
         <ng-container *ngIf="course && course.course_type ==1 && course.is_flexible ">
-          <img *ngIf="!summaryMode && isDetail && status != 2
-          && course.course_extras.length"
+          <img *ngIf="!summaryMode && isDetail && status != 2"
                (click)="sendEditForm(dates, course, utilizers)"
                src="assets/img/icons/edit-grey.svg" style="float: right" class="icon24">
         </ng-container>

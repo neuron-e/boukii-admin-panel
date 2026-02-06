@@ -325,6 +325,7 @@
   "booking_edit_remove_dates_info": "Vas a cancelar algunas fechas de esta reserva.",
   "booking_edit_warning_collective_fix": "Curso colectivo fix: No se pueden modificar fechas",
   "booking_edit_warning_flex_add_remove": "Añadir fechas incrementará el precio. Quitar fechas genera una cancelación parcial.",
+  "booking_edit_paid_collective_limit": "Colectivo flexible pagado: puedes quitar fechas, pero no añadir más de las originales ({{count}}).",
   "booking_id": "ID Reserva",
   "booking_info": "Información de la reserva",
   "booking_must_start_from_first_day": "Debes seleccionar la primera fecha disponible del curso para poder reservar.",
@@ -370,6 +371,7 @@
   "bookings_page.detail.full_cancel": "Anular reserva totalmente",
   "bookings_page.edit.title": "Modifcar curso de reserva",
   "bookings_page.edit_dates.title": "Modificar fechas de la reserva",
+  "bookings_page.edit_dates.available_dates_hint": "Fechas disponibles del curso",
   "bookings_page.multiple_date": "Varias fechas",
   "bookings_page.reductions.amount": "Cantidad",
   "bookings_page.reductions.discount": "Tasa de descuento",
@@ -1745,6 +1747,8 @@
   "snackbar.booking.no_sport_2": " asociado. ¿Quieres añadirlo?",
   "snackbar.booking.no_sport_3": "Este usuario no tiene ningún deporte asociado. ¿Quieres añadirlo?",
   "snackbar.booking.overlap": "Existe un solapamiento para el cliente en esta reserva: ",
+  "snackbar.booking.time_out_of_range": "La hora seleccionada está fuera del rango disponible.",
+  "snackbar.booking.max_dates_reached": "No puedes añadir más fechas a una reserva pagada.",
   "snackbar.booking.overlap_title": "Existe un solapamiento para este cliente:",
   "snackbar.booking.overlap_item": "{{date}} | {{time}} | {{course}} | Reserva #{{bookingId}}",
   "snackbar.booking.overlap_unknown_course": "Curso",
@@ -2419,5 +2423,12 @@
   "settings.booking.privates.min_lead_hint": "Minutos mínimos antes de la hora de inicio para permitir una reserva privada.",
   "settings.booking.privates.min_lead_label": "Tiempo de anticipación para reservas privadas (minutos)",
   "settings.booking.privates.overbooking_limit_hint": "Reservas adicionales permitidas cuando no hay monitores libres (0 = sin overbooking).",
-  "settings.booking.privates.overbooking_limit_label": "Límite de overbooking para clases privadas"
+  "settings.booking.privates.overbooking_limit_label": "Límite de overbooking para clases privadas",
+  "superadmin.title": "Superadmin",
+  "superadmin.dashboard": "Dashboard",
+  "superadmin.schools": "Escuelas",
+  "superadmin.new_school": "Nueva escuela",
+  "superadmin.roles": "Roles",
+  "superadmin.admins": "Administradores",
+  "superadmin.impersonate": "Suplantar"
 }

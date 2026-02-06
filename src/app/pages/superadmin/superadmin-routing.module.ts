@@ -3,7 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { SuperadminLayoutComponent } from './superadmin-layout/superadmin-layout.component';
 import { SuperadminDashboardComponent } from './superadmin-dashboard/superadmin-dashboard.component';
 import { SuperadminSchoolsComponent } from './superadmin-schools/superadmin-schools.component';
-import { SuperadminSchoolCreateComponent } from './superadmin-school-create/superadmin-school-create.component';
+import { SuperadminSchoolDetailComponent } from './superadmin-school-detail/superadmin-school-detail.component';
 import { SuperadminRolesComponent } from './superadmin-roles/superadmin-roles.component';
 import { SuperadminAdminsComponent } from './superadmin-admins/superadmin-admins.component';
 import { SuperadminImpersonateComponent } from './superadmin-impersonate/superadmin-impersonate.component';
@@ -16,7 +16,7 @@ const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: SuperadminDashboardComponent },
       { path: 'schools', component: SuperadminSchoolsComponent },
-      { path: 'schools/create', component: SuperadminSchoolCreateComponent },
+      { path: 'schools/:id', component: SuperadminSchoolDetailComponent },
       { path: 'roles', component: SuperadminRolesComponent },
       { path: 'admins', component: SuperadminAdminsComponent },
       { path: 'impersonate', component: SuperadminImpersonateComponent },

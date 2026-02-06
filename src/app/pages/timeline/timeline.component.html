@@ -1071,7 +1071,7 @@
                       </mat-select>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="mini-select"
-                                    *ngIf="monitorAssignmentScope !== 'single'">
+                                    *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentScope !== 'all'">
                       <mat-label>{{'monitor_assignment.start_date' | translate}}</mat-label>
                       <mat-select [(ngModel)]="monitorAssignmentStartDate"
                                   (selectionChange)="onMonitorAssignmentStartChange($event.value)">
@@ -1092,8 +1092,11 @@
                         </mat-option>
                       </mat-select>
                     </mat-form-field>
-            <span class="days-info" *ngIf="monitorAssignmentScope !== 'single'">
+            <span class="days-info" *ngIf="monitorAssignmentScope !== 'single' && monitorAssignmentScope !== 'all'">
               ({{ getSelectedAssignmentSessionCount() }} {{'days' | translate}})
+            </span>
+            <span class="days-info" *ngIf="monitorAssignmentScope === 'all'">
+              ({{ monitorAssignmentDates.length }} {{'days' | translate}})
             </span>
           </div>
         </div>

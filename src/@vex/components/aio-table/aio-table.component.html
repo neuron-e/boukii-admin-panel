@@ -302,7 +302,7 @@
           <mat-icon svgIcon="mat:filter_list"></mat-icon>
         </button>
 
-        <button *ngIf="!entity.includes('statistics')" [matTooltip]="translateService.instant('add')"
+        <button *ngIf="showCreate && !entity.includes('statistics')" [matTooltip]="translateService.instant('add')"
                 (click)="create()" class="ml-4 flex-none" color="primary" mat-mini-fab type="button">
           <mat-icon svgIcon="mat:add"></mat-icon>
         </button>

@@ -1,0 +1,52 @@
+<div class="admin-create">
+  <div class="admin-create__header">
+    <div>
+      <h3>New admin</h3>
+      <p>Create an admin and link to a school.</p>
+    </div>
+    <button mat-icon-button (click)="close()" aria-label="Close">
+      <mat-icon svgIcon="mat:close"></mat-icon>
+    </button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="admin-create__form">
+    <mat-form-field appearance="fill">
+      <mat-label>First name</mat-label>
+      <input matInput formControlName="first_name" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Last name</mat-label>
+      <input matInput formControlName="last_name" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Email</mat-label>
+      <input matInput formControlName="email" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Password</mat-label>
+      <input matInput type="password" formControlName="password" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>School</mat-label>
+      <mat-select formControlName="school_id">
+        <mat-option *ngFor="let school of schools" [value]="school.id">{{ school.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Role</mat-label>
+      <input matInput formControlName="role" placeholder="optional role name" />
+    </mat-form-field>
+
+    <div class="admin-create__actions">
+      <button mat-stroked-button type="button" (click)="close()">Cancel</button>
+      <button mat-raised-button color="primary" type="submit" [disabled]="loading">
+        {{ loading ? 'Saving...' : 'Create admin' }}
+      </button>
+    </div>
+  </form>
+</div>

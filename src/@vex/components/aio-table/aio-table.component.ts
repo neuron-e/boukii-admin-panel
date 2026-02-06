@@ -81,6 +81,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   @Input() canDeactivate: boolean = false;
   @Input() canDuplicate: boolean = false;
   @Input() createOnModal: boolean = false;
+  @Input() updateOnModal: boolean = false;
+  @Input() showCreate: boolean = true;
+  @Input() useSchoolFilter: boolean = true;
+  @Input() dialogPanelClass: string = 'full-screen-dialog';
   @Input() widthModal?: string = '90vw';
   @Input() heigthModal?: string = '90vh';
   @Input() createComponent: any;
@@ -158,8 +162,9 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     private excelExportService: ExcelExportService, private routeActive: ActivatedRoute,
     private cdr: ChangeDetectorRef, public translateService: TranslateService, private snackbar: MatSnackBar,
     private schoolService: SchoolService) {
-    this.user = JSON.parse(localStorage.getItem('boukiiUser'));
-    this.schoolId = this.user.schools[0].id;
+    const rawUser = localStorage.getItem('boukiiUser');
+    this.user = rawUser ? JSON.parse(rawUser) : null;
+    this.schoolId = this.user?.schools?.[0]?.id ?? null;
   }
 
   private normalizeBadgeValue(value: any): string | null {
@@ -426,6 +431,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     const availabilityFilter = this.entity && this.entity.includes('/admin/courses') && pageSize >= 25
       ? '&include_availability=0&light=1'
       : (this.entity && this.entity.includes('/admin/courses') ? '&light=1' : '');
+    const schoolFilter = this.useSchoolFilter && this.schoolId ? '&school_id=' + this.schoolId : '';
     const requestKey = [
       this.entity,
       pageIndex,
@@ -453,22 +459,28 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       pageSize,
       this.Sort.direction,
       this.backendOrderColumn,
-      this.searchCtrl.value + filter + availabilityFilter + '&school_id=' + this.user.schools[0].id + this.search +
+      this.searchCtrl.value + filter + availabilityFilter + schoolFilter + this.search +
       (this.filterField !== null ? '&' + this.filterColumn + '=' + this.filterField : ''),
       '',
       null,
       this.searchCtrl.value,
       this.with)
       .subscribe({
-        next: (response: any) => {
+      next: (response: any) => {
         this.pageIndex = pageIndex;
         this.pageSize = pageSize;
-        this.data = response.data;
-        this.dataLoaded.emit(response.data); // Emitimos los datos al componente padre
-        //this.dataSource.data = []; // Reinicializa el dataSource para eliminar los datos antiguos
-        this.dataSource.data = response.data;
+        const rawData = Array.isArray(response.data) ? response.data : [];
+        const totalRecords = response.total ?? response.meta?.total ?? response.pagination?.total ?? rawData.length ?? 0;
+        const hasServerTotal = response.total !== undefined || response.meta?.total !== undefined || response.pagination?.total !== undefined;
+        const dataToDisplay = (!hasServerTotal && rawData.length > pageSize)
+          ? rawData.slice((pageIndex - 1) * pageSize, (pageIndex - 1) * pageSize + pageSize)
+          : rawData;
+
+        this.data = dataToDisplay;
+        this.dataLoaded.emit(rawData); // Emitimos los datos al componente padre
+        this.dataSource.data = dataToDisplay;
         this.dataSource.connect();
-        this.totalRecords = response.total;
+        this.totalRecords = totalRecords;
         if (this.paginator) {
           this.paginator.pageIndex = pageIndex - 1;
           this.paginator.pageSize = pageSize;
@@ -526,7 +538,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       width: this.widthModal,
       height: this.heigthModal,
       maxWidth: '100vw',
-      panelClass: 'full-screen-dialog',
+      panelClass: this.dialogPanelClass || undefined,
       data: { mode: 'create' }
     });
 
@@ -536,8 +548,15 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   update(row: any) {
-    if (!this.createOnModal) this.router.navigate(['/' + this.route + '/' + this.updatePage + '/' + row.id]);
-    else this.updateModal(row);
+    if (!this.updateOnModal) {
+      if (!this.updatePage) {
+        this.router.navigate(['/' + this.route + '/' + row.id]);
+      } else {
+        this.router.navigate(['/' + this.route + '/' + this.updatePage + '/' + row.id]);
+      }
+    } else {
+      this.updateModal(row);
+    }
   }
 
   updateModal(row: any) {
@@ -1494,7 +1513,10 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
 
   getDegrees() {
-    this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.user.schools[0].id + '&active=1')
+    if (!this.schoolId) {
+      return;
+    }
+    this.crudService.list('/degrees', 1, 10000, 'asc', 'degree_order', '&school_id=' + this.schoolId + '&active=1')
       .subscribe((data) => {
         this.allLevels = data.data;
       })

@@ -1,0 +1,157 @@
+<vex-page-layout>
+  <vex-page-layout-content class="p-6">
+    <div class="school-detail">
+      <div class="school-detail__header">
+        <button mat-stroked-button (click)="back()">Back to Schools</button>
+        <div class="school-detail__actions">
+          <button mat-flat-button color="primary" (click)="save()" [disabled]="saving">Save Changes</button>
+        </div>
+      </div>
+
+      <div class="school-detail__title">
+        <div>
+          <h2>{{ details?.school?.name || details?.name }}</h2>
+          <span class="status" [class.status--active]="form.value.active" [class.status--inactive]="!form.value.active">
+            {{ form.value.active ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="school-detail__stats">
+        <div class="stat-card">
+          <div class="stat-title">Instructors</div>
+          <div class="stat-value">{{ details?.stats?.instructors_count || 0 }}</div>
+          <div class="stat-sub">Active on platform</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">Students</div>
+          <div class="stat-value">{{ details?.stats?.students_count || 0 }}</div>
+          <div class="stat-sub">Total enrollments</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">Revenue</div>
+          <div class="stat-value">{{ (details?.stats?.revenue_total || 0) | currency:'CHF':'symbol':'1.0-0' }}</div>
+          <div class="stat-sub">All time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">Plan</div>
+          <div class="stat-value">{{ details?.plan?.name || 'Standard' }}</div>
+          <div class="stat-sub">Since {{ details?.plan?.since || '-' }}</div>
+        </div>
+      </div>
+
+      <mat-tab-group>
+        <mat-tab label="General Information">
+          <div class="school-detail__grid">
+            <mat-card class="school-detail__card">
+              <mat-card-title>Basic Information</mat-card-title>
+              <mat-card-content>
+                <form [formGroup]="form" class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>School Name</mat-label>
+                    <input matInput formControlName="name" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Slug</mat-label>
+                    <input matInput formControlName="slug" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Email</mat-label>
+                    <input matInput formControlName="contact_email" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Phone</mat-label>
+                    <input matInput formControlName="contact_phone" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Telephone</mat-label>
+                    <input matInput formControlName="contact_telephone" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Address</mat-label>
+                    <input matInput formControlName="contact_address" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>City</mat-label>
+                    <input matInput formControlName="contact_city" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Postal code</mat-label>
+                    <input matInput formControlName="contact_cp" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Country</mat-label>
+                    <input matInput formControlName="contact_country" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Logo URL</mat-label>
+                    <input matInput formControlName="logo" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Status</mat-label>
+                    <mat-select formControlName="active">
+                      <mat-option [value]="true">Active</mat-option>
+                      <mat-option [value]="false">Inactive</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </form>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>Payment Gateway</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>Payrexx Instance</mat-label>
+                    <input matInput formControlName="payrexx_instance" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Payrexx Key</mat-label>
+                    <input matInput formControlName="payrexx_key" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Conditions URL</mat-label>
+                    <input matInput formControlName="conditions_url" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>Payment link validity (hours)</mat-label>
+                    <input matInput type="number" formControlName="payment_link_validity_hours" />
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Administrators">
+          <mat-card class="school-detail__card">
+            <mat-card-title>Admins</mat-card-title>
+            <mat-card-content>
+              <table mat-table [dataSource]="details?.admins || []" class="mat-elevation-z1">
+                <ng-container matColumnDef="name">
+                  <th mat-header-cell *matHeaderCellDef>Name</th>
+                  <td mat-cell *matCellDef="let admin">{{ admin?.user?.first_name }} {{ admin?.user?.last_name }}</td>
+                </ng-container>
+                <ng-container matColumnDef="email">
+                  <th mat-header-cell *matHeaderCellDef>Email</th>
+                  <td mat-cell *matCellDef="let admin">{{ admin?.user?.email }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="['name','email']"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['name','email'];"></tr>
+              </table>
+            </mat-card-content>
+          </mat-card>
+        </mat-tab>
+
+        <mat-tab label="Access & Permissions">
+          <mat-card class="school-detail__card">
+            <mat-card-content>
+              <p>Configure access and permissions in future iterations.</p>
+            </mat-card-content>
+          </mat-card>
+        </mat-tab>
+      </mat-tab-group>
+    </div>
+  </vex-page-layout-content>
+</vex-page-layout>

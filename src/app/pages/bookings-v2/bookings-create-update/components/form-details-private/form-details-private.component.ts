@@ -161,8 +161,25 @@ export class FormDetailsPrivateComponent implements OnInit {
 
     // Check if this is the first date entry and we have externalData
     const isFirstDate = this.courseDates.length === 0;
+
+    // MEJORA 1: Default hour from previous date
+    let previousHour = null;
+    if (!isFirstDate && this.courseDates.length > 0) {
+      const lastDateGroup = this.courseDates.at(this.courseDates.length - 1);
+      previousHour = lastDateGroup.get('startHour').value;
+    }
+
     const initialStartHour = initialData ? initialData.startHour :
-      (isFirstDate && this.initialData?.hour) ? this.initialData.hour : null;
+      (isFirstDate && this.initialData?.hour) ? this.initialData.hour :
+      previousHour; // Use previous date's hour as default
+
+    // MEJORA 2: Remember previously selected monitor for ordering
+    let previousMonitor = null;
+    if (!isFirstDate && this.courseDates.length > 0) {
+      const lastDateGroup = this.courseDates.at(this.courseDates.length - 1);
+      previousMonitor = lastDateGroup.get('monitor').value;
+    }
+
     const initialMonitor = initialData ? initialData.monitor :
       (isFirstDate && this.initialData?.monitor) ? this.initialData.monitor : null;
 
@@ -520,12 +537,31 @@ export class FormDetailsPrivateComponent implements OnInit {
       clientIds: this.utilizers.map(utilizer => utilizer.id)
     };
     this.crudService.post("/admin/monitors/available", rq).subscribe((data) => {
-      this.possibleMonitors[index] = data.data;
-      if (data.data.length === 0) {
+      let monitors = data.data || [];
+
+      // MEJORA 2: Sort monitors to put previously selected monitor first
+      if (monitors.length > 0 && index > 0) {
+        // Get the monitor selected in the previous date
+        const previousDateGroup = this.courseDates.at(index - 1);
+        const previousMonitorId = previousDateGroup?.get('monitor').value?.id;
+
+        if (previousMonitorId) {
+          // Sort: previously selected monitor first, then the rest
+          monitors = monitors.sort((a, b) => {
+            if (a.id === previousMonitorId) return -1;
+            if (b.id === previousMonitorId) return 1;
+            return 0;
+          });
+        }
+      }
+
+      this.possibleMonitors[index] = monitors;
+
+      if (monitors.length === 0) {
         this.snackbar.open(this.translateService.instant('snackbar.booking.no_match'),
           'OK', {duration:3000});
       } else {
-        const selectedMonitor = data.data.find(m => m.id === dateGroup.get('monitor').value?.id);
+        const selectedMonitor = monitors.find(m => m.id === dateGroup.get('monitor').value?.id);
         if (selectedMonitor) {
           dateGroup.get('monitor').patchValue(selectedMonitor);
 

@@ -19,6 +19,14 @@ export class SuperadminService {
     return this.crud.get('/superadmin/schools', [], params);
   }
 
+  getSchoolDetails(id: number) {
+    return this.crud.get(`/superadmin/schools/${id}/details`);
+  }
+
+  updateSchool(id: number, payload: any) {
+    return this.crud.update('/superadmin/schools', payload, id);
+  }
+
   createSchool(payload: any) {
     return this.crud.post('/superadmin/schools', payload);
   }

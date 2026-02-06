@@ -331,6 +331,7 @@
   "booking_edit_remove_dates_info": "Vas a cancelar algunas fechas de esta reserva.",
   "booking_edit_warning_collective_fix": "Curso colectivo fix: No se pueden modificar fechas",
   "booking_edit_warning_flex_add_remove": "Añadir fechas incrementará el precio. Quitar fechas genera una cancelación parcial.",
+  "booking_edit_paid_collective_limit": "Bezahlter flexibler Gruppenkurs: Termine können entfernt, aber nicht über die ursprüngliche Anzahl ({{count}}) hinaus hinzugefügt werden.",
   "booking_id": "Buchungs-ID",
   "booking_info": "Reservierungsinformationen",
   "booking_must_start_from_first_day": "Sie müssen das erste verfügbare Datum des Kurses auswählen, um eine Buchung vorzunehmen.",
@@ -377,6 +378,7 @@
   "bookings_page.detail.full_cancel": "Reservierung komplett stornieren",
   "bookings_page.edit.title": "Buchung Bearbeiten",
   "bookings_page.edit_dates.title": "Reservierungsdaten ändern",
+  "bookings_page.edit_dates.available_dates_hint": "Verfügbare Kurstermine",
   "bookings_page.multiple_date": "Verschiedene Termine",
   "bookings_page.reductions.amount": "Menge",
   "bookings_page.reductions.discount": "Diskontsatz",
@@ -1770,6 +1772,8 @@
   "snackbar.booking.no_sport_2": " damit verbundenen. ",
   "snackbar.booking.no_sport_3": "Diesem Benutzer sind keine Sportarten zugeordnet. ",
   "snackbar.booking.overlap": "Für den Kunden gibt es in dieser Reservierung eine Überschneidung: ",
+  "snackbar.booking.time_out_of_range": "Die ausgewählte Uhrzeit liegt außerhalb des verfügbaren Zeitfensters.",
+  "snackbar.booking.max_dates_reached": "Sie können einer bezahlten Buchung keine weiteren Termine hinzufügen.",
   "snackbar.booking.overlap_title": "Zeitüberschneidung für diesen Kunden:",
   "snackbar.booking.overlap_item": "{{date}} | {{time}} | {{course}} | Buchung #{{bookingId}}",
   "snackbar.booking.overlap_unknown_course": "Kurs",
@@ -2427,5 +2431,12 @@
   "settings.booking.privates.min_lead_hint": "Mindestminuten vor Startzeit, um eine private Buchung zu ermöglichen.",
   "settings.booking.privates.min_lead_label": "Vorlaufzeit für private Buchungen (Minuten)",
   "settings.booking.privates.overbooking_limit_hint": "Zusätzliche Buchungen erlaubt, wenn keine Monitore frei sind (0 = kein Overbooking).",
-  "settings.booking.privates.overbooking_limit_label": "Overbooking-Limit für Privatstunden"
+  "settings.booking.privates.overbooking_limit_label": "Overbooking-Limit für Privatstunden",
+  "superadmin.title": "Superadmin",
+  "superadmin.dashboard": "Dashboard",
+  "superadmin.schools": "Schulen",
+  "superadmin.new_school": "Neue Schule",
+  "superadmin.roles": "Rollen",
+  "superadmin.admins": "Administratoren",
+  "superadmin.impersonate": "Impersonieren"
 }

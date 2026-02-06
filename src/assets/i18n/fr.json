@@ -331,6 +331,7 @@
   "booking_edit_remove_dates_info": "Vous allez annuler certaines dates de cette réservation.",
   "booking_edit_warning_collective_fix": "Cours collectif fixe : Impossible de modifier les dates",
   "booking_edit_warning_flex_add_remove": "L'ajout de dates augmentera le prix. La suppression de dates crée une annulation partielle.",
+  "booking_edit_paid_collective_limit": "Collectif flexible payé : vous pouvez supprimer des dates, mais pas en ajouter au‑delà du nombre initial ({{count}}).",
   "booking_id": "ID Réservation",
   "booking_info": "Informations de réservation",
   "booking_must_start_from_first_day": "Vous devez sélectionner la première date disponible du cours pour effectuer une réservation.",
@@ -376,6 +377,7 @@
   "bookings_page.detail.full_cancel": "Annuler complètement la réservation",
   "bookings_page.edit.title": "Modifier Réservation",
   "bookings_page.edit_dates.title": "Modifier les dates de réservation",
+  "bookings_page.edit_dates.available_dates_hint": "Dates disponibles du cours",
   "bookings_page.multiple_date": "Diverses dates",
   "bookings_page.reductions.amount": "Montant",
   "bookings_page.reductions.discount": "Taux d'escompte",
@@ -1769,6 +1771,8 @@
   "snackbar.booking.no_sport_2": " associé. ",
   "snackbar.booking.no_sport_3": "Cet participant n'a aucun sport associé. ",
   "snackbar.booking.overlap": "Il y a un chevauchement pour le client dans cette réservation: ",
+  "snackbar.booking.time_out_of_range": "L'heure sélectionnée est en dehors de la plage disponible.",
+  "snackbar.booking.max_dates_reached": "Vous ne pouvez pas ajouter plus de dates à une réservation payée.",
   "snackbar.booking.overlap_title": "Conflit horaire détecté pour ce client :",
   "snackbar.booking.overlap_item": "{{date}} | {{time}} | {{course}} | Réservation #{{bookingId}}",
   "snackbar.booking.overlap_unknown_course": "Cours",
@@ -2427,5 +2431,12 @@
   "settings.booking.privates.min_lead_hint": "Minutes minimum avant l'heure de début pour permettre une réservation privée.",
   "settings.booking.privates.min_lead_label": "Délai pour les réservations privées (minutes)",
   "settings.booking.privates.overbooking_limit_hint": "Réservations supplémentaires autorisées lorsqu'aucun moniteur n'est libre (0 = pas de surbooking).",
-  "settings.booking.privates.overbooking_limit_label": "Limite de surbooking pour les privés"
+  "settings.booking.privates.overbooking_limit_label": "Limite de surbooking pour les privés",
+  "superadmin.title": "Superadmin",
+  "superadmin.dashboard": "Tableau de bord",
+  "superadmin.schools": "Écoles",
+  "superadmin.new_school": "Nouvelle école",
+  "superadmin.roles": "Rôles",
+  "superadmin.admins": "Administrateurs",
+  "superadmin.impersonate": "Usurper"
 }

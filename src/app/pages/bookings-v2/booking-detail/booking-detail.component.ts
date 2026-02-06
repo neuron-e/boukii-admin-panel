@@ -1321,6 +1321,28 @@ export class BookingDetailV2Component implements OnInit {
           } else {
             this.getBooking();
           }
+          if (data?.priceChange && !this.bookingData?.paid && this.bookingData?.payment_method_id) {
+            const method = this.bookingData.payment_method_id;
+            if (method === 3 || method === 7) {
+              this.crudService.post(`/admin/bookings/payments/${this.id}`, { payment_method_id: method })
+                .subscribe({
+                  next: () => {
+                    this.snackBar.open(
+                      this.translateService.instant('snackbar.booking_detail.send_mail'),
+                      this.getCloseActionLabel(),
+                      { duration: 3000 }
+                    );
+                  },
+                  error: () => {
+                    this.snackBar.open(
+                      this.translateService.instant('snackbar.booking.payment.error'),
+                      this.getCloseActionLabel(),
+                      { duration: 3000 }
+                    );
+                  }
+                });
+            }
+          }
           this.snackBar.open(
             this.translateService.instant('snackbar.booking_detail.update'),
             this.getCloseActionLabel(),
