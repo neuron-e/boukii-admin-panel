@@ -2027,15 +2027,32 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const dateSet = new Set<string>();
-    const normalizedCourseDates = (task?.course?.course_dates ?? [])
-      .map((cd: any) => this.getDateStrFromAny(cd))
-      .filter((d: string | null) => !!d);
-    normalizedCourseDates.forEach(d => dateSet.add(d!));
+    const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
+    const isPrivateCourse = baseCourseType === 2;
+    const taskCourseId = task?.course_id ?? task?.course?.id ?? null;
+    const taskGroupId = task?.group_id ?? task?.course_group_id ?? null;
+
+    if (!isPrivateCourse) {
+      const normalizedCourseDates = (task?.course?.course_dates ?? [])
+        .map((cd: any) => this.getDateStrFromAny(cd))
+        .filter((d: string | null) => !!d);
+      normalizedCourseDates.forEach(d => dateSet.add(d!));
+    }
 
     const fallbackDates = this.collectCourseDatesForTask(task);
     fallbackDates.forEach(date => dateSet.add(date));
 
-    const assignmentBookingUsers = this.getAssignmentBookingUsers(task);
+    const assignmentBookingUsers = this.getAssignmentBookingUsers(task)
+      .filter((entry: any) => {
+        if (!isPrivateCourse) {
+          return true;
+        }
+        if (taskGroupId != null) {
+          const entryGroupId = entry?.group_id ?? entry?.course_group_id ?? null;
+          return Number(entryGroupId) === Number(taskGroupId);
+        }
+        return !taskCourseId || entry?.course_id === taskCourseId;
+      });
     assignmentBookingUsers
       .map((entry: any) => this.getDateStrFromAny(entry))
       .filter((date: string | null) => !!date)
@@ -2057,7 +2074,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       this.collectGroupedTaskDates(task).forEach(date => dateSet.add(date));
     }
 
-    if (dateSet.size === 0 && task?.booking?.course_dates) {
+    if (!isPrivateCourse && dateSet.size === 0 && task?.booking?.course_dates) {
       (task.booking.course_dates as any[])
         .filter(item => item?.date)
         .forEach(item => dateSet.add(item.date));
@@ -2066,6 +2083,16 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     const bookingUsersFallback = task?.booking?.booking_users ?? task?.booking_users ?? [];
     if (dateSet.size === 0 && Array.isArray(bookingUsersFallback)) {
       bookingUsersFallback
+        .filter((entry: any) => {
+          if (!isPrivateCourse) {
+            return true;
+          }
+          if (taskGroupId != null) {
+            const entryGroupId = entry?.group_id ?? entry?.course_group_id ?? null;
+            return Number(entryGroupId) === Number(taskGroupId);
+          }
+          return !taskCourseId || entry?.course_id === taskCourseId;
+        })
         .map((entry: any) => this.getDateStrFromAny(entry))
         .filter((date: string | null) => !!date)
         .forEach((date: string) => dateSet.add(date));
@@ -2304,6 +2331,11 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   private collectCourseDatesForTask(task: any): any[] {
     if (!task) return [];
 
+    const baseCourseType = task?.course?.course_type ?? task?.course_type ?? null;
+    const isPrivateCourse = baseCourseType === 2;
+    const taskCourseId = task?.course_id ?? task?.course?.id ?? null;
+    const taskGroupId = task?.group_id ?? task?.course_group_id ?? null;
+
     // 1) si la tarea trae booking.course_dates
     const datesFromBooking = (task.booking?.course_dates ?? [])
       .map((d: any) => this.getDateStrFromAny(d))
@@ -2311,6 +2343,42 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (datesFromBooking.length) {
       return Array.from(new Set(datesFromBooking)).sort();
+    }
+
+    if (isPrivateCourse) {
+      const bookingUsers = this.getAssignmentBookingUsers(task)
+        .filter((entry: any) => {
+          if (taskGroupId != null) {
+            const entryGroupId = entry?.group_id ?? entry?.course_group_id ?? null;
+            return Number(entryGroupId) === Number(taskGroupId);
+          }
+          return !taskCourseId || entry?.course_id === taskCourseId;
+        });
+      const bookingUserDates = bookingUsers
+        .map((entry: any) => this.getDateStrFromAny(entry))
+        .filter((d: string | null) => !!d);
+
+      if (bookingUserDates.length) {
+        return Array.from(new Set(bookingUserDates)).sort();
+      }
+
+      const datesFromPlanner = (Array.isArray(this.plannerTasks) ? this.plannerTasks : [])
+        .filter(t => {
+          if (t?.booking_id !== task.booking_id || !t?.date) {
+            return false;
+          }
+          if (taskGroupId != null) {
+            const entryGroupId = t?.group_id ?? t?.course_group_id ?? null;
+            return Number(entryGroupId) === Number(taskGroupId);
+          }
+          return !taskCourseId || t?.course_id === taskCourseId;
+        })
+        .map(t => this.getDateStrFromAny(t?.date))
+        .filter((d: string | null) => !!d);
+
+      if (datesFromPlanner.length) {
+        return Array.from(new Set(datesFromPlanner)).sort();
+      }
     }
 
     // 2) si existen otras tasks del mismo curso en el planner
@@ -5299,3 +5367,4 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
   protected readonly parseInt = parseInt;
 }
+
