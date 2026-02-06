@@ -2031,6 +2031,8 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     const isPrivateCourse = baseCourseType === 2;
     const taskCourseId = task?.course_id ?? task?.course?.id ?? null;
     const taskGroupId = task?.group_id ?? task?.course_group_id ?? null;
+    const bookingUserIds = this.getBookingUserIdsFromTask(task);
+    const hasExplicitBookingUsers = isPrivateCourse && bookingUserIds.length > 0;
 
     if (!isPrivateCourse) {
       const normalizedCourseDates = (task?.course?.course_dates ?? [])
@@ -2046,6 +2048,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       .filter((entry: any) => {
         if (!isPrivateCourse) {
           return true;
+        }
+        if (hasExplicitBookingUsers) {
+          const entryId = entry?.id ?? entry?.booking_user_id ?? entry?.bookingUserId ?? null;
+          return entryId != null && bookingUserIds.includes(Number(entryId));
         }
         if (taskGroupId != null) {
           const entryGroupId = entry?.group_id ?? entry?.course_group_id ?? null;
@@ -2086,6 +2092,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         .filter((entry: any) => {
           if (!isPrivateCourse) {
             return true;
+          }
+          if (hasExplicitBookingUsers) {
+            const entryId = entry?.id ?? entry?.booking_user_id ?? entry?.bookingUserId ?? null;
+            return entryId != null && bookingUserIds.includes(Number(entryId));
           }
           if (taskGroupId != null) {
             const entryGroupId = entry?.group_id ?? entry?.course_group_id ?? null;
@@ -2335,6 +2345,8 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     const isPrivateCourse = baseCourseType === 2;
     const taskCourseId = task?.course_id ?? task?.course?.id ?? null;
     const taskGroupId = task?.group_id ?? task?.course_group_id ?? null;
+    const bookingUserIds = this.getBookingUserIdsFromTask(task);
+    const hasExplicitBookingUsers = isPrivateCourse && bookingUserIds.length > 0;
 
     // 1) si la tarea trae booking.course_dates
     const datesFromBooking = (task.booking?.course_dates ?? [])
@@ -2348,6 +2360,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     if (isPrivateCourse) {
       const bookingUsers = this.getAssignmentBookingUsers(task)
         .filter((entry: any) => {
+          if (hasExplicitBookingUsers) {
+            const entryId = entry?.id ?? entry?.booking_user_id ?? entry?.bookingUserId ?? null;
+            return entryId != null && bookingUserIds.includes(Number(entryId));
+          }
           if (taskGroupId != null) {
             const entryGroupId = entry?.group_id ?? entry?.course_group_id ?? null;
             return Number(entryGroupId) === Number(taskGroupId);
@@ -2360,6 +2376,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
       if (bookingUserDates.length) {
         return Array.from(new Set(bookingUserDates)).sort();
+      }
+
+      if (hasExplicitBookingUsers) {
+        return [];
       }
 
       const datesFromPlanner = (Array.isArray(this.plannerTasks) ? this.plannerTasks : [])
