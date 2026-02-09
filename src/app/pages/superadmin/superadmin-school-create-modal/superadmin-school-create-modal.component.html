@@ -1,54 +1,54 @@
 <div class="school-create">
   <div class="school-create__header">
     <div>
-      <h3>New school</h3>
-      <p>Basic info and main admin.</p>
+      <h3>{{ 'superadmin.school_create_title' | translate }}</h3>
+      <p>{{ 'superadmin.school_create_subtitle' | translate }}</p>
     </div>
-    <button mat-icon-button (click)="close()" aria-label="Close">
+    <button mat-icon-button (click)="close()" [attr.aria-label]="'superadmin.action_close' | translate">
       <mat-icon svgIcon="mat:close"></mat-icon>
     </button>
   </div>
 
   <form [formGroup]="form" (ngSubmit)="submit()" class="school-create__form">
     <mat-form-field appearance="fill">
-      <mat-label>School name</mat-label>
+      <mat-label>{{ 'superadmin.field_school_name' | translate }}</mat-label>
       <input matInput formControlName="name" />
     </mat-form-field>
 
     <mat-form-field appearance="fill">
-      <mat-label>Contact email</mat-label>
+      <mat-label>{{ 'superadmin.field_contact_email' | translate }}</mat-label>
       <input matInput formControlName="contact_email" />
     </mat-form-field>
 
     <mat-form-field appearance="fill">
-      <mat-label>Slug (optional)</mat-label>
+      <mat-label>{{ 'superadmin.field_slug_optional' | translate }}</mat-label>
       <input matInput formControlName="slug" />
     </mat-form-field>
 
     <mat-form-field appearance="fill">
-      <mat-label>Admin first name</mat-label>
+      <mat-label>{{ 'superadmin.field_admin_first_name' | translate }}</mat-label>
       <input matInput formControlName="admin_first_name" />
     </mat-form-field>
 
     <mat-form-field appearance="fill">
-      <mat-label>Admin last name</mat-label>
+      <mat-label>{{ 'superadmin.field_admin_last_name' | translate }}</mat-label>
       <input matInput formControlName="admin_last_name" />
     </mat-form-field>
 
     <mat-form-field appearance="fill">
-      <mat-label>Admin email</mat-label>
+      <mat-label>{{ 'superadmin.field_admin_email' | translate }}</mat-label>
       <input matInput formControlName="admin_email" />
     </mat-form-field>
 
     <mat-form-field appearance="fill">
-      <mat-label>Admin password</mat-label>
+      <mat-label>{{ 'superadmin.field_admin_password' | translate }}</mat-label>
       <input matInput type="password" formControlName="admin_password" />
     </mat-form-field>
 
     <div class="school-create__actions">
-      <button mat-stroked-button type="button" (click)="close()">Cancel</button>
+      <button mat-stroked-button type="button" (click)="close()">{{ 'superadmin.action_cancel' | translate }}</button>
       <button mat-raised-button color="primary" type="submit" [disabled]="loading">
-        {{ loading ? 'Saving...' : 'Create school' }}
+        {{ loading ? ('superadmin.action_saving' | translate) : ('superadmin.action_create_school' | translate) }}
       </button>
     </div>
   </form>

@@ -1,40 +1,59 @@
 <div class="dashboard">
-  <h1>Superadmin Dashboard</h1>
+  <div class="header">
+    <div>
+      <h1>Superadmin Dashboard</h1>
+      <p class="subtitle">Overview of schools, activity and revenue.</p>
+    </div>
+  </div>
 
   <div *ngIf="loading" class="loading">
     <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
   </div>
 
   <div *ngIf="!loading && stats" class="cards">
-    <mat-card>
-      <div class="label">Total Schools</div>
+    <mat-card class="stat">
+      <div class="label">Total schools</div>
       <div class="value">{{ stats.school_count }}</div>
+      <div class="hint">All registered schools</div>
     </mat-card>
-    <mat-card>
-      <div class="label">Active Schools</div>
+    <mat-card class="stat">
+      <div class="label">Active schools</div>
       <div class="value">{{ stats.active_school_count }}</div>
+      <div class="hint">Currently active</div>
     </mat-card>
-    <mat-card>
+    <mat-card class="stat">
       <div class="label">Admins</div>
       <div class="value">{{ stats.admin_count }}</div>
+      <div class="hint">Total admins</div>
     </mat-card>
-    <mat-card>
+    <mat-card class="stat">
       <div class="label">Bookings</div>
       <div class="value">{{ stats.total_bookings }}</div>
+      <div class="hint">All time bookings</div>
     </mat-card>
-    <mat-card>
+    <mat-card class="stat accent">
       <div class="label">Revenue</div>
       <div class="value">{{ stats.total_revenue | number:'1.0-0' }} CHF</div>
+      <div class="hint">All time revenue</div>
     </mat-card>
   </div>
 
   <div *ngIf="stats?.monthly_bookings?.length" class="chart">
-    <h3>Monthly bookings</h3>
+    <div class="chart-header">
+      <div>
+        <h3>Monthly bookings</h3>
+        <p class="chart-subtitle">Last 12 months</p>
+      </div>
+      <div class="chart-legend">
+        <span class="legend-dot"></span>
+        <span>Bookings per month</span>
+      </div>
+    </div>
     <div class="months">
       <div class="month" *ngFor="let month of stats.monthly_bookings; trackBy: trackByMonth">
-        <div class="month-label">{{ month.month }}</div>
+        <div class="bar" [style.height.%]="maxMonthly ? Math.min(100, (month.total / maxMonthly) * 100) : 0"></div>
         <div class="month-value">{{ month.total }}</div>
-        <div class="bar" [style.height.%]="Math.min(100, (month.total / (stats.total_bookings || 1)) * 100)"></div>
+        <div class="month-label">{{ month.month }}</div>
       </div>
     </div>
   </div>

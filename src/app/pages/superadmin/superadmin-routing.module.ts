@@ -4,9 +4,8 @@ import { SuperadminLayoutComponent } from './superadmin-layout/superadmin-layout
 import { SuperadminDashboardComponent } from './superadmin-dashboard/superadmin-dashboard.component';
 import { SuperadminSchoolsComponent } from './superadmin-schools/superadmin-schools.component';
 import { SuperadminSchoolDetailComponent } from './superadmin-school-detail/superadmin-school-detail.component';
-import { SuperadminRolesComponent } from './superadmin-roles/superadmin-roles.component';
 import { SuperadminAdminsComponent } from './superadmin-admins/superadmin-admins.component';
-import { SuperadminImpersonateComponent } from './superadmin-impersonate/superadmin-impersonate.component';
+import { SuperadminNotificationsComponent } from './superadmin-notifications/superadmin-notifications.component';
 
 const routes: Routes = [
   {
@@ -17,9 +16,8 @@ const routes: Routes = [
       { path: 'dashboard', component: SuperadminDashboardComponent },
       { path: 'schools', component: SuperadminSchoolsComponent },
       { path: 'schools/:id', component: SuperadminSchoolDetailComponent },
-      { path: 'roles', component: SuperadminRolesComponent },
       { path: 'admins', component: SuperadminAdminsComponent },
-      { path: 'impersonate', component: SuperadminImpersonateComponent },
+      { path: 'notifications', component: SuperadminNotificationsComponent },
     ]
   }
 ];

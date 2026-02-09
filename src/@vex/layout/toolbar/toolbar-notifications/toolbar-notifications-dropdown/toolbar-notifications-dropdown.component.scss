@@ -76,3 +76,9 @@
 .notification + .notification {
   border-top: 1px solid var(--foreground-divider);
 }
+
+.notification-empty {
+  padding: var(--padding-16) var(--padding);
+  color: var(--text-secondary);
+  @apply text-sm;
+}

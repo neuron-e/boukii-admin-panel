@@ -124,7 +124,7 @@
            style="background-color: var(--is-light-theme, #eff2f5) var(--is-dark-theme, #2f3844);">
 
         <div *ngIf="selection.hasValue()" class="mr-4 pr-4 border-r flex-none">
-          <button (click)="deleteMultiple(selection.selected)" color="primary" mat-icon-button
+          <button *ngIf="canDeleteEffective()" (click)="deleteMultiple(selection.selected)" color="primary" mat-icon-button
                   matTooltip="Delete selected" type="button">
             <mat-icon svgIcon="mat:delete"></mat-icon>
           </button>
@@ -302,7 +302,7 @@
           <mat-icon svgIcon="mat:filter_list"></mat-icon>
         </button>
 
-        <button *ngIf="showCreate && !entity.includes('statistics')" [matTooltip]="translateService.instant('add')"
+        <button *ngIf="showCreate && !entity.includes('statistics') && canCreateEffective()" [matTooltip]="translateService.instant('add')"
                 (click)="create()" class="ml-4 flex-none" color="primary" mat-mini-fab type="button">
           <mat-icon svgIcon="mat:add"></mat-icon>
         </button>
@@ -1278,13 +1278,13 @@
 
 <mat-menu #actionsMenu="matMenu" xPosition="before" yPosition="below">
   <ng-template let-item="item" matMenuContent>
-    <button (click)="update(item)" mat-menu-item>
+    <button *ngIf="canUpdateEffective()" (click)="update(item)" mat-menu-item>
       <mat-icon svgIcon="mat:edit"></mat-icon>
       <span>
 				{{'update' | translate}}
 			</span>
     </button>
-    <button *ngIf="canDelete && !entity.includes('vouchers')" (click)="delete(item)" mat-menu-item>
+    <button *ngIf="canDelete && canDeleteEffective() && !entity.includes('vouchers')" (click)="delete(item)" mat-menu-item>
       <mat-icon svgIcon="mat:delete"></mat-icon>
       <span>
 				{{'delete_title' | translate}}
@@ -1318,18 +1318,25 @@
 				{{'duplicate' | translate }}
 			</span>
     </button>
+    <button *ngFor="let extra of extraActions" (click)="runExtraAction(extra, item)" mat-menu-item
+            [hidden]="extra.show && !extra.show(item)">
+      <mat-icon *ngIf="extra.icon" [svgIcon]="extra.icon"></mat-icon>
+      <span>
+        {{ extra.label | translate }}
+      </span>
+    </button>
     <button *ngIf="entity.includes('courses') && item.archived_at" (click)="unarchiveCourse(item)" mat-menu-item>
       <mat-icon svgIcon="mat:restore"></mat-icon>
       <span>
 				{{'restore_course' | translate }}
 			</span>
     </button>
-    <button *ngIf="entity.includes('vouchers') && !trashed" (click)="delete(item)" mat-menu-item>
+      <button *ngIf="entity.includes('vouchers') && !trashed && canDeleteEffective()" (click)="delete(item)" mat-menu-item>
       <mat-icon svgIcon="mat:delete"></mat-icon>
       <span>
 				{{'delete_title' | translate }}
 			</span>
-    </button>
+      </button>
     <button *ngIf="entity.includes('vouchers') && trashed" (click)="restore(item)" mat-menu-item>
       <mat-icon svgIcon="mat:delete"></mat-icon>
       <span>

@@ -49,7 +49,9 @@ export class ToolbarComponent {
     private snackbar: MatSnackBar,
     private translateService: TranslateService,
     private crudService: ApiCrudService) {
-    this.slug = JSON.parse(localStorage.getItem('boukiiUser')).schools[0].slug;
+    const rawUser = localStorage.getItem('boukiiUser');
+    const user = rawUser ? JSON.parse(rawUser) : null;
+    this.slug = user?.schools?.[0]?.slug ?? '';
     const initialLang = sessionStorage.getItem('lang') || this.translateService.currentLang || this.translateService.getDefaultLang() || 'es';
     this.currentLangCode = initialLang ? initialLang.toUpperCase() : 'ES';
   }

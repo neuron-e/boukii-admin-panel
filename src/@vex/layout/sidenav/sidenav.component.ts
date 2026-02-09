@@ -1,8 +1,8 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnInit, AfterViewInit } from '@angular/core';
 import { NavigationService } from '../../services/navigation.service';
 import { LayoutService } from '../../services/layout.service';
 import { ConfigService } from '../../config/config.service';
-import { map, startWith, switchMap } from 'rxjs/operators';
+import { map, startWith, switchMap, delay } from 'rxjs/operators';
 import { NavigationLink } from '../../interfaces/navigation-item.interface';
 import { PopoverService } from '../../components/popover/popover.service';
 import { Observable, of } from 'rxjs';
@@ -16,10 +16,10 @@ import { SearchModalComponent } from '../../components/search-modal/search-modal
   templateUrl: './sidenav.component.html',
   styleUrls: ['./sidenav.component.scss']
 })
-export class SidenavComponent implements OnInit {
+export class SidenavComponent implements OnInit, AfterViewInit {
 
   @Input() collapsed: boolean;
-  collapsedOpen$ = this.layoutService.sidenavCollapsedOpen$;
+  collapsedOpen$ = this.layoutService.sidenavCollapsedOpen$.pipe(delay(0));
   title$ = this.configService.config$.pipe(map(config => config.sidenav.title));
   imageUrl$ = this.configService.config$.pipe(map(config => config.sidenav.imageUrl));
   showCollapsePin$ = this.configService.config$.pipe(map(config => config.sidenav.showCollapsePin));
@@ -37,10 +37,15 @@ export class SidenavComponent implements OnInit {
     public layoutService: LayoutService,
     private configService: ConfigService,
     private readonly popoverService: PopoverService,
-    private readonly dialog: MatDialog) { }
+    private readonly dialog: MatDialog,
+    private readonly cdr: ChangeDetectorRef) { }
 
   ngOnInit() {
     this.getUser();
+  }
+
+  ngAfterViewInit(): void {
+    this.cdr.detectChanges();
   }
 
   collapseOpenSidenav() {

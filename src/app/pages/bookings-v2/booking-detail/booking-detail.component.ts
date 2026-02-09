@@ -1105,7 +1105,8 @@ export class BookingDetailV2Component implements OnInit {
 
     // MEJORA: Requerir confirmación explícita para pagos offline
     // Solo marcar como pagado si hay confirmación explícita del admin
-    if ((paymentMethodId === 1 || paymentMethodId === 4 || paymentMethodId === 7) && this.isPaid) {
+    // Note: Invoice (7) is auto-detected via Payrexx webhook - not manually selectable
+    if ((paymentMethodId === 1 || paymentMethodId === 4) && this.isPaid) {
       bookingData.paid = true;
       bookingData.paid_total = Math.max(0, safePriceTotal - safeVouchersTotal);
     }

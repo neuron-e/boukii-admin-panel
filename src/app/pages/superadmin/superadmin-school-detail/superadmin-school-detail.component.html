@@ -2,9 +2,9 @@
   <vex-page-layout-content class="p-6">
     <div class="school-detail">
       <div class="school-detail__header">
-        <button mat-stroked-button (click)="back()">Back to Schools</button>
+        <button mat-stroked-button (click)="back()">{{ 'superadmin.back_to_schools' | translate }}</button>
         <div class="school-detail__actions">
-          <button mat-flat-button color="primary" (click)="save()" [disabled]="saving">Save Changes</button>
+          <button mat-flat-button color="primary" (click)="save()" [disabled]="saving">{{ 'superadmin.save_changes' | translate }}</button>
         </div>
       </div>
 
@@ -12,145 +12,459 @@
         <div>
           <h2>{{ details?.school?.name || details?.name }}</h2>
           <span class="status" [class.status--active]="form.value.active" [class.status--inactive]="!form.value.active">
-            {{ form.value.active ? 'Active' : 'Inactive' }}
+            {{ form.value.active ? ('superadmin.status_active' | translate) : ('superadmin.status_inactive' | translate) }}
           </span>
         </div>
       </div>
 
       <div class="school-detail__stats">
         <div class="stat-card">
-          <div class="stat-title">Instructors</div>
+          <div class="stat-title">{{ 'superadmin.stats_instructors' | translate }}</div>
           <div class="stat-value">{{ details?.stats?.instructors_count || 0 }}</div>
-          <div class="stat-sub">Active on platform</div>
+          <div class="stat-sub">{{ 'superadmin.stats_active_on_platform' | translate }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-title">Students</div>
+          <div class="stat-title">{{ 'superadmin.stats_students' | translate }}</div>
           <div class="stat-value">{{ details?.stats?.students_count || 0 }}</div>
-          <div class="stat-sub">Total enrollments</div>
+          <div class="stat-sub">{{ 'superadmin.stats_total_enrollments' | translate }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-title">Revenue</div>
+          <div class="stat-title">{{ 'superadmin.stats_revenue' | translate }}</div>
           <div class="stat-value">{{ (details?.stats?.revenue_total || 0) | currency:'CHF':'symbol':'1.0-0' }}</div>
-          <div class="stat-sub">All time</div>
+          <div class="stat-sub">{{ 'superadmin.stats_all_time' | translate }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-title">Plan</div>
+          <div class="stat-title">{{ 'superadmin.stats_plan' | translate }}</div>
           <div class="stat-value">{{ details?.plan?.name || 'Standard' }}</div>
-          <div class="stat-sub">Since {{ details?.plan?.since || '-' }}</div>
+          <div class="stat-sub">{{ 'superadmin.stats_since' | translate }} {{ details?.plan?.since || '-' }}</div>
         </div>
       </div>
 
       <mat-tab-group>
-        <mat-tab label="General Information">
-          <div class="school-detail__grid">
+        <mat-tab label="{{ 'superadmin.tab_general_info' | translate }}">
+          <form [formGroup]="form" class="school-detail__grid">
             <mat-card class="school-detail__card">
-              <mat-card-title>Basic Information</mat-card-title>
-              <mat-card-content>
-                <form [formGroup]="form" class="form-grid">
-                  <mat-form-field appearance="fill">
-                    <mat-label>School Name</mat-label>
-                    <input matInput formControlName="name" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Slug</mat-label>
-                    <input matInput formControlName="slug" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Email</mat-label>
-                    <input matInput formControlName="contact_email" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Phone</mat-label>
-                    <input matInput formControlName="contact_phone" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Telephone</mat-label>
-                    <input matInput formControlName="contact_telephone" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Address</mat-label>
-                    <input matInput formControlName="contact_address" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>City</mat-label>
-                    <input matInput formControlName="contact_city" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Postal code</mat-label>
-                    <input matInput formControlName="contact_cp" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Country</mat-label>
-                    <input matInput formControlName="contact_country" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Logo URL</mat-label>
-                    <input matInput formControlName="logo" />
-                  </mat-form-field>
-                  <mat-form-field appearance="fill">
-                    <mat-label>Status</mat-label>
-                    <mat-select formControlName="active">
-                      <mat-option [value]="true">Active</mat-option>
-                      <mat-option [value]="false">Inactive</mat-option>
-                    </mat-select>
-                  </mat-form-field>
-                </form>
-              </mat-card-content>
-            </mat-card>
-
-            <mat-card class="school-detail__card">
-              <mat-card-title>Payment Gateway</mat-card-title>
+              <mat-card-title>{{ 'superadmin.card_basic_info' | translate }}</mat-card-title>
               <mat-card-content>
                 <div class="form-grid">
                   <mat-form-field appearance="fill">
-                    <mat-label>Payrexx Instance</mat-label>
-                    <input matInput formControlName="payrexx_instance" />
+                    <mat-label>{{ 'superadmin.field_school_name' | translate }}</mat-label>
+                    <input matInput formControlName="name" />
                   </mat-form-field>
                   <mat-form-field appearance="fill">
-                    <mat-label>Payrexx Key</mat-label>
-                    <input matInput formControlName="payrexx_key" />
+                    <mat-label>{{ 'superadmin.field_description' | translate }}</mat-label>
+                    <textarea matInput rows="3" formControlName="description"></textarea>
                   </mat-form-field>
                   <mat-form-field appearance="fill">
-                    <mat-label>Conditions URL</mat-label>
-                    <input matInput formControlName="conditions_url" />
+                    <mat-label>{{ 'superadmin.field_slug' | translate }}</mat-label>
+                    <input matInput formControlName="slug" />
                   </mat-form-field>
                   <mat-form-field appearance="fill">
-                    <mat-label>Payment link validity (hours)</mat-label>
-                    <input matInput type="number" formControlName="payment_link_validity_hours" />
+                    <mat-label>{{ 'superadmin.field_logo_url' | translate }}</mat-label>
+                    <input matInput formControlName="logo" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_status' | translate }}</mat-label>
+                    <mat-select formControlName="active">
+                      <mat-option [value]="true">{{ 'superadmin.status_active' | translate }}</mat-option>
+                      <mat-option [value]="false">{{ 'superadmin.status_inactive' | translate }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_type' | translate }}</mat-label>
+                    <input matInput formControlName="type" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_inscription' | translate }}</mat-label>
+                    <mat-select formControlName="inscription">
+                      <mat-option [value]="true">{{ 'superadmin.option_yes' | translate }}</mat-option>
+                      <mat-option [value]="false">{{ 'superadmin.option_no' | translate }}</mat-option>
+                    </mat-select>
                   </mat-form-field>
                 </div>
               </mat-card-content>
             </mat-card>
-          </div>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_contact' | translate }}</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_email' | translate }}</mat-label>
+                    <input matInput formControlName="contact_email" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_phone' | translate }}</mat-label>
+                    <input matInput formControlName="contact_phone" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_telephone' | translate }}</mat-label>
+                    <input matInput formControlName="contact_telephone" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_address' | translate }}</mat-label>
+                    <input matInput formControlName="contact_address" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_city' | translate }}</mat-label>
+                    <input matInput formControlName="contact_city" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_province' | translate }}</mat-label>
+                    <input matInput formControlName="contact_province" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_postal_code' | translate }}</mat-label>
+                    <input matInput formControlName="contact_cp" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_country' | translate }}</mat-label>
+                    <input matInput formControlName="contact_country" />
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_fiscal_info' | translate }}</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_fiscal_name' | translate }}</mat-label>
+                    <input matInput formControlName="fiscal_name" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_fiscal_id' | translate }}</mat-label>
+                    <input matInput formControlName="fiscal_id" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_fiscal_address' | translate }}</mat-label>
+                    <input matInput formControlName="fiscal_address" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_fiscal_city' | translate }}</mat-label>
+                    <input matInput formControlName="fiscal_city" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_fiscal_province' | translate }}</mat-label>
+                    <input matInput formControlName="fiscal_province" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_fiscal_postal_code' | translate }}</mat-label>
+                    <input matInput formControlName="fiscal_cp" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_fiscal_country' | translate }}</mat-label>
+                    <input matInput formControlName="fiscal_country" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_iban' | translate }}</mat-label>
+                    <input matInput formControlName="iban" />
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_commissions_insurance' | translate }}</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_cancellation_insurance_percent' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="cancellation_insurance_percent" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_tva_percent' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="taxes_tva" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_currency' | translate }}</mat-label>
+                    <mat-select formControlName="taxes_currency">
+                      <mat-option value="CHF">CHF</mat-option>
+                      <mat-option value="EUR">EUR</mat-option>
+                      <mat-option value="USD">USD</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_commission_cash' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="bookings_comission_cash" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_commission_boukii_pay' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="bookings_comission_boukii_pay" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_commission_other' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="bookings_comission_other" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_school_rate' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="school_rate" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_cancellation_with_insurance' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="cancellation_with_insurance" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_cancellation_without_insurance' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="cancellation_without_insurance" />
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_payment_gateway' | translate }}</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_payrexx_instance' | translate }}</mat-label>
+                    <input matInput formControlName="payrexx_instance" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_payrexx_key' | translate }}</mat-label>
+                    <input matInput formControlName="payrexx_key" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_conditions_url' | translate }}</mat-label>
+                    <input matInput formControlName="conditions_url" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_payment_link_validity_hours' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="payment_link_validity_hours" />
+                  </mat-form-field>
+                </div>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_gateway_provider' | translate }}</mat-label>
+                    <input matInput formControlName="gateway_provider" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_gateway_product_type' | translate }}</mat-label>
+                    <input matInput formControlName="gateway_product_type" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_gateway_webhook_url' | translate }}</mat-label>
+                    <input matInput formControlName="gateway_webhook_url" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_gateway_webhook_secret' | translate }}</mat-label>
+                    <input matInput formControlName="gateway_webhook_secret" />
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_subscription' | translate }}</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_subscription_plan' | translate }}</mat-label>
+                    <input matInput formControlName="subscription_plan" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_subscription_status' | translate }}</mat-label>
+                    <input matInput formControlName="subscription_status" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_subscription_since' | translate }}</mat-label>
+                    <input matInput type="date" formControlName="subscription_since" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_subscription_price' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="subscription_price" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_currency' | translate }}</mat-label>
+                    <mat-select formControlName="subscription_currency">
+                      <mat-option value="CHF">CHF</mat-option>
+                      <mat-option value="EUR">EUR</mat-option>
+                      <mat-option value="USD">USD</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_subscription_period' | translate }}</mat-label>
+                    <mat-select formControlName="subscription_period">
+                      <mat-option value="month">{{ 'superadmin.subscription_monthly' | translate }}</mat-option>
+                      <mat-option value="year">{{ 'superadmin.subscription_yearly' | translate }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_sports_stations' | translate }}</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_sports' | translate }}</mat-label>
+                    <mat-select formControlName="sport_ids" multiple>
+                      <mat-option *ngFor="let sport of sports" [value]="sport.id">
+                        {{ sport.name }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_stations' | translate }}</mat-label>
+                    <mat-select formControlName="station_ids" multiple>
+                      <mat-option *ngFor="let station of stations" [value]="station.id">
+                        {{ station.name }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <div class="form-grid">
+                  <mat-slide-toggle formControlName="has_ski">{{ 'superadmin.toggle_has_ski' | translate }}</mat-slide-toggle>
+                  <mat-slide-toggle formControlName="has_snowboard">{{ 'superadmin.toggle_has_snowboard' | translate }}</mat-slide-toggle>
+                  <mat-slide-toggle formControlName="has_telemark">{{ 'superadmin.toggle_has_telemark' | translate }}</mat-slide-toggle>
+                  <mat-slide-toggle formControlName="has_rando">{{ 'superadmin.toggle_has_rando' | translate }}</mat-slide-toggle>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title class="admin-title">
+                {{ 'superadmin.card_locations' | translate }}
+                <button mat-stroked-button color="primary" type="button" (click)="addLocation()">
+                  {{ 'superadmin.action_add_location' | translate }}
+                </button>
+              </mat-card-title>
+              <mat-card-content>
+                <div class="form-grid" formArrayName="locations">
+                  <div class="location-row" *ngFor="let loc of locationsArray.controls; let i = index" [formGroupName]="i">
+                    <mat-form-field appearance="fill">
+                      <mat-label>{{ 'superadmin.field_location_name' | translate }}</mat-label>
+                      <input matInput formControlName="name" />
+                    </mat-form-field>
+                    <mat-form-field appearance="fill">
+                      <mat-label>{{ 'superadmin.field_location_address' | translate }}</mat-label>
+                      <input matInput formControlName="address" />
+                    </mat-form-field>
+                    <button mat-icon-button color="warn" type="button" (click)="removeLocation(i)">
+                      <mat-icon svgIcon="mat:delete"></mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_booking_rules' | translate }}</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_private_min_lead' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="booking_private_min_lead_minutes" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_private_overbooking_limit' | translate }}</mat-label>
+                    <input matInput type="number" formControlName="booking_private_overbooking_limit" />
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_booking_page' | translate }}</mat-card-title>
+              <mat-card-content>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_banner_link' | translate }}</mat-label>
+                    <input matInput formControlName="booking_banner_link" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_banner_desktop' | translate }}</mat-label>
+                    <input matInput formControlName="booking_banner_desktop" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_banner_mobile' | translate }}</mat-label>
+                    <input matInput formControlName="booking_banner_mobile" />
+                  </mat-form-field>
+                </div>
+                <div class="form-grid">
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_social_facebook' | translate }}</mat-label>
+                    <input matInput formControlName="booking_social_facebook" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_social_instagram' | translate }}</mat-label>
+                    <input matInput formControlName="booking_social_instagram" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_social_x' | translate }}</mat-label>
+                    <input matInput formControlName="booking_social_x" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_social_youtube' | translate }}</mat-label>
+                    <input matInput formControlName="booking_social_youtube" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_social_tiktok' | translate }}</mat-label>
+                    <input matInput formControlName="booking_social_tiktok" />
+                  </mat-form-field>
+                  <mat-form-field appearance="fill">
+                    <mat-label>{{ 'superadmin.field_booking_social_linkedin' | translate }}</mat-label>
+                    <input matInput formControlName="booking_social_linkedin" />
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </form>
         </mat-tab>
 
-        <mat-tab label="Administrators">
+        <mat-tab label="{{ 'superadmin.tab_admins' | translate }}">
           <mat-card class="school-detail__card">
-            <mat-card-title>Admins</mat-card-title>
+            <mat-card-title class="admin-title">
+              {{ 'superadmin.admins_title' | translate }}
+              <button mat-stroked-button color="primary" (click)="openCreateAdmin()">
+                {{ 'superadmin.action_new_admin' | translate }}
+              </button>
+            </mat-card-title>
             <mat-card-content>
               <table mat-table [dataSource]="details?.admins || []" class="mat-elevation-z1">
                 <ng-container matColumnDef="name">
-                  <th mat-header-cell *matHeaderCellDef>Name</th>
+                  <th mat-header-cell *matHeaderCellDef>{{ 'superadmin.column_name' | translate }}</th>
                   <td mat-cell *matCellDef="let admin">{{ admin?.user?.first_name }} {{ admin?.user?.last_name }}</td>
                 </ng-container>
                 <ng-container matColumnDef="email">
-                  <th mat-header-cell *matHeaderCellDef>Email</th>
+                  <th mat-header-cell *matHeaderCellDef>{{ 'superadmin.column_email' | translate }}</th>
                   <td mat-cell *matCellDef="let admin">{{ admin?.user?.email }}</td>
                 </ng-container>
-                <tr mat-header-row *matHeaderRowDef="['name','email']"></tr>
-                <tr mat-row *matRowDef="let row; columns: ['name','email'];"></tr>
+                <ng-container matColumnDef="status">
+                  <th mat-header-cell *matHeaderCellDef>{{ 'superadmin.column_status' | translate }}</th>
+                  <td mat-cell *matCellDef="let admin">
+                    {{ admin?.user?.active ? ('superadmin.status_active' | translate) : ('superadmin.status_inactive' | translate) }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="roles">
+                  <th mat-header-cell *matHeaderCellDef>{{ 'superadmin.column_roles' | translate }}</th>
+                  <td mat-cell *matCellDef="let admin">
+                    {{ getAdminRoles(admin) }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef>{{ 'superadmin.column_actions' | translate }}</th>
+                  <td mat-cell *matCellDef="let admin">
+                    <button mat-icon-button (click)="openEditAdmin(admin)" [attr.aria-label]="'superadmin.action_edit_admin' | translate">
+                      <mat-icon svgIcon="mat:edit"></mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="openResetPassword(admin)" [attr.aria-label]="'superadmin.action_reset_password' | translate">
+                      <mat-icon svgIcon="mat:lock_reset"></mat-icon>
+                    </button>
+                    <button mat-icon-button color="warn" (click)="removeAdmin(admin)" [attr.aria-label]="'superadmin.action_remove_admin' | translate">
+                      <mat-icon svgIcon="mat:delete"></mat-icon>
+                    </button>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="['name','email','status','roles','actions']"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['name','email','status','roles','actions'];"></tr>
               </table>
             </mat-card-content>
           </mat-card>
         </mat-tab>
 
-        <mat-tab label="Access & Permissions">
-          <mat-card class="school-detail__card">
-            <mat-card-content>
-              <p>Configure access and permissions in future iterations.</p>
-            </mat-card-content>
-          </mat-card>
-        </mat-tab>
       </mat-tab-group>
     </div>
   </vex-page-layout-content>

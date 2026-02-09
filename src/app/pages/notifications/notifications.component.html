@@ -1,0 +1,65 @@
+<vex-page-layout>
+  <vex-secondary-toolbar current>
+    <vex-breadcrumbs [crumbs]="[
+      {icon:'comunicacion'},
+      {text:'notifications', title: true}
+    ]" class="flex"></vex-breadcrumbs>
+  </vex-secondary-toolbar>
+
+  <vex-page-layout-content class="-mt-6 notifications-page">
+    <div class="notifications-header">
+      <div>
+        <h2>{{ 'notifications' | translate }}</h2>
+        <p class="subtitle">{{ 'notifications_subtitle' | translate }}</p>
+      </div>
+      <div class="header-actions">
+        <button mat-stroked-button (click)="markAllRead()">
+          {{ 'mark_all_as_read' | translate }}
+        </button>
+        <button mat-stroked-button (click)="loadNotifications()">
+          <mat-icon svgIcon="mat:refresh"></mat-icon>
+          {{ 'notifications_refresh' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <div class="notifications-controls">
+      <mat-form-field appearance="fill" class="search-field">
+        <mat-label>{{ 'search' | translate }}</mat-label>
+        <input matInput [(ngModel)]="search" (ngModelChange)="applyFilters()" />
+      </mat-form-field>
+      <button mat-stroked-button (click)="toggleUnread()">
+        {{ unreadOnly ? ('all' | translate) : ('unread' | translate) }}
+      </button>
+    </div>
+
+    <div class="notifications-body">
+      <mat-card class="list-card">
+        <div *ngIf="loading" class="loading">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+        <div *ngIf="!loading && filtered.length === 0" class="empty">
+          {{ 'no_notifications' | translate }}
+        </div>
+        <div *ngFor="let item of filtered" class="notification-row" [class.unread]="!item.read_at" (click)="selectNotification(item)">
+          <div class="row-title">{{ item.title }}</div>
+          <div class="row-body">{{ item.body }}</div>
+          <div class="row-date">{{ item.created_at | date:'dd/MM/yyyy HH:mm' }}</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="detail-card" *ngIf="selected">
+        <div class="detail-header">
+          <h3>{{ selected?.title }}</h3>
+          <div class="detail-date">{{ selected?.created_at | date:'dd/MM/yyyy HH:mm' }}</div>
+        </div>
+        <mat-divider></mat-divider>
+        <div class="detail-body" [innerHTML]="getBodyHtml(selected)"></div>
+      </mat-card>
+
+      <mat-card class="detail-card empty-detail" *ngIf="!selected">
+        {{ 'notifications_select_detail' | translate }}
+      </mat-card>
+    </div>
+  </vex-page-layout-content>
+</vex-page-layout>

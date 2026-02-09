@@ -16,7 +16,11 @@ export class SchoolService {
   }
 
   refreshSchoolData() {
-    this.crudService.get('/schools/'+this.user.schools[0].id)
+    const schoolId = this.user?.schools?.[0]?.id;
+    if (!schoolId) {
+      return;
+    }
+    this.crudService.get('/schools/'+ schoolId)
       .subscribe((data) => {
         this.schoolSettings = data.data;
         if (data.data && data.data.payment_provider) {
@@ -28,7 +32,11 @@ export class SchoolService {
   getSchoolData(user = null, forceParam = false) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     if (this.user && !forceParam) {
-      return this.crudService.get('/schools/'+this.user.schools[0].id).pipe(
+      const schoolId = this.user?.schools?.[0]?.id;
+      if (!schoolId) {
+        return of(null);
+      }
+      return this.crudService.get('/schools/'+ schoolId).pipe(
         tap((res: any) => {
           if (res.data && res.data.payment_provider) {
             localStorage.setItem('paymentProvider', res.data.payment_provider);
@@ -36,7 +44,11 @@ export class SchoolService {
         })
       );
     } else {
-      return this.crudService.get('/schools/'+user.schools[0].id).pipe(
+      const schoolId = user?.schools?.[0]?.id;
+      if (!schoolId) {
+        return of(null);
+      }
+      return this.crudService.get('/schools/'+ schoolId).pipe(
         tap((res: any) => {
           if (res.data && res.data.payment_provider) {
             localStorage.setItem('paymentProvider', res.data.payment_provider);

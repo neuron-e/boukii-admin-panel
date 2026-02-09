@@ -1,0 +1,63 @@
+<div class="dialog">
+  <div class="dialog-header">
+    <h2>New notification</h2>
+    <button mat-icon-button (click)="close()" aria-label="Close">
+      <mat-icon svgIcon="mat:close"></mat-icon>
+    </button>
+  </div>
+
+  <form [formGroup]="form" class="dialog-body">
+    <mat-form-field appearance="fill">
+      <mat-label>Title</mat-label>
+      <input matInput formControlName="title" />
+    </mat-form-field>
+
+    <div class="editor">
+      <label class="editor-label">Message</label>
+      <angular-editor formControlName="body"></angular-editor>
+    </div>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Recipients</mat-label>
+      <mat-select formControlName="recipient_type">
+        <mat-option value="schools">Schools</mat-option>
+        <mat-option value="monitors">Monitors</mat-option>
+        <mat-option value="both">Schools & Monitors</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div class="grid">
+      <mat-slide-toggle formControlName="all_schools">All schools</mat-slide-toggle>
+      <mat-slide-toggle formControlName="all_monitors">All monitors</mat-slide-toggle>
+      <mat-slide-toggle formControlName="send_push">Send push to monitors</mat-slide-toggle>
+    </div>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Schools</mat-label>
+      <mat-select formControlName="school_ids" multiple [disabled]="form.value.all_schools">
+        <mat-option *ngFor="let school of schools" [value]="school.id">
+          {{ school.name }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Monitors</mat-label>
+      <mat-select formControlName="monitor_ids" multiple [disabled]="form.value.all_monitors">
+        <mat-option *ngFor="let monitor of monitors" [value]="monitor.id">
+          {{ monitor.first_name }} {{ monitor.last_name }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>Schedule at (optional)</mat-label>
+      <input matInput type="datetime-local" formControlName="schedule_at" />
+    </mat-form-field>
+  </form>
+
+  <div class="dialog-actions">
+    <button mat-stroked-button (click)="close()">Cancel</button>
+    <button mat-flat-button color="primary" (click)="save()" [disabled]="loading">Send</button>
+  </div>
+</div>

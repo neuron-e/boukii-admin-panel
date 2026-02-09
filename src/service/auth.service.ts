@@ -39,10 +39,18 @@ export class AuthService extends ApiService {
 
       this.crudService.login('/admin/login', {email: email, password: password})
         .subscribe((user: any) => {
+          const payload = user?.data ?? user;
+          const userData = payload?.user ?? payload;
+          if (payload?.permissions && !userData?.permissions) {
+            userData.permissions = payload.permissions;
+          }
+          if (payload?.roles && !userData?.role_names) {
+            userData.role_names = payload.roles;
+          }
 
-          localStorage.setItem('boukiiUser', JSON.stringify(user.data.user));
-          localStorage.setItem('boukiiUserToken', JSON.stringify(user.data.token));
-          this.user = user.data.user;
+          localStorage.setItem('boukiiUser', JSON.stringify(userData));
+          localStorage.setItem('boukiiUserToken', JSON.stringify(payload?.token));
+          this.user = userData;
 
           const isSuperadmin = this.user?.type === 'superadmin' || this.user?.type === 4;
           if (isSuperadmin) {

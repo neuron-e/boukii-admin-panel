@@ -1,13 +1,42 @@
-<vex-aio-table
-  [columns]="columns"
-  [entity]="entity"
-  [route]="'superadmin/admins'"
-  [sectionIcon]="icon"
-  [withFilters]="true"
-  [canDelete]="false"
-  [canDeactivate]="false"
-  [canDuplicate]="false"
-  [createOnModal]="true"
-  [createComponent]="createComponent"
-  [useSchoolFilter]="false">
-</vex-aio-table>
+<mat-tab-group>
+  <mat-tab label="{{ 'superadmin.school_admins' | translate }}">
+    <vex-aio-table
+      [columns]="columns"
+      [entity]="'/superadmin/admins'"
+      [route]="'superadmin/admins'"
+      [sectionIcon]="icon"
+      [withFilters]="true"
+      [canDelete]="true"
+      [canDeactivate]="false"
+      [canDuplicate]="false"
+      [createOnModal]="true"
+      [updateOnModal]="true"
+      [createComponent]="createComponent"
+      [updateComponent]="updateComponent"
+      [createDialogData]="{ type: 'admin' }"
+      [updateDialogData]="{ type: 'admin' }"
+      [search]="'&type=admin'"
+      [useSchoolFilter]="false">
+    </vex-aio-table>
+  </mat-tab>
+  <mat-tab label="{{ 'superadmin.superadmins' | translate }}">
+    <vex-aio-table
+      [columns]="columns"
+      [entity]="'/superadmin/admins'"
+      [route]="'superadmin/admins'"
+      [sectionIcon]="icon"
+      [withFilters]="true"
+      [canDelete]="true"
+      [canDeactivate]="false"
+      [canDuplicate]="false"
+      [createOnModal]="true"
+      [updateOnModal]="true"
+      [createComponent]="createComponent"
+      [updateComponent]="updateComponent"
+      [createDialogData]="{ type: 'superadmin' }"
+      [updateDialogData]="{ type: 'superadmin' }"
+      [search]="'&type=superadmin'"
+      [useSchoolFilter]="false">
+    </vex-aio-table>
+  </mat-tab>
+</mat-tab-group>

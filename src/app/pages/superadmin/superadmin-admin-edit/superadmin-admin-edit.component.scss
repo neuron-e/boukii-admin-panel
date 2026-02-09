@@ -1,0 +1,24 @@
+.admin-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-edit__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-edit__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.admin-edit__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}

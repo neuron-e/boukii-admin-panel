@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
-import { Notification } from '../interfaces/notification.interface';
 import { DateTime } from 'luxon';
 import { trackById } from '../../../../utils/track-by';
+import { AdminNotificationService } from '../../../../../app/services/admin-notification.service';
 
 @Component({
   selector: 'vex-toolbar-notifications-dropdown',
@@ -10,21 +10,64 @@ import { trackById } from '../../../../utils/track-by';
 })
 export class ToolbarNotificationsDropdownComponent implements OnInit {
 
-  notifications: Notification[] = [
-    {
-      id: '1',
-      label: 'default_noti',
-      icon: 'mat:notifications',
-      colorClass: 'text-primary',
-      datetime: null
-    }
-  ];
+  notifications: any[] = [];
+  loading = false;
 
   trackById = trackById;
 
-  constructor() { }
+  constructor(public notificationsService: AdminNotificationService) { }
 
   ngOnInit() {
+    this.loadNotifications();
   }
 
+  loadNotifications() {
+    this.loading = true;
+    this.notificationsService.list({ perPage: 10 }).subscribe({
+      next: (response: any) => {
+        this.notifications = response?.data || [];
+        this.loading = false;
+        this.notificationsService.refreshUnreadCount();
+      },
+      error: () => {
+        this.loading = false;
+      }
+    });
+  }
+
+  markRead(notification: any) {
+    if (!notification?.id || notification?.read_at) {
+      return;
+    }
+
+    this.notificationsService.markRead(notification.id).subscribe({
+      next: () => {
+        notification.read_at = new Date().toISOString();
+        this.notificationsService.refreshUnreadCount();
+      }
+    });
+  }
+
+  markAllRead() {
+    this.notificationsService.markAllRead().subscribe({
+      next: () => {
+        this.loadNotifications();
+      }
+    });
+  }
+
+  formatDate(value: any) {
+    if (!value) {
+      return '';
+    }
+    return DateTime.fromISO(value).toFormat('dd/MM/yyyy HH:mm');
+  }
+
+  getTitle(notification: any) {
+    return notification?.title || 'Notification';
+  }
+
+  getBody(notification: any) {
+    return notification?.body || '';
+  }
 }

@@ -4,6 +4,7 @@ import { filter, map, startWith } from 'rxjs/operators';
 import { NavigationEnd, Router } from '@angular/router';
 import { NavigationService } from '../../services/navigation.service';
 import { trackByRoute } from '../../utils/track-by';
+import { PermissionsService } from 'src/service/permissions.service';
 
 @Component({
   selector: 'vex-navigation-item',
@@ -26,7 +27,8 @@ export class NavigationItemComponent implements OnInit {
   trackByRoute = trackByRoute;
 
   constructor(private navigationService: NavigationService,
-              private router: Router) { }
+              private router: Router,
+              private permissions: PermissionsService) { }
 
   ngOnInit() {
   }
@@ -55,5 +57,35 @@ export class NavigationItemComponent implements OnInit {
 
   isFunction(prop: NavigationLink['route']) {
     return prop instanceof Function;
+  }
+
+  canShow(item: NavigationItem): boolean {
+    if (this.permissions.isSuperadmin()) {
+      return true;
+    }
+
+    const permissions = (item as any)?.permissions as string[] | undefined;
+    const roles = (item as any)?.roles as string[] | undefined;
+
+    if (!permissions?.length && !roles?.length) {
+      return true;
+    }
+
+    if (roles?.length && roles.some((role) => this.permissions.hasRole(role))) {
+      return true;
+    }
+
+    if (permissions?.length && this.permissions.hasAnyPermission(permissions)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  getVisibleChildren(item: NavigationItem): NavigationItem[] {
+    if (!this.isDropdown(item) && !this.isSubheading(item)) {
+      return [];
+    }
+    return item.children.filter((child) => this.canShow(child));
   }
 }

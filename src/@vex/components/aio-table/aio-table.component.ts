@@ -39,6 +39,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExcelExportService } from '../../../service/excel.service';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { SchoolService } from 'src/service/school.service';
+import { PermissionsService } from 'src/service/permissions.service';
 
 @UntilDestroy()
 @Component({
@@ -83,11 +84,18 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   @Input() createOnModal: boolean = false;
   @Input() updateOnModal: boolean = false;
   @Input() showCreate: boolean = true;
+  @Input() createPermission?: string;
+  @Input() updatePermission?: string;
+  @Input() deletePermission?: string;
+  @Input() updateComponent: any;
+  @Input() updateDialogData: any = {};
+  @Input() extraActions: Array<{ label: string; icon?: string; action: (item: any) => void; show?: (item: any) => boolean }> = [];
   @Input() useSchoolFilter: boolean = true;
   @Input() dialogPanelClass: string = 'full-screen-dialog';
   @Input() widthModal?: string = '90vw';
   @Input() heigthModal?: string = '90vh';
   @Input() createComponent: any;
+  @Input() createDialogData: any = {};
   @Input() showDetail: boolean = false;
   @Input() filterField: any = null;
   @Input() filterColumn: any = null;
@@ -161,10 +169,57 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   constructor(private dialog: MatDialog, public router: Router, private crudService: ApiCrudService,
     private excelExportService: ExcelExportService, private routeActive: ActivatedRoute,
     private cdr: ChangeDetectorRef, public translateService: TranslateService, private snackbar: MatSnackBar,
-    private schoolService: SchoolService) {
+    private schoolService: SchoolService, private permissions: PermissionsService) {
     const rawUser = localStorage.getItem('boukiiUser');
     this.user = rawUser ? JSON.parse(rawUser) : null;
     this.schoolId = this.user?.schools?.[0]?.id ?? null;
+  }
+
+  canCreateEffective(): boolean {
+    const permission = this.createPermission ?? this.resolvePermission('create');
+    if (!permission) {
+      return true;
+    }
+    return this.permissions.hasPermission(permission);
+  }
+
+  canUpdateEffective(): boolean {
+    const permission = this.updatePermission ?? this.resolvePermission('update');
+    if (!permission) {
+      return true;
+    }
+    return this.permissions.hasPermission(permission);
+  }
+
+  canDeleteEffective(): boolean {
+    const permission = this.deletePermission ?? this.resolvePermission('delete');
+    if (!permission) {
+      return true;
+    }
+    return this.permissions.hasPermission(permission);
+  }
+
+  private resolvePermission(action: 'create' | 'update' | 'delete'): string | null {
+    const resource = this.getPermissionResource();
+    if (!resource) {
+      return null;
+    }
+    return `${action} ${resource}`;
+  }
+
+  private getPermissionResource(): string | null {
+    const entity = this.entity ?? '';
+    if (entity.includes('bookings')) return 'bookings';
+    if (entity.includes('courses')) return 'courses';
+    if (entity.includes('clients')) return 'clients';
+    if (entity.includes('monitors')) return 'monitors';
+    if (entity.includes('vouchers')) return 'vouchers';
+    if (entity.includes('schools')) return 'schools';
+    if (entity.includes('stations')) return 'stations';
+    if (entity.includes('services')) return 'services';
+    if (entity.includes('seasons')) return 'seasons';
+    if (entity.includes('tasks') || entity.includes('communications')) return 'tasks';
+    return null;
   }
 
   private normalizeBadgeValue(value: any): string | null {
@@ -539,7 +594,7 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       height: this.heigthModal,
       maxWidth: '100vw',
       panelClass: this.dialogPanelClass || undefined,
-      data: { mode: 'create' }
+      data: { mode: 'create', ...(this.createDialogData || {}) }
     });
 
     dialogRef.afterClosed().subscribe((data: any) => {
@@ -548,6 +603,27 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   update(row: any) {
+    if (this.updateOnModal && this.updateComponent) {
+      const dialogRef = this.dialog.open(this.updateComponent, {
+        width: this.widthModal,
+        height: this.heigthModal,
+        maxWidth: '100vw',
+        panelClass: this.dialogPanelClass,
+        data: {
+          ...this.updateDialogData,
+          admin: row,
+          item: row
+        }
+      });
+
+      dialogRef.afterClosed().subscribe((refresh: any) => {
+        if (refresh) {
+          this.getData(this.pageIndex, this.pageSize);
+        }
+      });
+      return;
+    }
+
     if (!this.updateOnModal) {
       if (!this.updatePage) {
         this.router.navigate(['/' + this.route + '/' + row.id]);
@@ -556,6 +632,15 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
       }
     } else {
       this.updateModal(row);
+    }
+  }
+
+  runExtraAction(action: any, row: any) {
+    if (action?.show && !action.show(row)) {
+      return;
+    }
+    if (typeof action?.action === 'function') {
+      action.action(row);
     }
   }
 
@@ -1161,6 +1246,14 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
 
 
   getSports() {
+    if (!this.user?.schools?.[0]?.id) {
+      this.sports = [];
+      this.filteredSports = this.sportsControl.valueChanges.pipe(
+        startWith(''),
+        map((sport: string | null) => sport ? this._filterSports(sport) : this.sports.slice())
+      );
+      return;
+    }
     this.crudService.list('/school-sports', 1, 10000, 'desc', 'id',
       '&school_id=' + this.user.schools[0].id, '', null, null, ['sport'])
       .subscribe((data) => {

@@ -1,0 +1,53 @@
+<div class="admin-edit">
+  <div class="admin-edit__header">
+    <div>
+      <h3>{{ 'superadmin.admin_edit_title' | translate }}</h3>
+      <p>{{ 'superadmin.admin_edit_subtitle' | translate }}</p>
+    </div>
+    <button mat-icon-button (click)="close()" [attr.aria-label]="'superadmin.action_close' | translate">
+      <mat-icon svgIcon="mat:close"></mat-icon>
+    </button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="admin-edit__form">
+    <mat-form-field appearance="fill">
+      <mat-label>{{ 'superadmin.field_first_name' | translate }}</mat-label>
+      <input matInput formControlName="first_name" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>{{ 'superadmin.field_last_name' | translate }}</mat-label>
+      <input matInput formControlName="last_name" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>{{ 'superadmin.field_email' | translate }}</mat-label>
+      <input matInput formControlName="email" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>{{ 'superadmin.field_role' | translate }}</mat-label>
+      <mat-select formControlName="role">
+        <mat-option value="">{{ 'superadmin.role_none' | translate }}</mat-option>
+        <mat-option *ngFor="let role of roles" [value]="role.name">
+          {{ role.name }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill">
+      <mat-label>{{ 'superadmin.field_status' | translate }}</mat-label>
+      <mat-select formControlName="active">
+        <mat-option [value]="true">{{ 'superadmin.status_active' | translate }}</mat-option>
+        <mat-option [value]="false">{{ 'superadmin.status_inactive' | translate }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div class="admin-edit__actions">
+      <button mat-stroked-button type="button" (click)="close()">{{ 'superadmin.action_cancel' | translate }}</button>
+      <button mat-raised-button color="primary" type="submit" [disabled]="loading">
+        {{ loading ? ('superadmin.action_saving' | translate) : ('superadmin.action_save' | translate) }}
+      </button>
+    </div>
+  </form>
+</div>

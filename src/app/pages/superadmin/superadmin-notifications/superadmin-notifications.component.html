@@ -1,0 +1,163 @@
+﻿<vex-page-layout>
+  <vex-page-layout-content class="p-6">
+    <div class="notifications-header">
+      <div>
+        <h2>{{ 'superadmin.notifications_title' | translate }}</h2>
+        <p class="subtitle">{{ 'superadmin.notifications_subtitle' | translate }}</p>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <mat-card class="stat-card">
+        <div class="stat-title">{{ 'superadmin.notifications_total_sent' | translate }}</div>
+        <div class="stat-value">{{ stats?.total_sent || 0 }}</div>
+        <div class="stat-sub">{{ 'superadmin.notifications_all_time' | translate }}</div>
+      </mat-card>
+      <mat-card class="stat-card">
+        <div class="stat-title">{{ 'superadmin.notifications_dashboard' | translate }}</div>
+        <div class="stat-value">{{ stats?.dashboard_sent || 0 }}</div>
+        <div class="stat-sub">{{ 'superadmin.notifications_to_school_panels' | translate }}</div>
+      </mat-card>
+      <mat-card class="stat-card">
+        <div class="stat-title">{{ 'superadmin.notifications_boukteach' | translate }}</div>
+        <div class="stat-value">{{ stats?.app_sent || 0 }}</div>
+        <div class="stat-sub">{{ 'superadmin.notifications_to_mobile_app' | translate }}</div>
+      </mat-card>
+      <mat-card class="stat-card">
+        <div class="stat-title">{{ 'superadmin.notifications_avg_read_rate' | translate }}</div>
+        <div class="stat-value">{{ stats?.read_rate || 0 }}%</div>
+        <div class="stat-sub">{{ 'superadmin.notifications_across_all' | translate }}</div>
+      </mat-card>
+    </div>
+
+    <mat-card class="send-card">
+      <div class="card-title">{{ 'superadmin.notifications_send_title' | translate }}</div>
+      <div class="card-subtitle">{{ 'superadmin.notifications_send_subtitle' | translate }}</div>
+
+      <form [formGroup]="form" class="send-form">
+        <div class="type-row">
+          <mat-checkbox formControlName="sendToSchools">
+            <mat-icon svgIcon="mat:dashboard"></mat-icon>
+            {{ 'superadmin.notifications_school_dashboard' | translate }}
+          </mat-checkbox>
+          <mat-checkbox formControlName="sendToMonitors">
+            <mat-icon svgIcon="mat:notifications_active"></mat-icon>
+            {{ 'superadmin.notifications_boukteach_app' | translate }}
+          </mat-checkbox>
+        </div>
+
+        <div class="form-grid">
+          <mat-form-field appearance="fill">
+            <mat-label>{{ 'superadmin.notifications_field_title' | translate }}</mat-label>
+            <input matInput formControlName="title" />
+          </mat-form-field>
+
+          <div class="editor">
+            <label class="editor-label">{{ 'superadmin.notifications_field_message' | translate }}</label>
+            <angular-editor formControlName="body" [config]="editorConfig"></angular-editor>
+          </div>
+
+          <mat-form-field appearance="fill">
+            <mat-label>{{ 'superadmin.notifications_field_priority' | translate }}</mat-label>
+            <mat-select formControlName="priority">
+              <mat-option value="low">{{ 'superadmin.notifications_priority_low' | translate }}</mat-option>
+              <mat-option value="medium">{{ 'superadmin.notifications_priority_medium' | translate }}</mat-option>
+              <mat-option value="high">{{ 'superadmin.notifications_priority_high' | translate }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <div class="audience-block">
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>{{ 'superadmin.notifications_target_schools' | translate }}</mat-label>
+              <mat-select formControlName="school_ids" multiple [disabled]="form.value.audienceSchoolsAll || !form.value.sendToSchools">
+                <mat-option *ngFor="let school of schools" [value]="school.id">
+                  {{ school.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-slide-toggle formControlName="audienceSchoolsAll" [disabled]="!form.value.sendToSchools">
+              {{ 'superadmin.notifications_all_schools' | translate }}
+            </mat-slide-toggle>
+          </div>
+
+          <div class="audience-block">
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>{{ 'superadmin.notifications_target_monitors' | translate }}</mat-label>
+              <mat-select formControlName="monitor_ids" multiple [disabled]="form.value.audienceMonitorsAll || !form.value.sendToMonitors">
+                <mat-option *ngFor="let monitor of monitors" [value]="monitor.id">
+                  {{ monitor.first_name }} {{ monitor.last_name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-slide-toggle formControlName="audienceMonitorsAll" [disabled]="!form.value.sendToMonitors">
+              {{ 'superadmin.notifications_all_monitors' | translate }}
+            </mat-slide-toggle>
+          </div>
+
+          <mat-slide-toggle formControlName="scheduleEnabled">{{ 'superadmin.notifications_schedule_later' | translate }}</mat-slide-toggle>
+          <mat-form-field appearance="fill" *ngIf="form.value.scheduleEnabled">
+            <mat-label>{{ 'superadmin.notifications_schedule_datetime' | translate }}</mat-label>
+            <input matInput type="datetime-local" formControlName="schedule_at" />
+          </mat-form-field>
+        </div>
+
+        <button mat-flat-button color="primary" class="send-button" type="button" (click)="sendNotification()"
+                [disabled]="saving || (!form.value.sendToSchools && !form.value.sendToMonitors)">
+          {{ form.value.scheduleEnabled ? ('superadmin.notifications_schedule_action' | translate) : ('superadmin.notifications_send_action' | translate) }}
+        </button>
+      </form>
+    </mat-card>
+
+    <mat-card class="history-card">
+      <div class="card-title">{{ 'superadmin.notifications_history_title' | translate }}</div>
+      <div class="card-subtitle">{{ 'superadmin.notifications_history_subtitle' | translate }}</div>
+      <div *ngIf="loading" class="loading">
+        <mat-spinner diameter="32"></mat-spinner>
+      </div>
+      <div *ngIf="!loading && groupedNotifications.length === 0" class="empty">
+        {{ 'superadmin.notifications_empty' | translate }}
+      </div>
+      <div *ngFor="let item of groupedNotifications" class="history-row">
+        <div class="history-icon">
+          <mat-icon svgIcon="mat:notifications"></mat-icon>
+        </div>
+        <div class="history-content">
+          <div class="history-title">{{ item.title }}</div>
+          <div class="history-body">{{ item.body }}</div>
+          <div class="history-meta">
+            <span class="pill">{{ item.recipientLabel }}</span>
+            <span class="pill" *ngIf="item.schoolLabel">{{ 'superadmin.notifications_school_label' | translate }} {{ item.schoolLabel }}</span>
+            <span class="pill">{{ item.recipient_type }}</span>
+            <span class="pill">{{ item.priority }}</span>
+            <span>{{ item.sent_at ? ('superadmin.notifications_sent' | translate) : ('superadmin.notifications_scheduled' | translate) }}</span>
+            <span>{{ item.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+        </div>
+        <div class="history-metrics">
+          <div class="metric">{{ item.read }}/{{ item.total }}</div>
+          <div class="metric-label">{{ 'superadmin.notifications_read' | translate }}</div>
+        </div>
+      </div>
+      <div class="pagination" *ngIf="!loading && lastPage > 1">
+        <button mat-stroked-button type="button" (click)="goToPage(currentPage - 1)" [disabled]="currentPage <= 1">
+          {{ 'superadmin.pagination_prev' | translate }}
+        </button>
+        <mat-form-field appearance="outline" class="per-page">
+          <mat-label>{{ 'superadmin.pagination_items' | translate }}</mat-label>
+          <mat-select [value]="perPage" (selectionChange)="perPage = $event.value; goToPage(1)">
+            <mat-option [value]="10">10</mat-option>
+            <mat-option [value]="20">20</mat-option>
+            <mat-option [value]="50">50</mat-option>
+            <mat-option [value]="100">100</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <span class="page-info">{{ currentPage }} / {{ lastPage }} · {{ totalItems }} {{ 'superadmin.pagination_items_label' | translate }}</span>
+        <button mat-stroked-button type="button" (click)="goToPage(currentPage + 1)" [disabled]="currentPage >= lastPage">
+          {{ 'superadmin.pagination_next' | translate }}
+        </button>
+      </div>
+    </mat-card>
+  </vex-page-layout-content>
+</vex-page-layout>
+
+

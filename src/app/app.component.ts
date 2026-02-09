@@ -105,8 +105,12 @@ export class AppComponent {
       this.setDateAdapterLocale(event.lang);
     });
     setTimeout(() => {
-      if (this.user) {
+      const schoolId = this.user?.schools?.[0]?.id;
+      if (this.user && schoolId) {
         this.schoolService.getSchoolData().subscribe((data) => {
+          if (!data?.data) {
+            return;
+          }
           defaultConfig.imgSrc = data.data.logo;
           this.configService.updateConfig({
             sidenav: {
@@ -251,46 +255,51 @@ export class AppComponent {
             icon_active: '../assets/img/icons/calendar.svg',
             routerLinkActiveOptions: { exact: true }
           },*/
-          {
-            type: "link",
-            label: "bookings",
-            route: "/bookings",
-            icon: "../assets/img/icons/reservas-2.svg",
-            icon_active: "../assets/img/icons/reservas.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: "link",
-            label: "courses.title",
-            route: "/courses",
-            icon: "../assets/img/icons/cursos-2.svg",
-            icon_active: "../assets/img/icons/cursos.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: "link",
-            label: "menu.bonus",
-            route: "/vouchers",
-            icon: "../assets/img/icons/bonos-2.svg",
-            icon_active: "../assets/img/icons/bonos.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: "link",
-            label: "menu.communication",
-            route: "/communications",
-            icon: "../assets/img/icons/comunicacion-2.svg",
-            icon_active: "../assets/img/icons/comunicacion.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: "link",
-            label: "menu.stats",
-            route: "/stats",
-            icon: "../assets/img/icons/stats-2.svg",
-            icon_active: "../assets/img/icons/stats.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
+            {
+              type: "link",
+              label: "bookings",
+              route: "/bookings",
+              icon: "../assets/img/icons/reservas-2.svg",
+              icon_active: "../assets/img/icons/reservas.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view bookings']
+            },
+            {
+              type: "link",
+              label: "courses.title",
+              route: "/courses",
+              icon: "../assets/img/icons/cursos-2.svg",
+              icon_active: "../assets/img/icons/cursos.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view courses']
+            },
+            {
+              type: "link",
+              label: "menu.bonus",
+              route: "/vouchers",
+              icon: "../assets/img/icons/bonos-2.svg",
+              icon_active: "../assets/img/icons/bonos.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view vouchers']
+            },
+            {
+              type: "link",
+              label: "menu.communication",
+              route: "/communications",
+              icon: "../assets/img/icons/comunicacion-2.svg",
+              icon_active: "../assets/img/icons/comunicacion.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view tasks']
+            },
+            {
+              type: "link",
+              label: "menu.stats",
+              route: "/stats",
+              icon: "../assets/img/icons/stats-2.svg",
+              icon_active: "../assets/img/icons/stats.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['analytics.view', 'statistics.view']
+            },
         ],
       },
       // Otra seccion
@@ -298,30 +307,33 @@ export class AppComponent {
         type: "subheading",
         label: "menu.people",
         children: [
-          {
-            type: "link",
-            label: "menu.monitors",
-            route: "/monitors",
-            icon: "../assets/img/icons/monitores-3.svg",
-            icon_active: "../assets/img/icons/monitores-2.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: "link",
-            label: "clients",
-            route: "/clients",
-            icon: "../assets/img/icons/clientes2.svg",
-            icon_active: "../assets/img/icons/clientes.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: "link",
-            label: "admins",
-            route: "/admins",
-            icon: "../assets/img/icons/admin.svg",
-            icon_active: "../assets/img/icons/Admins.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
+            {
+              type: "link",
+              label: "menu.monitors",
+              route: "/monitors",
+              icon: "../assets/img/icons/monitores-3.svg",
+              icon_active: "../assets/img/icons/monitores-2.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view monitors']
+            },
+            {
+              type: "link",
+              label: "clients",
+              route: "/clients",
+              icon: "../assets/img/icons/clientes2.svg",
+              icon_active: "../assets/img/icons/clientes.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view clients']
+            },
+            {
+              type: "link",
+              label: "admins",
+              route: "/admins",
+              icon: "../assets/img/icons/admin.svg",
+              icon_active: "../assets/img/icons/Admins.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view schools']
+            },
         ],
       },
       {
@@ -333,33 +345,37 @@ export class AppComponent {
             label: gatewayLabel,
             icon: "../assets/img/icons/boukii_pay.svg",
             children: [
-              {
-                type: "link",
-                label: "menu.admin_boukiipay",
-                route: gatewayRoute,
-              },
-              {
-                type: "link",
-                label: "menu.virtual_tpv",
-                route: "/tpv-virtual",
-                routerLinkActiveOptions: { exact: true },
-              },
-              {
-                type: "link",
-                label: "menu.payment_terminal",
-                route: "/payment-terminal",
-                routerLinkActiveOptions: { exact: true },
-              },
-            ],
-          },
-          {
-            type: "link",
-            label: "settings",
-            route: "/settings",
-            icon: "../assets/img/icons/reglajes-2.svg",
-            icon_active: "../assets/img/icons/reglages.svg",
-            routerLinkActiveOptions: { exact: true },
-          },
+                {
+                  type: "link",
+                  label: "menu.admin_boukiipay",
+                  route: gatewayRoute,
+                  permissions: ['view schools']
+                },
+                {
+                  type: "link",
+                  label: "menu.virtual_tpv",
+                  route: "/tpv-virtual",
+                  routerLinkActiveOptions: { exact: true },
+                  permissions: ['view schools']
+                },
+                {
+                  type: "link",
+                  label: "menu.payment_terminal",
+                  route: "/payment-terminal",
+                  routerLinkActiveOptions: { exact: true },
+                  permissions: ['view schools']
+                },
+              ],
+            },
+            {
+              type: "link",
+              label: "settings",
+              route: "/settings",
+              icon: "../assets/img/icons/reglajes-2.svg",
+              icon_active: "../assets/img/icons/reglages.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view schools']
+            },
         ],
       },
     ];

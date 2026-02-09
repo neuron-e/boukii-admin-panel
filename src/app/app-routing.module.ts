@@ -3,6 +3,7 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 import { CustomLayoutComponent } from './custom-layout/custom-layout.component';
 import { VexRoutes } from '../@vex/interfaces/vex-route.interface';
 import { AuthGuard } from './auth.guard';
+import { AnalyticsPermissionGuard } from './analytics-permission.guard';
 import { SuperadminGuard } from './superadmin.guard';
 
 const childrenRoutes: VexRoutes = [
@@ -61,7 +62,7 @@ const childrenRoutes: VexRoutes = [
       {
         path: 'stats',
         loadChildren: () => import('./pages/analytics-v2/analytics.module').then(m => m.AnalyticsModule),
-        canActivate: [AuthGuard],
+        canActivate: [AuthGuard, AnalyticsPermissionGuard],
       },
       {
         path: 'monitors',
@@ -101,6 +102,11 @@ const childrenRoutes: VexRoutes = [
       {
         path: 'communications',
         loadChildren: () => import('./pages/communications/communications.module').then(m => m.CommunicationsModule),
+        canActivate: [AuthGuard],
+      },
+      {
+        path: 'notifications',
+        loadChildren: () => import('./pages/notifications/notifications.module').then(m => m.NotificationsModule),
         canActivate: [AuthGuard],
       },
       {

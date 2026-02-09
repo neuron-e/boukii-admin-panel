@@ -26,17 +26,29 @@ export class QuickpanelComponent implements OnInit {
 
   ngOnInit() {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
-    this.getTodayTasks();
-    this.getAllTasks();
+    if (this.user?.schools?.[0]?.id) {
+      this.getTodayTasks();
+      this.getAllTasks();
+    }
 
   }
 
   getTodayTasks() {
-    this.crudService.list('/tasks', 1, 10000, 'desc', 'id', '&school_id=' + this.user.schools[0].id + '&start_date=' + moment().format('YYYY-MM-DD') + '&end_date=' + moment().format('YYYY-MM-DD')).subscribe((tasks) => this.todayTasks = tasks.data)
+    const schoolId = this.user?.schools?.[0]?.id;
+    if (!schoolId) {
+      this.todayTasks = [];
+      return;
+    }
+    this.crudService.list('/tasks', 1, 10000, 'desc', 'id', '&school_id=' + schoolId + '&start_date=' + moment().format('YYYY-MM-DD') + '&end_date=' + moment().format('YYYY-MM-DD')).subscribe((tasks) => this.todayTasks = tasks.data)
   }
 
   getAllTasks() {
-    this.crudService.list('/tasks', 1, 10000, 'desc', 'id', '&school_id=' + this.user.schools[0].id + '&start_date=' + moment().add(1, 'd').format('YYYY-MM-DD'))
+    const schoolId = this.user?.schools?.[0]?.id;
+    if (!schoolId) {
+      this.allTasks = [];
+      return;
+    }
+    this.crudService.list('/tasks', 1, 10000, 'desc', 'id', '&school_id=' + schoolId + '&start_date=' + moment().add(1, 'd').format('YYYY-MM-DD'))
       .subscribe((tasks) => this.allTasks = tasks.data)
   }
 

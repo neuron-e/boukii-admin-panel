@@ -212,19 +212,7 @@
         <mat-radio-button [value]="3" style="display: block;">
           {{'send_payment_link' | translate}}  <!-- Enviar enlace de pago -->
         </mat-radio-button>
-
-        <mat-radio-button [value]="7" style="display: block;">
-          {{'send_invoice_link' | translate}}
-        </mat-radio-button>
-
-        <div *ngIf="paymentMethod === 7" style="margin: 10px 0;">
-          <mat-checkbox name="invoicePaymentConfirmation" [(ngModel)]="isPaid" color="primary">
-            {{ "confirm_payment_received" | translate }}
-          </mat-checkbox>
-          <p style="font-size: 12px; color: #666; margin-top: 10px;">
-            {{ "payment_confirmation_notice" | translate }}
-          </p>
-        </div>
+        <!-- Invoice payment (7) is auto-detected via Payrexx webhook - not manually selectable -->
       </mat-radio-group>
     </div>
 
@@ -245,7 +233,7 @@
               mat-raised-button
               type="button"
               [disabled]="isLoading">
-        {{ (paymentMethod === 3 ? 'send_payment_link' : (paymentMethod === 7 ? 'send_invoice_link' : 'continue')) | translate }}
+        {{ (paymentMethod === 3 ? 'send_payment_link' : 'continue') | translate }}
       </button>
     </ng-container>
 

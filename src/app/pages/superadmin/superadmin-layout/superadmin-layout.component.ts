@@ -4,6 +4,7 @@ import { NavigationService } from '../../../../@vex/services/navigation.service'
 import { ConfigService } from '../../../../@vex/config/config.service';
 import { VexConfig } from '../../../../@vex/config/vex-config.interface';
 import { take } from 'rxjs/operators';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-superadmin-layout',
@@ -17,6 +18,7 @@ export class SuperadminLayoutComponent implements OnInit, OnDestroy {
   constructor(
     private navigationService: NavigationService,
     private configService: ConfigService,
+    private translate: TranslateService,
   ) {}
 
   ngOnInit(): void {
@@ -24,63 +26,59 @@ export class SuperadminLayoutComponent implements OnInit, OnDestroy {
 
     this.configService.config$.pipe(take(1)).subscribe(config => {
       this.previousConfig = config;
-      this.configService.updateConfig({
-        sidenav: {
-          title: 'Superadmin',
-          imageUrl: '',
-          showCollapsePin: true,
-        }
-      });
+      setTimeout(() => {
+        this.configService.updateConfig({
+          sidenav: {
+            title: this.translate.instant('superadmin.title'),
+            imageUrl: '',
+            showCollapsePin: true,
+          }
+        });
+      }, 0);
     });
 
-    this.navigationService.items = [
-      {
-        type: 'subheading',
-        label: 'superadmin.title',
-        children: [
+    setTimeout(() => {
+      this.navigationService.items = [
+        {
+          type: 'subheading',
+          label: 'superadmin.title',
+          children: [
+            {
+              type: 'link',
+              label: 'superadmin.dashboard',
+              route: '/superadmin/dashboard',
+              icon: '../assets/img/icons/home-2.png',
+              icon_active: '../assets/img/icons/home.svg',
+              routerLinkActiveOptions: { exact: true },
+            },
+            {
+              type: 'link',
+              label: 'superadmin.schools',
+              route: '/superadmin/schools',
+              icon: '../assets/img/icons/cursos-2.svg',
+              icon_active: '../assets/img/icons/cursos.svg',
+              routerLinkActiveOptions: { exact: true },
+            },
+            {
+              type: 'link',
+              label: 'superadmin.admins',
+              route: '/superadmin/admins',
+              icon: '../assets/img/icons/admin.svg',
+              icon_active: '../assets/img/icons/Admins.svg',
+              routerLinkActiveOptions: { exact: true },
+            },
           {
             type: 'link',
-            label: 'superadmin.dashboard',
-            route: '/superadmin/dashboard',
-            icon: '../assets/img/icons/home-2.png',
-            icon_active: '../assets/img/icons/home.svg',
+            label: 'superadmin.notifications',
+            route: '/superadmin/notifications',
+            icon: '../assets/img/icons/chat-2.svg',
+            icon_active: '../assets/img/icons/chat.svg',
             routerLinkActiveOptions: { exact: true },
           },
-          {
-            type: 'link',
-            label: 'superadmin.schools',
-            route: '/superadmin/schools',
-            icon: '../assets/img/icons/cursos-2.svg',
-            icon_active: '../assets/img/icons/cursos.svg',
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: 'link',
-            label: 'superadmin.roles',
-            route: '/superadmin/roles',
-            icon: '../assets/img/icons/reglajes-2.svg',
-            icon_active: '../assets/img/icons/reglages.svg',
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: 'link',
-            label: 'superadmin.admins',
-            route: '/superadmin/admins',
-            icon: '../assets/img/icons/admin.svg',
-            icon_active: '../assets/img/icons/Admins.svg',
-            routerLinkActiveOptions: { exact: true },
-          },
-          {
-            type: 'link',
-            label: 'superadmin.impersonate',
-            route: '/superadmin/impersonate',
-            icon: '../assets/img/icons/clientes2.svg',
-            icon_active: '../assets/img/icons/clientes.svg',
-            routerLinkActiveOptions: { exact: true },
-          },
-        ]
-      }
-    ];
+          ]
+        }
+      ];
+    }, 0);
   }
 
   ngOnDestroy(): void {
