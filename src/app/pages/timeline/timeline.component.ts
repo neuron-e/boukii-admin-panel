@@ -1240,7 +1240,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     }, {});
 
     //Store ids that will be deleted (no monitor grouping)
-    let groupedTaskIds = new Set();
+    let groupedTaskIds = new Set<string>();
+    const getTaskUniqueId = (task: any): string => {
+      return String(task?.booking_user_id ?? task?.id ?? task?.booking_id ?? `${task?.course_id ?? 'course'}-${task?.date ?? 'date'}-${task?.hour_start ?? 'start'}-${task?.hour_end ?? 'end'}`);
+    };
 
     // Process each group to adjust overlapping tasks
     Object.keys(groupedByDate).forEach(date => {
@@ -1249,20 +1252,24 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       // Group tasks by course_id, hour_start, and hour_end if course_id is not null
       const groupedByCourseTime = tasksForDate.reduce((group, task) => {
         if (task.course_id != null) {
-          if (task.course.course_type == 1) {
-            var key = `${task.course_id}-${task.hour_start}-${task.hour_end}`;
+          const courseType = task.course?.course_type ?? task.course_type ?? null;
+          const groupToken = task?.group_id ?? task?.course_group_id ?? '';
+          if (courseType == 1) {
+            var key = `${task.course_id}-${task.hour_start}-${task.hour_end}-${groupToken}`;
           } else {
-            key = `${task.course_id}-${task.hour_start}-${task.hour_end}-${task.group_id}`;
+            key = `${task.course_id}-${task.hour_start}-${task.hour_end}`;
           }
 
           if (!group[key]) {
             group[key] = {
               ...task, // Take the first task's details
-              grouped_tasks: [] // Initialize the array for grouped tasks
+              grouped_tasks: [], // Initialize the array for grouped tasks
+              group_key: key
             };
           }
+          task.group_key = key;
           group[key].grouped_tasks.push(task);
-          groupedTaskIds.add(task.booking_id);
+          groupedTaskIds.add(getTaskUniqueId(task));
         } else {
           // If course_id is null, keep the task as an individual task
           (group["__singleTasks__"] = group["__singleTasks__"] || []).push(task);
@@ -1330,9 +1337,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         return null;
       }
       const courseType = task.course?.course_type ?? task.course_type ?? null;
+      const groupToken = task?.group_id ?? task?.course_group_id ?? '';
       const baseKey = courseType == 1
-        ? `${task.course_id}-${task.hour_start}-${task.hour_end}`
-        : `${task.course_id}-${task.hour_start}-${task.hour_end}-${task.group_id}`;
+        ? `${task.course_id}-${task.hour_start}-${task.hour_end}-${groupToken}`
+        : `${task.course_id}-${task.hour_start}-${task.hour_end}`;
       return `${task.monitor_id}-${task.date}-${baseKey}`;
     };
 
@@ -1346,10 +1354,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     };
 
     // Remove the original tasks that were grouped -> NOT THE ONES THAT ALREADY HAVE MONITOR
-    const filteredPlannerTasks = plannerTasks.filter(task =>
-      !groupedTaskIds.has(task.booking_id) ||
-      (groupedTaskIds.has(task.booking_id) && task.monitor_id)
-    );
+    const filteredPlannerTasks = plannerTasks.filter(task => {
+      const taskId = getTaskUniqueId(task);
+      return !groupedTaskIds.has(taskId) || (groupedTaskIds.has(taskId) && task.monitor_id);
+    });
 
     // Group overlapping tasks per monitor (same behavior as "no monitor" column)
     const groupedMonitorTasks: any[] = [];
@@ -1369,7 +1377,10 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       if (tasksForKey.length <= 1) {
         return;
       }
-      const baseTask = { ...tasksForKey[0], grouped_tasks: tasksForKey };
+      tasksForKey.forEach(task => {
+        task.group_key = key;
+      });
+      const baseTask = { ...tasksForKey[0], grouped_tasks: tasksForKey, group_key: key };
       groupedMonitorTasks.push(baseTask);
       tasksForKey.forEach(task => groupedMonitorTaskKeys.add(buildMonitorTaskKey(task)));
     });
@@ -1447,7 +1458,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       if (task.grouped_tasks && task.grouped_tasks.length > 1) {
         //Open Modal grouped courses
         this.groupedTasks = task.grouped_tasks;
-        this.idGroupedTasks = task.booking_id;
+        this.idGroupedTasks = this.getGroupedTaskKey(task);
         this.hourGrouped = task.hour_start;
         this.dateGrouped = task.date;
         this.taskDetail = null;
@@ -1462,7 +1473,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         } else {
           this.showGrouped = false;
           this.groupedTasks = task.grouped_tasks;
-          this.idGroupedTasks = task.booking_id;
+          this.idGroupedTasks = this.getGroupedTaskKey(task);
         }
         this.idDetail = task.booking_id;
         this.hourDetail = task.hour_start;
@@ -2243,8 +2254,28 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     return null;
   }
 
+  private getGroupedTaskKey(task: any): string | null {
+    if (!task) {
+      return null;
+    }
+    const groupKey = task.group_key ?? task.groupKey ?? null;
+    if (groupKey) {
+      return String(groupKey);
+    }
+    const bookingId = task?.booking_id ?? task?.id ?? null;
+    if (bookingId == null) {
+      return null;
+    }
+    const date = task?.date ?? '';
+    const hour = task?.hour_start ?? '';
+    const courseId = task?.course_id ?? task?.course?.id ?? '';
+    const groupId = task?.group_id ?? task?.course_group_id ?? '';
+    return `bk-${bookingId}-${courseId}-${date}-${hour}-${groupId}`;
+  }
+
   isGroupedTaskHighlighted(task: any): boolean {
-    return !!(this.showGrouped && task?.booking_id && this.idGroupedTasks == task.booking_id && this.hourGrouped == task.hour_start && this.dateGrouped == task.date);
+    const key = this.getGroupedTaskKey(task);
+    return !!(this.showGrouped && key && this.idGroupedTasks == key);
   }
 
   isTaskHighlighted(task: any): boolean {
@@ -3095,7 +3126,28 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
       relatedTasks.forEach(task => addSlot(task.date, task.hour_start, task.hour_end, task.course_date_id, task.course_subgroup_id));
 
     const assignmentBookingUsers = this.getAssignmentBookingUsers(baseTask);
-    assignmentBookingUsers.forEach((bookingUser: any) => {
+    const baseCourseType = baseTask?.course?.course_type ?? baseTask?.course_type ?? null;
+    const isPrivateCourse = baseCourseType === 2;
+    const taskCourseId = baseTask?.course_id ?? baseTask?.course?.id ?? null;
+    const taskGroupId = baseTask?.group_id ?? baseTask?.course_group_id ?? null;
+    const bookingUserIds = this.getBookingUserIdsFromTask(baseTask);
+    const hasExplicitBookingUsers = isPrivateCourse && bookingUserIds.length > 0;
+    const filteredAssignmentBookingUsers = assignmentBookingUsers.filter((entry: any) => {
+      if (!isPrivateCourse) {
+        return true;
+      }
+      if (hasExplicitBookingUsers) {
+        const entryId = entry?.id ?? entry?.booking_user_id ?? entry?.bookingUserId ?? null;
+        return entryId != null && bookingUserIds.includes(Number(entryId));
+      }
+      if (taskGroupId != null) {
+        const entryGroupId = entry?.group_id ?? entry?.course_group_id ?? null;
+        return Number(entryGroupId) === Number(taskGroupId);
+      }
+      return !taskCourseId || entry?.course_id === taskCourseId;
+    });
+
+    filteredAssignmentBookingUsers.forEach((bookingUser: any) => {
       const dateValue = this.getDateStrFromAny(bookingUser);
       if (!dateValue) {
         return;
