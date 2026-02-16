@@ -1695,7 +1695,8 @@
               <div class="flex items-center justify-end" style="margin: 8px 0 4px 0;">
                 {{'active' | translate}}
                 <mat-slide-toggle
-                  [(ngModel)]="defaultsUser.active"
+                  [(ngModel)]="active"
+                  (ngModelChange)="defaultsUser.active = $event"
                   [ngModelOptions]="{standalone: true}"
                   style="margin-left: 8px;">
                 </mat-slide-toggle>

@@ -140,7 +140,7 @@ export class ClientDetailComponent {
   observationHistory: string[] = [];
   newObservationNote = '';
 
-  defaultsUser = {
+  defaultsUser: any = {
     id: null,
     username: null,
     email: null,
@@ -154,7 +154,7 @@ export class ClientDetailComponent {
   colorKeys: string[] = []; // Aquí almacenaremos las claves de colores
   user: any;
   id: any;
-  active: false;
+  active: boolean = false;
 
   allLevels: any = [];
   allClientLevels: any = [];
@@ -580,6 +580,8 @@ export class ClientDetailComponent {
       .pipe(
         map((data) => {
           this.clientSchool = data.data;
+          this.active = this.checkClientStatus(this.clientSchool);
+          this.defaultsUser.active = this.active;
           // Load newsletter subscription for current school
           const currentSchoolRelation = this.clientSchool.find(relation => relation.school_id === this.user.schools[0].id);
           this.schoolNewsletterSubscription = currentSchoolRelation?.accepts_newsletter || false;
