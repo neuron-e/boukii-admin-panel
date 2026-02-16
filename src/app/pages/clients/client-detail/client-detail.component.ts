@@ -548,14 +548,31 @@ export class ClientDetailComponent {
   }
 
   checkClientStatus(data: any) {
+    if (!Array.isArray(data)) {
+      return false;
+    }
+
+    const currentSchoolId = this.user?.schools?.[0]?.id;
+    if (!currentSchoolId) {
+      return false;
+    }
+
     let ret = false;
     data.forEach(element => {
-      if (element.school_id === this.user.schools[0].id) {
+      if (element.school_id === currentSchoolId) {
         ret = element.accepted_at !== null;
       }
     });
 
     return ret;
+  }
+
+  get isCurrentSchoolClientActive(): boolean {
+    if (Array.isArray(this.clientSchool) && this.clientSchool.length > 0) {
+      return this.checkClientStatus(this.clientSchool);
+    }
+
+    return this.checkClientStatus((this.defaults as any)?.clients_schools ?? []);
   }
 
   getClientSchool() {

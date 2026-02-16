@@ -39,8 +39,8 @@
           </h1>
           <div class="flex items-center gap-2" style="margin-top: 4px;">
             <span class="px-2 py-0.5 rounded text-xs font-semibold"
-                  [ngClass]="defaultsUser?.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-              {{ defaultsUser?.active ? ('active' | translate) : ('inactive' | translate) }}
+                  [ngClass]="isCurrentSchoolClientActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+              {{ isCurrentSchoolClientActive ? ('active' | translate) : ('inactive' | translate) }}
             </span>
           </div>
           <div style="display: flex;">
