@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, OnInit, Inject, Optional } from '@angular/core';
 import { FormControl, UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { fadeInUp400ms } from 'src/@vex/animations/fade-in-up.animation';
 import { stagger20ms } from 'src/@vex/animations/stagger.animation';
@@ -104,15 +104,16 @@ export class BonusesCreateUpdateComponent implements OnInit {
     private crudService: ApiCrudService,
     private translateService: TranslateService,
     private snackbar: MatSnackBar,
-    public dialogRef: MatDialogRef<BonusesCreateUpdateComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    @Optional() public dialogRef: MatDialogRef<BonusesCreateUpdateComponent>,
+    @Optional() @Inject(MAT_DIALOG_DATA) public data: any
   ) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
+    const inputData = data ?? {};
 
     // Set mode and id from dialog data
-    this.mode = data?.mode || (data?.voucher ? 'update' : 'create');
-    this.id = data?.id ?? data?.voucher?.id ?? null;
-    this.readOnly = data?.readOnly ?? data?.viewMode ?? false;
+    this.mode = inputData?.mode || (inputData?.voucher ? 'update' : 'create');
+    this.id = inputData?.id ?? inputData?.voucher?.id ?? null;
+    this.readOnly = inputData?.readOnly ?? inputData?.viewMode ?? false;
 
     this.form = this.fb.group({
       code:[null],
@@ -135,8 +136,8 @@ export class BonusesCreateUpdateComponent implements OnInit {
       notes:[null]
     });
 
-    if (data?.voucher) {
-      const voucherData = data.voucher;
+    if (inputData?.voucher) {
+      const voucherData = inputData.voucher;
       this.defaults = { ...this.defaults, ...voucherData };
       this.selectedClientId = voucherData.client_id ?? voucherData.client?.id ?? null;
       this.initialClientId = this.selectedClientId;
@@ -164,7 +165,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
       });
     }
 
-    if (data?.isGift) {
+    if (inputData?.isGift) {
       this.form.patchValue({ is_gift: true });
     }
 
@@ -216,6 +217,12 @@ export class BonusesCreateUpdateComponent implements OnInit {
       this.create();
     } else if (this.mode === 'update') {
       this.update();
+    }
+  }
+
+  private closeDialog(data?: any): void {
+    if (this.dialogRef) {
+      this.closeDialog(data);
     }
   }
 
@@ -275,7 +282,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
       .subscribe({
         next: (res) => {
           this.snackbar.open(this.translateService.instant('snackbar.bonus.create'), 'OK', {duration: 3000});
-          this.dialogRef.close(res);
+            this.closeDialog(res);
         },
         error: (error) => {
           console.error('Error creating voucher:', error);
@@ -333,7 +340,7 @@ export class BonusesCreateUpdateComponent implements OnInit {
       .subscribe({
         next: (res) => {
           this.snackbar.open(this.translateService.instant('snackbar.bonus.update'), 'OK', {duration: 3000});
-          this.dialogRef.close(res);
+            this.closeDialog(res);
         },
         error: (error) => {
           console.error('Error updating voucher:', error);
@@ -501,6 +508,6 @@ export class BonusesCreateUpdateComponent implements OnInit {
   }
 
   close() {
-    this.dialogRef.close();
+    this.closeDialog();
   }
 }
