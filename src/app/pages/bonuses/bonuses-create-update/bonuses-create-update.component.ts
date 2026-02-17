@@ -7,6 +7,7 @@ import { ApiCrudService } from 'src/service/crud.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { TranslateService } from '@ngx-translate/core';
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'vex-bonuses-create-update',
@@ -104,6 +105,8 @@ export class BonusesCreateUpdateComponent implements OnInit {
     private crudService: ApiCrudService,
     private translateService: TranslateService,
     private snackbar: MatSnackBar,
+    private route: ActivatedRoute,
+    private router: Router,
     @Optional() public dialogRef: MatDialogRef<BonusesCreateUpdateComponent>,
     @Optional() @Inject(MAT_DIALOG_DATA) public data: any
   ) {
@@ -176,6 +179,14 @@ export class BonusesCreateUpdateComponent implements OnInit {
   }
 
   ngOnInit() {
+    if (!this.data) {
+      const routeId = this.route.snapshot.paramMap.get('id');
+      if (routeId) {
+        this.mode = 'update';
+        this.id = Number(routeId);
+      }
+    }
+
     if (this.mode === 'update' && this.id) {
       this.getVoucher();
     } else {
@@ -222,8 +233,11 @@ export class BonusesCreateUpdateComponent implements OnInit {
 
   private closeDialog(data?: any): void {
     if (this.dialogRef) {
-      this.closeDialog(data);
+      this.dialogRef.close(data);
+      return;
     }
+
+    this.navigateToList();
   }
 
   create() {
@@ -509,5 +523,9 @@ export class BonusesCreateUpdateComponent implements OnInit {
 
   close() {
     this.closeDialog();
+  }
+
+  private navigateToList(): void {
+    this.router.navigate(['/vouchers']);
   }
 }
