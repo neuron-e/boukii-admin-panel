@@ -705,7 +705,7 @@
                 {{ 'booking_free_short' | translate | uppercase }}
               </ng-container>
               <ng-template #paidStatus>
-                {{ (row[column.property] ? 'yes' : 'no')| translate | uppercase }}
+                {{ getPaymentStatusLabel(row, column.property) | translate | uppercase }}
               </ng-template>
             </td>
           </ng-container>

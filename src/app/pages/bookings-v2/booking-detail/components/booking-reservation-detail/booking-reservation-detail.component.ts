@@ -38,6 +38,7 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
   @Output() deleteActivity = new EventEmitter();
   @Output() editClick = new EventEmitter();
   @Output() payClick = new EventEmitter();
+  @Output() invoiceAction = new EventEmitter<'send' | 'sync' | 'cancel' | 'markPaid'>();
   @Output() addClick = new EventEmitter();
   @Output() closeClick = new EventEmitter();
   @Input() activitiesChanged: Observable<void>;  // Recibimos el observable
@@ -863,7 +864,10 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     }
 
     let detail = '';
-    if (payment.notes) {
+    if (payment.invoice_status) {
+      const invoiceStatus = this.translateService.instant(payment.invoice_status);
+      detail = invoiceStatus || payment.invoice_status;
+    } else if (payment.notes) {
       detail = this.translateService.instant(payment.notes);
     } else {
       detail = this.schoolService.getPaymentProvider() === 'payyo'
@@ -876,6 +880,13 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     }
 
     return detail ? `${status} - ${detail}` : status;
+  }
+
+  canShowInvoiceActions(): boolean {
+    return !!this.bookingData
+      && Number(this.bookingData?.payment_method_id) === 7
+      && Number(this.bookingData?.status) === 1
+      && !this.bookingData?.paid;
   }
 openEditMeetingPointModal(): void {    const dialogRef = this.dialog.open(EditMeetingPointModalComponent, {      width: '600px',      data: {        meetingPointName: this.meetingPointName,        meetingPointAddress: this.meetingPointAddress,        meetingPointInstructions: this.meetingPointInstructions      }    });    dialogRef.afterClosed().subscribe((result: any) => {      if (result) {        this.meetingPointName = result.meeting_point;        this.meetingPointAddress = result.meeting_point_address;        this.meetingPointInstructions = result.meeting_point_instructions;        this.saveBookingMeetingPoint();      }    });  }
 

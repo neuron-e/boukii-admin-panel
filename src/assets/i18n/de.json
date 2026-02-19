@@ -1439,8 +1439,12 @@
   "payment_terminal_open": "Zahlungsterminal öffnen",
   "payment_card_external": "Kreditkarte (extern)",
   "payment_invoice": "Rechnung",
+  "send_invoice": "Rechnung senden",
   "invoice_pending": "Rechnung ausstehend",
   "invoice_overdue": "Rechnung überfällig",
+  "invoice_sent": "Rechnung gesendet",
+  "invoice_cancelled": "Rechnung storniert",
+  "invoice_failed": "Rechnung fehlgeschlagen",
   "payment_terminal": {
     "amount": "Betrag",
     "amount_min": "Mindestbetrag ist 0.01 CHF",

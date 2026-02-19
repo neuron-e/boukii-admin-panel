@@ -1366,7 +1366,25 @@ export class AioTableComponent implements OnInit, AfterViewInit, OnChanges {
     if (this.isFreeBookingRow(row)) {
       return '#2fca45';
     }
+    const status = row?.payment_method_status;
+    if (!row?.[property] && (status === 'link_send' || status === 'invoice_pending' || status === 'invoice_sent')) {
+      return '#FA9917';
+    }
+    if (!row?.[property] && (status === 'link_expired' || status === 'invoice_overdue' || status === 'invoice_failed' || status === 'invoice_cancelled')) {
+      return 'red';
+    }
     return row?.[property] ? '#CEE741' : 'red';
+  }
+
+  getPaymentStatusLabel(row: any, property: string): string {
+    if (row?.[property]) {
+      return 'yes';
+    }
+    const status = row?.payment_method_status;
+    if (status === 'link_send' || status === 'link_expired' || status === 'invoice_pending' || status === 'invoice_overdue' || status === 'invoice_sent' || status === 'invoice_failed' || status === 'invoice_cancelled') {
+      return status;
+    }
+    return 'no';
   }
 
   getPaymentMethod(id: number | null): string {

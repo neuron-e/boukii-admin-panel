@@ -67,7 +67,8 @@
                                        (deleteActivity)="processFullDelete()"
                                        (endClick)="endModal=true"
                                        (closeClick)="closeModal()"
-                                        (payClick)="handlePayClick()">
+                                        (payClick)="handlePayClick()"
+                                       (invoiceAction)="handleInvoiceAction($event)">
     </booking-detail-reservation-detail>
   </div>
 </div>
@@ -212,7 +213,9 @@
         <mat-radio-button [value]="3" style="display: block;">
           {{'send_payment_link' | translate}}  <!-- Enviar enlace de pago -->
         </mat-radio-button>
-        <!-- Invoice payment (7) is auto-detected via Payrexx webhook - not manually selectable -->
+        <mat-radio-button [value]="7" style="display: block;">
+          {{ 'send_invoice' | translate }}
+        </mat-radio-button>
       </mat-radio-group>
     </div>
 
@@ -233,7 +236,7 @@
               mat-raised-button
               type="button"
               [disabled]="isLoading">
-        {{ (paymentMethod === 3 ? 'send_payment_link' : 'continue') | translate }}
+        {{ paymentMethod === 7 ? ('send_invoice' | translate) : ((paymentMethod === 3 ? 'send_payment_link' : 'continue') | translate) }}
       </button>
     </ng-container>
 

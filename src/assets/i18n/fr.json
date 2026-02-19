@@ -1438,8 +1438,12 @@
   "payment_terminal_open": "Ouvrir le terminal de paiement",
   "payment_card_external": "Carte de crédit (externe)",
   "payment_invoice": "Facture",
+  "send_invoice": "Envoyer la facture",
   "invoice_pending": "Facture en attente",
   "invoice_overdue": "Facture en retard",
+  "invoice_sent": "Facture envoyée",
+  "invoice_cancelled": "Facture annulée",
+  "invoice_failed": "Facture échouée",
   "payment_terminal": {
     "amount": "Montant",
     "amount_min": "Le montant minimum est 0.01 CHF",

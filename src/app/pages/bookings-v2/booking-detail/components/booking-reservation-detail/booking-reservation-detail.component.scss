@@ -277,6 +277,13 @@
   }
 }
 
+.invoice-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
 .monitorRow {
   flex-direction: column;
   .row1 {

@@ -78,7 +78,7 @@
                         style="color:#00C32B;background-color: #B2EFAD;">
 										{{'payed' | translate | uppercase }}
 									</span>
-									<span *ngIf="bookingData.status === 1 && !bookingData.paid && bookingData.payment_method_id != 3"
+									<span *ngIf="bookingData.status === 1 && !bookingData.paid && bookingData.payment_method_id != 3 && bookingData.payment_method_id != 7"
                         style="color:#FF0000;background-color: #F7BB99;">
 										{{'no_payed' | translate | uppercase }}
 									</span>
@@ -423,6 +423,22 @@
         </div>
 
       <div *ngIf="showPaymentHistory">
+        <div class="dateRow" *ngIf="canShowInvoiceActions()">
+          <div class="invoice-actions-row">
+            <button mat-stroked-button type="button" (click)="invoiceAction.emit('send')">
+              {{ 'send_invoice' | translate }}
+            </button>
+            <button mat-stroked-button type="button" (click)="invoiceAction.emit('sync')">
+              {{ 'refresh' | translate }}
+            </button>
+            <button mat-stroked-button type="button" color="warn" (click)="invoiceAction.emit('cancel')">
+              {{ 'cancel' | translate }}
+            </button>
+            <button mat-raised-button type="button" color="primary" (click)="invoiceAction.emit('markPaid')">
+              {{ 'ispaid' | translate }}
+            </button>
+          </div>
+        </div>
         <div class="dateRow" *ngIf="isFreeBooking() && !isCancelledBooking()">
           <div>
             <span class="hour">{{ 'booking_free_detail' | translate:{ amount: getFreeReductionAmount() | number:'0.2-2', currency: getActivitiesCurrency() } }}</span>

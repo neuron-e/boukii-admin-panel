@@ -266,6 +266,56 @@ export class BookingDetailV2Component implements OnInit {
     this.payModal = true;
   }
 
+  handleInvoiceAction(action: 'send' | 'sync' | 'cancel' | 'markPaid'): void {
+    if (!this.id) {
+      return;
+    }
+
+    let request$;
+    switch (action) {
+      case 'send':
+        request$ = this.crudService.post(`/admin/bookings/payments/${this.id}/invoice/send`, {});
+        break;
+      case 'sync':
+        request$ = this.crudService.post(`/admin/bookings/payments/${this.id}/invoice/sync`, {});
+        break;
+      case 'cancel':
+        request$ = this.crudService.post(`/admin/bookings/payments/${this.id}/invoice/cancel`, {});
+        break;
+      case 'markPaid':
+        request$ = this.crudService.post(`/admin/bookings/payments/${this.id}/invoice/mark-paid`, {});
+        break;
+      default:
+        return;
+    }
+
+    this.isLoading = true;
+    request$
+      .pipe(finalize(() => this.isLoading = false))
+      .subscribe({
+        next: (response: any) => {
+          const link = response?.data?.invoice_link || response?.data?.invoice_url;
+          if (action === 'send' && link) {
+            window.open(link, '_blank');
+          }
+          this.getBooking();
+          this.snackBar.open(
+            this.translateService.instant('snackbar.booking_detail.update'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        },
+        error: (error) => {
+          console.error(error);
+          this.snackBar.open(
+            this.translateService.instant('snackbar.booking.payment.error'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        }
+      });
+  }
+
   private preparePaymentModalState(): void {
     this.step = 1;
     this.isPaid = false;
@@ -1115,9 +1165,14 @@ export class BookingDetailV2Component implements OnInit {
     this.crudService.post(`/admin/bookings/update/${this.id}/payment`, bookingData)
       .pipe(
         switchMap((result: any) => {
-          if ((bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) && !bookingData.paid) {
+          if ((bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3) && !bookingData.paid) {
             return this.crudService
               .post(`/admin/bookings/payments/${this.id}`, result.data.basket)
+              .pipe(map((paymentResult: any) => ({ result, paymentResult })));
+          }
+          if (bookingData.payment_method_id === 7 && !bookingData.paid) {
+            return this.crudService
+              .post(`/admin/bookings/payments/${this.id}/invoice/send`, {})
               .pipe(map((paymentResult: any) => ({ result, paymentResult })));
           }
           return of({ result });
@@ -1132,6 +1187,16 @@ export class BookingDetailV2Component implements OnInit {
           if ((bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) && !bookingData.paid) {
             if (bookingData.payment_method_id === 2) {
               window.open(paymentResult.data, "_self");
+            } else if (bookingData.payment_method_id === 7) {
+              const invoiceLink = paymentResult?.data?.invoice_link || paymentResult?.data?.invoice_url;
+              if (invoiceLink) {
+                window.open(invoiceLink, '_blank');
+              }
+              this.snackBar.open(
+                this.translateService.instant('snackbar.booking_detail.send_mail'),
+                this.getCloseActionLabel(),
+                { duration: 1000 }
+              );
             } else {
               this.snackBar.open(
                 this.translateService.instant('snackbar.booking_detail.send_mail'),

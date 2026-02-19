@@ -117,7 +117,7 @@
                   style="color:#00C32B;background-color: #B2EFAD;">
 							{{'payed' | translate | uppercase }}
 						</span>
-						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && !detailData?.paid && detailData?.payment_method_id != 3"
+						<span *ngIf="detailData?.status === 1 && !isFreeBooking() && !detailData?.paid && detailData?.payment_method_id != 3 && detailData?.payment_method_id != 7"
                   style="color:#FF0000;background-color: #F7BB99;">
 							{{'no_payed' | translate | uppercase }}
 						</span>

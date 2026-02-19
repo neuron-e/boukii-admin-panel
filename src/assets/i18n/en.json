@@ -1419,8 +1419,12 @@
   "payment_terminal_open": "Open payment terminal",
   "payment_card_external": "Credit card (external)",
   "payment_invoice": "Invoice",
+  "send_invoice": "Send invoice",
   "invoice_pending": "Invoice pending",
   "invoice_overdue": "Invoice overdue",
+  "invoice_sent": "Invoice sent",
+  "invoice_cancelled": "Invoice cancelled",
+  "invoice_failed": "Invoice failed",
   "payment_terminal": {
     "amount": "Amount",
     "amount_min": "Minimum amount is 0.01 CHF",

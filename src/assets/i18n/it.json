@@ -1421,8 +1421,12 @@
   "payment_terminal_open": "Apri terminale di pagamento",
   "payment_card_external": "Carta di credito (esterna)",
   "payment_invoice": "Fattura",
+  "send_invoice": "Invia fattura",
   "invoice_pending": "Fattura in sospeso",
   "invoice_overdue": "Fattura scaduta",
+  "invoice_sent": "Fattura inviata",
+  "invoice_cancelled": "Fattura annullata",
+  "invoice_failed": "Fattura non riuscita",
   "payment_terminal": {
     "amount": "Importo",
     "amount_min": "L importo minimo è 0.01 CHF",
