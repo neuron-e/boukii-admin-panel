@@ -22,7 +22,7 @@ export class RentalsFeatureGuard implements CanActivate {
 
     try {
       const user = JSON.parse(raw);
-      const schoolId = Number(user?.schools?.[0]?.id || user?.school_id || 0);
+      const schoolId = Number(user?.school?.id || 0);
       if (!schoolId) return false;
 
       const allowedIds = this.getAllowedSchoolIds();
@@ -37,7 +37,6 @@ export class RentalsFeatureGuard implements CanActivate {
     if (Array.isArray(fromEnv) && fromEnv.length) {
       return fromEnv.map((id: any) => Number(id)).filter((id: number) => id > 0);
     }
-    return [15];
+    return [1];
   }
 }
-
