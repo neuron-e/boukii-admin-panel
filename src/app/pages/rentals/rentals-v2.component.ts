@@ -300,8 +300,12 @@ export class RentalsV2Component implements OnInit, OnDestroy {
 
 
   openDetail(row: any): void {
-    if (!row?.id) return;
-    this.router.navigate(['/rentals/item', row.id]);
+    const itemId = Number(row?.item?.id || row?.item_id || 0);
+    const variantId = Number(row?.id || 0);
+    if (!itemId) return;
+    this.router.navigate(['/rentals/item', itemId], {
+      queryParams: variantId ? { variant: variantId } : undefined
+    });
   }
 
   openCreateEquipmentDialog(): void {

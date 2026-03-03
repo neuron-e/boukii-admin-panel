@@ -201,6 +201,14 @@ export class RentalService {
     return this.crudService.getById('/admin/rentals/variants', id);
   }
 
+  getItemDetail(id: number, variantId?: number | null): Observable<ApiResponse> {
+    const params: Record<string, any> = {};
+    if (variantId && Number(variantId) > 0) {
+      params.variant_id = Number(variantId);
+    }
+    return this.crudService.get(`/admin/rentals/items/${id}/detail`, [], this.withSchool(params));
+  }
+
   assignUnits(reservationId: number, payload: any): Observable<ApiResponse> {
     return this.crudService.post(`/admin/rentals/reservations/${reservationId}/assign-units`, payload);
   }

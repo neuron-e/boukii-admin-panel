@@ -10,7 +10,11 @@ const routes: Routes = [
     component: RentalsV2Component
   },
   {
-    path: 'item/:variantId',
+    path: 'item/:itemId',
+    component: RentalsItemDetailComponent
+  },
+  {
+    path: 'variant/:variantId',
     component: RentalsItemDetailComponent
   },
   {

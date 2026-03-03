@@ -2,6 +2,7 @@
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
 import { RentalService } from 'src/service/rental.service';
 import { RentalsItemDialogComponent } from './rentals-item-dialog.component';
 
@@ -12,7 +13,8 @@ import { RentalsItemDialogComponent } from './rentals-item-dialog.component';
 })
 export class RentalsItemDetailComponent implements OnInit {
   loading = false;
-  variantId = 0;
+  itemId = 0;
+  legacyVariantId = 0;
 
   data: any = null;
   item: any = null;
@@ -23,6 +25,16 @@ export class RentalsItemDetailComponent implements OnInit {
   history: any[] = [];
   services: any[] = [];
   analytics: any = null;
+
+  createVariantExpanded = false;
+  createVariantForm: any = {
+    name: '',
+    size_label: '',
+    sku: '',
+    barcode: '',
+    quantity: 1,
+    condition: 'good'
+  };
 
   activeTab: 'variants' | 'services' | 'history' | 'analytics' = 'variants';
   serviceForm: any = {
@@ -43,8 +55,22 @@ export class RentalsItemDetailComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.variantId = Number(this.route.snapshot.paramMap.get('variantId') || 0);
-    this.load();
+    this.itemId = Number(this.route.snapshot.paramMap.get('itemId') || 0);
+    this.legacyVariantId = Number(this.route.snapshot.paramMap.get('variantId') || 0);
+    const queryVariant = Number(this.route.snapshot.queryParamMap.get('variant') || 0);
+
+    if (this.itemId > 0) {
+      this.loadByItem(this.itemId, queryVariant > 0 ? queryVariant : null);
+      return;
+    }
+
+    if (this.legacyVariantId > 0) {
+      this.loadFromLegacyVariant(this.legacyVariantId);
+      return;
+    }
+
+    this.snackBar.open('Invalid rental product', 'OK', { duration: 2500 });
+    this.back();
   }
 
   back(): void {
@@ -93,7 +119,7 @@ export class RentalsItemDetailComponent implements OnInit {
       next: () => {
         this.snackBar.open('Service saved', 'OK', { duration: 1800 });
         this.startCreateService();
-        this.load();
+        this.loadByItem(this.itemId, Number(this.variant?.id || 0));
       },
       error: () => this.snackBar.open('Error saving service', 'OK', { duration: 2200 })
     });
@@ -107,9 +133,77 @@ export class RentalsItemDetailComponent implements OnInit {
         if (Number(this.serviceForm?.id || 0) === Number(service.id)) {
           this.startCreateService();
         }
-        this.load();
+        this.loadByItem(this.itemId, Number(this.variant?.id || 0));
       },
       error: () => this.snackBar.open('Error deleting service', 'OK', { duration: 2200 })
+    });
+  }
+
+  toggleCreateVariant(): void {
+    this.createVariantExpanded = !this.createVariantExpanded;
+  }
+
+  createVariant(): void {
+    const name = String(this.createVariantForm?.name || '').trim();
+    const quantity = Number(this.createVariantForm?.quantity || 0);
+    if (!this.itemId || !name || quantity <= 0) {
+      this.snackBar.open('Variant name and quantity are required', 'OK', { duration: 2200 });
+      return;
+    }
+
+    const variantPayload: any = {
+      item_id: this.itemId,
+      subcategory_id: this.variant?.subcategory_id || null,
+      name,
+      size_group: this.createVariantForm?.size_label || null,
+      size_label: this.createVariantForm?.size_label || null,
+      sku: this.createVariantForm?.sku || null,
+      barcode: this.createVariantForm?.barcode || null,
+      active: true
+    };
+
+    this.rentalService.createVariant(variantPayload).subscribe({
+      next: (response: any) => {
+        const created = this.extractPayload(response);
+        const variantId = Number(created?.id || 0);
+        if (!variantId) {
+          this.snackBar.open('Variant created but no id returned', 'OK', { duration: 2600 });
+          this.loadByItem(this.itemId, null);
+          return;
+        }
+
+        const unitsCalls = Array.from({ length: quantity }).map((_, idx) =>
+          this.rentalService.createUnit({
+            variant_id: variantId,
+            warehouse_id: this.pickPreferredWarehouseId(),
+            serial: this.generateSerial(variantId, idx + 1),
+            status: 'available',
+            condition: this.createVariantForm?.condition || 'good',
+            notes: null
+          })
+        );
+
+        (unitsCalls.length ? forkJoin(unitsCalls) : of([])).subscribe({
+          next: () => {
+            this.snackBar.open('Variant created', 'OK', { duration: 2000 });
+            this.createVariantExpanded = false;
+            this.createVariantForm = {
+              name: '',
+              size_label: '',
+              sku: '',
+              barcode: '',
+              quantity: 1,
+              condition: 'good'
+            };
+            this.loadByItem(this.itemId, variantId);
+          },
+          error: () => {
+            this.snackBar.open('Variant created, but unit creation failed', 'OK', { duration: 2600 });
+            this.loadByItem(this.itemId, variantId);
+          }
+        });
+      },
+      error: () => this.snackBar.open('Error creating variant', 'OK', { duration: 2200 })
     });
   }
 
@@ -168,7 +262,14 @@ export class RentalsItemDetailComponent implements OnInit {
 
   openVariantDetail(v: any): void {
     if (!v?.id) return;
-    this.router.navigate(['/rentals/item', v.id]);
+    this.variant = v;
+    this.syncVariantScopedData();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { variant: v.id },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   deleteVariant(v: any): void {
@@ -176,7 +277,7 @@ export class RentalsItemDetailComponent implements OnInit {
     this.rentalService.deleteVariant(Number(v.id)).subscribe({
       next: () => {
         this.snackBar.open('Variant deleted', 'OK', { duration: 2000 });
-        this.load();
+        this.loadByItem(this.itemId, null);
       },
       error: () => this.snackBar.open('Error deleting variant', 'OK', { duration: 2500 })
     });
@@ -204,7 +305,7 @@ export class RentalsItemDetailComponent implements OnInit {
         }).subscribe({
           next: () => {
             this.snackBar.open('Product updated', 'OK', { duration: 2000 });
-            this.load();
+            this.loadByItem(this.itemId, Number(this.variant?.id || 0));
           },
           error: () => this.snackBar.open('Error updating variant', 'OK', { duration: 2500 })
         });
@@ -213,24 +314,26 @@ export class RentalsItemDetailComponent implements OnInit {
     });
   }
 
-  private load(): void {
+  private loadFromLegacyVariant(variantId: number): void {
     this.loading = true;
-
-    this.rentalService.getVariant(this.variantId).subscribe({
+    this.rentalService.getVariant(variantId).subscribe({
       next: (response: any) => {
-        const payload = response?.data?.data ?? response?.data ?? null;
-        this.data = payload;
-        this.item = payload?.item || null;
-        this.variant = payload?.variant || null;
-        this.variants = Array.isArray(payload?.variants) ? payload.variants : [];
-        this.units = Array.isArray(payload?.units) ? payload.units : [];
-        this.pricingRules = Array.isArray(payload?.pricing_rules) ? payload.pricing_rules : [];
-        this.history = Array.isArray(payload?.history) ? payload.history : [];
-        this.services = Array.isArray(payload?.services)
-          ? payload.services.filter((s: any) => Number(s?.variant_id) === Number(this.variantId))
-          : [];
-        this.analytics = payload?.analytics || null;
-        this.loading = false;
+        const payload = this.extractPayload(response);
+        const itemId = Number(payload?.item?.id || payload?.item_id || 0);
+        if (!itemId) {
+          this.loading = false;
+          this.snackBar.open('Invalid rental product', 'OK', { duration: 2500 });
+          this.back();
+          return;
+        }
+
+        this.itemId = itemId;
+        this.router.navigate(['/rentals/item', itemId], {
+          queryParams: { variant: variantId },
+          replaceUrl: true
+        });
+
+        this.loadByItem(itemId, variantId, false);
       },
       error: () => {
         this.loading = false;
@@ -238,5 +341,62 @@ export class RentalsItemDetailComponent implements OnInit {
       }
     });
   }
-}
 
+  private loadByItem(itemId: number, selectedVariantId: number | null, allowVariantFallback = true): void {
+    this.loading = true;
+    this.itemId = itemId;
+
+    this.rentalService.getItemDetail(itemId, selectedVariantId).subscribe({
+      next: (response: any) => {
+        const payload = this.extractPayload(response);
+        this.data = payload;
+        this.item = payload?.item || null;
+        this.variants = Array.isArray(payload?.variants) ? payload.variants : [];
+        this.units = Array.isArray(payload?.units) ? payload.units : [];
+        this.pricingRules = Array.isArray(payload?.pricing_rules) ? payload.pricing_rules : [];
+        this.history = Array.isArray(payload?.history) ? payload.history : [];
+        this.analytics = payload?.analytics || null;
+
+        const preferredVariantId = Number(selectedVariantId || payload?.selected_variant?.id || 0);
+        this.variant = this.variants.find((v) => Number(v?.id || 0) === preferredVariantId) || payload?.selected_variant || this.variants[0] || null;
+
+        this.syncVariantScopedData();
+        this.loading = false;
+      },
+      error: () => {
+        if (allowVariantFallback) {
+          this.loadFromLegacyVariant(itemId);
+          return;
+        }
+        this.loading = false;
+        this.snackBar.open('Error loading equipment detail', 'OK', { duration: 2500 });
+      }
+    });
+  }
+
+  private syncVariantScopedData(): void {
+    const currentVariantId = Number(this.variant?.id || 0);
+    this.services = (Array.isArray(this.data?.services) ? this.data.services : [])
+      .filter((service: any) => Number(service?.variant_id || 0) === currentVariantId);
+  }
+
+  private pickPreferredWarehouseId(): number | null {
+    const preferred = this.units.find((unit: any) => Number(unit?.variant_id || 0) === Number(this.variant?.id || 0) && Number(unit?.warehouse_id || 0) > 0);
+    if (preferred) return Number(preferred.warehouse_id);
+    const firstWithWarehouse = this.units.find((unit: any) => Number(unit?.warehouse_id || 0) > 0);
+    return firstWithWarehouse ? Number(firstWithWarehouse.warehouse_id) : null;
+  }
+
+  private generateSerial(variantId: number, offset: number): string {
+    const prefix = String(this.createVariantForm?.sku || this.createVariantForm?.name || `VAR-${variantId}`)
+      .replace(/\s+/g, '-')
+      .toUpperCase()
+      .slice(0, 16);
+    const stamp = Date.now().toString().slice(-6);
+    return `${prefix}-${stamp}-${String(offset).padStart(2, '0')}`;
+  }
+
+  private extractPayload(response: any): any {
+    return response?.data?.data ?? response?.data ?? response ?? null;
+  }
+}

@@ -1,13 +1,13 @@
 ﻿<vex-page-layout>
   <vex-secondary-toolbar current>
-    <vex-breadcrumbs [crumbs]="[{ icon: 'settings' }, { text: 'rentals.page_title' }, { text: item?.name || 'Product', title: true }]" class="flex"></vex-breadcrumbs>
+    <vex-breadcrumbs [crumbs]="[{ icon: 'settings' }, { text: 'rentals.page_title' }, { text: item?.name || ('rentals.equipment_details' | translate), title: true }]" class="flex"></vex-breadcrumbs>
   </vex-secondary-toolbar>
 
   <vex-page-layout-content class="rentals-detail-page">
     <div class="header-row">
       <button mat-stroked-button type="button" (click)="back()">
         <mat-icon>arrow_back</mat-icon>
-        Back to Inventory
+        {{ 'rentals.back_to_inventory' | translate }}
       </button>
       <div class="header-actions">
         <button mat-stroked-button type="button" (click)="editCurrentProduct()">
@@ -56,7 +56,7 @@
       <main class="right-column">
         <div class="tabs-row">
           <button type="button" [class.active]="activeTab === 'variants'" (click)="switchTab('variants')">Variants ({{ variants.length }})</button>
-          <button type="button" [class.active]="activeTab === 'services'" (click)="switchTab('services')">Services (0)</button>
+          <button type="button" [class.active]="activeTab === 'services'" (click)="switchTab('services')">Services ({{ services.length }})</button>
           <button type="button" [class.active]="activeTab === 'history'" (click)="switchTab('history')">Rental History ({{ history.length }})</button>
           <button type="button" [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">Analytics</button>
         </div>
@@ -64,6 +64,47 @@
         <section class="panel" *ngIf="activeTab === 'variants'">
           <div class="panel-header">
             <h3>Product variants</h3>
+            <button mat-flat-button color="primary" type="button" (click)="toggleCreateVariant()">
+              <mat-icon>add</mat-icon>
+              Add Variant
+            </button>
+          </div>
+          <div class="services-form" *ngIf="createVariantExpanded" style="margin-bottom: 16px;">
+            <h4>Add variant</h4>
+            <div class="service-grid">
+              <mat-form-field appearance="outline">
+                <mat-label>{{ 'rentals.variant_name' | translate }}</mat-label>
+                <input matInput [(ngModel)]="createVariantForm.name" [ngModelOptions]="{ standalone: true }">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ 'rentals.size' | translate }}</mat-label>
+                <input matInput [(ngModel)]="createVariantForm.size_label" [ngModelOptions]="{ standalone: true }">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ 'rentals.sku' | translate }}</mat-label>
+                <input matInput [(ngModel)]="createVariantForm.sku" [ngModelOptions]="{ standalone: true }">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ 'rentals.code' | translate }}</mat-label>
+                <input matInput [(ngModel)]="createVariantForm.barcode" [ngModelOptions]="{ standalone: true }">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ 'rentals.quantity' | translate }}</mat-label>
+                <input matInput type="number" min="1" [(ngModel)]="createVariantForm.quantity" [ngModelOptions]="{ standalone: true }">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ 'rentals.condition' | translate }}</mat-label>
+                <mat-select [(ngModel)]="createVariantForm.condition" [ngModelOptions]="{ standalone: true }">
+                  <mat-option value="excellent">{{ 'rentals.condition_excellent' | translate }}</mat-option>
+                  <mat-option value="good">{{ 'rentals.condition_good' | translate }}</mat-option>
+                  <mat-option value="fair">{{ 'rentals.condition_fair' | translate }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <div class="service-actions">
+              <button mat-stroked-button type="button" (click)="toggleCreateVariant()">Cancel</button>
+              <button mat-flat-button color="primary" type="button" (click)="createVariant()">Create variant</button>
+            </div>
           </div>
           <table class="variants-table">
             <thead>
@@ -76,7 +117,7 @@
             </tr>
             </thead>
             <tbody>
-            <tr *ngFor="let v of variants">
+            <tr *ngFor="let v of variants" [class.active-row]="variant?.id === v.id">
               <td>
                 <strong>{{ v.name }}</strong>
                 <small>{{ v.sku || '-' }} · {{ v.size_label || '-' }}</small>
@@ -92,7 +133,7 @@
                 <span class="status" [class.off]="!v.active">{{ v.active ? 'active' : 'inactive' }}</span>
               </td>
               <td class="actions">
-                <button mat-icon-button type="button" (click)="openVariantDetail(v)"><mat-icon>visibility</mat-icon></button>
+                  <button mat-icon-button type="button" (click)="openVariantDetail(v)"><mat-icon>visibility</mat-icon></button>
                 <button mat-icon-button type="button" (click)="deleteVariant(v)"><mat-icon>delete</mat-icon></button>
               </td>
             </tr>
