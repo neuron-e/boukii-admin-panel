@@ -217,11 +217,23 @@ export class AppComponent {
     const provider = this.schoolService.getPaymentProvider();
     const gatewayLabel = provider === 'payyo' ? this.translateService.instant('payment_payyo') : 'Boukii Pay';
     const gatewayRoute = provider === 'payyo' ? 'https://merchant.payyo.ch/' : 'https://login.pay.boukii.com/fr/';
-    const currentSchoolId = Number(this.user?.school?.id || 0);
+    const activeSchool = this.user?.school || this.user?.schools?.[0] || null;
+    const currentSchoolId = Number(
+      activeSchool?.id || this.user?.school_id || this.user?.schools?.[0]?.id || 0
+    );
+    const currentSchoolName = String(
+      activeSchool?.name || this.user?.school_name || ''
+    ).trim().toLowerCase();
     const allowedRentalSchoolIds = (Array.isArray((environment as any)?.rentalFeatureSchoolIds)
       ? (environment as any).rentalFeatureSchoolIds
       : [15]).map((id: any) => Number(id)).filter((id: number) => id > 0);
-    const showRentals = currentSchoolId > 0 && allowedRentalSchoolIds.includes(currentSchoolId);
+    const allowedRentalSchoolNames = (Array.isArray((environment as any)?.rentalFeatureSchoolNames)
+      ? (environment as any).rentalFeatureSchoolNames
+      : ['School Testing'])
+      .map((name: any) => String(name || '').trim().toLowerCase())
+      .filter((name: string) => !!name);
+    const showRentals = (currentSchoolId > 0 && allowedRentalSchoolIds.includes(currentSchoolId))
+      || (!!currentSchoolName && allowedRentalSchoolNames.includes(currentSchoolName));
 
     this.navigationService.items = [
       /*{

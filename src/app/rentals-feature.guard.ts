@@ -22,11 +22,18 @@ export class RentalsFeatureGuard implements CanActivate {
 
     try {
       const user = JSON.parse(raw);
-      const schoolId = Number(user?.school?.id || 0);
-      if (!schoolId) return false;
-
+      const activeSchool = user?.school || user?.schools?.[0] || null;
+      const schoolId = Number(
+        activeSchool?.id || user?.school_id || user?.schools?.[0]?.id || 0
+      );
+      const schoolName = String(
+        activeSchool?.name || user?.school_name || ''
+      ).trim().toLowerCase();
       const allowedIds = this.getAllowedSchoolIds();
-      return allowedIds.includes(schoolId);
+      const allowedNames = this.getAllowedSchoolNames();
+
+      return (schoolId > 0 && allowedIds.includes(schoolId))
+        || (!!schoolName && allowedNames.includes(schoolName));
     } catch {
       return false;
     }
@@ -38,5 +45,16 @@ export class RentalsFeatureGuard implements CanActivate {
       return fromEnv.map((id: any) => Number(id)).filter((id: number) => id > 0);
     }
     return [1];
+  }
+
+  private getAllowedSchoolNames(): string[] {
+    const fromEnv = (environment as any).rentalFeatureSchoolNames;
+    if (Array.isArray(fromEnv) && fromEnv.length) {
+      return fromEnv
+        .map((name: any) => String(name || '').trim().toLowerCase())
+        .filter((name: string) => !!name);
+    }
+
+    return ['school testing'];
   }
 }
