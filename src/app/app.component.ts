@@ -217,7 +217,10 @@ export class AppComponent {
     const provider = this.schoolService.getPaymentProvider();
     const gatewayLabel = provider === 'payyo' ? this.translateService.instant('payment_payyo') : 'Boukii Pay';
     const gatewayRoute = provider === 'payyo' ? 'https://merchant.payyo.ch/' : 'https://login.pay.boukii.com/fr/';
-    const currentSchoolId = Number(this.user?.schools?.[0]?.id || this.user?.school_id || 0);
+    const selectedSchool = this.schoolService.getSchoolData();
+    const currentSchoolId = Number(
+      selectedSchool?.id || this.user?.school_id || this.user?.schools?.[0]?.id || 0
+    );
     const allowedRentalSchoolIds = (Array.isArray((environment as any)?.rentalFeatureSchoolIds)
       ? (environment as any).rentalFeatureSchoolIds
       : [15]).map((id: any) => Number(id)).filter((id: number) => id > 0);
