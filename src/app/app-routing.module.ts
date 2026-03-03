@@ -5,6 +5,7 @@ import { VexRoutes } from '../@vex/interfaces/vex-route.interface';
 import { AuthGuard } from './auth.guard';
 import { AnalyticsPermissionGuard } from './analytics-permission.guard';
 import { SuperadminGuard } from './superadmin.guard';
+import { RentalsFeatureGuard } from './rentals-feature.guard';
 
 const childrenRoutes: VexRoutes = [
   {
@@ -83,6 +84,11 @@ const childrenRoutes: VexRoutes = [
         path: 'settings',
         loadChildren: () => import('./pages/settings/settings.module').then(m => m.SettingsModule),
         canActivate: [AuthGuard],
+      },
+      {
+        path: 'rentals',
+        loadChildren: () => import('./pages/rentals/rentals.module').then(m => m.RentalsModule),
+        canActivate: [AuthGuard, RentalsFeatureGuard],
       },
       {
         path: 'payment-terminal',

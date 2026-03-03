@@ -1,6 +1,7 @@
 export const environment = {
   production: false,
   permissionsStrict: false,
+  rentalFeatureSchoolIds: [15],
   // Your web app's Firebase configuration
   // For Firebase JS SDK v7.20.0 and later, measurementId is optional
   baseUrl: 'https://dev.api.boukii.com',

@@ -30,6 +30,7 @@ import localeFr from "@angular/common/locales/fr";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { MonitorEventsService } from "src/service/monitor-events.service";
 import { DateAdapter } from "@angular/material/core";
+import { environment } from "src/environments/environment";
 
 @Component({
   selector: "vex-root",
@@ -216,6 +217,11 @@ export class AppComponent {
     const provider = this.schoolService.getPaymentProvider();
     const gatewayLabel = provider === 'payyo' ? this.translateService.instant('payment_payyo') : 'Boukii Pay';
     const gatewayRoute = provider === 'payyo' ? 'https://merchant.payyo.ch/' : 'https://login.pay.boukii.com/fr/';
+    const currentSchoolId = Number(this.user?.schools?.[0]?.id || this.user?.school_id || 0);
+    const allowedRentalSchoolIds = (Array.isArray((environment as any)?.rentalFeatureSchoolIds)
+      ? (environment as any).rentalFeatureSchoolIds
+      : [15]).map((id: any) => Number(id)).filter((id: number) => id > 0);
+    const showRentals = currentSchoolId > 0 && allowedRentalSchoolIds.includes(currentSchoolId);
 
     this.navigationService.items = [
       /*{
@@ -376,6 +382,15 @@ export class AppComponent {
               routerLinkActiveOptions: { exact: true },
               permissions: ['view schools']
             },
+            ...(showRentals ? ([{
+              type: "link",
+              label: "Renting",
+              route: "/rentals",
+              icon: "../assets/img/icons/bonos-2.svg",
+              icon_active: "../assets/img/icons/bonos.svg",
+              routerLinkActiveOptions: { exact: true },
+              permissions: ['view schools']
+            }] as any[]) : []),
         ],
       },
     ];
