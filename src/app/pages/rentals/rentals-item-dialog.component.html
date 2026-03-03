@@ -1,0 +1,102 @@
+﻿<h2 mat-dialog-title>{{ title }}</h2>
+<div class="subtitle">{{ subtitle }}</div>
+<mat-dialog-content>
+  <form [formGroup]="form" class="form-grid">
+    <mat-form-field appearance="outline">
+      <mat-label>Category</mat-label>
+      <mat-select formControlName="category_id">
+        <mat-option *ngFor="let category of data.categories" [value]="category.id">{{ category.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Subcategory</mat-label>
+      <mat-select formControlName="subcategory_id">
+        <mat-option [value]="null">None</mat-option>
+        <mat-option *ngFor="let subcategory of filteredSubcategories" [value]="subcategory.id">{{ subcategory.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Item Name</mat-label>
+      <input matInput formControlName="item_name">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Brand</mat-label>
+      <input matInput formControlName="brand">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Model</mat-label>
+      <input matInput formControlName="model">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Size/Dimension</mat-label>
+      <input matInput formControlName="size_label">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Quantity in Stock</mat-label>
+      <input matInput type="number" min="1" formControlName="quantity">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Condition</mat-label>
+      <mat-select formControlName="condition">
+        <mat-option value="excellent">Excellent</mat-option>
+        <mat-option value="good">Good</mat-option>
+        <mat-option value="fair">Fair</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Half Day (€)</mat-label>
+      <input matInput type="number" formControlName="half_day_price">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Full Day (€)</mat-label>
+      <input matInput type="number" formControlName="full_day_price">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Week (€)</mat-label>
+      <input matInput type="number" formControlName="week_price">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Warehouse</mat-label>
+      <mat-select formControlName="warehouse_id">
+        <mat-option [value]="null">None</mat-option>
+        <mat-option *ngFor="let warehouse of data.warehouses" [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Barcode/QR</mat-label>
+      <input matInput formControlName="barcode">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>SKU</mat-label>
+      <input matInput formControlName="sku">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Serial Prefix</mat-label>
+      <input matInput formControlName="serial_prefix">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Notes</mat-label>
+      <textarea matInput rows="3" formControlName="notes"></textarea>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Cancel</button>
+  <button mat-flat-button color="primary" type="button" (click)="save()">{{ isEdit ? 'Save Changes' : 'Add Equipment' }}</button>
+</mat-dialog-actions>
+

@@ -1,0 +1,492 @@
+﻿<vex-page-layout>
+   <vex-secondary-toolbar   current>
+      <vex-breadcrumbs   [crumbs]="[{   icon:   'settings'   },   {   text:   'rentals.page_title',   title:   true   }]"   class="flex"></vex-breadcrumbs>
+   </vex-secondary-toolbar>
+
+   <vex-page-layout-content   class="rentals-v2-page">
+      <section   class="hero-card">
+         <div>
+            <h2>{{   'rentals.page_title'   |   translate   }}</h2>
+            <p>{{   'rentals.page_subtitle'   |   translate   }}</p>
+         </div>
+         <div   class="hero-actions">
+            <button   mat-stroked-button   type="button"   (click)="setView('advanced')">
+               <mat-icon>tune</mat-icon>
+               {{   'rentals.advanced'   |   translate   }}
+            </button>
+            <button   mat-flat-button   color="primary"   type="button"   (click)="loadAll()"   [disabled]="loading">
+               <mat-icon>{{   loading   ?   'hourglass_top'   :   'refresh'   }}</mat-icon>
+               {{   'rentals.refresh'   |   translate   }}
+            </button>
+         </div>
+      </section>
+
+      <section   class="stats-grid">
+         <article   class="stat-card">
+            <span>{{   'rentals.total_equipment'   |   translate   }}</span>
+            <strong>{{   totalEquipment   }}</strong>
+            <small>{{   categories.length   }}   {{   'rentals.category'   |   translate   |   lowercase   }}</small>
+         </article>
+         <article   class="stat-card">
+            <span>{{   'rentals.available_units'   |   translate   }}</span>
+            <strong   class="ok">{{   totalAvailable   }}</strong>
+            <small>{{   'rentals.ready_to_rent'   |   translate   }}</small>
+         </article>
+         <article   class="stat-card">
+            <span>{{   'rentals.rented_units'   |   translate   }}</span>
+            <strong   class="warn">{{   totalRented   }}</strong>
+            <small>{{   'rentals.out_for_rental'   |   translate   }}</small>
+         </article>
+         <article   class="stat-card">
+            <span>{{   'rentals.utilization'   |   translate   }}</span>
+            <strong>{{   utilizationRate   }}%</strong>
+            <small>{{   'rentals.average_usage'   |   translate   }}</small>
+         </article>
+      </section>
+
+      <section   class="toolbar-pills">
+         <button   mat-stroked-button   type="button"   [class.active]="view   ===   'inventory'"   (click)="setView('inventory')">
+            <mat-icon>inventory_2</mat-icon>
+            {{   'rentals.inventory'   |   translate   }}
+         </button>
+         <button   mat-stroked-button   type="button"   [class.active]="view   ===   'booking'"   (click)="setView('booking')">
+            <mat-icon>event_available</mat-icon>
+            {{   'rentals.new_booking'   |   translate   }}
+         </button>
+         <button   mat-stroked-button   type="button"   [class.active]="view   ===   'list'"   (click)="setView('list')">
+            <mat-icon>list_alt</mat-icon>
+            {{   'rentals.rental_list'   |   translate   }}
+         </button>
+         <button   mat-stroked-button   type="button"   [class.active]="false"   (click)="openCreateEquipmentDialog()">
+            <mat-icon>add_box</mat-icon>
+            {{   'rentals.add_equipment'   |   translate   }}
+         </button>
+      </section>
+
+      <ng-container   [ngSwitch]="view">
+         <section   *ngSwitchCase="'inventory'"   class="content-card">
+            <header   class="content-header">
+               <div>
+                  <h3>{{   'rentals.inventory'   |   translate   }}</h3>
+                  <p>{{   'rentals.inventory_subtitle'   |   translate   }}</p>
+               </div>
+               <div   class="header-actions">
+                  <button   mat-stroked-button   type="button"   (click)="setView('booking')">{{   'rentals.new_booking'   |   translate   }}</button>
+                  <button   mat-stroked-button   type="button"   (click)="setView('list')">{{   'rentals.rental_list'   |   translate   }}</button>
+                  <button   mat-flat-button   color="primary"   class="btn-dark"   type="button"   (click)="openCreateEquipmentDialog()">{{   'rentals.add_equipment'   |   translate   }}</button>
+               </div>
+            </header>
+
+            <div   class="section-card">
+               <h4>{{   'rentals.equipment_categories'   |   translate   }}</h4>
+               <p>{{   'rentals.categories_help'   |   translate   }}</p>
+               <div   class="category-cards">
+                  <button   class="category-pill"   type="button"   [class.selected]="categoryFilter   ===   'all'"   (click)="setCategoryFilter('all')">
+                     <mat-icon>apps</mat-icon>
+                     <span>{{   'rentals.all_categories'   |   translate   }}</span>
+                     <strong>{{   inventoryRows.length   }}</strong>
+                  </button>
+                  <button
+                     class="category-pill"
+                     type="button"
+                     *ngFor="let   category   of   categories;   trackBy:   trackById"
+                     [class.selected]="categoryFilter   ===   category.id"
+                     (click)="setCategoryFilter(category.id)">
+                     <mat-icon>{{   categoryIcon(category.name)   }}</mat-icon>
+                     <span>{{   category.name   }}</span>
+                     <strong>{{   categoryCount(category.id)   }}</strong>
+                  </button>
+               </div>
+            </div>
+
+            <div   class="filters-row">
+               <mat-form-field   appearance="outline">
+                  <mat-label>{{   'rentals.search'   |   translate   }}</mat-label>
+                  <input   matInput   [(ngModel)]="inventorySearch"   [ngModelOptions]="{   standalone:   true   }">
+               </mat-form-field>
+               <mat-form-field   appearance="outline">
+                  <mat-label>{{   'rentals.subcategory'   |   translate   }}</mat-label>
+                  <mat-select   [value]="subcategoryFilter"   (selectionChange)="setSubcategoryFilter($event.value)">
+                     <mat-option   value="all">{{   'rentals.all'   |   translate   }}</mat-option>
+                     <mat-option   *ngFor="let   subcategory   of   availableSubcategories"   [value]="subcategory">{{   subcategory   }}</mat-option>
+                  </mat-select>
+               </mat-form-field>
+            </div>
+
+            <div   class="inventory-layout">
+               <div   class="table-wrapper   table-wrapper--full">
+                  <table   class="inventory-table">
+                     <thead>
+                        <tr>
+                           <th>{{   'rentals.equipment'   |   translate   }}</th>
+                           <th>{{   'rentals.brand_model'   |   translate   }}</th>
+                           <th>{{   'rentals.size'   |   translate   }}</th>
+                           <th>{{   'rentals.available'   |   translate   }}</th>
+                           <th>{{   'rentals.price'   |   translate   }}</th>
+                           <th>{{   'rentals.condition'   |   translate   }}</th>
+                           <th>{{   'rentals.code'   |   translate   }}</th>
+                           <th>{{   'rentals.actions'   |   translate   }}</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <tr
+                           *ngFor="let   row   of   inventoryRows;   trackBy:   trackById"
+                           (click)="selectInventoryRow(row)"
+                           >
+                           <td>
+                              <strong>{{   row.item?.name   ||   row.name   }}</strong>
+                              <small>{{   row.subcategoryName   ||   '-'   }}</small>
+                           </td>
+                           <td>{{   row.item?.brand   ||   '-'   }}   {{   row.item?.model   ||   ''   }}</td>
+                           <td>{{   row.size_label   ||   '-'   }}</td>
+                           <td>{{   row.available   }}/{{   row.total   }}</td>
+                           <td>{{   rowPriceLabel(row)   }}</td>
+                           <td><span   class="status   status--{{   rowCondition(row)   }}">{{   rowCondition(row)   }}</span></td>
+                           <td>{{   rowBarcode(row)   }}</td>
+                           <td   class="actions-cell"   (click)="$event.stopPropagation()">
+                              <button   mat-icon-button   type="button"   (click)="openDetail(row)"><mat-icon>visibility</mat-icon></button>
+                              <button   mat-icon-button   type="button"   (click)="openEditEquipmentDialog(row)"><mat-icon>edit</mat-icon></button>
+                              <button   mat-icon-button   type="button"   (click)="deleteInventoryRow(row)"><mat-icon>delete</mat-icon></button>
+                           </td>
+                        </tr>
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+         </section>
+
+         <section   *ngSwitchCase="'booking'"   class="content-card">
+            <header   class="content-header">
+               <div>
+                  <h3>{{   'rentals.new_booking'   |   translate   }}</h3>
+                  <p>{{   'rentals.new_booking_subtitle'   |   translate   }}</p>
+               </div>
+               <div   class="header-actions">
+                  <button   mat-stroked-button   type="button"   (click)="setView('inventory')">
+                     <mat-icon>arrow_back</mat-icon>
+                     {{   'rentals.back_to_inventory'   |   translate   }}
+                  </button>
+               </div>
+            </header>
+
+            <div   class="booking-layout">
+               <div   class="booking-left">
+                  <div   class="period-pills">
+                     <button
+                        *ngFor="let   period   of   periodButtons"
+                        type="button"
+                        class="period-pill"
+                        [class.active]="selectedPeriodType   ===   period.value"
+                        (click)="setPeriodType(period.value)">
+                        {{   period.label   |   translate   }}
+                     </button>
+                  </div>
+
+                  <form   [formGroup]="bookingForm"   class="booking-grid">
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.client'   |   translate   }}</mat-label>
+                        <mat-select   formControlName="client_id">
+                           <mat-option   *ngFor="let   client   of   clients;   trackBy:   trackById"   [value]="client.id">
+                              {{   clientLabel(client)   }}   -   {{   client.email   ||   '-'   }}
+                           </mat-option>
+                        </mat-select>
+                     </mat-form-field>
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.period_type'   |   translate   }}</mat-label>
+                        <mat-select   formControlName="period_type">
+                           <mat-option   value="half_day">{{   'rentals.period_half_day'   |   translate   }}</mat-option>
+                           <mat-option   value="full_day">{{   'rentals.period_full_day'   |   translate   }}</mat-option>
+                           <mat-option   value="multi_day">{{   'rentals.period_multi_day'   |   translate   }}</mat-option>
+                           <mat-option   value="week">{{   'rentals.period_week'   |   translate   }}</mat-option>
+                           <mat-option   value="season">{{   'rentals.period_season'   |   translate   }}</mat-option>
+                        </mat-select>
+                     </mat-form-field>
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.start_date'   |   translate   }}</mat-label>
+                        <input   matInput   type="date"   formControlName="start_date">
+                     </mat-form-field>
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.end_date'   |   translate   }}</mat-label>
+                        <input   matInput   type="date"   formControlName="end_date">
+                     </mat-form-field>
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.start_time'   |   translate   }}</mat-label>
+                        <input   matInput   type="time"   formControlName="start_time">
+                     </mat-form-field>
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.end_time'   |   translate   }}</mat-label>
+                        <input   matInput   type="time"   formControlName="end_time">
+                     </mat-form-field>
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.pickup_point'   |   translate   }}</mat-label>
+                        <mat-select   formControlName="pickup_point_id">
+                           <mat-option   [value]="null">{{   'rentals.none'   |   translate   }}</mat-option>
+                           <mat-option   *ngFor="let   point   of   pickupPoints;   trackBy:   trackById"   [value]="point.id">{{   point.name   }}</mat-option>
+                        </mat-select>
+                     </mat-form-field>
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.return_point'   |   translate   }}</mat-label>
+                        <mat-select   formControlName="return_point_id">
+                           <mat-option   [value]="null">{{   'rentals.none'   |   translate   }}</mat-option>
+                           <mat-option   *ngFor="let   point   of   pickupPoints;   trackBy:   trackById"   [value]="point.id">{{   point.name   }}</mat-option>
+                        </mat-select>
+                     </mat-form-field>
+                  </form>
+
+                  <div   class="filters-row">
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.search'   |   translate   }}</mat-label>
+                        <input   matInput   [(ngModel)]="bookingSearch"   [ngModelOptions]="{   standalone:   true   }">
+                     </mat-form-field>
+                     <mat-form-field   appearance="outline">
+                        <mat-label>{{   'rentals.category'   |   translate   }}</mat-label>
+                        <mat-select   [value]="categoryFilter"   (selectionChange)="setCategoryFilter($event.value)">
+                           <mat-option   value="all">{{   'rentals.all_categories'   |   translate   }}</mat-option>
+                           <mat-option   *ngFor="let   category   of   categories;   trackBy:   trackById"   [value]="category.id">{{   category.name   }}</mat-option>
+                        </mat-select>
+                     </mat-form-field>
+                  </div>
+
+                  <div   class="table-wrapper   table-wrapper--full">
+                     <table   class="inventory-table   booking-table">
+                        <thead>
+                           <tr>
+                              <th>{{   'rentals.equipment'   |   translate   }}</th>
+                              <th>{{   'rentals.brand_model'   |   translate   }}</th>
+                              <th>{{   'rentals.size'   |   translate   }}</th>
+                              <th>{{   'rentals.available'   |   translate   }}</th>
+                              <th>{{   'rentals.price'   |   translate   }}</th>
+                              <th>{{   'rentals.quantity'   |   translate   }}</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <tr   *ngFor="let   row   of   bookingRows;   trackBy:   trackById">
+                              <td><strong>{{   row.item?.name   ||   row.name   }}</strong><small>{{   row.subcategoryName   ||   '-'   }}</small></td>
+                              <td>{{   row.item?.brand   ||   '-'   }}   {{   row.item?.model   ||   ''   }}</td>
+                              <td>{{   row.size_label   ||   '-'   }}</td>
+                              <td>{{   row.available   }}/{{   row.total   }}</td>
+                              <td>{{   rowPriceLabel(row)   }}</td>
+                              <td>
+                                 <div   class="qty-editor">
+                                    <button   mat-icon-button   type="button"   (click)="removeOneItem(row)"><mat-icon>remove</mat-icon></button>
+                                    <input   type="number"   min="0"   [max]="row.available"   [value]="selectedQuantity(row.id)"   (change)="setItemQuantity(row.id,   +$any($event.target).value)">
+                                    <button   mat-icon-button   type="button"   (click)="addOneItem(row)"><mat-icon>add</mat-icon></button>
+                                 </div>
+                              </td>
+                           </tr>
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
+
+               <aside   class="booking-summary">
+                  <h4>{{   'rentals.new_booking'   |   translate   }}</h4>
+                  <p>{{   selectedRows.length   }}   {{   'rentals.items'   |   translate   |   lowercase   }}</p>
+                  <div   class="summary-lines"   *ngIf="selectedRows.length;   else   noSelected">
+                     <div   class="summary-line"   *ngFor="let   row   of   selectedRows;   trackBy:   trackById">
+                        <div>
+                           <strong>{{   row.item?.name   ||   row.name   }}</strong>
+                           <small>{{   row.subcategoryName   ||   '-'   }}   &middot;   {{   row.size_label   ||   '-'   }}</small>
+                        </div>
+                        <div   class="summary-right">
+                           <span>x{{   row.selectedQty   }}</span>
+                           <button   mat-icon-button   type="button"   (click)="removeSelectedRow(row)"><mat-icon>close</mat-icon></button>
+                        </div>
+                     </div>
+                  </div>
+                  <ng-template   #noSelected>
+                     <p   class="muted">{{   'rentals.selected_items'   |   translate   }}:   0</p>
+                  </ng-template>
+                  <div   class="estimate-row">
+                     <span>{{   'rentals.price'   |   translate   }}</span>
+                     <strong>{{   bookingEstimateTotal   |   number:   '1.2-2'   }}   {{   bookingEstimateCurrency   }}</strong>
+                  </div>
+                  <div   class="summary-actions">
+                     <button   mat-stroked-button   type="button"   (click)="clearSelectedItems()">{{   'rentals.clear'   |   translate   }}</button>
+                     <button   mat-flat-button   color="primary"   type="button"   (click)="createReservation()">{{   'rentals.create_reservation'   |   translate   }}</button>
+                  </div>
+               </aside>
+            </div>
+         </section>
+
+         <section   *ngSwitchCase="'list'"   class="content-card">
+            <header   class="content-header">
+               <div>
+                  <h3>{{   'rentals.rental_list'   |   translate   }}</h3>
+                  <p>{{   'rentals.rental_list_subtitle'   |   translate   }}</p>
+               </div>
+            </header>
+
+            <div   class="filters-row">
+               <mat-form-field   appearance="outline">
+                  <mat-label>{{   'rentals.search'   |   translate   }}</mat-label>
+                  <input   matInput   [(ngModel)]="listSearch"   [ngModelOptions]="{   standalone:   true   }">
+               </mat-form-field>
+               <mat-form-field   appearance="outline">
+                  <mat-label>{{   'rentals.status'   |   translate   }}</mat-label>
+                  <mat-select   [(ngModel)]="listStatus"   [ngModelOptions]="{   standalone:   true   }">
+                     <mat-option   value="all">{{   'rentals.all'   |   translate   }}</mat-option>
+                     <mat-option   value="pending">{{   'rentals.pending'   |   translate   }}</mat-option>
+                     <mat-option   value="active">{{   'rentals.active'   |   translate   }}</mat-option>
+                     <mat-option   value="overdue">{{   'rentals.overdue'   |   translate   }}</mat-option>
+                     <mat-option   value="completed">{{   'rentals.completed'   |   translate   }}</mat-option>
+                  </mat-select>
+               </mat-form-field>
+            </div>
+
+            <div   class="list-layout">
+               <div   class="table-wrapper   table-wrapper--full">
+                  <table   class="inventory-table">
+                     <thead>
+                        <tr>
+                           <th>ID</th>
+                           <th>{{   'rentals.client'   |   translate   }}</th>
+                           <th>{{   'rentals.items'   |   translate   }}</th>
+                           <th>{{   'rentals.start_date'   |   translate   }}</th>
+                           <th>{{   'rentals.end_date'   |   translate   }}</th>
+                           <th>{{   'rentals.status'   |   translate   }}</th>
+                           <th>{{   'rentals.actions'   |   translate   }}</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <tr
+                           *ngFor="let   reservation   of   pagedReservations;   trackBy:   trackById"
+                           (click)="selectReservation(reservation)"
+                           >
+                           <td>#{{   reservation.id   }}</td>
+                           <td>{{   clientLabel(reservation.client)   }}</td>
+                           <td>{{   reservationTotalItems(reservation)   }}</td>
+                           <td>{{   reservation.start_date   ||   '-'   }}</td>
+                           <td>{{   reservation.end_date   ||   '-'   }}</td>
+                           <td><span   class="status   status--{{   reservation.status   ||   'pending'   }}">{{   ('rentals.status_'   +   (reservation.status   ||   'pending'))   |   translate   }}</span></td>
+                           <td   class="actions-cell"   (click)="$event.stopPropagation()">
+                              <button   mat-icon-button   type="button"   (click)="selectReservation(reservation)"><mat-icon>visibility</mat-icon></button>
+                           </td>
+                        </tr>
+                     </tbody>
+                  </table>
+                  <div   class="list-pagination">
+                     <button   mat-icon-button   type="button"   (click)="prevReservationPage()"   [disabled]="reservationPage   <=   1">
+                        <mat-icon>chevron_left</mat-icon>
+                     </button>
+                     <span>{{   reservationPage   }}   /   {{   totalReservationPages   }}</span>
+                     <button   mat-icon-button   type="button"   (click)="nextReservationPage()"   [disabled]="reservationPage   >=   totalReservationPages">
+                        <mat-icon>chevron_right</mat-icon>
+                     </button>
+                  </div>
+               </div>
+            </div>
+         </section>
+
+         <section   *ngSwitchCase="'add-equipment'"   class="content-card">
+            <header   class="content-header">
+               <div>
+                  <h3>{{   'rentals.add_equipment'   |   translate   }}</h3>
+                  <p>{{   'rentals.add_equipment_help'   |   translate   }}</p>
+               </div>
+            </header>
+
+            <div   class="add-equipment-layout">
+               <form   [formGroup]="addEquipmentForm"   class="booking-grid">
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.category'   |   translate   }}</mat-label>
+                     <mat-select   formControlName="category_id">
+                        <mat-option   *ngFor="let   category   of   categories;   trackBy:   trackById"   [value]="category.id">{{   category.name   }}</mat-option>
+                     </mat-select>
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.subcategory'   |   translate   }}</mat-label>
+                     <mat-select   formControlName="subcategory_id">
+                        <mat-option   [value]="null">{{   'rentals.none'   |   translate   }}</mat-option>
+                        <mat-option   *ngFor="let   subcategory   of   filteredSubcategoriesForForm;   trackBy:   trackById"   [value]="subcategory.id">{{   subcategory.name   }}</mat-option>
+                     </mat-select>
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.new_subcategory'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="subcategory_name">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.item_name'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="item_name">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.brand'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="brand">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.model'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="model">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.variant_name'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="variant_name">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.size'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="size_label">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.sku'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="sku">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.code'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="barcode">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.serial_prefix'   |   translate   }}</mat-label>
+                     <input   matInput   formControlName="serial_prefix">
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.condition'   |   translate   }}</mat-label>
+                     <mat-select   formControlName="condition">
+                        <mat-option   value="excellent">{{   'rentals.condition_excellent'   |   translate   }}</mat-option>
+                        <mat-option   value="good">{{   'rentals.condition_good'   |   translate   }}</mat-option>
+                        <mat-option   value="fair">{{   'rentals.condition_fair'   |   translate   }}</mat-option>
+                     </mat-select>
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.warehouse'   |   translate   }}</mat-label>
+                     <mat-select   formControlName="warehouse_id">
+                        <mat-option   [value]="null">{{   'rentals.none'   |   translate   }}</mat-option>
+                        <mat-option   *ngFor="let   warehouse   of   warehouses;   trackBy:   trackById"   [value]="warehouse.id">{{   warehouse.name   }}</mat-option>
+                     </mat-select>
+                  </mat-form-field>
+                  <mat-form-field   appearance="outline">
+                     <mat-label>{{   'rentals.quantity'   |   translate   }}</mat-label>
+                     <input   matInput   type="number"   min="1"   formControlName="quantity">
+                  </mat-form-field>
+               </form>
+
+               <aside   class="detail-card   scanner-card">
+                  <h4>{{   'rentals.scanner_title'   |   translate   }}</h4>
+                  <video   #scannerVideo   autoplay   muted   playsinline></video>
+                  <p   class="muted"   *ngIf="scannerError">{{   scannerError   |   translate   }}</p>
+                  <div   class="scanner-actions">
+                     <button   mat-stroked-button   type="button"   (click)="startScanner('barcode')">{{   'rentals.scan_barcode'   |   translate   }}</button>
+                     <button   mat-stroked-button   type="button"   (click)="startScanner('sku')">{{   'rentals.scan_sku'   |   translate   }}</button>
+                     <button   mat-stroked-button   type="button"   *ngIf="scanning"   (click)="stopScanner()">{{   'rentals.stop_scanner'   |   translate   }}</button>
+                  </div>
+               </aside>
+            </div>
+
+            <div   class="summary-actions   footer-actions">
+               <button   mat-stroked-button   type="button"   (click)="setView('inventory')">{{   'rentals.back_to_inventory'   |   translate   }}</button>
+               <button   mat-flat-button   color="primary"   type="button"   (click)="addEquipment()">{{   'rentals.add_equipment'   |   translate   }}</button>
+            </div>
+         </section>
+
+         <section   *ngSwitchCase="'advanced'"   class="content-card">
+            <header   class="content-header">
+               <div>
+                  <h3>{{   'rentals.advanced'   |   translate   }}</h3>
+                  <p>{{   'rentals.advanced_subtitle'   |   translate   }}</p>
+               </div>
+            </header>
+            <button   mat-flat-button   color="primary"   type="button"   routerLink="/rentals/advanced">{{   'rentals.open_advanced'   |   translate   }}</button>
+         </section>
+      </ng-container>
+   </vex-page-layout-content>
+</vex-page-layout>
+
+

@@ -10,7 +10,8 @@
   "files": [
     "src/main.ts",
     "src/polyfills.ts",
-    "src/app/pages/dashboard/dashboard-analytics/dashboard-analytics.component.ts"
+    "src/app/pages/dashboard/dashboard-analytics/dashboard-analytics.component.ts",
+    "src/app/pages/rentals/rentals-v2.component.ts"
   ],
   "include": [
     "src/**/*.d.ts"

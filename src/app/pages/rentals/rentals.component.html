@@ -1,0 +1,337 @@
+﻿<vex-page-layout>
+  <vex-secondary-toolbar current>
+    <vex-breadcrumbs [crumbs]="[{ icon: 'settings' }, { text: 'Renting', title: true }]" class="flex"></vex-breadcrumbs>
+  </vex-secondary-toolbar>
+  <vex-page-layout-content class="rentals-page">
+    <section class="rentals-hero">
+      <div class="hero-copy">
+        <h2>Renting Center</h2>
+        <p>Manage catalog, stock, pricing and reservations from one place.</p>
+      </div>
+      <button mat-flat-button color="primary" (click)="loadAll()" [disabled]="loading">
+        <mat-icon>{{ loading ? 'hourglass_top' : 'refresh' }}</mat-icon>
+        {{ loading ? 'Loading...' : 'Refresh' }}
+      </button>
+    </section>
+
+    <section class="summary-grid">
+      <mat-card class="summary-card"><div class="label">Categories</div><div class="value">{{ categories.length }}</div></mat-card>
+      <mat-card class="summary-card"><div class="label">Items / Variants</div><div class="value">{{ items.length }} / {{ variants.length }}</div></mat-card>
+      <mat-card class="summary-card"><div class="label">Units available</div><div class="value">{{ totalUnitsAvailable }}</div></mat-card>
+      <mat-card class="summary-card"><div class="label">Units assigned</div><div class="value">{{ totalUnitsAssigned }}</div></mat-card>
+      <mat-card class="summary-card"><div class="label">Pending reservations</div><div class="value">{{ pendingReservations }}</div></mat-card>
+    </section>
+
+    <mat-tab-group animationDuration="200ms" class="renting-tabs">
+      <mat-tab label="Catalog">
+        <div class="section-grid">
+          <mat-card class="panel-card">
+            <h3>{{ editingCategoryId ? 'Edit category' : 'Create category' }}</h3>
+            <form [formGroup]="categoryForm" (ngSubmit)="createCategory()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput formControlName="name"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Code</mat-label><input matInput formControlName="code"></mat-form-field>
+              <mat-form-field appearance="outline" class="span-2"><mat-label>Description</mat-label><input matInput formControlName="description"></mat-form-field>
+              <mat-slide-toggle formControlName="active">Active</mat-slide-toggle>
+              <div class="form-actions">
+                <button mat-flat-button color="primary" type="submit" [disabled]="categoryForm.invalid">{{ editingCategoryId ? 'Save changes' : 'Add category' }}</button>
+                <button *ngIf="editingCategoryId" mat-stroked-button type="button" (click)="cancelCategoryEdit()">Cancel</button>
+              </div>
+            </form>
+          </mat-card>
+
+          <mat-card class="panel-card">
+            <div class="table-toolbar">
+              <h3>Categories</h3>
+              <mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.categories.search" (input)="setSearch('categories', $any($event.target).value)"></mat-form-field>
+            </div>
+            <div class="table-head table-head--actions">
+              <button class="sort-btn" type="button" (click)="setSort('categories','name')">Name</button>
+              <button class="sort-btn" type="button" (click)="setSort('categories','code')">Code</button>
+              <button class="sort-btn" type="button" (click)="setSort('categories','active')">Status</button>
+              <span>Actions</span>
+            </div>
+            <div class="table-row table-row--actions" *ngFor="let c of pagedRows('categories', categories)">
+              <span>{{ c.name }}</span>
+              <span class="muted">{{ c.code || '-' }}</span>
+              <span class="badge" [class.badge--ok]="c.active" [class.badge--muted]="!c.active">{{ c.active ? 'Active' : 'Inactive' }}</span>
+              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditCategory(c)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deleteCategory(c)"><mat-icon>delete</mat-icon></button></span>
+            </div>
+            <div class="table-footer"><span>{{ filteredCount('categories', categories) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.categories.pageSize" (selectionChange)="setPageSize('categories', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('categories')" [disabled]="tableState.categories.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.categories.page }} / {{ totalPages('categories', categories) }}</span><button mat-icon-button type="button" (click)="nextPage('categories', categories)" [disabled]="tableState.categories.page >= totalPages('categories', categories)"><mat-icon>chevron_right</mat-icon></button></span></div>
+          </mat-card>
+        </div>
+
+        <div class="section-grid">
+          <mat-card class="panel-card">
+            <h3>{{ editingItemId ? 'Edit item' : 'Create item' }}</h3>
+            <form [formGroup]="itemForm" (ngSubmit)="createItem()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Category</mat-label><mat-select formControlName="category_id"><mat-option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Sport ID</mat-label><input matInput type="number" formControlName="sport_id"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput formControlName="name"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Brand</mat-label><input matInput formControlName="brand"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Model</mat-label><input matInput formControlName="model"></mat-form-field>
+              <mat-form-field appearance="outline" class="span-2"><mat-label>Description</mat-label><input matInput formControlName="description"></mat-form-field>
+              <mat-slide-toggle formControlName="active">Active</mat-slide-toggle>
+              <div class="form-actions"><button mat-flat-button color="primary" type="submit" [disabled]="itemForm.invalid">{{ editingItemId ? 'Save changes' : 'Add item' }}</button><button *ngIf="editingItemId" mat-stroked-button type="button" (click)="cancelItemEdit()">Cancel</button></div>
+            </form>
+          </mat-card>
+
+          <mat-card class="panel-card">
+            <div class="table-toolbar"><h3>Items</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.items.search" (input)="setSearch('items', $any($event.target).value)"></mat-form-field></div>
+            <div class="table-head table-head--actions">
+              <button class="sort-btn" type="button" (click)="setSort('items','name')">Name</button>
+              <button class="sort-btn" type="button" (click)="setSort('items','category_id')">Category</button>
+              <span>Variants</span>
+              <span>Actions</span>
+            </div>
+            <div class="table-row table-row--actions" *ngFor="let i of pagedRows('items', items)">
+              <span>{{ i.name }}</span><span class="muted">{{ categoryName(i.category_id) }}</span><span>{{ i.variants?.length || 0 }}</span>
+              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditItem(i)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deleteItem(i)"><mat-icon>delete</mat-icon></button></span>
+            </div>
+            <div class="table-footer"><span>{{ filteredCount('items', items) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.items.pageSize" (selectionChange)="setPageSize('items', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('items')" [disabled]="tableState.items.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.items.page }} / {{ totalPages('items', items) }}</span><button mat-icon-button type="button" (click)="nextPage('items', items)" [disabled]="tableState.items.page >= totalPages('items', items)"><mat-icon>chevron_right</mat-icon></button></span></div>
+          </mat-card>
+        </div>
+        <div class="section-grid">
+          <mat-card class="panel-card">
+            <h3>{{ editingVariantId ? 'Edit variant' : 'Create variant' }}</h3>
+            <form [formGroup]="variantForm" (ngSubmit)="createVariant()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Item</mat-label><mat-select formControlName="item_id"><mat-option *ngFor="let i of items" [value]="i.id">{{ i.name }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput formControlName="name"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Size label</mat-label><input matInput formControlName="size_label"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Size group</mat-label><input matInput formControlName="size_group"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>SKU</mat-label><input matInput formControlName="sku"></mat-form-field>
+              <mat-slide-toggle formControlName="active">Active</mat-slide-toggle>
+              <div class="form-actions"><button mat-flat-button color="primary" type="submit" [disabled]="variantForm.invalid">{{ editingVariantId ? 'Save changes' : 'Add variant' }}</button><button *ngIf="editingVariantId" mat-stroked-button type="button" (click)="cancelVariantEdit()">Cancel</button></div>
+            </form>
+          </mat-card>
+          <mat-card class="panel-card">
+            <div class="table-toolbar"><h3>Variants</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.variants.search" (input)="setSearch('variants', $any($event.target).value)"></mat-form-field></div>
+            <div class="table-head table-head--actions">
+              <button class="sort-btn" type="button" (click)="setSort('variants','name')">Name</button>
+              <button class="sort-btn" type="button" (click)="setSort('variants','item_id')">Item</button>
+              <button class="sort-btn" type="button" (click)="setSort('variants','sku')">SKU</button>
+              <span>Actions</span>
+            </div>
+            <div class="table-row table-row--actions" *ngFor="let v of pagedRows('variants', variants)">
+              <span>{{ v.name }} <small class="muted">{{ v.size_label || '' }}</small></span><span class="muted">{{ itemName(v.item_id) }}</span><span>{{ v.sku || '-' }}</span>
+              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditVariant(v)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deleteVariant(v)"><mat-icon>delete</mat-icon></button></span>
+            </div>
+            <div class="table-footer"><span>{{ filteredCount('variants', variants) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.variants.pageSize" (selectionChange)="setPageSize('variants', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('variants')" [disabled]="tableState.variants.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.variants.page }} / {{ totalPages('variants', variants) }}</span><button mat-icon-button type="button" (click)="nextPage('variants', variants)" [disabled]="tableState.variants.page >= totalPages('variants', variants)"><mat-icon>chevron_right</mat-icon></button></span></div>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Stock & Logistics">
+        <div class="section-grid">
+          <mat-card class="panel-card">
+            <h3>{{ editingWarehouseId ? 'Edit warehouse' : 'Create warehouse' }}</h3>
+            <form [formGroup]="warehouseForm" (ngSubmit)="createWarehouse()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput formControlName="name"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Code</mat-label><input matInput formControlName="code"></mat-form-field>
+              <mat-form-field appearance="outline" class="span-2"><mat-label>Address</mat-label><input matInput formControlName="address"></mat-form-field>
+              <mat-slide-toggle formControlName="active">Active</mat-slide-toggle>
+              <div class="form-actions"><button mat-flat-button color="primary" type="submit" [disabled]="warehouseForm.invalid">{{ editingWarehouseId ? 'Save changes' : 'Add warehouse' }}</button><button *ngIf="editingWarehouseId" mat-stroked-button type="button" (click)="cancelWarehouseEdit()">Cancel</button></div>
+            </form>
+          </mat-card>
+          <mat-card class="panel-card">
+            <div class="table-toolbar"><h3>Warehouses</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.warehouses.search" (input)="setSearch('warehouses', $any($event.target).value)"></mat-form-field></div>
+            <div class="table-head table-head--actions">
+              <button class="sort-btn" type="button" (click)="setSort('warehouses','name')">Name</button>
+              <button class="sort-btn" type="button" (click)="setSort('warehouses','code')">Code</button>
+              <button class="sort-btn" type="button" (click)="setSort('warehouses','address')">Address</button>
+              <span>Actions</span>
+            </div>
+            <div class="table-row table-row--actions" *ngFor="let w of pagedRows('warehouses', warehouses)">
+              <span>{{ w.name }}</span><span>{{ w.code || '-' }}</span><span class="muted">{{ w.address || '-' }}</span>
+              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditWarehouse(w)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deleteWarehouse(w)"><mat-icon>delete</mat-icon></button></span>
+            </div>
+            <div class="table-footer"><span>{{ filteredCount('warehouses', warehouses) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.warehouses.pageSize" (selectionChange)="setPageSize('warehouses', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('warehouses')" [disabled]="tableState.warehouses.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.warehouses.page }} / {{ totalPages('warehouses', warehouses) }}</span><button mat-icon-button type="button" (click)="nextPage('warehouses', warehouses)" [disabled]="tableState.warehouses.page >= totalPages('warehouses', warehouses)"><mat-icon>chevron_right</mat-icon></button></span></div>
+          </mat-card>
+        </div>
+
+        <div class="section-grid">
+          <mat-card class="panel-card">
+            <h3>{{ editingPickupPointId ? 'Edit pickup / return point' : 'Create pickup / return point' }}</h3>
+            <form [formGroup]="pickupPointForm" (ngSubmit)="createPickupPoint()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Warehouse</mat-label><mat-select formControlName="warehouse_id"><mat-option [value]="null">No warehouse</mat-option><mat-option *ngFor="let w of warehouses" [value]="w.id">{{ w.name }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput formControlName="name"></mat-form-field>
+              <mat-form-field appearance="outline" class="span-2"><mat-label>Address</mat-label><input matInput formControlName="address"></mat-form-field>
+              <mat-slide-toggle formControlName="allow_pickup">Allow pickup</mat-slide-toggle>
+              <mat-slide-toggle formControlName="allow_return">Allow return</mat-slide-toggle>
+              <mat-slide-toggle formControlName="active">Active</mat-slide-toggle>
+              <div class="form-actions"><button mat-flat-button color="primary" type="submit" [disabled]="pickupPointForm.invalid">{{ editingPickupPointId ? 'Save changes' : 'Add point' }}</button><button *ngIf="editingPickupPointId" mat-stroked-button type="button" (click)="cancelPickupPointEdit()">Cancel</button></div>
+            </form>
+          </mat-card>
+
+          <mat-card class="panel-card">
+            <div class="table-toolbar"><h3>Pickup / return points</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.pickupPoints.search" (input)="setSearch('pickupPoints', $any($event.target).value)"></mat-form-field></div>
+            <div class="table-head table-head--actions">
+              <button class="sort-btn" type="button" (click)="setSort('pickupPoints','name')">Name</button>
+              <button class="sort-btn" type="button" (click)="setSort('pickupPoints','warehouse_id')">Warehouse</button>
+              <button class="sort-btn" type="button" (click)="setSort('pickupPoints','allow_pickup')">Modes</button>
+              <span>Actions</span>
+            </div>
+            <div class="table-row table-row--actions" *ngFor="let p of pagedRows('pickupPoints', pickupPoints)">
+              <span>{{ p.name }}</span><span class="muted">{{ warehouseName(p.warehouse_id) }}</span><span>{{ p.allow_pickup ? 'Pickup' : '' }}{{ p.allow_pickup && p.allow_return ? ' / ' : '' }}{{ p.allow_return ? 'Return' : '' }}</span>
+              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditPickupPoint(p)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deletePickupPoint(p)"><mat-icon>delete</mat-icon></button></span>
+            </div>
+            <div class="table-footer"><span>{{ filteredCount('pickupPoints', pickupPoints) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.pickupPoints.pageSize" (selectionChange)="setPageSize('pickupPoints', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('pickupPoints')" [disabled]="tableState.pickupPoints.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.pickupPoints.page }} / {{ totalPages('pickupPoints', pickupPoints) }}</span><button mat-icon-button type="button" (click)="nextPage('pickupPoints', pickupPoints)" [disabled]="tableState.pickupPoints.page >= totalPages('pickupPoints', pickupPoints)"><mat-icon>chevron_right</mat-icon></button></span></div>
+          </mat-card>
+        </div>
+
+        <div class="section-grid">
+          <mat-card class="panel-card">
+            <h3>{{ editingUnitId ? 'Edit unit' : 'Create unit' }}</h3>
+            <form [formGroup]="unitForm" (ngSubmit)="createUnit()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Variant</mat-label><mat-select formControlName="variant_id"><mat-option *ngFor="let v of variants" [value]="v.id">{{ variantLabel(v.id) }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Warehouse</mat-label><mat-select formControlName="warehouse_id"><mat-option *ngFor="let w of warehouses" [value]="w.id">{{ w.name }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Serial</mat-label><input matInput formControlName="serial"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Status</mat-label><mat-select formControlName="status"><mat-option value="available">available</mat-option><mat-option value="assigned">assigned</mat-option><mat-option value="maintenance">maintenance</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Condition</mat-label><input matInput formControlName="condition"></mat-form-field>
+              <div class="form-actions"><button mat-flat-button color="primary" type="submit" [disabled]="unitForm.invalid">{{ editingUnitId ? 'Save changes' : 'Add unit' }}</button><button *ngIf="editingUnitId" mat-stroked-button type="button" (click)="cancelUnitEdit()">Cancel</button></div>
+            </form>
+          </mat-card>
+
+          <mat-card class="panel-card">
+            <div class="table-toolbar"><h3>Units</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.units.search" (input)="setSearch('units', $any($event.target).value)"></mat-form-field></div>
+            <div class="server-filters">
+              <mat-form-field appearance="outline"><mat-label>Warehouse</mat-label><mat-select [(value)]="unitFilters.warehouse_id"><mat-option [value]="null">All</mat-option><mat-option *ngFor="let w of warehouses" [value]="w.id">{{ w.name }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Status</mat-label><mat-select [(value)]="unitFilters.status"><mat-option value="">All</mat-option><mat-option value="available">available</mat-option><mat-option value="assigned">assigned</mat-option><mat-option value="maintenance">maintenance</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Server search</mat-label><input matInput [(ngModel)]="unitFilters.search" [ngModelOptions]="{standalone: true}"></mat-form-field>
+              <div class="server-filters__actions"><button mat-stroked-button type="button" (click)="clearUnitFilters()">Clear</button><button mat-flat-button color="primary" type="button" (click)="applyUnitFilters()">Apply</button></div>
+            </div>
+            <div class="table-head table-head--actions">
+              <button class="sort-btn" type="button" (click)="setSort('units','id')">Unit</button>
+              <button class="sort-btn" type="button" (click)="setSort('units','variant_id')">Variant</button>
+              <button class="sort-btn" type="button" (click)="setSort('units','status')">Status</button>
+              <span>Actions</span>
+            </div>
+            <div class="table-row table-row--actions" *ngFor="let u of pagedRows('units', units)">
+              <span>#{{ u.id }} <small class="muted">{{ u.serial || '' }}</small></span><span class="muted">{{ variantLabel(u.variant_id) }}</span><span class="badge" [class.badge--ok]="u.status === 'available'" [class.badge--warn]="u.status === 'assigned'" [class.badge--danger]="u.status === 'maintenance'">{{ u.status }}</span>
+              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditUnit(u)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deleteUnit(u)"><mat-icon>delete</mat-icon></button></span>
+            </div>
+            <div class="table-footer"><span>{{ filteredCount('units', units) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.units.pageSize" (selectionChange)="setPageSize('units', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('units')" [disabled]="tableState.units.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.units.page }} / {{ totalPages('units', units) }}</span><button mat-icon-button type="button" (click)="nextPage('units', units)" [disabled]="tableState.units.page >= totalPages('units', units)"><mat-icon>chevron_right</mat-icon></button></span></div>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Pricing">
+        <div class="section-grid">
+          <mat-card class="panel-card">
+            <h3>{{ editingPricingRuleId ? 'Edit pricing rule' : 'Create pricing rule' }}</h3>
+            <form [formGroup]="pricingForm" (ngSubmit)="createPricingRule()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Item</mat-label><mat-select formControlName="item_id"><mat-option [value]="null">Any item</mat-option><mat-option *ngFor="let i of items" [value]="i.id">{{ i.name }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Variant</mat-label><mat-select formControlName="variant_id"><mat-option [value]="null">Any variant</mat-option><mat-option *ngFor="let v of variants" [value]="v.id">{{ variantLabel(v.id) }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Pricing type</mat-label><input matInput formControlName="pricing_type"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Min quantity</mat-label><input matInput type="number" formControlName="min_quantity"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Price</mat-label><input matInput type="number" formControlName="price"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Currency</mat-label><input matInput formControlName="currency"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Start date</mat-label><input matInput type="date" formControlName="start_date"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>End date</mat-label><input matInput type="date" formControlName="end_date"></mat-form-field>
+              <mat-slide-toggle formControlName="active">Active</mat-slide-toggle>
+              <div class="form-actions"><button mat-flat-button color="primary" type="submit" [disabled]="pricingForm.invalid">{{ editingPricingRuleId ? 'Save changes' : 'Add rule' }}</button><button *ngIf="editingPricingRuleId" mat-stroked-button type="button" (click)="cancelPricingRuleEdit()">Cancel</button></div>
+            </form>
+          </mat-card>
+
+          <mat-card class="panel-card">
+            <div class="table-toolbar"><h3>Pricing rules</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.pricingRules.search" (input)="setSearch('pricingRules', $any($event.target).value)"></mat-form-field></div>
+            <div class="table-head table-head--actions">
+              <button class="sort-btn" type="button" (click)="setSort('pricingRules','id')">Scope</button>
+              <button class="sort-btn" type="button" (click)="setSort('pricingRules','pricing_type')">Type</button>
+              <button class="sort-btn" type="button" (click)="setSort('pricingRules','price')">Price</button>
+              <span>Actions</span>
+            </div>
+            <div class="table-row table-row--actions" *ngFor="let r of pagedRows('pricingRules', pricingRules)">
+              <span>{{ variantLabel(r.variant_id) !== '-' ? variantLabel(r.variant_id) : itemName(r.item_id) }}</span><span>{{ r.pricing_type }}</span><span>{{ r.price }} {{ r.currency }}</span>
+              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditPricingRule(r)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deletePricingRule(r)"><mat-icon>delete</mat-icon></button></span>
+            </div>
+            <div class="table-footer"><span>{{ filteredCount('pricingRules', pricingRules) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.pricingRules.pageSize" (selectionChange)="setPageSize('pricingRules', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('pricingRules')" [disabled]="tableState.pricingRules.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.pricingRules.page }} / {{ totalPages('pricingRules', pricingRules) }}</span><button mat-icon-button type="button" (click)="nextPage('pricingRules', pricingRules)" [disabled]="tableState.pricingRules.page >= totalPages('pricingRules', pricingRules)"><mat-icon>chevron_right</mat-icon></button></span></div>
+          </mat-card>
+        </div>
+        <mat-card class="panel-card panel-wide">
+          <h3>Rental policy</h3>
+          <form [formGroup]="policyForm" class="form-grid">
+            <mat-slide-toggle formControlName="deposit_enabled">Deposit enabled</mat-slide-toggle>
+            <mat-form-field appearance="outline"><mat-label>Deposit amount</mat-label><input matInput type="number" formControlName="deposit_amount"></mat-form-field>
+            <mat-slide-toggle formControlName="insurance_enabled">Insurance enabled</mat-slide-toggle>
+            <mat-form-field appearance="outline"><mat-label>Insurance fee</mat-label><input matInput type="number" formControlName="insurance_fee"></mat-form-field>
+            <mat-slide-toggle formControlName="late_fee_enabled">Late fee enabled</mat-slide-toggle>
+            <mat-form-field appearance="outline"><mat-label>Late fee/day</mat-label><input matInput type="number" formControlName="late_fee_per_day"></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Currency</mat-label><input matInput formControlName="currency"></mat-form-field>
+            <button mat-flat-button color="primary" type="button" (click)="savePolicy()">Save policy</button>
+          </form>
+        </mat-card>
+      </mat-tab>
+
+      <mat-tab label="Reservations">
+        <div class="section-grid">
+          <mat-card class="panel-card">
+            <h3>Create standalone reservation</h3>
+            <form [formGroup]="reservationForm" (ngSubmit)="createStandaloneReservation()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Client ID</mat-label><input matInput type="number" formControlName="client_id"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Variant</mat-label><mat-select formControlName="variant_id"><mat-option *ngFor="let v of variants" [value]="v.id">{{ variantLabel(v.id) }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Start date</mat-label><input matInput type="date" formControlName="start_date"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>End date</mat-label><input matInput type="date" formControlName="end_date"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Start time</mat-label><input matInput type="time" formControlName="start_time"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>End time</mat-label><input matInput type="time" formControlName="end_time"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Quantity</mat-label><input matInput type="number" formControlName="quantity"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Pickup point</mat-label><mat-select formControlName="pickup_point_id"><mat-option [value]="null">No pickup</mat-option><mat-option *ngFor="let p of pickupPoints" [value]="p.id">{{ p.name }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Return point</mat-label><mat-select formControlName="return_point_id"><mat-option [value]="null">No return</mat-option><mat-option *ngFor="let p of pickupPoints" [value]="p.id">{{ p.name }}</mat-option></mat-select></mat-form-field>
+              <button mat-flat-button color="primary" type="submit" [disabled]="reservationForm.invalid">Create standalone</button>
+            </form>
+          </mat-card>
+
+          <mat-card class="panel-card">
+            <h3>Create reservation linked to booking</h3>
+            <form [formGroup]="bookingReservationForm" (ngSubmit)="createBookingReservation()" class="form-grid compact">
+              <mat-form-field appearance="outline"><mat-label>Booking ID</mat-label><input matInput type="number" formControlName="booking_id"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Booking user ID</mat-label><input matInput type="number" formControlName="booking_user_id"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Variant</mat-label><mat-select formControlName="variant_id"><mat-option *ngFor="let v of variants" [value]="v.id">{{ variantLabel(v.id) }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Quantity</mat-label><input matInput type="number" formControlName="quantity"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Start date</mat-label><input matInput type="date" formControlName="start_date"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>End date</mat-label><input matInput type="date" formControlName="end_date"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Start time</mat-label><input matInput type="time" formControlName="start_time"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>End time</mat-label><input matInput type="time" formControlName="end_time"></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Pickup point</mat-label><mat-select formControlName="pickup_point_id"><mat-option [value]="null">No pickup</mat-option><mat-option *ngFor="let p of pickupPoints" [value]="p.id">{{ p.name }}</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Return point</mat-label><mat-select formControlName="return_point_id"><mat-option [value]="null">No return</mat-option><mat-option *ngFor="let p of pickupPoints" [value]="p.id">{{ p.name }}</mat-option></mat-select></mat-form-field>
+              <button mat-flat-button color="primary" type="submit" [disabled]="bookingReservationForm.invalid">Create for booking</button>
+            </form>
+          </mat-card>
+        </div>
+
+        <mat-card class="panel-card panel-wide">
+          <div class="table-toolbar"><h3>Reservation list</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.reservations.search" (input)="setSearch('reservations', $any($event.target).value)"></mat-form-field></div>
+          <div class="server-filters">
+            <mat-form-field appearance="outline"><mat-label>Status</mat-label><mat-select [(value)]="reservationFilters.status"><mat-option value="">All</mat-option><mat-option value="pending">pending</mat-option><mat-option value="confirmed">confirmed</mat-option><mat-option value="cancelled">cancelled</mat-option></mat-select></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Start date from</mat-label><input matInput type="date" [(ngModel)]="reservationFilters.start_date_from" [ngModelOptions]="{standalone: true}"></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Start date to</mat-label><input matInput type="date" [(ngModel)]="reservationFilters.start_date_to" [ngModelOptions]="{standalone: true}"></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Server search</mat-label><input matInput [(ngModel)]="reservationFilters.search" [ngModelOptions]="{standalone: true}"></mat-form-field>
+            <div class="server-filters__actions"><button mat-stroked-button type="button" (click)="clearReservationFilters()">Clear</button><button mat-flat-button color="primary" type="button" (click)="applyReservationFilters()">Apply</button></div>
+          </div>
+          <div class="table-head table-head--reservations">
+              <button class="sort-btn" type="button" (click)="setSort('reservations','id')">ID</button>
+              <button class="sort-btn" type="button" (click)="setSort('reservations','booking_id')">Booking / Client</button>
+              <button class="sort-btn" type="button" (click)="setSort('reservations','start_date')">Dates</button>
+              <span>Points</span>
+              <span>Items</span>
+              <button class="sort-btn" type="button" (click)="setSort('reservations','total')">Total</button>
+              <button class="sort-btn" type="button" (click)="setSort('reservations','status')">Status</button>
+            </div>
+          <div class="table-row table-row--reservations" *ngFor="let r of pagedRows('reservations', reservations)">
+            <span>#{{ r.id }}</span>
+            <span><div>Booking: {{ r.booking_id || '-' }}</div><div class="muted">Client: {{ r.client_id || '-' }}</div></span>
+            <span>{{ r.start_date }} - {{ r.end_date }}</span>
+            <span><div class="muted">P: {{ pickupPointName(r.pickup_point_id) }}</div><div class="muted">R: {{ pickupPointName(r.return_point_id) }}</div></span>
+            <span>{{ reservationItemsCount(r) }}</span>
+            <span>{{ r.total }} {{ r.currency }}</span>
+            <span class="row-actions row-actions--status">
+              <span class="badge" [class.badge--warn]="r.status === 'pending'" [class.badge--ok]="r.status === 'confirmed'" [class.badge--danger]="r.status === 'cancelled'">{{ r.status }}</span>
+              <button mat-button type="button" *ngIf="r.status !== 'confirmed'" (click)="updateReservationStatus(r, 'confirmed')">Confirm</button>
+              <button mat-button type="button" *ngIf="r.status !== 'cancelled'" (click)="updateReservationStatus(r, 'cancelled')">Cancel</button>
+            </span>
+          </div>
+          <div class="table-footer"><span>{{ filteredCount('reservations', reservations) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.reservations.pageSize" (selectionChange)="setPageSize('reservations', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('reservations')" [disabled]="tableState.reservations.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.reservations.page }} / {{ totalPages('reservations', reservations) }}</span><button mat-icon-button type="button" (click)="nextPage('reservations', reservations)" [disabled]="tableState.reservations.page >= totalPages('reservations', reservations)"><mat-icon>chevron_right</mat-icon></button></span></div>
+        </mat-card>
+      </mat-tab>
+    </mat-tab-group>
+  </vex-page-layout-content>
+</vex-page-layout>

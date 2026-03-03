@@ -1,0 +1,526 @@
+.rentals-v2-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  background: #f7f9fc;
+}
+
+.hero-card,
+.content-card {
+  background: #fff;
+  border: 1px solid #e9edf6;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.hero-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.hero-card h2 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #101828;
+}
+
+.hero-card p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stat-card {
+  border: 1px solid #ebeff7;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-card span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.stat-card strong {
+  font-size: 31px;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.stat-card strong.ok {
+  color: #16a34a;
+}
+
+.stat-card strong.warn {
+  color: #2563eb;
+}
+
+.stat-card small {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.toolbar-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toolbar-pills button {
+  border-color: #dbe2ef;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.toolbar-pills button.active {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.content-header h3 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.content-header p {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-dark {
+  background: #0f172a !important;
+  color: #fff !important;
+}
+
+.category-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.section-card {
+  border: 1px solid #e8edf6;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+.section-card h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.section-card p {
+  margin: 2px 0 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.category-pill {
+  border: 1px solid #d7deeb;
+  border-radius: 8px;
+  min-height: 38px;
+  background: #fff;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-pill.selected {
+  border-color: #3b82f6;
+  box-shadow: inset 0 0 0 1px #3b82f6;
+}
+
+.category-pill mat-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  color: #475569;
+}
+
+.category-pill span {
+  font-weight: 600;
+  color: #334155;
+  font-size: 13px;
+}
+
+.category-pill strong {
+  border: 1px solid #d9e2f0;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+.filters-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.inventory-layout,
+.list-layout,
+.booking-layout,
+.add-equipment-layout {
+  display: grid;
+  gap: 10px;
+}
+
+.inventory-layout,
+.list-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.booking-layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.add-equipment-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.booking-left {
+  min-width: 0;
+}
+
+.table-wrapper {
+  border: 1px solid #e7ecf5;
+  border-radius: 10px;
+  overflow: auto;
+  background: #fff;
+}
+
+.table-wrapper--full {
+  width: 100%;
+}
+
+.inventory-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.inventory-table th,
+.inventory-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #eff3f9;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.inventory-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.inventory-table td strong {
+  display: block;
+  font-weight: 600;
+}
+
+.inventory-table td small {
+  color: #94a3b8;
+}
+
+.inventory-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.inventory-table tbody tr.selected {
+  background: #eff6ff;
+}
+
+.actions-cell {
+  white-space: nowrap;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.status--excellent,
+.status--active {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.status--good,
+.status--pending {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.status--fair,
+.status--overdue {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.status--completed {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.detail-card,
+.booking-summary {
+  border: 1px solid #e7ecf5;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+  align-self: start;
+  position: sticky;
+  top: 8px;
+}
+
+.detail-card h4,
+.booking-summary h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.detail-card p {
+  margin: 0 0 8px;
+  color: #334155;
+}
+
+.item-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.qr-box {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #dbe3ef;
+}
+
+.booking-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.booking-table {
+  min-width: 920px;
+}
+
+.period-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.period-pill {
+  border: 1px solid #d7deeb;
+  background: #fff;
+  color: #334155;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.period-pill.active {
+  border-color: #7ea4ff;
+  background: #eef4ff;
+  color: #1d4ed8;
+}
+
+.qty-editor {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #dbe3f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.qty-editor input {
+  width: 42px;
+  border: none;
+  text-align: center;
+  outline: none;
+}
+
+.summary-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.summary-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #edf2f9;
+  border-radius: 10px;
+}
+
+.summary-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.estimate-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+  padding-top: 8px;
+  border-top: 1px solid #e8edf6;
+}
+
+.summary-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.lines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid #edf2f9;
+  padding-top: 8px;
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px;
+}
+
+.scanner-card video {
+  width: 100%;
+  min-height: 180px;
+  background: #0f172a;
+  border-radius: 10px;
+}
+
+.scanner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.muted {
+  color: #94a3b8;
+}
+
+:host ::ng-deep .rentals-v2-page .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+:host ::ng-deep .rentals-v2-page .mat-mdc-form-field-infix {
+  min-height: 44px;
+}
+
+:host ::ng-deep .rentals-v2-page .mat-mdc-form-field {
+  font-size: 13px;
+}
+
+.footer-actions {
+  margin-top: 10px;
+}
+
+@media (max-width: 1200px) {
+  .inventory-layout,
+  .list-layout,
+  .booking-layout,
+  .add-equipment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-card,
+  .booking-summary {
+    position: static;
+  }
+}
+
+@media (max-width: 900px) {
+  .stats-grid,
+  .filters-row,
+  .booking-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card,
+  .content-header {
+    flex-direction: column;
+  }
+}

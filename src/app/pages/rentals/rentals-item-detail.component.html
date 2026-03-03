@@ -1,0 +1,209 @@
+﻿<vex-page-layout>
+  <vex-secondary-toolbar current>
+    <vex-breadcrumbs [crumbs]="[{ icon: 'settings' }, { text: 'rentals.page_title' }, { text: item?.name || 'Product', title: true }]" class="flex"></vex-breadcrumbs>
+  </vex-secondary-toolbar>
+
+  <vex-page-layout-content class="rentals-detail-page">
+    <div class="header-row">
+      <button mat-stroked-button type="button" (click)="back()">
+        <mat-icon>arrow_back</mat-icon>
+        Back to Inventory
+      </button>
+      <div class="header-actions">
+        <button mat-stroked-button type="button" (click)="editCurrentProduct()">
+          <mat-icon>edit</mat-icon>
+          Edit Product
+        </button>
+        <button mat-flat-button color="primary" type="button" (click)="exportProduct()">
+          <mat-icon>download</mat-icon>
+          Export
+        </button>
+      </div>
+    </div>
+
+    <section class="detail-shell" *ngIf="!loading && variant; else loadingTpl">
+      <aside class="left-column">
+        <div class="image-card">
+          <div class="hero-image">Equipment image</div>
+          <div class="thumb-grid">
+            <div class="thumb active">Main</div>
+            <div class="thumb">Side</div>
+            <div class="thumb">Detail</div>
+            <div class="thumb upload"><mat-icon>upload</mat-icon></div>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <h4>Product information</h4>
+          <div class="info-line"><span>Description</span><strong>{{ item?.description || '-' }}</strong></div>
+          <div class="info-line"><span>Brand</span><strong>{{ item?.brand || '-' }}</strong></div>
+          <div class="info-line"><span>Model</span><strong>{{ item?.model || '-' }}</strong></div>
+          <div class="info-line"><span>Category</span><strong>{{ item?.category_name || '-' }}</strong></div>
+          <div class="info-line"><span>Created</span><strong>{{ item?.created_at | date:'shortDate' }}</strong></div>
+          <div class="info-line"><span>Updated</span><strong>{{ item?.updated_at | date:'shortDate' }}</strong></div>
+        </div>
+
+        <div class="stats-card">
+          <h4>Summary statistics</h4>
+          <div class="info-line"><span>Total units</span><strong>{{ totalCount }}</strong></div>
+          <div class="info-line"><span>Available</span><strong class="ok">{{ availableCount }}</strong></div>
+          <div class="info-line"><span>Reserved</span><strong class="warn">{{ reservedCount }}</strong></div>
+          <div class="info-line"><span>Maintenance</span><strong class="danger">{{ maintenanceCount }}</strong></div>
+          <div class="info-line"><span>Total revenue</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} CHF</strong></div>
+        </div>
+      </aside>
+
+      <main class="right-column">
+        <div class="tabs-row">
+          <button type="button" [class.active]="activeTab === 'variants'" (click)="switchTab('variants')">Variants ({{ variants.length }})</button>
+          <button type="button" [class.active]="activeTab === 'services'" (click)="switchTab('services')">Services (0)</button>
+          <button type="button" [class.active]="activeTab === 'history'" (click)="switchTab('history')">Rental History ({{ history.length }})</button>
+          <button type="button" [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">Analytics</button>
+        </div>
+
+        <section class="panel" *ngIf="activeTab === 'variants'">
+          <div class="panel-header">
+            <h3>Product variants</h3>
+          </div>
+          <table class="variants-table">
+            <thead>
+            <tr>
+              <th>SKU / Variant</th>
+              <th>Inventory</th>
+              <th>Prices</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let v of variants">
+              <td>
+                <strong>{{ v.name }}</strong>
+                <small>{{ v.sku || '-' }} · {{ v.size_label || '-' }}</small>
+              </td>
+              <td>
+                <strong>{{ v.inventory?.available || 0 }}/{{ v.inventory?.total || 0 }}</strong>
+                <small>{{ v.inventory?.reserved || 0 }} reserved · {{ v.inventory?.maintenance || 0 }} maintenance</small>
+              </td>
+              <td>
+                <small *ngFor="let pr of v.pricing_rules">{{ pr.period_type }}: {{ pr.price }} {{ pr.currency || 'CHF' }}</small>
+              </td>
+              <td>
+                <span class="status" [class.off]="!v.active">{{ v.active ? 'active' : 'inactive' }}</span>
+              </td>
+              <td class="actions">
+                <button mat-icon-button type="button" (click)="openVariantDetail(v)"><mat-icon>visibility</mat-icon></button>
+                <button mat-icon-button type="button" (click)="deleteVariant(v)"><mat-icon>delete</mat-icon></button>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel" *ngIf="activeTab === 'services'">
+          <h3>Services</h3>
+          <div class="services-layout">
+            <div class="services-form">
+              <h4>{{ serviceForm.id ? 'Edit service' : 'Add service' }}</h4>
+              <mat-form-field appearance="outline">
+                <mat-label>Name</mat-label>
+                <input matInput [(ngModel)]="serviceForm.name" [ngModelOptions]="{ standalone: true }">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Description</mat-label>
+                <textarea matInput rows="3" [(ngModel)]="serviceForm.description" [ngModelOptions]="{ standalone: true }"></textarea>
+              </mat-form-field>
+              <div class="service-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Price</mat-label>
+                  <input matInput type="number" [(ngModel)]="serviceForm.price" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Currency</mat-label>
+                  <input matInput [(ngModel)]="serviceForm.currency" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+              </div>
+              <mat-checkbox [(ngModel)]="serviceForm.active" [ngModelOptions]="{ standalone: true }">Active</mat-checkbox>
+              <div class="service-actions">
+                <button mat-stroked-button type="button" (click)="startCreateService()">Clear</button>
+                <button mat-flat-button color="primary" type="button" (click)="saveService()">Save service</button>
+              </div>
+            </div>
+            <div class="services-list">
+              <table class="history-table" *ngIf="services.length; else noServices">
+                <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let s of services">
+                  <td>{{ s.name }}</td>
+                  <td>{{ s.description || '-' }}</td>
+                  <td>{{ s.price || 0 | number:'1.2-2' }} {{ s.currency || 'CHF' }}</td>
+                  <td><span class="status" [class.off]="!s.active">{{ s.active ? 'active' : 'inactive' }}</span></td>
+                  <td class="actions">
+                    <button mat-icon-button type="button" (click)="editService(s)"><mat-icon>edit</mat-icon></button>
+                    <button mat-icon-button type="button" (click)="removeService(s)"><mat-icon>delete</mat-icon></button>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+              <ng-template #noServices>
+                <p class="muted">No services configured yet.</p>
+              </ng-template>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" *ngIf="activeTab === 'history'">
+          <h3>Rental history</h3>
+          <table class="history-table" *ngIf="history.length; else noHistory">
+            <thead>
+            <tr>
+              <th>Reservation</th>
+              <th>Client</th>
+              <th>Dates</th>
+              <th>Status</th>
+              <th>Qty</th>
+              <th>Total</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let h of history">
+              <td>#{{ h.reservation_id }} {{ h.reference || '' }}</td>
+              <td>{{ h.first_name || '' }} {{ h.last_name || '' }}</td>
+              <td>{{ h.start_date || '-' }} ? {{ h.end_date || '-' }}</td>
+              <td>{{ h.status || '-' }}</td>
+              <td>{{ h.quantity || 0 }}</td>
+              <td>{{ h.line_total || 0 | number:'1.2-2' }} CHF</td>
+            </tr>
+            </tbody>
+          </table>
+          <ng-template #noHistory>
+            <p class="muted">No rental history yet.</p>
+          </ng-template>
+        </section>
+
+        <section class="panel" *ngIf="activeTab === 'analytics'">
+          <h3>Analytics</h3>
+          <div class="analytics-grid">
+            <article><span>Utilization</span><strong>{{ totalCount ? ((reservedCount / totalCount) * 100 | number:'1.0-0') : 0 }}%</strong></article>
+            <article><span>Revenue</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} CHF</strong></article>
+            <article><span>Transactions</span><strong>{{ analytics?.history_count || 0 }}</strong></article>
+            <article><span>Units</span><strong>{{ totalCount }}</strong></article>
+          </div>
+        </section>
+      </main>
+    </section>
+
+    <ng-template #loadingTpl>
+      <div class="loading">Loading…</div>
+    </ng-template>
+  </vex-page-layout-content>
+</vex-page-layout>
+
