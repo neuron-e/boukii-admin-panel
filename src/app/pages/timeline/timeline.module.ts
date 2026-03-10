@@ -40,6 +40,7 @@ import { EditDateComponent } from './edit-date/edit-date.component';
 import { MonitorAssignmentDialogModule } from './monitor-assignment-dialog/monitor-assignment-dialog.module';
 import { MonitorPartialAvailabilityDialogModule } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-partial-availability-dialog.module';
 import { GroupedBlockDeleteDialogComponent } from './grouped-block-delete-dialog/grouped-block-delete-dialog.component';
+import { RentalStatusBadgeModule } from 'src/app/shared/rental-status-badge/rental-status-badge.module';
 
 @NgModule({
   declarations: [TimelineComponent, EditDateComponent, GroupedBlockDeleteDialogComponent],
@@ -82,7 +83,8 @@ import { GroupedBlockDeleteDialogComponent } from './grouped-block-delete-dialog
     MatAutocompleteModule,
     MatTooltipModule,
     MonitorAssignmentDialogModule,
-    MonitorPartialAvailabilityDialogModule
+    MonitorPartialAvailabilityDialogModule,
+    RentalStatusBadgeModule
   ],
   exports: [TimelineComponent]
 })

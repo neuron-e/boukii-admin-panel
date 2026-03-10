@@ -19,12 +19,12 @@
 	</vex-secondary-toolbar>
 
 	<vex-page-layout-content [ngClass]="{'table-show-detail': this.showDetail}" class="-mt-6 fullwidth">
-		<vex-aio-table [columns]="columns" [entity]="entity" [deleteEntity]="deleteEntity" [title]="'bookings'"
-			[filterField]="filterCourseId===0?null:filterCourseId" [route]="'bookings'"
-			[createComponent]="createComponent" [canDelete]="false" [canDeactivate]="false" [with]="['bookingUsers.course.sport','clientMain']"
-			[filterColumn]="filterCourseId===0?null:(isFlexCourse ? 'flex_course_id' : 'course_id')" [sectionIcon]="icon" [showDetail]="showDetail"
-			(showDetailEvent)="showDetailEvent($event)" (dataLoaded)="onDataLoaded($event)">
-		</vex-aio-table>
+    <vex-aio-table [columns]="columns" [entity]="entity" [deleteEntity]="deleteEntity" [title]="'bookings'"
+      [filterField]="filterCourseId===0?null:filterCourseId" [route]="'bookings'"
+      [createComponent]="createComponent" [canDelete]="false" [canDeactivate]="false" [with]="['bookingUsers.course.sport','clientMain']"
+      [filterColumn]="filterCourseId===0?null:(isFlexCourse ? 'flex_course_id' : 'course_id')" [sectionIcon]="icon" [showDetail]="showDetail"
+      (showDetailEvent)="showDetailEvent($event)" (dataLoaded)="onDataLoaded($event)">
+    </vex-aio-table>
 	</vex-page-layout-content>
 
   <vex-page-layout-content *ngIf="showDetail"
@@ -652,6 +652,56 @@
 					</span>
 				</div>
 			</mat-card-content>
+		<!-- ===== RENTAL SECTION in booking detail ===== -->
+		<mat-card *ngIf="rentalEnabled && showDetail && !loadingRentalDetail && getDetailLinkedRentals().length > 0" class="booking-preview-card rental-section-card">
+			<mat-card-header style="display:block">
+				<mat-card-title>
+					<mat-icon style="vertical-align:middle; margin-right:6px;">lock</mat-icon>
+					{{ 'rentals.page_title' | translate }}
+				</mat-card-title>
+			</mat-card-header>
+			<mat-card-content>
+				<div *ngIf="loadingRentalDetail" style="padding:16px; display:flex; align-items:center; gap:8px;">
+					<mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+					<span>{{ 'common.loading' | translate }}</span>
+				</div>
+
+				<ng-container *ngIf="!loadingRentalDetail">
+					<!-- No rentals -->
+					<p *ngIf="getDetailLinkedRentals().length === 0" style="color:#888; padding:8px 0;">
+						{{ 'rentals.no_reservations' | translate }}
+					</p>
+
+					<!-- Rental list -->
+					<div *ngFor="let rental of getDetailLinkedRentals()" class="rental-booking-row">
+						<div class="rental-booking-info">
+							<span class="rental-ref"><strong>{{ rental.reference || ('#' + rental.id) }}</strong></span>
+							<span class="rental-dates">{{ rental.start_date }} – {{ rental.end_date }}</span>
+							<app-rental-status-badge [status]="rental.status"></app-rental-status-badge>
+							<div class="rental-items-list" *ngIf="rental.items?.length">
+								<div class="rental-items" *ngFor="let item of rental.items">
+									{{ item.variant_name }} x{{ item.quantity }} · {{ item.unit_price | number:'1.2-2' }} {{ rental.currency }}
+								</div>
+							</div>
+							<span class="rental-total"><strong>{{ rental.total | number:'1.2-2' }}</strong> {{ rental.currency }}</span>
+						</div>
+						<button mat-icon-button (click)="openRentalReservation(rental.id)" [matTooltip]="'rentals.view_detail' | translate">
+							<mat-icon>open_in_new</mat-icon>
+						</button>
+					</div>
+
+					<div class="rental-preview-total" *ngIf="getDetailLinkedRentals().length > 0">
+						<div>{{ 'bookings.preview.booking_total' | translate }}</div>
+						<div><strong>{{ getPreviewDisplayTotal() | number:'1.2-2' }}</strong> {{ detailRentalCurrency() }}</div>
+						<div>{{ 'rentals.total' | translate }}</div>
+						<div><strong>{{ getDetailRentalTotal() | number:'1.2-2' }}</strong> {{ detailRentalCurrency() }}</div>
+						<div>{{ 'rentals.integrated.grand_total' | translate }}</div>
+						<div><strong>{{ getDetailGrandTotal() | number:'1.2-2' }}</strong> {{ detailRentalCurrency() }}</div>
+					</div>
+				</ng-container>
+			</mat-card-content>
+		</mat-card>
+
 		</mat-card>
 	</vex-page-layout-content>
 </vex-page-layout>

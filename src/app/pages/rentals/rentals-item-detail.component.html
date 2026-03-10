@@ -1,22 +1,31 @@
-﻿<vex-page-layout>
+<vex-page-layout>
   <vex-secondary-toolbar current>
     <vex-breadcrumbs [crumbs]="[{ icon: 'settings' }, { text: 'rentals.page_title' }, { text: item?.name || ('rentals.equipment_details' | translate), title: true }]" class="flex"></vex-breadcrumbs>
   </vex-secondary-toolbar>
 
   <vex-page-layout-content class="rentals-detail-page">
     <div class="header-row">
-      <button mat-stroked-button type="button" (click)="back()">
-        <mat-icon>arrow_back</mat-icon>
-        {{ 'rentals.back_to_inventory' | translate }}
-      </button>
+      <div class="header-row__left">
+        <button mat-button type="button" class="back-link" (click)="back()">
+          <mat-icon>arrow_back</mat-icon>
+          {{ 'rentals.back_to_inventory' | translate }}
+        </button>
+        <div class="title-block">
+          <h2>{{ item?.name || variant?.name || ('rentals.equipment_details' | translate) }}</h2>
+          <div class="title-meta">
+            <span class="status" [class.off]="!variant?.active">{{ (variant?.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span>
+            <small>{{ item?.category_name || '-' }} • {{ item?.model || '-' }} • {{ variant?.sku || '-' }}</small>
+          </div>
+        </div>
+      </div>
       <div class="header-actions">
         <button mat-stroked-button type="button" (click)="editCurrentProduct()">
           <mat-icon>edit</mat-icon>
-          Edit Product
+          {{ 'rentals.detail_edit_product' | translate }}
         </button>
         <button mat-flat-button color="primary" type="button" (click)="exportProduct()">
           <mat-icon>download</mat-icon>
-          Export
+          {{ 'rentals.detail_export' | translate }}
         </button>
       </div>
     </div>
@@ -24,53 +33,64 @@
     <section class="detail-shell" *ngIf="!loading && variant; else loadingTpl">
       <aside class="left-column">
         <div class="image-card">
-          <div class="hero-image">Equipment image</div>
+          <div class="hero-image" *ngIf="mainImageUrl; else noImage">
+            <img [src]="mainImageUrl" alt="equipment image">
+          </div>
+          <ng-template #noImage>
+            <div class="hero-image hero-image--empty">
+              <mat-icon>image_not_supported</mat-icon>
+            </div>
+          </ng-template>
           <div class="thumb-grid">
-            <div class="thumb active">Main</div>
-            <div class="thumb">Side</div>
-            <div class="thumb">Detail</div>
+            <div class="thumb active" *ngFor="let image of imageCandidates | slice:0:3; let first = first">
+              <img [src]="image" [alt]="first ? 'main image' : 'detail image'">
+            </div>
+            <div class="thumb" *ngIf="!imageCandidates.length">
+              <mat-icon>image</mat-icon>
+            </div>
             <div class="thumb upload"><mat-icon>upload</mat-icon></div>
           </div>
         </div>
 
         <div class="info-card">
-          <h4>Product information</h4>
-          <div class="info-line"><span>Description</span><strong>{{ item?.description || '-' }}</strong></div>
-          <div class="info-line"><span>Brand</span><strong>{{ item?.brand || '-' }}</strong></div>
-          <div class="info-line"><span>Model</span><strong>{{ item?.model || '-' }}</strong></div>
-          <div class="info-line"><span>Category</span><strong>{{ item?.category_name || '-' }}</strong></div>
-          <div class="info-line"><span>Created</span><strong>{{ item?.created_at | date:'shortDate' }}</strong></div>
-          <div class="info-line"><span>Updated</span><strong>{{ item?.updated_at | date:'shortDate' }}</strong></div>
+          <h4>{{ 'rentals.detail_product_info' | translate }}</h4>
+          <div class="info-line"><span>{{ 'rentals.detail_description' | translate }}</span><strong>{{ item?.description || '-' }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_brand' | translate }}</span><strong>{{ item?.brand || '-' }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_model' | translate }}</span><strong>{{ item?.model || '-' }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_category' | translate }}</span><strong>{{ item?.category_name || '-' }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_created' | translate }}</span><strong>{{ item?.created_at | date:'shortDate' }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_updated' | translate }}</span><strong>{{ item?.updated_at | date:'shortDate' }}</strong></div>
         </div>
 
         <div class="stats-card">
-          <h4>Summary statistics</h4>
-          <div class="info-line"><span>Total units</span><strong>{{ totalCount }}</strong></div>
-          <div class="info-line"><span>Available</span><strong class="ok">{{ availableCount }}</strong></div>
-          <div class="info-line"><span>Reserved</span><strong class="warn">{{ reservedCount }}</strong></div>
-          <div class="info-line"><span>Maintenance</span><strong class="danger">{{ maintenanceCount }}</strong></div>
-          <div class="info-line"><span>Total revenue</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} CHF</strong></div>
+          <h4>{{ 'rentals.detail_summary_stats' | translate }}</h4>
+          <div class="info-line"><span>{{ 'rentals.detail_total_units' | translate }}</span><strong>{{ totalCount }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.available_units' | translate }}</span><strong class="ok">{{ availableCount }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_reserved' | translate }}</span><strong class="warn">{{ reservedCount }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_maintenance' | translate }}</span><strong class="danger">{{ maintenanceCount }}</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_inventory_value' | translate }}</span><strong>{{ inventoryValue | number:'1.2-2' }} CHF</strong></div>
+          <div class="info-line"><span>{{ 'rentals.detail_total_revenue' | translate }}</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} CHF</strong></div>
         </div>
       </aside>
 
       <main class="right-column">
         <div class="tabs-row">
-          <button type="button" [class.active]="activeTab === 'variants'" (click)="switchTab('variants')">Variants ({{ variants.length }})</button>
-          <button type="button" [class.active]="activeTab === 'services'" (click)="switchTab('services')">Services ({{ services.length }})</button>
-          <button type="button" [class.active]="activeTab === 'history'" (click)="switchTab('history')">Rental History ({{ history.length }})</button>
-          <button type="button" [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">Analytics</button>
+          <button type="button" [class.active]="activeTab === 'variants'" (click)="switchTab('variants')">{{ 'rentals.detail_tab_variants' | translate }} ({{ variants.length }})</button>
+          <button type="button" [class.active]="activeTab === 'services'" (click)="switchTab('services')">{{ 'rentals.detail_tab_services' | translate }} ({{ services.length }})</button>
+          <button type="button" [class.active]="activeTab === 'history'" (click)="switchTab('history')">{{ 'rentals.detail_tab_history' | translate }} ({{ history.length }})</button>
+          <button type="button" [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">{{ 'rentals.detail_tab_analytics' | translate }}</button>
         </div>
 
         <section class="panel" *ngIf="activeTab === 'variants'">
           <div class="panel-header">
-            <h3>Product variants</h3>
+            <h3>{{ 'rentals.detail_product_variants' | translate }}</h3>
             <button mat-flat-button color="primary" type="button" (click)="toggleCreateVariant()">
               <mat-icon>add</mat-icon>
-              Add Variant
+              {{ 'rentals.detail_add_variant' | translate }}
             </button>
           </div>
           <div class="services-form" *ngIf="createVariantExpanded" style="margin-bottom: 16px;">
-            <h4>Add variant</h4>
+            <h4>{{ 'rentals.detail_add_variant_title' | translate }}</h4>
             <div class="service-grid">
               <mat-form-field appearance="outline">
                 <mat-label>{{ 'rentals.variant_name' | translate }}</mat-label>
@@ -102,18 +122,18 @@
               </mat-form-field>
             </div>
             <div class="service-actions">
-              <button mat-stroked-button type="button" (click)="toggleCreateVariant()">Cancel</button>
-              <button mat-flat-button color="primary" type="button" (click)="createVariant()">Create variant</button>
+              <button mat-stroked-button type="button" (click)="toggleCreateVariant()">{{ 'rentals.cancel' | translate }}</button>
+              <button mat-flat-button color="primary" type="button" (click)="createVariant()">{{ 'rentals.detail_create_variant' | translate }}</button>
             </div>
           </div>
           <table class="variants-table">
             <thead>
             <tr>
-              <th>SKU / Variant</th>
-              <th>Inventory</th>
-              <th>Prices</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>{{ 'rentals.detail_sku_variant' | translate }}</th>
+              <th>{{ 'rentals.detail_inventory' | translate }}</th>
+              <th>{{ 'rentals.detail_prices' | translate }}</th>
+              <th>{{ 'rentals.status' | translate }}</th>
+              <th>{{ 'rentals.actions' | translate }}</th>
             </tr>
             </thead>
             <tbody>
@@ -127,10 +147,10 @@
                 <small>{{ v.inventory?.reserved || 0 }} reserved · {{ v.inventory?.maintenance || 0 }} maintenance</small>
               </td>
               <td>
-                <small *ngFor="let pr of v.pricing_rules">{{ pr.period_type }}: {{ pr.price }} {{ pr.currency || 'CHF' }}</small>
+                <small *ngFor="let pr of v.pricing_rules">{{ ('rentals.period_' + pr.period_type) | translate }}: {{ pr.price }} {{ pr.currency || 'CHF' }}</small>
               </td>
               <td>
-                <span class="status" [class.off]="!v.active">{{ v.active ? 'active' : 'inactive' }}</span>
+                <span class="status" [class.off]="!v.active">{{ (v.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span>
               </td>
               <td class="actions">
                   <button mat-icon-button type="button" (click)="openVariantDetail(v)"><mat-icon>visibility</mat-icon></button>
@@ -142,43 +162,43 @@
         </section>
 
         <section class="panel" *ngIf="activeTab === 'services'">
-          <h3>Services</h3>
+          <h3>{{ 'rentals.detail_services_title' | translate }}</h3>
           <div class="services-layout">
             <div class="services-form">
-              <h4>{{ serviceForm.id ? 'Edit service' : 'Add service' }}</h4>
+              <h4>{{ (serviceForm.id ? 'rentals.detail_edit_service' : 'rentals.detail_add_service') | translate }}</h4>
               <mat-form-field appearance="outline">
-                <mat-label>Name</mat-label>
+                <mat-label>{{ 'rentals.detail_service_name' | translate }}</mat-label>
                 <input matInput [(ngModel)]="serviceForm.name" [ngModelOptions]="{ standalone: true }">
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Description</mat-label>
+                <mat-label>{{ 'rentals.detail_service_description' | translate }}</mat-label>
                 <textarea matInput rows="3" [(ngModel)]="serviceForm.description" [ngModelOptions]="{ standalone: true }"></textarea>
               </mat-form-field>
               <div class="service-grid">
                 <mat-form-field appearance="outline">
-                  <mat-label>Price</mat-label>
+                  <mat-label>{{ 'rentals.detail_service_price' | translate }}</mat-label>
                   <input matInput type="number" [(ngModel)]="serviceForm.price" [ngModelOptions]="{ standalone: true }">
                 </mat-form-field>
                 <mat-form-field appearance="outline">
-                  <mat-label>Currency</mat-label>
+                  <mat-label>{{ 'rentals.detail_service_currency' | translate }}</mat-label>
                   <input matInput [(ngModel)]="serviceForm.currency" [ngModelOptions]="{ standalone: true }">
                 </mat-form-field>
               </div>
-              <mat-checkbox [(ngModel)]="serviceForm.active" [ngModelOptions]="{ standalone: true }">Active</mat-checkbox>
+              <mat-checkbox [(ngModel)]="serviceForm.active" [ngModelOptions]="{ standalone: true }">{{ 'rentals.detail_service_active' | translate }}</mat-checkbox>
               <div class="service-actions">
-                <button mat-stroked-button type="button" (click)="startCreateService()">Clear</button>
-                <button mat-flat-button color="primary" type="button" (click)="saveService()">Save service</button>
+                <button mat-stroked-button type="button" (click)="startCreateService()">{{ 'rentals.detail_service_clear' | translate }}</button>
+                <button mat-flat-button color="primary" type="button" (click)="saveService()">{{ 'rentals.detail_service_save' | translate }}</button>
               </div>
             </div>
             <div class="services-list">
               <table class="history-table" *ngIf="services.length; else noServices">
                 <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Price</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{{ 'rentals.detail_service_name' | translate }}</th>
+                  <th>{{ 'rentals.detail_service_description' | translate }}</th>
+                  <th>{{ 'rentals.detail_service_price' | translate }}</th>
+                  <th>{{ 'rentals.status' | translate }}</th>
+                  <th>{{ 'rentals.actions' | translate }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -186,7 +206,7 @@
                   <td>{{ s.name }}</td>
                   <td>{{ s.description || '-' }}</td>
                   <td>{{ s.price || 0 | number:'1.2-2' }} {{ s.currency || 'CHF' }}</td>
-                  <td><span class="status" [class.off]="!s.active">{{ s.active ? 'active' : 'inactive' }}</span></td>
+                  <td><span class="status" [class.off]="!s.active">{{ (s.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span></td>
                   <td class="actions">
                     <button mat-icon-button type="button" (click)="editService(s)"><mat-icon>edit</mat-icon></button>
                     <button mat-icon-button type="button" (click)="removeService(s)"><mat-icon>delete</mat-icon></button>
@@ -195,56 +215,55 @@
                 </tbody>
               </table>
               <ng-template #noServices>
-                <p class="muted">No services configured yet.</p>
+                <p class="muted">{{ 'rentals.detail_no_services' | translate }}</p>
               </ng-template>
             </div>
           </div>
         </section>
 
         <section class="panel" *ngIf="activeTab === 'history'">
-          <h3>Rental history</h3>
+          <h3>{{ 'rentals.detail_history_title' | translate }}</h3>
           <table class="history-table" *ngIf="history.length; else noHistory">
             <thead>
             <tr>
-              <th>Reservation</th>
-              <th>Client</th>
-              <th>Dates</th>
-              <th>Status</th>
-              <th>Qty</th>
-              <th>Total</th>
+              <th>{{ 'rentals.detail_history_reservation' | translate }}</th>
+              <th>{{ 'rentals.client' | translate }}</th>
+              <th>{{ 'rentals.detail_history_dates' | translate }}</th>
+              <th>{{ 'rentals.status' | translate }}</th>
+              <th>{{ 'rentals.detail_history_qty' | translate }}</th>
+              <th>{{ 'rentals.detail_history_total' | translate }}</th>
             </tr>
             </thead>
             <tbody>
             <tr *ngFor="let h of history">
               <td>#{{ h.reservation_id }} {{ h.reference || '' }}</td>
               <td>{{ h.first_name || '' }} {{ h.last_name || '' }}</td>
-              <td>{{ h.start_date || '-' }} ? {{ h.end_date || '-' }}</td>
-              <td>{{ h.status || '-' }}</td>
+              <td>{{ h.start_date || '-' }} – {{ h.end_date || '-' }}</td>
+              <td><span class="status-badge status-badge--{{ h.status }}">{{ ('rentals.status_' + h.status) | translate }}</span></td>
               <td>{{ h.quantity || 0 }}</td>
               <td>{{ h.line_total || 0 | number:'1.2-2' }} CHF</td>
             </tr>
             </tbody>
           </table>
           <ng-template #noHistory>
-            <p class="muted">No rental history yet.</p>
+            <p class="muted">{{ 'rentals.detail_no_history' | translate }}</p>
           </ng-template>
         </section>
 
         <section class="panel" *ngIf="activeTab === 'analytics'">
-          <h3>Analytics</h3>
+          <h3>{{ 'rentals.detail_analytics_title' | translate }}</h3>
           <div class="analytics-grid">
-            <article><span>Utilization</span><strong>{{ totalCount ? ((reservedCount / totalCount) * 100 | number:'1.0-0') : 0 }}%</strong></article>
-            <article><span>Revenue</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} CHF</strong></article>
-            <article><span>Transactions</span><strong>{{ analytics?.history_count || 0 }}</strong></article>
-            <article><span>Units</span><strong>{{ totalCount }}</strong></article>
+            <article><span>{{ 'rentals.detail_utilization' | translate }}</span><strong>{{ totalCount ? ((reservedCount / totalCount) * 100 | number:'1.0-0') : 0 }}%</strong></article>
+            <article><span>{{ 'rentals.detail_revenue' | translate }}</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} CHF</strong></article>
+            <article><span>{{ 'rentals.detail_transactions' | translate }}</span><strong>{{ analytics?.history_count || 0 }}</strong></article>
+            <article><span>{{ 'rentals.detail_units' | translate }}</span><strong>{{ totalCount }}</strong></article>
           </div>
         </section>
       </main>
     </section>
 
     <ng-template #loadingTpl>
-      <div class="loading">Loading…</div>
+      <div class="loading">{{ 'rentals.detail_loading' | translate }}</div>
     </ng-template>
   </vex-page-layout-content>
 </vex-page-layout>
-

@@ -1,0 +1,215 @@
+<h2 mat-dialog-title>
+  <mat-icon style="vertical-align:middle;margin-right:8px;color:#ea580c;">payments</mat-icon>
+  {{ 'rentals.payment_dialog_title' | translate }} — #{{ reservation?.id }}
+</h2>
+
+<mat-dialog-content style="min-width:480px;max-width:600px;">
+
+  <!-- Current payment status banner -->
+  <div *ngIf="loadingInfo" style="text-align:center;padding:12px;">
+    <mat-progress-spinner diameter="24" mode="indeterminate"></mat-progress-spinner>
+  </div>
+
+  <div *ngIf="!loadingInfo && paymentInfo" class="payment-status-banner"
+       [style.background]="hasPayment ? '#dcfce7' : '#fff7ed'"
+       style="padding:10px 16px;border-radius:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <span style="font-size:13px;color:#374151;">
+        <strong>{{ 'rentals.total' | translate }}:</strong> {{ reservationTotal | number:'1.2-2' }} {{ currency }}
+      </span>
+      <span style="margin-left:16px;font-size:13px;"
+            [style.color]="hasPayment ? '#15803d' : '#ea580c'">
+        <mat-icon style="font-size:14px;vertical-align:middle;">{{ hasPayment ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+        {{ (hasPayment ? 'rentals.payment_recorded' : 'rentals.payment_pending') | translate }}
+        <ng-container *ngIf="hasPayment">
+          &mdash; {{ paymentInfo.payment?.amount | number:'1.2-2' }} {{ currency }}
+          ({{ paymentInfo.payment?.payment_method }})
+        </ng-container>
+      </span>
+    </div>
+    <button *ngIf="hasPayment" mat-stroked-button color="warn"
+            (click)="processRefund()" [disabled]="loading" style="font-size:12px;">
+      {{ 'rentals.refund' | translate }}
+    </button>
+  </div>
+
+  <!-- Tabs -->
+  <mat-tab-group [selectedIndex]="activeTabIndex" (selectedIndexChange)="onTabChange($event)">
+
+    <!-- ── Tab 0: Manual payment ── -->
+    <mat-tab [label]="'rentals.tab_manual_payment' | translate">
+      <div style="padding:16px 0;" [formGroup]="manualForm">
+
+        <mat-form-field appearance="outline" style="width:100%;">
+          <mat-label>{{ 'rentals.payment_method' | translate }}</mat-label>
+          <mat-select formControlName="payment_method">
+            <mat-option *ngFor="let m of paymentMethods" [value]="m.value">
+              {{ m.label | translate }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" style="width:100%;">
+          <mat-label>{{ 'rentals.amount' | translate }} ({{ currency }})</mat-label>
+          <input matInput type="number" step="0.01" formControlName="amount">
+          <mat-error *ngIf="manualForm.get('amount')?.hasError('required')">{{ 'required' | translate }}</mat-error>
+          <mat-error *ngIf="manualForm.get('amount')?.hasError('min')">{{ 'rentals.amount_min_error' | translate }}</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" style="width:100%;">
+          <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
+          <textarea matInput formControlName="notes" rows="2"></textarea>
+        </mat-form-field>
+
+        <button mat-raised-button color="primary"
+                (click)="saveManual()" [disabled]="loading || manualForm.invalid" style="width:100%;">
+          <mat-progress-spinner *ngIf="loading" diameter="18" mode="indeterminate"
+                                style="display:inline-block;margin-right:8px;"></mat-progress-spinner>
+          <mat-icon *ngIf="!loading">check</mat-icon>
+          {{ 'rentals.register_payment' | translate }}
+        </button>
+
+      </div>
+    </mat-tab>
+
+    <!-- ── Tab 1: Payrexx link ── -->
+    <mat-tab [label]="'rentals.tab_paylink' | translate">
+      <div style="padding:16px 0;" [formGroup]="paylinkForm">
+
+        <mat-form-field appearance="outline" style="width:100%;">
+          <mat-label>{{ 'rentals.amount' | translate }} ({{ currency }})</mat-label>
+          <input matInput type="number" step="0.01" formControlName="amount">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" style="width:100%;">
+          <mat-label>{{ 'rentals.client_email' | translate }}</mat-label>
+          <input matInput type="email" formControlName="client_email">
+        </mat-form-field>
+
+        <mat-slide-toggle formControlName="send_email" style="margin-bottom:16px;">
+          {{ 'rentals.send_link_by_email' | translate }}
+        </mat-slide-toggle>
+
+        <button mat-raised-button color="primary"
+                (click)="generatePaylink()" [disabled]="loading" style="width:100%;margin-bottom:12px;">
+          <mat-progress-spinner *ngIf="loading" diameter="18" mode="indeterminate"
+                                style="display:inline-block;margin-right:8px;"></mat-progress-spinner>
+          <mat-icon *ngIf="!loading">link</mat-icon>
+          {{ 'rentals.generate_paylink' | translate }}
+        </button>
+
+        <!-- Generated link display -->
+        <div *ngIf="generatedLink"
+             style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;margin-top:8px;">
+          <div style="font-size:12px;color:#15803d;margin-bottom:6px;font-weight:bold;">
+            <mat-icon style="font-size:14px;vertical-align:middle;">check_circle</mat-icon>
+            {{ 'rentals.paylink_generated' | translate }}
+          </div>
+          <div style="word-break:break-all;font-size:12px;color:#374151;margin-bottom:8px;">{{ generatedLink }}</div>
+          <div style="display:flex;gap:8px;">
+            <button mat-stroked-button (click)="copyLink()">
+              <mat-icon>content_copy</mat-icon> {{ 'rentals.copy_link' | translate }}
+            </button>
+            <button mat-stroked-button (click)="openLink()">
+              <mat-icon>open_in_new</mat-icon> {{ 'rentals.open_link' | translate }}
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </mat-tab>
+
+    <!-- ── Tab 2: Deposit ── -->
+    <mat-tab [label]="'rentals.tab_deposit' | translate">
+      <div style="padding:16px 0;">
+
+        <!-- Current deposit status -->
+        <div style="background:#f4f4f4;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;">
+          <strong>{{ 'rentals.deposit_current' | translate }}:</strong>
+          {{ depositAmount | number:'1.2-2' }} {{ currency }}
+          &nbsp;&middot;&nbsp;
+          <span [style.color]="depositStatus === 'held' ? '#f59e0b'
+                             : depositStatus === 'forfeited' ? '#ef4444'
+                             : depositStatus === 'released' ? '#22c55e'
+                             : '#9ca3af'">
+            {{ ('rentals.deposit_status_' + depositStatus) | translate }}
+          </span>
+          <ng-container *ngIf="hasDepositPayment">
+            &nbsp;&middot;&nbsp;
+            <span style="color:#374151;">
+              {{ paymentInfo.deposit_payment?.payment_method }}
+              &mdash; {{ paymentInfo.deposit_payment?.status }}
+            </span>
+          </ng-container>
+        </div>
+
+        <div [formGroup]="depositForm">
+          <mat-form-field appearance="outline" style="width:100%;">
+            <mat-label>{{ 'rentals.deposit_action' | translate }}</mat-label>
+            <mat-select formControlName="action">
+              <mat-option *ngFor="let a of depositActions" [value]="a.value">
+                {{ a.label | translate }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <ng-container *ngIf="isHoldAction">
+            <mat-form-field appearance="outline" style="width:100%;">
+              <mat-label>{{ 'rentals.payment_method' | translate }}</mat-label>
+              <mat-select formControlName="payment_method">
+                <mat-option *ngFor="let m of paymentMethods" [value]="m.value">
+                  {{ m.label | translate }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" style="width:100%;">
+              <mat-label>{{ 'rentals.deposit_amount' | translate }} ({{ currency }})</mat-label>
+              <input matInput type="number" step="0.01" formControlName="amount">
+              <mat-error *ngIf="depositForm.get('amount')?.hasError('required')">{{ 'required' | translate }}</mat-error>
+              <mat-error *ngIf="depositForm.get('amount')?.hasError('min')">{{ 'rentals.amount_min_error' | translate }}</mat-error>
+            </mat-form-field>
+          </ng-container>
+
+          <mat-form-field appearance="outline" style="width:100%;">
+            <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
+            <textarea matInput formControlName="notes" rows="2"></textarea>
+          </mat-form-field>
+
+          <button mat-raised-button color="primary"
+                  (click)="saveDeposit()" [disabled]="loading || depositForm.invalid" style="width:100%;">
+            <mat-progress-spinner *ngIf="loading" diameter="18" mode="indeterminate"
+                                  style="display:inline-block;margin-right:8px;"></mat-progress-spinner>
+            <mat-icon *ngIf="!loading">savings</mat-icon>
+            {{ 'rentals.save_deposit' | translate }}
+          </button>
+        </div>
+
+        <!-- Deposit Payrexx link (shown after hold with payrexx_link method) -->
+        <div *ngIf="depositPaymentLink"
+             style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;margin-top:12px;">
+          <div style="font-size:12px;color:#15803d;margin-bottom:6px;font-weight:bold;">
+            <mat-icon style="font-size:14px;vertical-align:middle;">check_circle</mat-icon>
+            {{ 'rentals.deposit_paylink_generated' | translate }}
+          </div>
+          <div style="word-break:break-all;font-size:12px;color:#374151;margin-bottom:8px;">{{ depositPaymentLink }}</div>
+          <div style="display:flex;gap:8px;">
+            <button mat-stroked-button (click)="copyDepositLink()">
+              <mat-icon>content_copy</mat-icon> {{ 'rentals.copy_link' | translate }}
+            </button>
+            <button mat-stroked-button (click)="openDepositLink()">
+              <mat-icon>open_in_new</mat-icon> {{ 'rentals.open_link' | translate }}
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">{{ 'rentals.close' | translate }}</button>
+</mat-dialog-actions>

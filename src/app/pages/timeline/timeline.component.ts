@@ -47,6 +47,8 @@ import {
 } from './monitor-assignment-dialog/monitor-assignment-dialog.component';
 import { MonitorAssignmentHelperService, MonitorAssignmentSlot } from 'src/app/shared/services/monitor-assignment-helper.service';
 import { MonitorAssignmentLoadingDialogComponent } from 'src/app/shared/dialogs/monitor-partial-availability/monitor-assignment-loading-dialog.component';
+import { RentalService } from 'src/service/rental.service';
+import { rentalUiStatus } from 'src/app/shared/rental-status.util';
 
 moment.locale('fr');
 
@@ -56,6 +58,7 @@ moment.locale('fr');
   styleUrls: ['./timeline.component.scss']
 })
 export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
+  readonly rentalUiStatus = rentalUiStatus;
 
   private destroy$ = new Subject<void>();
   private loadingDialogRef?: MatDialogRef<MonitorAssignmentLoadingDialogComponent>;
@@ -114,6 +117,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   subgroupDetail: any;
   taskDetail: any;
   selectedTaskKey: string | null = null;
+  linkedRentalReservation: any = null;
   showBlock: boolean = false;
   idBlock: any;
   blockDetail: any;
@@ -173,9 +177,18 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() filterCourseId: number | null = null;
   private assignmentBookingUsersCache = new Map<number, any[]>();
 
+  // ---- Rental layer (Phase 3) ----
+  rentalEnabled = false;
+  showRentalLayer = false;
+  rentalPlannerItems: any[] = [];
+  loadingRentalLayer = false;
+  selectedRentalItem: any = null;
+  private rentalCurrentDateFrom = '';
+  private rentalCurrentDateTo = '';
+
   constructor(private crudService: ApiCrudService, private monitorsService: MonitorsService, private dialog: MatDialog, public translateService: TranslateService,
     private snackbar: MatSnackBar, private dateAdapter: DateAdapter<Date>, private router: Router,
-    private assignmentHelper: MonitorAssignmentHelperService) {
+    private assignmentHelper: MonitorAssignmentHelperService, private rentalService: RentalService) {
     this.dateAdapter.setLocale(this.translateService.getDefaultLang());
     this.dateAdapter.getFirstDayOfWeek = () => { return 1; }
     this.mockLevels.forEach(level => {
@@ -285,6 +298,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
 
 
     this.activeSchool = await this.getUser();
+    this.checkRentalEnabled();
     await this.getLanguages();
     await this.getSports();
     await this.getSchoolSports();
@@ -473,9 +487,14 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   searchBookings(firstDate: string, lastDate: string, options: { silent?: boolean } = {}) {
+    this.rentalCurrentDateFrom = firstDate;
+    this.rentalCurrentDateTo = lastDate;
     this.crudService.get('/admin/getPlanner?date_start=' + firstDate + '&date_end=' + lastDate + '&school_id=' + this.activeSchool + '&perPage=' + 99999).pipe(takeUntil(this.destroy$)).subscribe(
       (data: any) => {
         this.processData(data.data);
+        if (this.rentalEnabled && this.showRentalLayer) {
+          this.loadRentalLayer();
+        }
       },
       error => {
         if (!options.silent) {
@@ -1489,6 +1508,18 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
         this.showDetail = true;
         this.initializeMonitorAssignment(task);
 
+        // Load linked rental reservation if any
+        this.linkedRentalReservation = null;
+        if (this.rentalEnabled && task.booking_id) {
+          this.rentalService.listReservations({ booking_id: task.booking_id }).subscribe({
+            next: (res: any) => {
+              const items = res?.data?.data ?? res?.data ?? [];
+              this.linkedRentalReservation = items.length ? items[0] : null;
+            },
+            error: () => { this.linkedRentalReservation = null; }
+          });
+        }
+
       // Cargar disponibles para el selector del preview:
         this.checkAvailableMonitors();
       }
@@ -1516,6 +1547,7 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
     this.subgroupDetail = null;
     this.taskDetail = null;
     this.selectedTaskKey = null;
+    this.linkedRentalReservation = null;
     this.showDetail = false;
     this.editedMonitor = null;
     this.showEditMonitor = false;
@@ -5473,5 +5505,83 @@ export class TimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   protected readonly parseInt = parseInt;
+
+  // ---- Rental layer methods (Phase 3) ----
+
+  checkRentalEnabled(): void {
+    this.rentalService.getPolicy().subscribe({
+      next: (res: any) => {
+        this.rentalEnabled = !!(res?.data?.enabled);
+      },
+      error: () => { this.rentalEnabled = false; }
+    });
+  }
+
+  toggleRentalLayer(): void {
+    this.showRentalLayer = !this.showRentalLayer;
+    if (this.showRentalLayer && this.rentalCurrentDateFrom) {
+      this.loadRentalLayer();
+    } else if (!this.showRentalLayer) {
+      this.selectedRentalItem = null;
+    }
+  }
+
+  loadRentalLayer(): void {
+    if (!this.rentalCurrentDateFrom || !this.rentalCurrentDateTo) return;
+    this.loadingRentalLayer = true;
+    this.rentalService.listReservations({
+      date_from: this.rentalCurrentDateFrom,
+      date_to: this.rentalCurrentDateTo,
+      per_page: 200,
+    }).subscribe({
+      next: (res: any) => {
+        this.rentalPlannerItems = res?.data?.data ?? res?.data ?? [];
+        this.loadingRentalLayer = false;
+      },
+      error: () => {
+        this.rentalPlannerItems = [];
+        this.loadingRentalLayer = false;
+      }
+    });
+  }
+
+  openRentalDetail(item: any): void {
+    this.selectedRentalItem = item;
+  }
+
+  closeRentalDetail(): void {
+    this.selectedRentalItem = null;
+  }
+
+  navigateToRental(id: number): void {
+    this.router.navigate(['/rentals'], { queryParams: { reservation_id: id } });
+  }
+
+  formatRentalPlannerDateRange(startDate?: string | null, endDate?: string | null): string {
+    if (!startDate && !endDate) {
+      return '';
+    }
+
+    const safeFormat = (value?: string | null): string => {
+      if (!value) return '';
+      const parsed = moment(value);
+      return parsed.isValid() ? parsed.format('DD/MM/YYYY') : value;
+    };
+
+    const formattedStart = safeFormat(startDate);
+    const formattedEnd = safeFormat(endDate);
+
+    if (formattedStart && formattedEnd && formattedStart !== formattedEnd) {
+      return `${formattedStart} – ${formattedEnd}`;
+    }
+
+    return formattedStart || formattedEnd;
+  }
+
+  getRentalPlannerStatusText(status: string | null | undefined): string {
+    const normalized = this.rentalUiStatus(status).label;
+    return this.translateService.instant(`rentals.status_${normalized}`);
+  }
+
 }
 

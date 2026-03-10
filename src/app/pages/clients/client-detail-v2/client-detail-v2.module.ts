@@ -33,9 +33,12 @@ import { PageLayoutModule } from 'src/@vex/components/page-layout/page-layout.mo
 import { ComponentsModule } from 'src/@vex/components/components.module';
 import { TranslateModule } from '@ngx-translate/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from 'src/@vex/components/icon/app.component';
 import { FluxUploadImgModule } from 'src/@vex/components/form/upload-img/app.module';
-import {ClientDetailV2Component} from './client-detail-v2.component';
+import { ClientDetailV2Component } from './client-detail-v2.component';
+import { RouterModule } from '@angular/router';
+import { RentalStatusBadgeModule } from 'src/app/shared/rental-status-badge/rental-status-badge.module';
 
 @NgModule({
   imports: [
@@ -74,7 +77,10 @@ import {ClientDetailV2Component} from './client-detail-v2.component';
     ComponentsModule,
     TranslateModule,
     MatProgressSpinnerModule,
-    FluxUploadImgModule
+    MatTooltipModule,
+    FluxUploadImgModule,
+    RouterModule,
+    RentalStatusBadgeModule
   ],
   declarations: [ClientDetailV2Component],
   exports: [ClientDetailV2Component]

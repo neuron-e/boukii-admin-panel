@@ -14,6 +14,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
 import {MatDialogModule} from '@angular/material/dialog';
+import {ConfirmDialogModule} from 'src/@vex/components/confirm-dialog/confirm-dialog.module';
 
 @NgModule({
   declarations: [BookingsCreateUpdateV2Component],
@@ -31,7 +32,8 @@ import {MatDialogModule} from '@angular/material/dialog';
         MatInputModule,
         MatSelectModule,
         FormsModule,
-        MatDialogModule
+        MatDialogModule,
+        ConfirmDialogModule,
     ],
   exports: [BookingsCreateUpdateV2Component],
 })

@@ -25,6 +25,7 @@ export class RentalsItemDetailComponent implements OnInit {
   history: any[] = [];
   services: any[] = [];
   analytics: any = null;
+  private pendingAutoEdit = false;
 
   createVariantExpanded = false;
   createVariantForm: any = {
@@ -58,6 +59,7 @@ export class RentalsItemDetailComponent implements OnInit {
     this.itemId = Number(this.route.snapshot.paramMap.get('itemId') || 0);
     this.legacyVariantId = Number(this.route.snapshot.paramMap.get('variantId') || 0);
     const queryVariant = Number(this.route.snapshot.queryParamMap.get('variant') || 0);
+    this.pendingAutoEdit = Number(this.route.snapshot.queryParamMap.get('edit') || 0) === 1;
 
     if (this.itemId > 0) {
       this.loadByItem(this.itemId, queryVariant > 0 ? queryVariant : null);
@@ -223,6 +225,33 @@ export class RentalsItemDetailComponent implements OnInit {
     return Number(this.analytics?.maintenance_units || 0);
   }
 
+  get inventoryValue(): number {
+    const fromAnalytics = Number(this.analytics?.inventory_value || 0);
+    if (fromAnalytics > 0) return fromAnalytics;
+
+    const candidates = this.variants
+      .map((variant) => Number(variant?.purchase_price || variant?.cost_price || variant?.price || 0))
+      .filter((price) => price > 0);
+    const avgPrice = candidates.length ? candidates.reduce((sum, price) => sum + price, 0) / candidates.length : 0;
+    return Number(this.totalCount || 0) * avgPrice;
+  }
+
+  get mainImageUrl(): string {
+    return this.imageCandidates[0] || '';
+  }
+
+  get imageCandidates(): string[] {
+    const raw = [
+      this.variant?.image_url,
+      this.item?.image_url,
+      this.variant?.image,
+      this.item?.image,
+      this.variant?.photo_url,
+      this.item?.photo_url
+    ].filter((value) => typeof value === 'string' && !!String(value).trim()) as string[];
+    return Array.from(new Set(raw.map((value) => value.trim())));
+  }
+
   editCurrentProduct(): void {
     if (!this.variant) return;
 
@@ -362,6 +391,16 @@ export class RentalsItemDetailComponent implements OnInit {
 
         this.syncVariantScopedData();
         this.loading = false;
+        if (this.pendingAutoEdit && this.variant) {
+          this.pendingAutoEdit = false;
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { edit: null },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+          setTimeout(() => this.editCurrentProduct(), 0);
+        }
       },
       error: () => {
         if (allowVariantFallback) {

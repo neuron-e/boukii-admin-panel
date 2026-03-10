@@ -222,6 +222,52 @@
   color: var(--color-dark1);
 }
 
+.rental-linked-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.linked-rental-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.linked-rental-row__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.linked-rental-row__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.linked-rental-row__items {
+  margin-top: 4px;
+  color: #475569;
+}
+
+.linked-rental-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.linked-rental-totals {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 13px;
+}
+
 .secondary-button {
   margin-right: 10px;
 }

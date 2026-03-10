@@ -11,12 +11,28 @@ export class ApiService {
 
   constructor(public http: HttpClient) { }
 
+  protected readStorageJson<T>(key: string): T | null {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+
   getHeaders(): HttpHeaders {
-    const token = JSON.parse(localStorage.getItem('boukiiUserToken') || '');
+    const token = this.readStorageJson<string>('boukiiUserToken');
     let headers = new HttpHeaders();
     headers = headers
-      .set('content-type', 'application/json')
-      .set('Authorization', 'Bearer ' + token);
+      .set('content-type', 'application/json');
+
+    if (token) {
+      headers = headers.set('Authorization', 'Bearer ' + token);
+    }
 
     return headers;
   }

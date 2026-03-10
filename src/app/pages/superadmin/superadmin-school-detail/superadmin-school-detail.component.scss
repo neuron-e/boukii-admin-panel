@@ -102,3 +102,70 @@
   gap: 12px;
   align-items: center;
 }
+
+.module-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 16px;
+}
+
+.module-row__label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  strong {
+    font-size: 14px;
+    color: #1e293b;
+  }
+}
+
+.module-row__hint {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.module-options {
+  padding: 8px 0 16px;
+}
+
+.module-options__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 10px;
+}
+
+.module-options__radios {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+
+  mat-radio-button {
+    display: flex;
+    align-items: flex-start;
+  }
+}
+
+.radio-hint {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.module-options__hours {
+  width: 200px;
+}
+
+.module-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}

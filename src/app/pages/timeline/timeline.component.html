@@ -65,6 +65,15 @@
             <button (click)="toggleBlockGeneral()"
                     class="filter-button"><mat-icon
               svgIcon="mat:block"></mat-icon></button>
+
+            <!-- Rental layer toggle — only visible when rental module is enabled -->
+            <button *ngIf="rentalEnabled"
+                    (click)="toggleRentalLayer()"
+                    class="filter-button"
+                    [class.rental-layer-active]="showRentalLayer"
+                    [matTooltip]="(showRentalLayer ? 'rentals.hide_rental_layer' : 'rentals.show_rental_layer') | translate">
+              <mat-icon svgIcon="mat:lock"></mat-icon>
+            </button>
           </div>
 
           <div class="view-selection">
@@ -592,6 +601,87 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- ===== RENTAL LAYER SECTION (Phase 3) ===== -->
+      <div *ngIf="rentalEnabled && showRentalLayer" class="rental-planner-section">
+        <div class="rental-planner-header">
+          <mat-icon svgIcon="mat:lock" style="vertical-align:middle; margin-right:6px; font-size:18px;"></mat-icon>
+          <span>{{ 'rentals.page_title' | translate }}</span>
+          <mat-spinner *ngIf="loadingRentalLayer" diameter="18" style="margin-left:12px;"></mat-spinner>
+        </div>
+
+        <ng-container *ngIf="!loadingRentalLayer">
+          <p *ngIf="rentalPlannerItems.length === 0" class="rental-planner-empty">
+            {{ 'rentals.no_reservations' | translate }}
+          </p>
+          <div class="rental-planner-grid">
+            <div *ngFor="let item of rentalPlannerItems"
+                 class="rental-planner-block"
+                 [class.rental-block-pending]="rentalUiStatus(item.status).label === 'pending'"
+                 [class.rental-block-active]="rentalUiStatus(item.status).label === 'active'"
+                 [class.rental-block-completed]="rentalUiStatus(item.status).label === 'completed'"
+                 [class.rental-block-overdue]="rentalUiStatus(item.status).label === 'overdue'"
+                 [class.rental-block-cancelled]="rentalUiStatus(item.status).label === 'cancelled'"
+                 [class.rental-block-selected]="selectedRentalItem?.id === item.id"
+                 (click)="openRentalDetail(item)"
+                 [matTooltip]="(item.client ? item.client.first_name + ' ' + item.client.last_name : '') + ' · ' + (formatRentalPlannerDateRange(item.start_date, item.end_date) || '')">
+              <div class="rental-block-header">
+                <span class="rental-block-ref">{{ item.reference || ('#' + item.id) }}</span>
+                <span class="rental-block-status-dot" [ngClass]="rentalUiStatus(item.status).dotClass"></span>
+                <span class="rental-block-status-text">{{ getRentalPlannerStatusText(item.status) }}</span>
+              </div>
+              <div class="rental-block-client" *ngIf="item.client">
+                {{ item.client.first_name }} {{ item.client.last_name }}
+              </div>
+              <div class="rental-block-dates">
+                {{ formatRentalPlannerDateRange(item.start_date, item.end_date) }}
+              </div>
+              <div class="rental-block-meta" *ngIf="item.items_count || item.pickup_point_name">
+                <span *ngIf="item.items_count">{{ item.items_count }} {{ 'rentals.items' | translate }}</span>
+                <span *ngIf="item.pickup_point_name" class="rental-pickup">· {{ item.pickup_point_name }}</span>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+      <!-- Rental side detail panel -->
+      <div *ngIf="selectedRentalItem" class="rental-planner-detail-panel">
+        <div class="rental-detail-panel-header">
+          <div class="rental-detail-panel-title">
+            <span>{{ 'rentals.reservation' | translate }} {{ selectedRentalItem.reference || ('#' + selectedRentalItem.id) }}</span>
+            <small>{{ 'rentals.view_detail' | translate }}</small>
+          </div>
+          <mat-icon svgIcon="mat:close" (click)="closeRentalDetail()" class="cursor-pointer"></mat-icon>
+        </div>
+        <div class="rental-detail-panel-body">
+          <div class="rental-detail-row" *ngIf="selectedRentalItem.client">
+            <strong>{{ 'client' | translate }}:</strong>
+            {{ selectedRentalItem.client.first_name }} {{ selectedRentalItem.client.last_name }}
+          </div>
+          <div class="rental-detail-row">
+            <strong>{{ 'dates' | translate }}:</strong>
+            {{ formatRentalPlannerDateRange(selectedRentalItem.start_date, selectedRentalItem.end_date) }}
+          </div>
+          <div class="rental-detail-row" *ngIf="selectedRentalItem.pickup_point_name">
+            <strong>{{ 'rentals.pickup_point' | translate }}:</strong>
+            {{ selectedRentalItem.pickup_point_name }}
+          </div>
+          <div class="rental-detail-row">
+            <strong>{{ 'status' | translate }}:</strong>
+            <app-rental-status-badge [status]="selectedRentalItem?.status"></app-rental-status-badge>
+          </div>
+          <div class="rental-detail-row" *ngIf="selectedRentalItem.items_count">
+            <strong>{{ 'rentals.items' | translate }}:</strong>
+            {{ selectedRentalItem.items_count }}
+          </div>
+          <button mat-stroked-button color="primary" style="margin-top:12px; width:100%;"
+                  (click)="navigateToRental(selectedRentalItem.id)">
+            <mat-icon svgIcon="mat:open_in_new"></mat-icon>
+            {{ 'rentals.view_detail' | translate }}
+          </button>
+        </div>
       </div>
 
       <!--Modal Grouped Tasks-->
@@ -1268,6 +1358,40 @@
               </div>
             </div>
           </ng-container>
+
+          <!-- Linked rental reservation -->
+          <ng-container *ngIf="linkedRentalReservation">
+            <div style="padding: 0 24px 8px 24px;">
+              <mat-divider></mat-divider>
+            </div>
+            <div class="box-detail-box box-background-grey"
+                 style="margin: 0 24px 12px 24px; padding: 12px;">
+              <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <mat-icon svgIcon="mat:lock" style="font-size: 16px; width: 16px; height: 16px;"></mat-icon>
+                {{ 'rentals.page_title' | translate }}
+                <app-rental-status-badge [status]="linkedRentalReservation?.status" style="margin-left: auto;"></app-rental-status-badge>
+              </div>
+              <div style="font-size: 13px; color: #555;">
+                <div *ngIf="linkedRentalReservation.start_date">
+                  {{ formatRentalPlannerDateRange(linkedRentalReservation.start_date, linkedRentalReservation.end_date) }}
+                </div>
+                <div *ngIf="linkedRentalReservation.pickup_point_name" style="margin-top: 4px;">
+                  <mat-icon svgIcon="mat:place" style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle;"></mat-icon>
+                  {{ linkedRentalReservation.pickup_point_name }}
+                </div>
+                <div *ngIf="linkedRentalReservation.items_count" style="margin-top: 4px;">
+                  {{ linkedRentalReservation.items_count }} {{ 'rentals.items' | translate }}
+                </div>
+              </div>
+              <button mat-stroked-button color="primary"
+                      style="margin-top: 10px; width: 100%; font-size: 12px;"
+                      (click)="navigateToRental(linkedRentalReservation.id)">
+                <mat-icon svgIcon="mat:open_in_new" style="font-size: 14px;"></mat-icon>
+                {{ 'rentals.view_detail' | translate }}
+              </button>
+            </div>
+          </ng-container>
+
         </mat-card-content>
       </mat-card>
     </vex-page-layout-content>

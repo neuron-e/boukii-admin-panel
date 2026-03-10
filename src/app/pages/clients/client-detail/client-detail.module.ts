@@ -42,6 +42,7 @@ import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor
 import { EvaluationHistoryComponent } from './evaluation-history/evaluation-history.component';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ConfirmModalModule } from '../../monitors/monitor-detail/confirm-dialog/confirm-dialog.component.module';
+import { RentalStatusBadgeModule } from 'src/app/shared/rental-status-badge/rental-status-badge.module';
 
 @NgModule({
   imports: [
@@ -84,7 +85,8 @@ import { ConfirmModalModule } from '../../monitors/monitor-detail/confirm-dialog
     MatProgressSpinnerModule,
     FluxUploadImgModule,
     MatExpansionModule,
-    ConfirmModalModule
+    ConfirmModalModule,
+    RentalStatusBadgeModule
   ],
   declarations: [ClientDetailComponent, SportCardComponent, EvaluationEditorComponent, EvaluationHistoryComponent],
   exports: [ClientDetailComponent]

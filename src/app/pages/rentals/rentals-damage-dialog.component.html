@@ -1,0 +1,55 @@
+<h2 mat-dialog-title>{{ 'rentals.damage_dialog_title' | translate }}</h2>
+<mat-dialog-content>
+  <form [formGroup]="form" class="form-grid">
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>{{ 'rentals.damage_line' | translate }}</mat-label>
+      <mat-select formControlName="line_id">
+        <mat-option [value]="null">{{ 'rentals.damage_line_all' | translate }}</mat-option>
+        <mat-option *ngFor="let line of data.lines" [value]="line.id">
+          {{ line.label }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>{{ 'rentals.damage_severity' | translate }}</mat-label>
+      <mat-select formControlName="severity">
+        <mat-option value="minor">{{ 'rentals.damage_severity_minor' | translate }}</mat-option>
+        <mat-option value="major">{{ 'rentals.damage_severity_major' | translate }}</mat-option>
+        <mat-option value="total_loss">{{ 'rentals.damage_severity_total_loss' | translate }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>{{ 'rentals.damage_description' | translate }}</mat-label>
+      <textarea matInput rows="3" formControlName="description"></textarea>
+      <mat-error>{{ 'rentals.damage_description_required' | translate }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>{{ 'rentals.damage_cost' | translate }}</mat-label>
+      <input matInput type="number" min="0" step="0.01" formControlName="damage_cost" />
+      <span matSuffix class="mr-2">{{ data.reservation?.currency || 'CHF' }}</span>
+      <mat-error>{{ 'rentals.damage_cost_invalid' | translate }}</mat-error>
+    </mat-form-field>
+
+    <!-- Deposit info banner -->
+    <ng-container *ngIf="depositAmount > 0 && damageCost > 0">
+      <div class="deposit-info"
+           [class.covers]="depositCoversAll"
+           [class.partial]="!depositCoversAll">
+        <mat-icon>{{ depositCoversAll ? 'check_circle' : 'warning' }}</mat-icon>
+        <span *ngIf="depositCoversAll">
+          {{ 'rentals.deposit_covers_damage' | translate: { deposit: depositAmount, cost: damageCost } }}
+        </span>
+        <span *ngIf="!depositCoversAll">
+          {{ 'rentals.deposit_partial_coverage' | translate: { deposit: depositAmount, cost: damageCost } }}
+        </span>
+      </div>
+    </ng-container>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="cancel()">{{ 'rentals.cancel' | translate }}</button>
+  <button mat-flat-button color="warn" type="button" (click)="save()">{{ 'rentals.damage_report_button' | translate }}</button>
+</mat-dialog-actions>

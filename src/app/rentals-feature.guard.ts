@@ -1,60 +1,32 @@
 import { Injectable } from '@angular/core';
 import { CanActivate, Router, UrlTree } from '@angular/router';
-import { environment } from 'src/environments/environment';
+import { Observable, of } from 'rxjs';
+import { catchError, map, switchMap, take } from 'rxjs/operators';
+import { RentalService } from 'src/service/rental.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class RentalsFeatureGuard implements CanActivate {
-  constructor(private readonly router: Router) {}
+  constructor(
+    private readonly router: Router,
+    private readonly rentalService: RentalService
+  ) {}
 
-  canActivate(): boolean | UrlTree {
-    if (this.isAllowedSchool()) {
-      return true;
-    }
+  canActivate(): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
+    return this.rentalService.watchPolicy().pipe(
+      take(1),
+      switchMap((cachedPolicy) => {
+        if (cachedPolicy !== null) {
+          return of(cachedPolicy);
+        }
 
-    return this.router.parseUrl('/home');
-  }
-
-  private isAllowedSchool(): boolean {
-    const raw = localStorage.getItem('boukiiUser');
-    if (!raw) return false;
-
-    try {
-      const user = JSON.parse(raw);
-      const activeSchool = user?.school || user?.schools?.[0] || null;
-      const schoolId = Number(
-        activeSchool?.id || user?.school_id || user?.schools?.[0]?.id || 0
-      );
-      const schoolName = String(
-        activeSchool?.name || user?.school_name || ''
-      ).trim().toLowerCase();
-      const allowedIds = this.getAllowedSchoolIds();
-      const allowedNames = this.getAllowedSchoolNames();
-
-      return (schoolId > 0 && allowedIds.includes(schoolId))
-        || (!!schoolName && allowedNames.includes(schoolName));
-    } catch {
-      return false;
-    }
-  }
-
-  private getAllowedSchoolIds(): number[] {
-    const fromEnv = (environment as any).rentalFeatureSchoolIds;
-    if (Array.isArray(fromEnv) && fromEnv.length) {
-      return fromEnv.map((id: any) => Number(id)).filter((id: number) => id > 0);
-    }
-    return [1];
-  }
-
-  private getAllowedSchoolNames(): string[] {
-    const fromEnv = (environment as any).rentalFeatureSchoolNames;
-    if (Array.isArray(fromEnv) && fromEnv.length) {
-      return fromEnv
-        .map((name: any) => String(name || '').trim().toLowerCase())
-        .filter((name: string) => !!name);
-    }
-
-    return ['school testing'];
+        return this.rentalService.refreshPolicy().pipe(
+          map((response: any) => this.rentalService.extractPolicy(response))
+        );
+      }),
+      map((policy: any) => this.rentalService.isPolicyEnabled(policy) ? true : this.router.parseUrl('/home')),
+      catchError(() => of(this.router.parseUrl('/home')))
+    );
   }
 }

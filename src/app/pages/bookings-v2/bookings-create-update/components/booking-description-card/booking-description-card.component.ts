@@ -16,6 +16,7 @@ import {
   FormattedActivityData,
   IntervalGroup
 } from 'src/app/shared/services/booking-data.service';
+import { BookingRentalInlineSummary } from '../booking-rental-inline/booking-rental-inline.component';
 
 export interface BookingDescriptionCardDate {
   date: string;
@@ -62,6 +63,7 @@ export class BookingDescriptionCard implements OnChanges {
   @Input() clientObs: any;
   @Input() schoolObs: any;
   @Input() total: any;
+  @Input() rentalSummary: BookingRentalInlineSummary | null = null;
   @Input() summaryMode = false;
   @Input() isDetail = false;
   @Input() index: number = 1;
@@ -392,6 +394,20 @@ export class BookingDescriptionCard implements OnChanges {
     const raw = this.course?.price ?? this.course?.minPrice ?? 0;
     const parsed = typeof raw === 'number' ? raw : parseFloat(raw);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
+
+  hasRentalSummary(): boolean {
+    return !!this.rentalSummary?.hasSelection;
+  }
+
+  getRentalCurrency(): string {
+    return this.rentalSummary?.currency || this.course?.currency || this._dates?.[0]?.currency || '';
+  }
+
+  getRentalGrandTotal(): number {
+    const courseTotal = typeof this.total === 'number' ? this.total : parseFloat(String(this.total || 0)) || 0;
+    const rentalTotal = Number(this.rentalSummary?.rentalGrandTotal || this.rentalSummary?.rentalSubtotal || 0);
+    return Number((courseTotal + rentalTotal).toFixed(2));
   }
 
   protected readonly parseFloat = parseFloat;

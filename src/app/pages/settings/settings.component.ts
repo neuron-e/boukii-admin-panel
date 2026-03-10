@@ -37,6 +37,7 @@ import { PreviewModalComponent } from '../../components/preview-modal/preview-mo
 import { LayoutService } from 'src/@vex/services/layout.service';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { AngularEditorConfig } from '@kolkov/angular-editor';
+import { RentalService } from 'src/service/rental.service';
 
 @Component({
   selector: 'vex-settings',
@@ -224,6 +225,9 @@ export class SettingsComponent implements OnInit {
   ]
 
   selectedTabIndex = 0;
+  rentalPolicyEnabled = false;
+  rentalPolicyLoading = false;
+  rentalPolicySaving = false;
 
   createComponent = SalaryCreateUpdateModalComponent;
 
@@ -253,6 +257,7 @@ export class SettingsComponent implements OnInit {
               private snackbar: MatSnackBar, private cdr: ChangeDetectorRef,
               private dialog: MatDialog, private schoolService: SchoolService,
               private meetingPointService: MeetingPointService,
+              private rentalService: RentalService,
               public layoutService: LayoutService, private sanitizer: DomSanitizer,
               private translateService: TranslateService, private dateAdapter: DateAdapter<Date>) {
     this.filteredHours = this.hours;
@@ -266,6 +271,9 @@ export class SettingsComponent implements OnInit {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.loadedTabs = this.Translate.map(() => false);
     this.testEmail = this.user?.email || '';
+    this.rentalService.watchPolicy().subscribe((policy) => {
+      this.rentalPolicyEnabled = this.rentalService.isPolicyEnabled(policy);
+    });
     // Marca la primera pestaña como cargada
     this.loadedTabs[0] = true;
     /*this.mockLevelData.forEach(element => {
@@ -282,8 +290,43 @@ export class SettingsComponent implements OnInit {
       })*/
     this.initializeForms();
     this.generateHours();
+    this.loadRentalPolicy();
     this.getData();
 
+  }
+
+  loadRentalPolicy() {
+    this.rentalPolicyLoading = true;
+    this.rentalService.refreshPolicy()
+      .pipe(finalize(() => {
+        this.rentalPolicyLoading = false;
+      }))
+      .subscribe({
+        next: () => {},
+        error: () => {
+          this.rentalPolicyEnabled = false;
+        }
+      });
+  }
+
+  onRentalPolicyToggle(enabled: boolean): void {
+    const previous = this.rentalPolicyEnabled;
+    this.rentalPolicyEnabled = enabled;
+    this.rentalPolicySaving = true;
+
+    this.rentalService.updatePolicy({ enabled })
+      .pipe(finalize(() => {
+        this.rentalPolicySaving = false;
+      }))
+      .subscribe({
+        next: () => {
+          this.snackbar.open(this.translateService.instant('snackbar.settings.save'), 'OK', { duration: 3000 });
+        },
+        error: () => {
+          this.rentalPolicyEnabled = previous;
+          this.snackbar.open(this.translateService.instant('snackbar.error'), 'OK', { duration: 3000 });
+        }
+      });
   }
 
   private initializeForms() {

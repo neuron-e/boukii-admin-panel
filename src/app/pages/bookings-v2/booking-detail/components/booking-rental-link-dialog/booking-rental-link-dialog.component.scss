@@ -1,0 +1,23 @@
+.rental-dialog-empty {
+  color: #64748b;
+  margin: 0;
+}
+
+.rental-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rental-option__header,
+.rental-option__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rental-option__meta {
+  color: #64748b;
+  font-size: 12px;
+}

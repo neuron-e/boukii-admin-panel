@@ -123,6 +123,38 @@ th {
   float: left;
   margin: 5px 0 0 0;
 }
+
+.rental-booking-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.rental-booking-dot--missing {
+  background: #ef4444;
+}
+
+.rental-booking-count {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+:host-context(.dark) .rental-booking-count {
+  color: #f3f4f6;
+}
+
 .vex-page-layout-content {
   padding: 0;
   color: var(--is-light-theme, #121212) var(--is-dark-theme, #dee6ea);

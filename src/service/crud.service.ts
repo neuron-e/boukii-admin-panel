@@ -18,9 +18,7 @@ export class ApiCrudService extends ApiService {
 
   constructor(http: HttpClient) {
     super(http);
-    const parseJson = localStorage.getItem('boukiiUser');
-    const user = parseJson !== null ? JSON.parse(localStorage.getItem('boukiiUser') || '') : null;
-    this.user = user;
+    this.user = this.readStorageJson('boukiiUser');
   }
 
   getFile(url: string) {
@@ -113,6 +111,10 @@ export class ApiCrudService extends ApiService {
 
   patch(model: string, data: any, id: any): Observable<ApiResponse> {
     return this.http.patch<ApiResponse>(this.baseUrl + model + '/' + id, data, { headers: this.getHeaders() });
+  }
+
+  deletePath(path: string): Observable<ApiResponse> {
+    return this.http.delete<ApiResponse>(this.baseUrl + path, { headers: this.getHeaders() });
   }
 
   restore(entity: string, id: number): Observable<any> {

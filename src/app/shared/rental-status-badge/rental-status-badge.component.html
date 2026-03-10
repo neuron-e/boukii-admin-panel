@@ -1,0 +1,3 @@
+<span class="rental-status-badge" [ngClass]="rentalUiStatus(status).cssClass">
+  {{ ('rentals.status_' + rentalUiStatus(status).label) | translate }}
+</span>

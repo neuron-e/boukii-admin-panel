@@ -25,6 +25,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { DateAdapter } from '@angular/material/core';
 import { switchMap } from 'rxjs/operators';
 import { SchoolService } from 'src/service/school.service';
+import { RentalService } from 'src/service/rental.service';
 import { EvaluationEditorComponent } from './evaluation-editor/evaluation-editor.component';
 import { EvaluationHistoryComponent } from './evaluation-history/evaluation-history.component';
 
@@ -99,6 +100,13 @@ export class ClientDetailComponent {
   coloring = true;
   selectedTabIndex = 0;
   selectedTabPreviewIndex = 0;
+  rentalEnabled = false;
+  rentalReservations: any[] = [];
+  rentalLoading = false;
+  rentalPage = 1;
+  rentalTotal = 0;
+  rentalLastPage = 1;
+  readonly rentalPerPage = 20;
 
   mockCivilStatus: string[] = ['Single', 'Mariée', 'Veuf', 'Divorcé'];
   mockLevelData: any = LEVELS;
@@ -193,7 +201,8 @@ export class ClientDetailComponent {
 
   constructor(private fb: UntypedFormBuilder, private cdr: ChangeDetectorRef, private crudService: ApiCrudService, private router: Router,
               private activatedRoute: ActivatedRoute, private snackbar: MatSnackBar, private dialog: MatDialog, private passwordGen: PasswordService,
-              private translateService: TranslateService, private dateAdapter: DateAdapter<Date>, private schoolService: SchoolService) {
+              private translateService: TranslateService, private dateAdapter: DateAdapter<Date>, private schoolService: SchoolService,
+              private rentalService: RentalService) {
     this.today = new Date();
     this.minDate = new Date(this.today);
     this.minDate.setFullYear(this.today.getFullYear() - 18);
@@ -213,6 +222,7 @@ export class ClientDetailComponent {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
     this.id = this.activatedRoute.snapshot.params.id;
     this.mainId = this.activatedRoute.snapshot.params.id;
+    this.loadRentalPolicy();
     this.getDegrees();
     this.getInitialData().pipe(
       switchMap(() => this.getData())
@@ -271,6 +281,62 @@ export class ClientDetailComponent {
 
     }));
 
+  }
+
+  loadRentalPolicy(): void {
+    this.rentalService.getPolicy().subscribe({
+      next: (response: any) => {
+        const policy = this.rentalService.extractPolicy(response);
+        this.rentalEnabled = this.rentalService.isPolicyEnabled(policy);
+        if (this.rentalEnabled) {
+          this.loadRentalHistory();
+        }
+      },
+      error: () => {
+        this.rentalEnabled = false;
+        this.rentalReservations = [];
+      }
+    });
+  }
+
+  loadRentalHistory(): void {
+    if (!this.id || !this.rentalEnabled) return;
+    this.rentalLoading = true;
+    this.rentalService
+      .getClientRentals(Number(this.id), { page: this.rentalPage, per_page: this.rentalPerPage })
+      .subscribe({
+        next: (response: any) => {
+          const payload = response?.data ?? response ?? {};
+          this.rentalReservations = Array.isArray(payload) ? payload : (payload?.data ?? []);
+          this.rentalTotal = Array.isArray(payload) ? this.rentalReservations.length : (payload?.meta?.total ?? this.rentalReservations.length);
+          this.rentalLastPage = Array.isArray(payload) ? 1 : (payload?.meta?.last_page ?? 1);
+          this.rentalLoading = false;
+        },
+        error: () => {
+          this.rentalReservations = [];
+          this.rentalTotal = 0;
+          this.rentalLastPage = 1;
+          this.rentalLoading = false;
+        }
+      });
+  }
+
+  openRentalDetail(reservation: any): void {
+    this.router.navigate(['/rentals'], { queryParams: { reservation_id: reservation.id } });
+  }
+
+  rentalNextPage(): void {
+    if (this.rentalPage < this.rentalLastPage) {
+      this.rentalPage++;
+      this.loadRentalHistory();
+    }
+  }
+
+  rentalPrevPage(): void {
+    if (this.rentalPage > 1) {
+      this.rentalPage--;
+      this.loadRentalHistory();
+    }
   }
 
   changeClientData(id: any) {

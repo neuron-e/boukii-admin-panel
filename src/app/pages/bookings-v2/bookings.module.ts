@@ -22,11 +22,22 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatTableModule } from '@angular/material/table';
+import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatSortModule } from '@angular/material/sort';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { ComponentsCustomModule } from '../../components/components-custom.module';
 import { IconComponent } from 'src/@vex/components/icon/app.component';
 import { BookingsCreateUpdateModule } from './bookings-create-update/bookings-create-update.module';
 import { BookingDetailModule } from './booking-detail/booking-detail.module';
+import { RentalStatusBadgeModule } from 'src/app/shared/rental-status-badge/rental-status-badge.module';
 
 @NgModule({
   declarations: [BookingsV2Component],
@@ -53,9 +64,20 @@ import { BookingDetailModule } from './booking-detail/booking-detail.module';
     MatDividerModule,
     MatSlideToggleModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
+    MatChipsModule,
+    MatTabsModule,
+    MatTableModule,
+    MatPaginatorModule,
+    MatSortModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    FormsModule,
     TranslateModule,
     ComponentsCustomModule,
     IconComponent,
+    RentalStatusBadgeModule,
     BookingsCreateUpdateModule,
     BookingDetailModule,
   ],

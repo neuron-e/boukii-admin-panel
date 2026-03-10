@@ -6,6 +6,7 @@ import { AddReductionModalComponent } from '../add-reduction/add-reduction.compo
 import { AddDiscountBonusModalComponent } from '../add-discount-bonus/add-discount-bonus.component';
 import { BookingCreateData, BookingService } from '../../../../../../service/bookings.service';
 import { ApplyDiscountCodeComponent } from '../apply-discount-code/apply-discount-code.component';
+import { BookingRentalInlineSummary } from '../booking-rental-inline/booking-rental-inline.component';
 
 @Component({
   selector: 'booking-reservation-detail',
@@ -15,6 +16,7 @@ import { ApplyDiscountCodeComponent } from '../apply-discount-code/apply-discoun
 export class BookingReservationDetailComponent implements OnInit, OnChanges {
   @Input() client: any;
   @Input() activities: any;
+  @Input() rentalSummary: BookingRentalInlineSummary | null = null;
   @Input() hideBotton = false;
   @Output() endClick = new EventEmitter();
   @Output() payClick = new EventEmitter();
@@ -453,5 +455,21 @@ export class BookingReservationDetailComponent implements OnInit, OnChanges {
     this.bookingData.discount_code_value = 0;
     this.updateBookingData();
     this.refreshDisplayTotals();
+  }
+
+  hasRentalSummary(): boolean {
+    return !!this.rentalSummary?.hasSelection;
+  }
+
+  getRentalCurrency(): string {
+    return this.rentalSummary?.currency || this.getActivitiesCurrency();
+  }
+
+  getGrandDisplayTotal(): number {
+    return Number((this.displayTotal + Number(this.rentalSummary?.rentalGrandTotal || this.rentalSummary?.rentalSubtotal || 0)).toFixed(2));
+  }
+
+  getGrandOutstandingTotal(): number {
+    return Number((this.displayOutstanding + Number(this.rentalSummary?.rentalGrandTotal || this.rentalSummary?.rentalSubtotal || 0)).toFixed(2));
   }
 }

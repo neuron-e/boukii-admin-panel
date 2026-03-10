@@ -5,8 +5,10 @@ import {
   EventEmitter,
   OnChanges,
   SimpleChanges,
+  ViewChild,
 } from "@angular/core";
 import { FormArray, FormBuilder, FormGroup } from "@angular/forms";
+import { BookingRentalInlineComponent, BookingRentalInlineDraft, BookingRentalInlineSummary } from "../booking-rental-inline/booking-rental-inline.component";
 
 @Component({
   selector: "booking-form-stepper",
@@ -14,10 +16,17 @@ import { FormArray, FormBuilder, FormGroup } from "@angular/forms";
   styleUrls: ["./form-stepper.component.scss"],
 })
 export class BookingFormStepper implements OnChanges {
+  @ViewChild(BookingRentalInlineComponent) bookingRentalInline?: BookingRentalInlineComponent;
   @Input() lockClient: boolean = false;
+  @Input() rentalStepEnabled: boolean = false;
+  @Input() rentalClient: any;
+  @Input() rentalBookingDates: any[] = [];
+  @Input() rentalInitialDraft: BookingRentalInlineDraft | null = null;
   @Output() changedCurrentStep = new EventEmitter<number>();
   @Output() changedFormData = new EventEmitter();
   @Output() formSaveAndCreateNew  = new EventEmitter();
+  @Output() rentalDraftChange = new EventEmitter<BookingRentalInlineDraft>();
+  @Output() rentalSummaryChange = new EventEmitter<BookingRentalInlineSummary>();
   @Input() forceStep: number;
   @Input() activitiesBooked: any;
   @Input() selectedDates: any;
@@ -37,7 +46,10 @@ export class BookingFormStepper implements OnChanges {
 
   stepperForm: FormGroup;
   currentStep = 0;
-  STEPS_LENGTH = 6;
+
+  get stepsLength(): number {
+    return this.rentalStepEnabled ? 7 : 6;
+  }
 
   constructor(private fb: FormBuilder) {
     // Inicializa el formulario vacío
@@ -62,9 +74,8 @@ export class BookingFormStepper implements OnChanges {
     }
   }
 
-  // Métodos para cambiar de paso
   nextStep() {
-    if (this.currentStep < this.STEPS_LENGTH - 1) {
+    if (this.currentStep < this.stepsLength - 1) {
       this.currentStep++;
     }
     this.changedCurrentStep.emit(this.currentStep);
@@ -83,7 +94,7 @@ export class BookingFormStepper implements OnChanges {
   // Método para manejar "guardar y crear nuevo"
   handleSaveAndCreateNew(formGroup: FormGroup) {
     // Guardar el formulario actual para el paso 6
-    this.stepperForm.setControl('step6', formGroup);
+    this.stepperForm.setControl(this.rentalStepEnabled ? 'step7' : 'step6', formGroup);
 
     // Emitir el evento con el formulario completo
     this.formSaveAndCreateNew.emit(this.stepperForm);
@@ -93,8 +104,8 @@ export class BookingFormStepper implements OnChanges {
 
   handleStepCompletion(step: number, formGroup: FormGroup) {
     this.stepperForm.setControl(`step${step}`, formGroup);
-    if (step < this.STEPS_LENGTH) {
-      for (let i = step + 1; i <= this.STEPS_LENGTH; i++) {
+    if (step < this.stepsLength) {
+      for (let i = step + 1; i <= this.stepsLength; i++) {
         if(step != 6 && step == i) {
           this.stepperForm.setControl(`step${i}`, this.fb.group({}));
         }
@@ -110,7 +121,7 @@ export class BookingFormStepper implements OnChanges {
         if (!hasExtras) {
           // No tiene extras, construir los course_dates automáticamente y saltar el step 5
           this.stepperForm.setControl('step5', this.createFixedCollectiveDetailsForm(courseData));
-          // Saltar directo al step 6 (observaciones)
+          // Saltar directo al siguiente paso real (rental si existe, si no observaciones)
           this.currentStep = 5;
           this.changedCurrentStep.emit(this.currentStep);
           this.changedFormData.emit(this.stepperForm);
@@ -121,6 +132,18 @@ export class BookingFormStepper implements OnChanges {
 
     this.nextStep();
     this.changedFormData.emit(this.stepperForm);
+  }
+
+  handleRentalStepCompletion(): void {
+    this.stepperForm.setControl('step6', this.fb.group({
+      enabled: [!!this.bookingRentalInline?.hasSelection]
+    }));
+    this.nextStep();
+    this.changedFormData.emit(this.stepperForm);
+  }
+
+  getRentalInlineComponent(): BookingRentalInlineComponent | undefined {
+    return this.bookingRentalInline;
   }
 
   private createFixedCollectiveDetailsForm(courseData: any): FormGroup {

@@ -16,11 +16,16 @@ import { SuperadminAdminPasswordComponent } from '../superadmin-admin-password/s
 export class SuperadminSchoolDetailComponent implements OnInit {
   loading = false;
   saving = false;
+  savingRentalPolicy = false;
   schoolId: number;
   details: any;
   sports: any[] = [];
   stations: any[] = [];
   settings: any = {};
+
+  rentalEnabled = false;
+  rentalMode: 'standalone' | 'integrated' = 'standalone';
+  rentalReminderHours = 24;
 
   form = this.fb.group({
     name: ['', Validators.required],
@@ -188,6 +193,18 @@ export class SuperadminSchoolDetailComponent implements OnInit {
           booking_banner_mobile: bookingBanner?.mobileImg ?? ''
         });
         this.setLocations(locations);
+
+        const rp = this.details?.rental_policy;
+        if (rp) {
+          this.rentalEnabled = rp.enabled === true;
+          this.rentalMode = rp.mode === 'integrated' ? 'integrated' : 'standalone';
+          this.rentalReminderHours = Number(rp.reminder_hours_before) || 24;
+        } else {
+          this.rentalEnabled = false;
+          this.rentalMode = 'standalone';
+          this.rentalReminderHours = 24;
+        }
+
         this.loading = false;
       },
       error: () => {
@@ -242,6 +259,26 @@ export class SuperadminSchoolDetailComponent implements OnInit {
       },
       error: () => {
         this.saving = false;
+      }
+    });
+  }
+
+  saveRentalPolicy(): void {
+    if (this.savingRentalPolicy) return;
+    this.savingRentalPolicy = true;
+    const payload = {
+      enabled: this.rentalEnabled,
+      mode: this.rentalMode,
+      reminder_hours_before: this.rentalReminderHours,
+    };
+    this.service.updateRentalPolicy(this.schoolId, payload).subscribe({
+      next: () => {
+        this.savingRentalPolicy = false;
+        this.snack.open('Rental policy saved', 'OK', { duration: 2500 });
+      },
+      error: () => {
+        this.savingRentalPolicy = false;
+        this.snack.open('Error saving rental policy', 'OK', { duration: 3000 });
       }
     });
   }

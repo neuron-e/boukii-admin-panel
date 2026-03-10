@@ -1,0 +1,25 @@
+<h2 mat-dialog-title>{{ 'rentals.integrated.booking_cancel_warning_title' | translate }}</h2>
+
+<mat-dialog-content>
+  <p>{{ 'rentals.integrated.booking_cancel_warning_message' | translate }}</p>
+
+  <div class="warning-rentals" *ngIf="data?.rentals?.length">
+    <div class="warning-rental" *ngFor="let rental of data.rentals">
+      <div>
+        <strong>{{ rental.reference || ('#' + rental.id) }}</strong>
+        <div class="warning-rental__dates">{{ rental.start_date || '-' }} → {{ rental.end_date || '-' }}</div>
+      </div>
+      <app-rental-status-badge [status]="rental.status"></app-rental-status-badge>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="choose('abort')">{{ 'rentals.integrated.abort' | translate }}</button>
+  <button mat-stroked-button color="primary" type="button" (click)="choose('booking_only')">
+    {{ 'rentals.integrated.cancel_booking_only' | translate }}
+  </button>
+  <button mat-flat-button color="warn" type="button" (click)="choose('booking_and_rentals')">
+    {{ 'rentals.integrated.cancel_booking_and_rentals' | translate }}
+  </button>
+</mat-dialog-actions>

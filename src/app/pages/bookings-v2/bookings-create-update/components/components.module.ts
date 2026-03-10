@@ -45,6 +45,8 @@ import {MatProgressBarModule} from '@angular/material/progress-bar';
 import {MatFormFieldModule} from '@angular/material/form-field';
 import { ClientParticipantConflictDialogComponent } from './client-participant-conflict-dialog/client-participant-conflict-dialog.component';
 import { ApplyDiscountCodeComponent } from './apply-discount-code/apply-discount-code.component';
+import { BookingRentalInlineComponent } from './booking-rental-inline/booking-rental-inline.component';
+import { MatChipsModule } from '@angular/material/chips';
 
 @NgModule({
     imports: [
@@ -72,7 +74,8 @@ import { ApplyDiscountCodeComponent } from './apply-discount-code/apply-discount
         ComponenteButtonModule,
         MatProgressSpinnerModule,
         MatProgressBarModule,
-        MatFormFieldModule
+        MatFormFieldModule,
+        MatChipsModule
     ],
     declarations: [
         BookingFormStepper,
@@ -96,6 +99,7 @@ import { ApplyDiscountCodeComponent } from './apply-discount-code/apply-discount
         BookingReservationDetailComponent,
         ClientParticipantConflictDialogComponent,
         ApplyDiscountCodeComponent,
+        BookingRentalInlineComponent,
     ],
     exports: [
         BookingFormStepper,
@@ -116,7 +120,8 @@ import { ApplyDiscountCodeComponent } from './apply-discount-code/apply-discount
         AddReductionModalComponent,
         AddDiscountBonusModalComponent,
         BookingReservationDetailComponent,
-        ApplyDiscountCodeComponent
+        ApplyDiscountCodeComponent,
+        BookingRentalInlineComponent
     ],
 })
 export class BookingComponentsModule { }

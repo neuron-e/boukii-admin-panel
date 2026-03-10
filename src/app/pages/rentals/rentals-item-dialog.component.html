@@ -1,102 +1,116 @@
-﻿<h2 mat-dialog-title>{{ title }}</h2>
-<div class="subtitle">{{ subtitle }}</div>
+<h2 mat-dialog-title>{{ isEdit ? ('rentals.item_dialog_title_edit' | translate) : ('rentals.item_dialog_title_create' | translate) }}</h2>
+<div class="subtitle">{{ isEdit ? ('rentals.item_dialog_subtitle_edit' | translate) : ('rentals.item_dialog_subtitle_create' | translate) }}</div>
 <mat-dialog-content>
   <form [formGroup]="form" class="form-grid">
     <mat-form-field appearance="outline">
-      <mat-label>Category</mat-label>
+      <mat-label>{{ 'rentals.category' | translate }}</mat-label>
       <mat-select formControlName="category_id">
         <mat-option *ngFor="let category of data.categories" [value]="category.id">{{ category.name }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Subcategory</mat-label>
+      <mat-label>{{ 'rentals.subcategory' | translate }}</mat-label>
       <mat-select formControlName="subcategory_id">
-        <mat-option [value]="null">None</mat-option>
+        <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
         <mat-option *ngFor="let subcategory of filteredSubcategories" [value]="subcategory.id">{{ subcategory.name }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Item Name</mat-label>
+      <mat-label>{{ 'rentals.item_name' | translate }}</mat-label>
       <input matInput formControlName="item_name">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Brand</mat-label>
+      <mat-label>{{ 'rentals.brand' | translate }}</mat-label>
       <input matInput formControlName="brand">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Model</mat-label>
+      <mat-label>{{ 'rentals.model' | translate }}</mat-label>
       <input matInput formControlName="model">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Size/Dimension</mat-label>
+      <mat-label>{{ 'rentals.variant_name' | translate }}</mat-label>
+      <input matInput formControlName="variant_name">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'rentals.size' | translate }}</mat-label>
       <input matInput formControlName="size_label">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Quantity in Stock</mat-label>
+      <mat-label>{{ 'rentals.quantity' | translate }}</mat-label>
       <input matInput type="number" min="1" formControlName="quantity">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Condition</mat-label>
+      <mat-label>{{ 'rentals.condition' | translate }}</mat-label>
       <mat-select formControlName="condition">
-        <mat-option value="excellent">Excellent</mat-option>
-        <mat-option value="good">Good</mat-option>
-        <mat-option value="fair">Fair</mat-option>
+        <mat-option value="excellent">{{ 'rentals.condition_excellent' | translate }}</mat-option>
+        <mat-option value="good">{{ 'rentals.condition_good' | translate }}</mat-option>
+        <mat-option value="fair">{{ 'rentals.condition_fair' | translate }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Half Day (€)</mat-label>
+      <mat-label>{{ 'rentals.purchase_date' | translate }}</mat-label>
+      <input matInput type="date" formControlName="purchase_date">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'rentals.last_maintenance' | translate }}</mat-label>
+      <input matInput type="date" formControlName="last_maintenance_date">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'rentals.half_day_price' | translate }}</mat-label>
       <input matInput type="number" formControlName="half_day_price">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Full Day (€)</mat-label>
+      <mat-label>{{ 'rentals.full_day_price' | translate }}</mat-label>
       <input matInput type="number" formControlName="full_day_price">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Week (€)</mat-label>
+      <mat-label>{{ 'rentals.week_price' | translate }}</mat-label>
       <input matInput type="number" formControlName="week_price">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Warehouse</mat-label>
+      <mat-label>{{ 'rentals.warehouse' | translate }}</mat-label>
       <mat-select formControlName="warehouse_id">
-        <mat-option [value]="null">None</mat-option>
+        <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
         <mat-option *ngFor="let warehouse of data.warehouses" [value]="warehouse.id">{{ warehouse.name }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Barcode/QR</mat-label>
+      <mat-label>{{ 'rentals.code' | translate }}</mat-label>
       <input matInput formControlName="barcode">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>SKU</mat-label>
+      <mat-label>{{ 'rentals.sku' | translate }}</mat-label>
       <input matInput formControlName="sku">
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Serial Prefix</mat-label>
+      <mat-label>{{ 'rentals.serial_prefix' | translate }}</mat-label>
       <input matInput formControlName="serial_prefix">
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="full">
-      <mat-label>Notes</mat-label>
+      <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
       <textarea matInput rows="3" formControlName="notes"></textarea>
     </mat-form-field>
   </form>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  <button mat-stroked-button type="button" (click)="close()">Cancel</button>
-  <button mat-flat-button color="primary" type="button" (click)="save()">{{ isEdit ? 'Save Changes' : 'Add Equipment' }}</button>
+  <button mat-stroked-button type="button" (click)="close()">{{ 'rentals.cancel' | translate }}</button>
+  <button mat-flat-button color="primary" type="button" (click)="save()">{{ isEdit ? ('rentals.save_changes' | translate) : ('rentals.add_equipment' | translate) }}</button>
 </mat-dialog-actions>
-

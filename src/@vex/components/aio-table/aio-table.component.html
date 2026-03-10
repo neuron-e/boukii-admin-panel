@@ -790,6 +790,28 @@
           </ng-container>
         </ng-container>
 
+        <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
+          <ng-container *ngIf="column.type === 'rental_booking'" [matColumnDef]="column.property">
+            <th *matHeaderCellDef class="uppercase" mat-header-cell mat-sort-header>
+              {{ column.label | translate }}
+            </th>
+            <td *matCellDef="let row" [ngClass]="column.cssClasses" mat-cell>
+              <ng-container *ngIf="row[column.property] as rentalSummary; else noRentalIndicator">
+                <button
+                  type="button"
+                  class="rental-booking-count"
+                  [attr.aria-label]="'Rental count: ' + (rentalSummary?.rental_count || 1)"
+                  (click)="router.navigate(['/rentals'], { queryParams: { reservation_id: rentalSummary?.reservation_id } }); $event.stopPropagation()">
+                  {{ rentalSummary?.rental_count || 1 }}
+                </button>
+              </ng-container>
+              <ng-template #noRentalIndicator>
+                <span class="rental-booking-dot rental-booking-dot--missing" aria-label="No rental"></span>
+              </ng-template>
+            </td>
+          </ng-container>
+        </ng-container>
+
         <!-- Light Columns -->
         <ng-container *ngFor="let column of columns; trackBy: trackByProperty">
           <ng-container *ngIf="column.type === 'warning'" [matColumnDef]="column.property">

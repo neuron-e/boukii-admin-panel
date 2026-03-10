@@ -13,6 +13,8 @@ import { TranslateModule } from '@ngx-translate/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { FormsModule } from '@angular/forms';
 
 @NgModule({
   declarations: [
@@ -28,6 +30,8 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
     MatIconModule,
     MatSnackBarModule,
     MatAutocompleteModule,
+    MatButtonToggleModule,
+    FormsModule,
     ReactiveFormsModule,
     TranslateModule,
     MatProgressSpinnerModule,

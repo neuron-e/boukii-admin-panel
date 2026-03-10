@@ -1,0 +1,66 @@
+import { Component, Inject } from '@angular/core';
+import { FormBuilder, Validators } from '@angular/forms';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+
+export interface RentalDamageDialogData {
+  reservation: any;
+  lines: Array<{ id: number; label: string }>;
+}
+
+@Component({
+  selector: 'vex-rentals-damage-dialog',
+  templateUrl: './rentals-damage-dialog.component.html'
+})
+export class RentalsDamageDialogComponent {
+  form = this.fb.group({
+    line_id: [null as number | null],
+    severity: ['minor', Validators.required],
+    description: ['', Validators.required],
+    damage_cost: [0 as number, [Validators.required, Validators.min(0)]],
+    condition: ['damaged']
+  });
+
+  get depositAmount(): number {
+    return Number(this.data?.reservation?.deposit_amount ?? 0);
+  }
+
+  get depositStatus(): string {
+    return String(this.data?.reservation?.deposit_status ?? 'none');
+  }
+
+  get damageCost(): number {
+    return Number(this.form.get('damage_cost')?.value ?? 0);
+  }
+
+  get depositCoversAll(): boolean {
+    return this.depositAmount >= this.damageCost && this.depositAmount > 0;
+  }
+
+  get depositSuggestion(): string {
+    if (this.depositAmount <= 0) return '';
+    if (this.damageCost <= 0) return '';
+    if (this.depositCoversAll) return 'deposit_covers_all';
+    return 'deposit_partial';
+  }
+
+  constructor(
+    private readonly fb: FormBuilder,
+    private readonly dialogRef: MatDialogRef<RentalsDamageDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: RentalDamageDialogData
+  ) {}
+
+  save(): void {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    this.dialogRef.close({
+      ...this.form.value,
+      notes: this.form.value.description,
+    });
+  }
+
+  cancel(): void {
+    this.dialogRef.close();
+  }
+}

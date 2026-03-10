@@ -1,0 +1,34 @@
+<h2 mat-dialog-title>{{ 'rentals.integrated.select_rental' | translate }}</h2>
+
+<mat-dialog-content>
+  <p *ngIf="!data?.rentals?.length" class="rental-dialog-empty">
+    {{ 'rentals.integrated.no_available_rentals' | translate }}
+  </p>
+
+  <mat-selection-list *ngIf="data?.rentals?.length" [multiple]="false">
+    <mat-list-option
+      *ngFor="let rental of data.rentals"
+      [selected]="selectedReservationId === rental.id"
+      (click)="selectReservation(rental.id)">
+      <div class="rental-option">
+        <div class="rental-option__header">
+          <strong>{{ rental.reference || ('#' + rental.id) }}</strong>
+          <app-rental-status-badge [status]="rental.status"></app-rental-status-badge>
+        </div>
+        <div class="rental-option__meta">
+          <span>{{ rental.start_date || '-' }} → {{ rental.end_date || '-' }}</span>
+          <span *ngIf="rental.items_count || rental.lines_count">
+            {{ rental.items_count || rental.lines_count }} {{ 'rentals.items' | translate | lowercase }}
+          </span>
+        </div>
+      </div>
+    </mat-list-option>
+  </mat-selection-list>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="close()">{{ 'cancel' | translate }}</button>
+  <button mat-flat-button color="primary" type="button" (click)="confirm()" [disabled]="!selectedReservationId">
+    {{ 'rentals.integrated.link_existing' | translate }}
+  </button>
+</mat-dialog-actions>

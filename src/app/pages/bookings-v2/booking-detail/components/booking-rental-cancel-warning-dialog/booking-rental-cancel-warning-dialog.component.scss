@@ -1,0 +1,23 @@
+.warning-rentals {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.warning-rental {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.warning-rental__dates {
+  color: #64748b;
+  font-size: 12px;
+  margin-top: 4px;
+}

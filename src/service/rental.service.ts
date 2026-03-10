@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { ApiCrudService } from './crud.service';
 import { ApiResponse } from 'src/app/interface/api-response';
 
@@ -7,6 +7,8 @@ import { ApiResponse } from 'src/app/interface/api-response';
   providedIn: 'root'
 })
 export class RentalService {
+  private readonly policySubject = new BehaviorSubject<any | null>(null);
+
   constructor(private crudService: ApiCrudService) {}
 
   private getSchoolId(): number | null {
@@ -14,7 +16,10 @@ export class RentalService {
     if (!userRaw) return null;
     try {
       const user = JSON.parse(userRaw);
-      return user?.schools?.[0]?.id ?? null;
+      const idFromCurrent = Number(user?.school?.id || user?.school_id || 0);
+      if (idFromCurrent > 0) return idFromCurrent;
+      const idFromList = Number(user?.schools?.[0]?.id || 0);
+      return idFromList > 0 ? idFromList : null;
     } catch {
       return null;
     }
@@ -176,8 +181,24 @@ export class RentalService {
     return this.crudService.get('/admin/rentals/policy', [], this.withSchool());
   }
 
+  watchPolicy(): Observable<any | null> {
+    return this.policySubject.asObservable();
+  }
+
+  refreshPolicy(): Observable<ApiResponse> {
+    return this.getPolicy().pipe(
+      tap((response: any) => this.policySubject.next(this.extractPolicy(response)))
+    );
+  }
+
   updatePolicy(payload: any): Observable<ApiResponse> {
-    return this.crudService.post('/admin/rentals/policy', this.withSchool(payload));
+    return this.crudService.post('/admin/rentals/policy', this.withSchool(payload)).pipe(
+      tap((response: any) => this.policySubject.next(this.extractPolicy(response)))
+    );
+  }
+
+  isPolicyEnabled(policy: any): boolean {
+    return !!policy?.enabled;
   }
 
   // Reservations
@@ -187,6 +208,10 @@ export class RentalService {
 
   createReservation(payload: any): Observable<ApiResponse> {
     return this.crudService.post('/admin/rentals/reservations', this.withSchool(payload));
+  }
+
+  quoteReservation(payload: any): Observable<ApiResponse> {
+    return this.crudService.post('/admin/rentals/reservations/quote', this.withSchool(payload));
   }
 
   updateReservation(id: number, payload: any): Observable<ApiResponse> {
@@ -225,7 +250,23 @@ export class RentalService {
     return this.crudService.post(`/admin/rentals/reservations/${reservationId}/damage`, payload);
   }
 
+  cancelReservation(reservationId: number, reason: string = ''): Observable<ApiResponse> {
+    return this.crudService.post(`/admin/rentals/reservations/${reservationId}/cancel`, this.withSchool({ cancellation_reason: reason }));
+  }
+
+  getReservationEvents(reservationId: number): Observable<ApiResponse> {
+    return this.crudService.get(`/admin/rentals/reservations/${reservationId}/events`, [], this.withSchool());
+  }
+
   // Booking integration
+  linkToBooking(reservationId: number, bookingId: number): Observable<ApiResponse> {
+    return this.crudService.post(`/admin/rentals/reservations/${reservationId}/link-booking`, this.withSchool({ booking_id: bookingId }));
+  }
+
+  unlinkFromBooking(reservationId: number): Observable<ApiResponse> {
+    return this.crudService.deletePath(`/admin/rentals/reservations/${reservationId}/unlink-booking`);
+  }
+
   listBookingRentals(bookingId: number): Observable<ApiResponse> {
     return this.crudService.get(`/admin/bookings/${bookingId}/rentals`, [], this.withSchool());
   }
@@ -234,8 +275,98 @@ export class RentalService {
     return this.crudService.post(`/admin/bookings/${bookingId}/rentals`, this.withSchool(payload));
   }
 
+  // Dashboard KPIs
+  getDashboardRentalSummary(): Observable<ApiResponse> {
+    return this.crudService.get('/admin/dashboard/rental-summary', [], this.withSchool());
+  }
+
+  // Unified bookings list
+  listUnifiedBookings(filters: Record<string, any> = {}): Observable<ApiResponse> {
+    return this.crudService.get('/admin/bookings/unified', [], this.withSchool(filters));
+  }
+
+  // Client rental history
+  getClientRentals(clientId: number, filters: Record<string, any> = {}): Observable<ApiResponse> {
+    return this.crudService.get(`/admin/clients/${clientId}/rentals`, [], this.withSchool(filters));
+  }
+
+  // ==================== PAYMENTS ====================
+
+  getPaymentInfo(reservationId: number): Observable<ApiResponse> {
+    return this.crudService.get(`/admin/rentals/reservations/${reservationId}/payment`, [], this.withSchool());
+  }
+
+  registerPayment(reservationId: number, payload: {
+    amount: number;
+    payment_method: 'cash' | 'card' | 'payrexx_link' | 'payrexx_invoice' | 'invoice';
+    notes?: string;
+    payrexx_reference?: string;
+    currency?: string;
+  }): Observable<ApiResponse> {
+    return this.crudService.create(`/admin/rentals/reservations/${reservationId}/payment`, this.withSchool(payload));
+  }
+
+  createPaylink(reservationId: number, payload: {
+    amount?: number;
+    client_email?: string;
+    send_email?: boolean;
+  }): Observable<ApiResponse> {
+    return this.crudService.create(`/admin/rentals/reservations/${reservationId}/paylink`, this.withSchool(payload));
+  }
+
+  manageDeposit(reservationId: number, payload: {
+    action: 'hold' | 'release' | 'forfeit';
+    amount?: number;
+    notes?: string;
+  }): Observable<ApiResponse> {
+    return this.crudService.create(`/admin/rentals/reservations/${reservationId}/deposit`, this.withSchool(payload));
+  }
+
+  refundPayment(reservationId: number): Observable<ApiResponse> {
+    return this.crudService.create(`/admin/rentals/reservations/${reservationId}/refund`, this.withSchool());
+  }
+
+  // ==================== ANALYTICS ====================
+
+  getRentalAnalytics(filters: { date_from?: string; date_to?: string; start_date?: string; end_date?: string } = {}): Observable<ApiResponse> {
+    return this.crudService.get('/admin/rentals/analytics', [], this.withSchool(filters));
+  }
+
+  exportRentalCsv(filters: { date_from?: string; date_to?: string; start_date?: string; end_date?: string } = {}): void {
+    const schoolId = this.getSchoolId();
+    const params = new URLSearchParams({ ...(schoolId ? { school_id: String(schoolId) } : {}), ...filters });
+    const url = `/admin/rentals/analytics/export?${params.toString()}`;
+    this.crudService.getFile(url).subscribe({
+      next: (blob: Blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `rental-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      },
+      error: () => {
+        // Keep export failure non-fatal in the analytics UI.
+      }
+    });
+  }
+
   // Helpers for rental booking UI
   listClients(filters: Record<string, any> = {}): Observable<ApiResponse> {
     return this.crudService.get('/admin/clients', [], this.withSchool(filters));
+  }
+
+  createClient(payload: any): Observable<ApiResponse> {
+    return this.crudService.create('/clients', this.withSchool(payload));
+  }
+
+  linkClientToSchool(payload: any): Observable<ApiResponse> {
+    return this.crudService.create('/clients-schools', payload);
+  }
+
+  extractPolicy(response: any): any | null {
+    return response?.data?.data ?? response?.data ?? null;
   }
 }

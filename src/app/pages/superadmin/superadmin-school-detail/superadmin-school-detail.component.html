@@ -465,6 +465,57 @@
           </mat-card>
         </mat-tab>
 
+        <mat-tab label="{{ 'superadmin.tab_modules' | translate }}">
+          <div class="school-detail__grid">
+
+            <mat-card class="school-detail__card">
+              <mat-card-title>{{ 'superadmin.card_rental_module' | translate }}</mat-card-title>
+              <mat-card-content>
+
+                <div class="module-row">
+                  <div class="module-row__label">
+                    <strong>{{ 'superadmin.rental_module_label' | translate }}</strong>
+                    <span class="module-row__hint">{{ 'superadmin.rental_module_hint' | translate }}</span>
+                  </div>
+                  <mat-slide-toggle [(ngModel)]="rentalEnabled" color="primary">
+                    {{ rentalEnabled ? ('superadmin.rental_enabled' | translate) : ('superadmin.rental_disabled' | translate) }}
+                  </mat-slide-toggle>
+                </div>
+
+                <div *ngIf="rentalEnabled" class="module-options">
+                  <p class="module-options__title">{{ 'superadmin.rental_mode_label' | translate }}</p>
+                  <mat-radio-group [(ngModel)]="rentalMode" class="module-options__radios">
+                    <mat-radio-button value="standalone">
+                      <span>{{ 'superadmin.rental_mode_standalone' | translate }}</span>
+                      <span class="radio-hint">{{ 'superadmin.rental_mode_standalone_hint' | translate }}</span>
+                    </mat-radio-button>
+                    <mat-radio-button value="integrated">
+                      <span>{{ 'superadmin.rental_mode_integrated' | translate }}</span>
+                      <span class="radio-hint">{{ 'superadmin.rental_mode_integrated_hint' | translate }}</span>
+                    </mat-radio-button>
+                  </mat-radio-group>
+
+                  <mat-form-field appearance="fill" class="module-options__hours">
+                    <mat-label>{{ 'superadmin.rental_reminder_hours' | translate }}</mat-label>
+                    <input matInput type="number" min="1" max="72" [(ngModel)]="rentalReminderHours" />
+                    <mat-hint>{{ 'superadmin.rental_reminder_hours_hint' | translate }}</mat-hint>
+                  </mat-form-field>
+                </div>
+
+                <div class="module-actions">
+                  <button mat-flat-button color="primary" (click)="saveRentalPolicy()" [disabled]="savingRentalPolicy">
+                    <mat-icon svgIcon="mat:save" *ngIf="!savingRentalPolicy"></mat-icon>
+                    <mat-progress-spinner *ngIf="savingRentalPolicy" diameter="18" mode="indeterminate"></mat-progress-spinner>
+                    {{ 'superadmin.save_rental_policy' | translate }}
+                  </button>
+                </div>
+
+              </mat-card-content>
+            </mat-card>
+
+          </div>
+        </mat-tab>
+
       </mat-tab-group>
     </div>
   </vex-page-layout-content>

@@ -1,9 +1,9 @@
 .rentals-v2-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px;
-  background: #f7f9fc;
+  gap: 12px;
+  padding: 12px;
+  background: #f5f7fb;
 }
 
 .hero-card,
@@ -11,7 +11,7 @@
   background: #fff;
   border: 1px solid #e9edf6;
   border-radius: 14px;
-  padding: 14px;
+  padding: 10px 12px;
 }
 
 .hero-card {
@@ -23,14 +23,15 @@
 
 .hero-card h2 {
   margin: 0;
-  font-size: 32px;
+  font-size: 18px;
   font-weight: 700;
   color: #101828;
 }
 
 .hero-card p {
   margin: 4px 0 0;
-  color: #64748b;
+  color: #667085;
+  font-size: 11.5px;
 }
 
 .hero-actions {
@@ -39,29 +40,56 @@
   gap: 8px;
 }
 
+.hero-actions .mat-mdc-button,
+.hero-actions .mat-mdc-unelevated-button,
+.hero-actions .mat-mdc-outlined-button,
+.header-actions .mat-mdc-button,
+.header-actions .mat-mdc-unelevated-button,
+.header-actions .mat-mdc-outlined-button {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.hero-actions .mat-mdc-outlined-button,
+.header-actions .mat-mdc-outlined-button {
+  border-color: #d0d5dd;
+  color: #344054;
+}
+
+.header-actions .mat-mdc-outlined-button {
+  background: #fff;
+}
+
+.header-actions .mat-mdc-unelevated-button.btn-dark {
+  background: #0f172a !important;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .stat-card {
   border: 1px solid #ebeff7;
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: #fff;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .stat-card span {
-  color: #94a3b8;
-  font-size: 12px;
+  color: #64748b;
+  font-size: 10.5px;
 }
 
 .stat-card strong {
-  font-size: 31px;
+  font-size: 18px;
   line-height: 1;
   color: #0f172a;
 }
@@ -71,12 +99,12 @@
 }
 
 .stat-card strong.warn {
-  color: #2563eb;
+  color: #b45309;
 }
 
 .stat-card small {
   color: #94a3b8;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .toolbar-pills {
@@ -110,14 +138,75 @@
 
 .content-header h3 {
   margin: 0;
-  font-size: 22px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 .content-header p {
   margin: 3px 0 0;
-  color: #64748b;
-  font-size: 13px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.content-header--inventory {
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf2f7;
+  margin-top: 6px;
+}
+
+.booking-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf2f7;
+  margin-bottom: 10px;
+}
+
+.booking-hero h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #101828;
+}
+
+.booking-hero p {
+  margin: 3px 0 0;
+  color: #667085;
+  font-size: 11px;
+}
+
+.booking-hero__left {
+  min-width: 140px;
+}
+
+.booking-hero__title {
+  flex: 1;
+}
+
+.booking-back-link {
+  height: 30px;
+  border-radius: 8px;
+  color: #475467 !important;
+  font-size: 12px;
+  padding: 0 6px 0 0;
+}
+
+.booking-back-link mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.booking-hero__actions .mat-mdc-outlined-button {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 11px;
+  border-radius: 8px;
+  border-color: #d0d5dd;
+  color: #344054;
 }
 
 .header-actions {
@@ -131,38 +220,42 @@
   color: #fff !important;
 }
 
+.content-card {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
 .category-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 0;
 }
 
 .section-card {
   border: 1px solid #e8edf6;
   border-radius: 10px;
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
   background: #fff;
 }
 
 .section-card h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   color: #0f172a;
 }
 
 .section-card p {
   margin: 2px 0 10px;
-  color: #64748b;
-  font-size: 12px;
+  color: #667085;
+  font-size: 11.5px;
 }
 
 .category-pill {
   border: 1px solid #d7deeb;
-  border-radius: 8px;
-  min-height: 38px;
+  border-radius: 10px;
+  min-height: 36px;
   background: #fff;
   padding: 0 10px;
   display: inline-flex;
@@ -172,34 +265,198 @@
 
 .category-pill.selected {
   border-color: #3b82f6;
+  background: #eef4ff;
   box-shadow: inset 0 0 0 1px #3b82f6;
 }
 
-.category-pill mat-icon {
-  width: 16px;
-  height: 16px;
-  font-size: 16px;
-  color: #475569;
+.category-emoji {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #eef2f7;
+  font-size: 13px;
 }
 
 .category-pill span {
   font-weight: 600;
-  color: #334155;
-  font-size: 13px;
+  color: #344054;
+  font-size: 12px;
 }
 
 .category-pill strong {
   border: 1px solid #d9e2f0;
   border-radius: 999px;
-  padding: 1px 8px;
-  font-size: 12px;
+  padding: 1px 7px;
+  font-size: 11px;
+  color: #344054;
 }
 
 .filters-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: flex-start;
+}
+.filters-row mat-form-field { max-width: 280px; }
+
+/* Reservation KPI row */
+.reservation-kpi-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.rkpi {
+  border: 1px solid #e7ecf5;
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  min-width: 70px;
+}
+.rkpi span { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.rkpi strong { font-size: 18px; color: #0f172a; }
+.rkpi--active strong { color: #15803d; }
+.rkpi--pending strong { color: #1d4ed8; }
+.rkpi--overdue strong { color: #b45309; }
+.rkpi--completed strong { color: #475569; }
+
+/* Status pills */
+.status-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #dbe3f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.status-pill.active {
+  background: #101a2e;
+  border-color: #101a2e;
+  color: #fff;
+}
+.status-pill.active .pill-badge { background: rgba(255,255,255,0.2); color: #fff; }
+.pill-badge {
+  background: #edf2f9;
+  color: #475569;
+  border-radius: 999px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* Period filter pills */
+.period-filter-pills { display: flex; gap: 4px; margin-bottom: 8px; }
+.period-filter-pill {
+  border: 1px solid #dbe3f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.period-filter-pill.active { background: #f1f5fe; border-color: #3b82f6; color: #1d4ed8; }
+
+/* Reservation cards */
+.reservation-list { display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.reservation-card {
+  border: 1px solid #e7ecf5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.reservation-card:hover { border-color: #c7d5ea; box-shadow: 0 2px 6px rgba(15,23,42,.06); }
+.reservation-card.selected { border-color: #3b82f6; background: #f0f7ff; }
+.reservation-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.reservation-card__id { color: #94a3b8; font-size: 11px; font-weight: 600; }
+.reservation-card__client { font-size: 13px; font-weight: 600; color: #0f172a; flex: 1; }
+.reservation-card__body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11.5px;
+  color: #475569;
+}
+.reservation-card__body mat-icon { font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 3px; }
+.reservation-card__price { margin-left: auto; font-size: 13px; color: #0f172a; font-weight: 600; }
+.reservation-card__actions { display: flex; gap: 2px; margin-top: 6px; border-top: 1px solid #edf2f9; padding-top: 4px; }
+.reservation-empty { text-align: center; padding: 40px 20px; color: #94a3b8; }
+.reservation-empty mat-icon { font-size: 40px; width: 40px; height: 40px; display: block; margin: 0 auto 8px; }
+
+.booking-select-header {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.booking-category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.booking-category-pills .category-pill {
+  padding: 0 10px;
+  min-height: 24px;
+  height: 24px;
+  font-size: 10.5px;
+  border-radius: 999px;
+  border-color: #d6deea;
+  background: #f8fafc;
+}
+
+.booking-category-pills .category-pill span {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #667085;
+}
+
+.booking-category-pills .category-pill.selected {
+  border-color: #0f172a;
+  background: #0f172a;
+  box-shadow: none;
+}
+
+.booking-category-pills .category-pill.selected span {
+  color: #fff;
+}
+
+.inventory-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.inventory-controls .mat-mdc-form-field {
+  width: 100%;
 }
 
 .inventory-layout,
@@ -215,6 +472,10 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.list-layout {
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+
 .booking-layout {
   grid-template-columns: minmax(0, 1fr) 340px;
 }
@@ -225,6 +486,9 @@
 
 .booking-left {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .table-wrapper {
@@ -246,16 +510,21 @@
 
 .inventory-table th,
 .inventory-table td {
-  padding: 9px 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid #eff3f9;
   text-align: left;
   vertical-align: middle;
 }
 
 .inventory-table th {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: #6b7280;
+  font-size: 11.5px;
+  text-transform: none;
+  color: #667085;
+  font-weight: 600;
+}
+
+.inventory-table td {
+  font-size: 12px;
 }
 
 .inventory-table td strong {
@@ -264,11 +533,12 @@
 }
 
 .inventory-table td small {
-  color: #94a3b8;
+  color: #98a2b3;
+  font-size: 11px;
 }
 
 .inventory-table tbody tr:hover {
-  background: #f8fafc;
+  background: #f9fafb;
 }
 
 .inventory-table tbody tr.selected {
@@ -279,13 +549,69 @@
   white-space: nowrap;
 }
 
+.actions-cell .mat-mdc-icon-button {
+  width: 28px;
+  height: 28px;
+}
+
+.actions-cell mat-icon {
+  font-size: 17px;
+}
+
+.equipment-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.equipment-code {
+  color: #98a2b3;
+  font-size: 10.5px;
+}
+
+.brand-model {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.price-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.price-line {
+  display: flex;
+  gap: 6px;
+}
+
+.price-line span {
+  color: #94a3b8;
+}
+
+.price-line strong {
+  font-weight: 600;
+}
+
+.availability-count.ok {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.availability-count.warn {
+  color: #b45309;
+  font-weight: 700;
+}
+
 .status {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
   padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: 600;
 }
 
 .status--excellent,
@@ -315,18 +641,25 @@
 .booking-summary {
   border: 1px solid #e7ecf5;
   border-radius: 10px;
-  padding: 12px;
+  padding: 10px 12px;
   background: #fff;
   align-self: start;
   position: sticky;
   top: 8px;
+  min-width: 320px;
 }
 
 .detail-card h4,
 .booking-summary h4 {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
+}
+
+.summary-subtitle {
+  margin: 0 0 8px;
+  color: #98a2b3;
+  font-size: 11px;
 }
 
 .detail-card p {
@@ -349,19 +682,394 @@
 .booking-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.booking-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.booking-grid--new-client {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.booking-grid--period {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "start_date end_date"
+    "duration duration";
+}
+
+.booking-grid--period-advanced {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "start_time end_time"
+    "pickup_point return_point";
+  margin-top: 4px;
+}
+
+.period-field--type {
+  grid-area: period_type;
+}
+
+.period-field--start-date {
+  grid-area: start_date;
+}
+
+.period-field--end-date {
+  grid-area: end_date;
+}
+
+.period-field--start-time {
+  grid-area: start_time;
+}
+
+.period-field--end-time {
+  grid-area: end_time;
+}
+
+.period-field--pickup {
+  grid-area: pickup_point;
+}
+
+.period-field--return {
+  grid-area: return_point;
+}
+
+.booking-section {
+  border: 1px solid #e6eaf2;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin-bottom: 8px;
+}
+
+.booking-section__header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #101828;
+}
+
+.booking-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.booking-section__actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.booking-section__actions .mat-mdc-outlined-button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #0f172a !important;
+  border-color: #d0d5dd;
+  background: #f8fafc;
+}
+
+.booking-section__actions .mat-mdc-outlined-button.btn-dark {
+  background: #0f172a !important;
+  color: #fff !important;
+  border-color: #0f172a;
+  --mdc-outlined-button-label-text-color: #fff;
+  --mdc-outlined-button-label-text-color: #fff !important;
+  --mdc-outlined-button-label-text-hover-color: #fff !important;
+  --mdc-outlined-button-icon-color: #fff !important;
+}
+
+.booking-section__actions .mat-mdc-outlined-button.btn-dark:hover {
+  background: #111827 !important;
+  border-color: #111827;
+}
+
+:host ::ng-deep .booking-section__actions .mat-mdc-outlined-button.btn-dark .mdc-button__label {
+  color: #fff !important;
+}
+
+:host ::ng-deep .booking-section__actions .mat-mdc-outlined-button.btn-dark * {
+  color: #fff !important;
+}
+
+.new-client-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.new-client-actions .mat-mdc-unelevated-button {
+  height: 32px;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 12px;
 }
 
 .booking-table {
   min-width: 920px;
 }
 
-.period-pills {
+.booking-selection {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
+  border: 1px solid #e8edf6;
+  border-radius: 10px;
+  padding: 8px;
+  background: #f8fafd;
+  max-height: 460px;
+  overflow: auto;
+}
+
+.booking-group {
+  border: 1px solid #dce5f3;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.booking-group__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  background: #f3f7ff;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.booking-group__header:hover {
+  background: #f3f7ff;
+}
+
+.booking-group__header.is-expanded {
+  background: #e8f0ff;
+}
+
+.booking-group__header.has-selected {
+  border-bottom-color: #d6e5ff;
+}
+
+.booking-group__info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.booking-group__info strong {
+  display: block;
+  font-size: 12px;
+}
+
+.booking-group__info small {
+  color: #98a2b3;
+  font-size: 10.5px;
+}
+
+.booking-group__description {
+  display: block;
+  max-width: 520px;
+  color: #667085;
+  margin-top: 1px;
+}
+
+.booking-group__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.booking-pill {
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #344054;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.booking-pill.muted {
+  color: #98a2b3;
+}
+
+.booking-pill--selected {
+  border-color: #9ec5ff;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.booking-pill--available {
+  border-color: #d8dee8;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.booking-pill--price {
+  border-color: #d7deeb;
+  background: #fff;
+  color: #334155;
+}
+
+.group-toggle-btn {
+  width: 26px;
+  height: 26px;
+}
+
+.group-toggle-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.booking-variants {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  background: #f8fbff;
+  border-top: 1px solid #eef2f7;
+}
+
+.booking-variant {
+  border: 1px solid #dce5f3;
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 122px;
+}
+
+@media (max-width: 1100px) {
+  .booking-variants {
+    grid-template-columns: 1fr;
+  }
+
+  .period-pills {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .period-pills {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    grid-template-columns: unset !important;
+  }
+  .period-pill { min-width: 90px; flex-shrink: 0; }
+  .status-pills, .period-filter-pills {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .content-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .header-actions {
+    flex-wrap: wrap;
+  }
+  .header-actions button { flex: 1; min-width: 120px; }
+}
+
+.booking-variant__title strong {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.2;
+}
+
+.booking-variant__title small {
+  color: #98a2b3;
+  font-size: 10px;
+}
+
+.booking-variant__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #475467;
+}
+
+.booking-variant__availability {
+  color: #16a34a;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.booking-variant__availability.low {
+  color: #b45309;
+}
+
+.booking-group.has-selected {
+  border-color: #b9d1ff;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #b9d1ff;
+}
+
+.booking-variant.is-selected {
+  border-color: #86efac;
+  background: #ecfdf3;
+  box-shadow: inset 0 0 0 1px #bbf7d0;
+}
+
+.booking-variant .qty-editor {
+  width: 100%;
+  border-radius: 7px;
+  border-color: #86efac;
+  background: #fff;
+}
+
+.booking-variant__actions {
+  width: 100%;
+}
+
+.variant-add-btn {
+  width: 100%;
+  height: 26px;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 11px;
+  background: #0f172a !important;
+  color: #fff !important;
+}
+
+.variant-add-btn mat-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+}
+
+.period-pills {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .period-pill {
@@ -369,54 +1077,192 @@
   background: #fff;
   color: #334155;
   border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 700;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
 }
 
 .period-pill.active {
-  border-color: #7ea4ff;
-  background: #eef4ff;
+  border-color: #0f172a !important;
+  background: #0f172a !important;
+  color: #fff !important;
+}
+
+.period-pill.active .period-pill__title,
+.period-pill.active .period-pill__subtitle {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+
+:host ::ng-deep .period-pill.active * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+
+:host ::ng-deep .period-pill.active span,
+:host ::ng-deep .period-pill.active div,
+:host ::ng-deep .period-pill.active strong {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+.period-pill__title {
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.period-pill__subtitle {
+  font-size: 10px;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.period-duration {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e6eaf2;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #667085;
+  background: #f8fafc;
+  min-height: 44px;
+  grid-area: duration;
+  margin-top: -2px;
+}
+
+.period-duration strong {
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.period-note {
+  margin-top: 8px;
+  border: 1px solid #bfd7ff;
+  background: #eff6ff;
   color: #1d4ed8;
+  border-radius: 8px;
+  min-height: 32px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.period-note mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
 }
 
 .qty-editor {
   display: inline-flex;
   align-items: center;
+  justify-content: space-between;
   border: 1px solid #dbe3f0;
-  border-radius: 10px;
+  border-radius: 7px;
+  background: #f8fafc;
+  height: 26px;
   overflow: hidden;
+  width: 100%;
 }
 
 .qty-editor input {
-  width: 42px;
+  flex: 1;
+  min-width: 36px;
   border: none;
   text-align: center;
   outline: none;
+  background: transparent;
+  font-size: 11px;
+  color: #0f172a;
+}
+
+.qty-editor .mat-mdc-icon-button {
+  width: 26px;
+  height: 26px;
+}
+
+.qty-editor mat-icon {
+  font-size: 16px;
 }
 
 .summary-lines {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   margin-bottom: 10px;
   max-height: 360px;
   overflow: auto;
 }
 
 .summary-line {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  padding: 8px;
-  border: 1px solid #edf2f9;
-  border-radius: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf2f9;
+}
+
+.summary-line:last-child {
+  border-bottom: none;
 }
 
 .summary-right {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.summary-right .mat-mdc-icon-button {
+  width: 24px;
+  height: 24px;
+}
+
+.summary-right mat-icon {
+  font-size: 16px;
+}
+
+.summary-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.summary-qty {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.summary-price {
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 11.5px;
+}
+
+.line-period-toggle {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+.line-period-editor {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.line-period-editor mat-form-field {
+  width: 100%;
 }
 
 .estimate-row {
@@ -426,12 +1272,50 @@
   margin: 8px 0;
   padding-top: 8px;
   border-top: 1px solid #e8edf6;
+  font-size: 12px;
 }
 
 .summary-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.summary-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 8px;
+  color: #98a2b3;
+  text-align: center;
+}
+
+.summary-empty-state mat-icon {
+  color: #94a3b8;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.summary-empty-state strong {
+  color: #475467;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.summary-empty-state p {
+  margin: 0;
+  font-size: 11px;
+}
+
+.booking-summary .summary-actions .mat-mdc-unelevated-button,
+.booking-summary .summary-actions .mat-mdc-outlined-button {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 8px;
 }
 
 .status-actions {
@@ -509,18 +1393,77 @@
   .detail-card,
   .booking-summary {
     position: static;
+    min-width: 0;
   }
 }
 
 @media (max-width: 900px) {
-  .stats-grid,
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
   .filters-row,
   .booking-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .period-pills {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .booking-grid--period {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "start_date"
+      "end_date"
+      "duration";
+  }
+
+  .booking-grid--period-advanced {
+    grid-template-columns: 1fr;
+  }
+
+  .line-period-editor {
     grid-template-columns: 1fr;
   }
 
   .hero-card,
   .content-header {
     flex-direction: column;
+  }
+
+  .booking-hero {
+    align-items: flex-start;
+  }
+
+  .booking-hero__left {
+    min-width: auto;
+  }
+
+  .booking-hero__actions {
+    width: auto;
+  }
+}
+
+.linked-booking-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  color: #1565c0;
+  font-size: 14px;
+
+  &__icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: #1565c0;
+  }
+
+  span {
+    flex: 1;
+    font-weight: 500;
   }
 }

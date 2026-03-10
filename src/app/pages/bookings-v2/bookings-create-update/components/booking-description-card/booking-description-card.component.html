@@ -333,6 +333,71 @@
         }}</div>
       <p>{{ schoolObs }}</p>
     </div>
+
+    <div class="section rentalSection" *ngIf="hasRentalSummary()">
+      <div class="sectionTitle">
+        <mat-icon>inventory_2</mat-icon>
+        {{ 'rentals.integrated.inline_title' | translate }}
+      </div>
+
+      <div class="dateRow">
+        <div>
+          <span class="hour">{{ 'rentals.dates' | translate }}</span>
+          <span class="price">
+            {{ rentalSummary?.startDate | date:'dd/MM/yyyy' }}
+            <ng-container *ngIf="rentalSummary?.endDate && rentalSummary?.endDate !== rentalSummary?.startDate">
+              → {{ rentalSummary?.endDate | date:'dd/MM/yyyy' }}
+            </ng-container>
+          </span>
+        </div>
+      </div>
+
+      <div class="dateRow" *ngIf="rentalSummary?.pickupPointName">
+        <div>
+          <span class="hour">{{ 'rentals.pickup_point' | translate }}</span>
+          <span class="price">{{ rentalSummary?.pickupPointName }}</span>
+        </div>
+      </div>
+
+      <div class="dateRow" *ngIf="rentalSummary?.returnPointName">
+        <div>
+          <span class="hour">{{ 'rentals.return_point' | translate }}</span>
+          <span class="price">{{ rentalSummary?.returnPointName }}</span>
+        </div>
+      </div>
+
+      <div class="dateRow" *ngFor="let group of rentalSummary?.groups">
+        <div>
+          <span class="hour">{{ group.name }}</span>
+          <span class="price">{{ group.totalQty }} · {{ group.subtotal | number:'0.2-2' }} {{ getRentalCurrency() }}</span>
+        </div>
+      </div>
+      <div class="dateRow" style="margin-left: 24px;" *ngFor="let group of rentalSummary?.groups">
+        <div style="width: 100%;">
+          <div class="dateRow" style="margin-left: 0;" *ngFor="let variant of group.variants">
+            <div>
+              <span class="hour">{{ variant.sizeLabel }}</span>
+              <span class="price">
+                {{ variant.unitPrice | number:'0.2-2' }} {{ variant.currency }}
+                / {{ ('rentals.period_' + variant.appliedPeriodType) | translate }}
+                <ng-container *ngIf="variant.pricingMode === 'per_day' && variant.rentalDays > 1">
+                  · {{ variant.rentalDays }} {{ (variant.rentalDays === 1 ? 'rentals.day' : 'rentals.days') | translate | lowercase }}
+                </ng-container>
+                · x{{ variant.quantity }}
+                · {{ variant.subtotal | number:'0.2-2' }} {{ variant.currency }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dateRow rentalSubtotalRow">
+        <div>
+          <span class="hour" style="font-weight: 600;">{{ 'rentals.integrated.inline_total_estimate' | translate }}</span>
+          <span class="price" style="font-weight: 600;">{{ rentalSummary?.rentalSubtotal | number:'0.2-2' }} {{ getRentalCurrency() }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <ng-container *ngIf="getGlobalPriceSummary() as globalSummary; else defaultFooterCreate">
@@ -359,6 +424,14 @@
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 600;">
           <span style="flex: 1;">{{ 'subtotal' | translate }}</span>
           <span style="min-width: 120px; text-align: right;">{{ globalSummary.final | number:'0.2-2' }} {{ globalSummary.currency }}</span>
+        </div>
+        <div *ngIf="hasRentalSummary()" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <span style="flex: 1;">{{ 'rentals.integrated.inline_total_estimate' | translate }}</span>
+          <span style="min-width: 120px; text-align: right;">{{ rentalSummary?.rentalSubtotal | number:'0.2-2' }} {{ getRentalCurrency() }}</span>
+        </div>
+        <div *ngIf="hasRentalSummary()" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; border-top: 1px solid #eef2f5; padding-top: 8px;">
+          <span style="flex: 1;">{{ 'rentals.integrated.grand_total' | translate }}</span>
+          <span style="min-width: 120px; text-align: right;">{{ getRentalGrandTotal() | number:'0.2-2' }} {{ getRentalCurrency() }}</span>
         </div>
       </div>
     </ng-template>

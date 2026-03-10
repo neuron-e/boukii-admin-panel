@@ -33,6 +33,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { DateTimeDialogEditComponent } from './date-time-dialog-edit/date-time-dialog-edit.component';
 import { MatListModule } from '@angular/material/list';
 import { ComponenteButtonModule } from './form/button/app.module';
+import { RentalStatusBadgeModule } from 'src/app/shared/rental-status-badge/rental-status-badge.module';
 
 
 @NgModule({
@@ -65,6 +66,7 @@ import { ComponenteButtonModule } from './form/button/app.module';
     MatInputModule,
     TranslateModule, MatListModule,
     ComponenteButtonModule,
+    RentalStatusBadgeModule,
 
   ],
   providers: [

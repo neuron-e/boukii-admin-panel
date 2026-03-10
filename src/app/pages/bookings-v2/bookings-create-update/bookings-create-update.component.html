@@ -46,7 +46,11 @@
 				[disabled]="currentStep <= 4 && selectedIndexForm == null && course == null " class="crumb">
 				{{ "bookings_page.crumbs.details" | translate }}
 			</button>
-			<button [ngClass]="{ active: currentStep === 5, prev: currentStep > 5 }" (click)="forceChange(5)"
+			<button *ngIf="rentalIntegrated" [ngClass]="{ active: currentStep === 5, prev: currentStep > 5 }" (click)="forceChange(5)"
+				[disabled]="currentStep <= 5 && selectedIndexForm == null && (!dates || !dates?.length)" class="crumb">
+				{{ "rentals.integrated.inline_title" | translate }}
+			</button>
+			<button [ngClass]="{ active: currentStep === (rentalIntegrated ? 6 : 5), prev: currentStep > (rentalIntegrated ? 6 : 5) }" (click)="forceChange(rentalIntegrated ? 6 : 5)"
 				[disabled]="currentStep <= 5 && selectedIndexForm == null && (!dates || !dates?.length)" class="crumb last">
 				{{ "bookings_page.crumbs.observations" | translate }}
 			</button>
@@ -64,7 +68,7 @@
 			{{ "bookings_page_descriptionModal_button" | translate }}
 		</button>
 		<mat-card class="left-column">
-			<mat-card class="info-message" *ngIf="forceStep < 5 && selectedIndexForm != null">
+			<mat-card class="info-message" *ngIf="forceStep < (rentalIntegrated ? 6 : 5) && selectedIndexForm != null">
 				<mat-card-content>
 					<mat-icon color="secondary" style="margin-right: 8px;">info</mat-icon>
 					<span>{{ "confirm_reset_selections" | translate }}</span>
@@ -72,14 +76,20 @@
 			</mat-card>
             <booking-form-stepper [forceStep]="forceStep" [activitiesBooked]="normalizedDates"
                 [selectedForm]="selectedForm" [selectedDates]="normalizedDates[selectedIndexForm] || null"
+                [rentalStepEnabled]="rentalIntegrated"
+                [rentalClient]="mainClient"
+                [rentalBookingDates]="normalizedDates"
+                [rentalInitialDraft]="inlineRentalDraft"
                 [allLevels]=allLevels [lockClient]="(forms.length>0) || ((normalizedDates?.length||0)>0) || externalData?.mainClient"
                 (changedCurrentStep)="currentStep = $event; forceStep = $event;"
                 (changedFormData)="handleFormChange($event)"
+                (rentalDraftChange)="handleInlineRentalDraftChange($event)"
+                (rentalSummaryChange)="handleInlineRentalSummaryChange($event)"
                             (formSaveAndCreateNew)="handleFormChange($event, true)"></booking-form-stepper>
 		</mat-card>
 		<mat-card class="right-column">
 			<booking-description-card [utilizers]="utilizers" [allLevels]=allLevels [sport]="sport"
-				[sportLevel]="sportLevel" [course]="course" [dates]="dates" [monitors]="monitors"
+				[sportLevel]="sportLevel" [course]="course" [dates]="dates" [monitors]="monitors" [rentalSummary]="inlineRentalSummary"
 				[clientObs]="clientObs" [schoolObs]="schoolObs" [total]="total">
 			</booking-description-card>
 			<button *ngIf="forms.length" (click)="isDetail = true" mat-button type="button">
@@ -106,7 +116,7 @@
 			</div>
 		</div>
 		<div class="right-column">
-			<booking-reservation-detail [client]="mainClient" [activities]="normalizedDates" (endClick)="endModal=true"
+			<booking-reservation-detail [client]="mainClient" [activities]="normalizedDates" [rentalSummary]="inlineRentalSummary" (endClick)="endModal=true"
 				(payClick)="bookingService.calculatePendingPrice() === 0 ? finalizeBooking() : payModal=true"
                                   (addClick)="addNewActivity()">
 			</booking-reservation-detail>

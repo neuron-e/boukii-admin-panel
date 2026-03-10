@@ -1,0 +1,246 @@
+.rental-inline-card {
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.rental-inline-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.rental-inline-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-dark1);
+}
+
+.rental-inline-subtitle {
+  font-size: 12px;
+  color: var(--color-grey1);
+  margin-top: 4px;
+}
+
+.rental-inline-body {
+  margin-top: 16px;
+}
+
+.rental-period-summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f6f8fb;
+  border-radius: 8px;
+}
+
+.period-toggle {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.period-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.rental-inline-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rental-inline-filters {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-field {
+  width: 100%;
+}
+
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-filter .active {
+  border-color: var(--color-primary-red);
+  color: var(--color-primary-red);
+}
+
+.rental-inline-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+}
+
+.inventory-list,
+.selection-summary {
+  border: 1px solid #dee6ea;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.inventory-list {
+  max-height: 560px;
+  overflow: auto;
+}
+
+.product-group {
+  border-bottom: 1px solid #eef2f5;
+}
+
+.product-group:last-child {
+  border-bottom: 0;
+}
+
+.product-header {
+  width: 100%;
+  border: 0;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  cursor: pointer;
+}
+
+.product-copy {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.product-copy span {
+  color: var(--color-grey1);
+}
+
+.product-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selected-pill {
+  background: #eef6f2;
+  color: #1f7a43;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.product-variants {
+  background: #fafbfd;
+}
+
+.inventory-row,
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef2f5;
+}
+
+.inventory-row:last-child,
+.summary-row:last-child {
+  border-bottom: 0;
+}
+
+.inventory-copy,
+.summary-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.inventory-copy span,
+.inventory-copy small,
+.summary-row span {
+  color: var(--color-grey1);
+}
+
+.inventory-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qty {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.summary-title,
+.summary-total,
+.summary-empty {
+  padding: 14px;
+}
+
+.summary-title {
+  font-weight: 600;
+  border-bottom: 1px solid #eef2f5;
+}
+
+.summary-empty {
+  color: var(--color-grey1);
+}
+
+.summary-meta {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.summary-group + .summary-group {
+  border-top: 1px solid #eef2f5;
+}
+
+.summary-row--group {
+  background: #fafbfd;
+}
+
+.summary-row--variant {
+  padding-left: 24px;
+}
+
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #eef2f5;
+  font-weight: 600;
+}
+
+.rental-inline-loading {
+  color: var(--color-grey1);
+}
+
+@media (max-width: 991px) {
+  .rental-inline-fields,
+  .rental-inline-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rental-inline-header,
+  .period-line {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .inventory-list {
+    max-height: 420px;
+  }
+}

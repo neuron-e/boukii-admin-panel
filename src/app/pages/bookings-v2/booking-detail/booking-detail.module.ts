@@ -16,13 +16,21 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialogModule } from '@angular/material/dialog';
 import {FormsModule} from '@angular/forms';
 import { CancelBookginModalModule } from '../cancel-booking/cancel-booking.module';
 import { CancelPartialBookginModalModule } from '../cancel-partial-booking/cancel-partial-booking.module';
+import { RentalStatusBadgeModule } from 'src/app/shared/rental-status-badge/rental-status-badge.module';
+import { MatListModule } from '@angular/material/list';
+import { BookingRentalLinkDialogComponent } from './components/booking-rental-link-dialog/booking-rental-link-dialog.component';
+import { BookingRentalCancelWarningDialogComponent } from './components/booking-rental-cancel-warning-dialog/booking-rental-cancel-warning-dialog.component';
 
 @NgModule({
   declarations: [
-    BookingDetailV2Component
+    BookingDetailV2Component,
+    BookingRentalLinkDialogComponent,
+    BookingRentalCancelWarningDialogComponent
   ],
   imports: [
     CommonModule,
@@ -41,6 +49,10 @@ import { CancelPartialBookginModalModule } from '../cancel-partial-booking/cance
     MatIconModule,
     MatCheckboxModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
+    MatDialogModule,
+    RentalStatusBadgeModule,
+    MatListModule,
     FormsModule,
     CancelBookginModalModule,
     CancelPartialBookginModalModule

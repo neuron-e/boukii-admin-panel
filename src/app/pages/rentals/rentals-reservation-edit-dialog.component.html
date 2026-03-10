@@ -1,0 +1,35 @@
+<h2 mat-dialog-title>{{ 'rentals.edit_dialog_title' | translate }}</h2>
+<mat-dialog-content>
+  <form [formGroup]="form" class="form-grid">
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>{{ 'rentals.pickup_point' | translate }}</mat-label>
+      <mat-select formControlName="pickup_point_id">
+        <mat-option *ngFor="let point of data.pickupPoints" [value]="point.id">{{ point.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'rentals.start_date' | translate }}</mat-label>
+      <input matInput type="date" formControlName="start_date">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'rentals.end_date' | translate }}</mat-label>
+      <input matInput type="date" formControlName="end_date">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'rentals.start_time' | translate }}</mat-label>
+      <input matInput type="time" formControlName="start_time">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'rentals.end_time' | translate }}</mat-label>
+      <input matInput type="time" formControlName="end_time">
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="cancel()">{{ 'rentals.cancel' | translate }}</button>
+  <button mat-flat-button color="primary" type="button" (click)="save()">{{ 'rentals.save_changes' | translate }}</button>
+</mat-dialog-actions>

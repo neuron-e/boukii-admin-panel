@@ -4,7 +4,7 @@ import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { BookingService } from '../../../../service/bookings.service';
 import { ApiCrudService } from '../../../../service/crud.service';
 import {ActivatedRoute, Router} from '@angular/router';
-import { BehaviorSubject, Subject, finalize, map, of, switchMap } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, forkJoin, map, of, switchMap } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { BookingDialogComponent } from '../bookings-create-update/components/booking-dialog/booking-dialog.component';
 import {
@@ -13,8 +13,12 @@ import {
 import {CancelBookingModalComponent} from '../cancel-booking/cancel-booking.component';
 import {BookingDetailDialogComponent} from './components/booking-dialog/booking-dialog.component';
 import { SchoolService } from 'src/service/school.service';
+import { RentalService } from 'src/service/rental.service';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
 import { buildDiscountInfoList } from '../shared/discount-utils';
+import { rentalUiStatus } from 'src/app/shared/rental-status.util';
+import { BookingRentalLinkDialogComponent } from './components/booking-rental-link-dialog/booking-rental-link-dialog.component';
+import { BookingRentalCancelWarningDialogComponent } from './components/booking-rental-cancel-warning-dialog/booking-rental-cancel-warning-dialog.component';
 import moment from 'moment';
 
 @Component({
@@ -48,6 +52,10 @@ export class BookingDetailV2Component implements OnInit {
   isCancelling = false;
   paymentOptions: Array<{ id: PaymentMethodId; label: string }> = [];
   readonly paymentMethods = PAYMENT_METHODS;
+  rentalEnabled = false;
+  linkedRentals: any[] = [];
+  loadingRentals = false;
+  linkingRentals = false;
   // Prefer stored price_total; fallback to computed/basket when missing
   private resolveDisplayTotal(booking: any): number {
     if (!booking) return 0;
@@ -198,6 +206,7 @@ export class BookingDetailV2Component implements OnInit {
     private snackBar: MatSnackBar,
     private schoolService: SchoolService,
     private cdr: ChangeDetectorRef,
+    private rentalService: RentalService,
     @Optional() @Inject(MAT_DIALOG_DATA) public incData: any
   ) {
     this.paymentOptions = this.buildDirectPaymentOptions();
@@ -214,6 +223,303 @@ export class BookingDetailV2Component implements OnInit {
     else this.id = this.incData.id;
     this.getDegrees();
     this.getBooking();
+    this.checkRentalEnabled();
+  }
+
+  checkRentalEnabled(): void {
+    this.rentalService.getPolicy().subscribe({
+      next: (res: any) => {
+        const policy = this.rentalService.extractPolicy(res);
+        this.rentalEnabled = this.rentalService.isPolicyEnabled(policy);
+        if (this.rentalEnabled) this.loadLinkedRentals();
+      },
+      error: () => { this.rentalEnabled = false; }
+    });
+  }
+
+  loadLinkedRentals(): void {
+    if (!this.id) return;
+    this.loadingRentals = true;
+    this.rentalService.listReservations({ booking_id: this.id }).subscribe({
+      next: (res: any) => {
+        this.linkedRentals = res?.data?.data ?? res?.data ?? [];
+        this.loadingRentals = false;
+      },
+      error: () => {
+        this.linkedRentals = [];
+        this.loadingRentals = false;
+      }
+    });
+  }
+
+  openRentalReservation(rentalId: number): void {
+    this.router.navigate(['/rentals'], { queryParams: { reservation_id: rentalId } });
+  }
+
+  openBookingFromRental(rental: any): void {
+    const bookingId = Number(rental?.booking_id || 0);
+    if (!bookingId) return;
+    this.router.navigate(['/bookings/update', bookingId]);
+  }
+
+  createNewRental(): void {
+    const params: any = { booking_id: this.id };
+    const clientId = this.bookingData?.client_id || this.mainClient?.id;
+    if (clientId) params['client_id'] = clientId;
+    // Pass booking dates to pre-fill the rental form
+    const activities = this.bookingData?.activities || this.bookingData?.course_dates || [];
+    if (Array.isArray(activities) && activities.length) {
+      const dates = activities.map((a: any) => a.date || a.start_date).filter(Boolean).sort();
+      if (dates.length) {
+        params['start_date'] = dates[0];
+        params['end_date'] = dates[dates.length - 1];
+      }
+    }
+    this.router.navigate(['/rentals/booking'], { queryParams: params });
+  }
+
+  linkedRentalTotal(): number {
+    if (this.bookingData?.rental_total !== null && this.bookingData?.rental_total !== undefined) {
+      return Number(this.bookingData.rental_total || 0);
+    }
+    return this.linkedRentals.reduce((sum, rental) => sum + Number(rental?.total || 0), 0);
+  }
+
+  linkedGrandTotal(): number {
+    if (this.bookingData?.grand_total !== null && this.bookingData?.grand_total !== undefined) {
+      return Number(this.bookingData.grand_total || 0);
+    }
+    return this.resolveDisplayTotal(this.bookingData) + this.linkedRentalTotal();
+  }
+
+  bookingCurrency(): string {
+    return this.bookingData?.currency || this.linkedRentals?.[0]?.currency || 'CHF';
+  }
+
+  getBookingDisplayTotal(): number {
+    return this.resolveDisplayTotal(this.bookingData);
+  }
+
+  rentalItemsSummary(rental: any): string {
+    const items = Array.isArray(rental?.items) ? rental.items : [];
+    if (!items.length) {
+      const count = Number(rental?.items_count || rental?.lines_count || 0);
+      return count > 0 ? `${count}` : '';
+    }
+
+    return items
+      .map((item: any) => `${item.variant_name} x${item.quantity}`)
+      .join(', ');
+  }
+
+  canUnlinkRental(rental: any): boolean {
+    const status = rentalUiStatus(rental?.status).label;
+    return status !== 'completed';
+  }
+
+  openLinkExistingRentalDialog(): void {
+    const clientId = Number(this.bookingData?.client_main_id || this.bookingData?.client_main?.id || 0);
+    if (!clientId || !this.id || this.linkingRentals) {
+      return;
+    }
+
+    this.linkingRentals = true;
+    this.rentalService.listReservations({ client_id: clientId, per_page: 200 }).pipe(
+      finalize(() => this.linkingRentals = false)
+    ).subscribe({
+      next: (response: any) => {
+        const allRows = response?.data?.data ?? response?.data ?? [];
+        const available = allRows.filter((reservation: any) => !reservation?.booking_id);
+        const dialogRef = this.dialog.open(BookingRentalLinkDialogComponent, {
+          width: '680px',
+          maxWidth: '95vw',
+          data: { rentals: available }
+        });
+
+        dialogRef.afterClosed().subscribe((reservationId: number | null) => {
+          if (!reservationId) return;
+          this.linkingRentals = true;
+          this.rentalService.linkToBooking(reservationId, this.id).pipe(
+            finalize(() => this.linkingRentals = false)
+          ).subscribe({
+            next: () => {
+              this.getBooking();
+              this.loadLinkedRentals();
+              this.snackBar.open(
+                this.translateService.instant('rentals.integrated.link_success'),
+                this.getCloseActionLabel(),
+                { duration: 3000 }
+              );
+            },
+            error: () => {
+              this.snackBar.open(
+                this.translateService.instant('snackbar.error'),
+                this.getCloseActionLabel(),
+                { duration: 3000 }
+              );
+            }
+          });
+        });
+      },
+      error: () => {
+        this.snackBar.open(
+          this.translateService.instant('snackbar.error'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+      }
+    });
+  }
+
+  unlinkRental(rental: any): void {
+    if (!this.canUnlinkRental(rental)) {
+      return;
+    }
+
+    const status = rentalUiStatus(rental?.status).label;
+    const confirmed = status === 'active' || status === 'overdue'
+      ? window.confirm(this.translateService.instant('rentals.integrated.unlink_active_confirm'))
+      : true;
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.linkingRentals = true;
+    this.rentalService.unlinkFromBooking(Number(rental.id)).pipe(
+      finalize(() => this.linkingRentals = false)
+    ).subscribe({
+      next: () => {
+        this.getBooking();
+        this.loadLinkedRentals();
+        this.snackBar.open(
+          this.translateService.instant('rentals.integrated.unlink_success'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+      },
+      error: () => {
+        this.snackBar.open(
+          this.translateService.instant('snackbar.error'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+      }
+    });
+  }
+
+  private hasPendingOrActiveLinkedRentals(): boolean {
+    return this.linkedRentals.some((rental) => {
+      const status = rentalUiStatus(rental?.status).label;
+      return status === 'pending' || status === 'active' || status === 'overdue';
+    });
+  }
+
+  private getWarnableLinkedRentals(): any[] {
+    return this.linkedRentals.filter((rental) => {
+      const status = rentalUiStatus(rental?.status).label;
+      return status === 'pending' || status === 'active' || status === 'overdue';
+    });
+  }
+
+  private openCancelWarningIfNeeded(onContinue: (cancelLinkedRentals: boolean) => void): void {
+    if (!this.hasPendingOrActiveLinkedRentals()) {
+      onContinue(false);
+      return;
+    }
+
+    const dialogRef = this.dialog.open(BookingRentalCancelWarningDialogComponent, {
+      width: '680px',
+      maxWidth: '95vw',
+      data: { rentals: this.getWarnableLinkedRentals() }
+    });
+
+    dialogRef.afterClosed().subscribe((action: 'booking_only' | 'booking_and_rentals' | 'abort' | undefined) => {
+      if (!action || action === 'abort') {
+        return;
+      }
+      onContinue(action === 'booking_and_rentals');
+    });
+  }
+
+  private shouldWarnRefundAboutLinkedRentals(data: any): boolean {
+    const refundTypes = ['refund', 'boukii_pay', 'refund_gift', 'refund_bonus'];
+    const refundType = String(data?.type || '').trim();
+    if (!refundTypes.includes(refundType)) {
+      return false;
+    }
+
+    return this.linkedRentals.some((rental) => {
+      const depositHeld = String(rental?.deposit_status || '').toLowerCase() === 'held';
+      const hasOutstanding = Number(rental?.total || 0) > 0 && !Number(rental?.payment_id || 0);
+      return depositHeld || hasOutstanding;
+    });
+  }
+
+  private showLinkedRentalRefundWarning(): void {
+    this.snackBar.open(
+      this.translateService.instant('rentals.integrated.refund_financial_warning'),
+      this.getCloseActionLabel(),
+      { duration: 6500 }
+    );
+  }
+
+  private continueFullDelete(data: any, cancelLinkedRentals: boolean): void {
+    const cancelBooking = () => this.bookingService.processCancellation(
+      data, this.bookingData, false, this.user, null,
+      this.bookingData.booking_users.map(b => b.id), this.bookingData.price_total
+    );
+
+    if (!cancelLinkedRentals) {
+      this.isCancelling = true;
+      cancelBooking().pipe(finalize(() => this.isCancelling = false)).subscribe({
+        next: () => {
+          this.getBooking();
+          this.snackBar.open(
+            this.translateService.instant('snackbar.booking_detail.update'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        },
+        error: (error) => {
+          console.error('Error processing cancellation:', error);
+          this.snackBar.open(
+            this.translateService.instant('snackbar.error'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        }
+      });
+      return;
+    }
+
+    const linkedCalls = this.getWarnableLinkedRentals().map((rental) =>
+      this.rentalService.cancelReservation(Number(rental.id), 'Cancelled from linked booking')
+    );
+
+    this.isCancelling = true;
+    forkJoin(linkedCalls).pipe(
+      switchMap(() => cancelBooking()),
+      finalize(() => this.isCancelling = false)
+    ).subscribe({
+      next: () => {
+        this.getBooking();
+        this.loadLinkedRentals();
+        this.snackBar.open(
+          this.translateService.instant('snackbar.booking_detail.update'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+      },
+      error: (error) => {
+        console.error('Error processing linked booking/rental cancellation:', error);
+        this.snackBar.open(
+          this.translateService.instant('snackbar.error'),
+          this.getCloseActionLabel(),
+          { duration: 3000 }
+        );
+      }
+    });
   }
 
   openDetailBookingDialog() {
@@ -385,6 +691,7 @@ export class BookingDetailV2Component implements OnInit {
     this.groupedActivities = this.groupBookingUsersByGroupId(booking);
     this.hydrateGroupedActivitiesLevels();
     this.mainClient = booking.client_main;
+    this.linkedRentals = Array.isArray(booking?.linked_rentals) ? booking.linked_rentals : this.linkedRentals;
     this.syncPaymentSelectionFromBooking(booking);
     this.loadPricingSnapshot();
   }
@@ -1027,30 +1334,12 @@ export class BookingDetailV2Component implements OnInit {
 
       dialogRef.afterClosed().subscribe((data: any) => {
         if (data) {
-          this.isCancelling = true;
-          this.bookingService.processCancellation(
-            data, this.bookingData, false, this.user, null,
-            this.bookingData.booking_users.map(b => b.id), this.bookingData.price_total)
-            .pipe(finalize(() => this.isCancelling = false))
-            .subscribe({
-              next: () => {
-                this.getBooking();
-                this.snackBar.open(
-                  this.translateService.instant('snackbar.booking_detail.update'),
-                  this.getCloseActionLabel(),
-                  {duration: 3000}
-                );
-              },
-              error: (error) => {
-                console.error('Error processing cancellation:', error);
-                this.snackBar.open(
-                  this.translateService.instant('snackbar.error'),
-                  this.getCloseActionLabel(),
-                  {duration: 3000}
-                );
-              }
-            });
-
+          if (this.shouldWarnRefundAboutLinkedRentals(data)) {
+            this.showLinkedRentalRefundWarning();
+          }
+          this.openCancelWarningIfNeeded((cancelLinkedRentals: boolean) => {
+            this.continueFullDelete(data, cancelLinkedRentals);
+          });
         }
       });
 

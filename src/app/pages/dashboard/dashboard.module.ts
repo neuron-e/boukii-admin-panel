@@ -10,6 +10,7 @@ import { SecondaryToolbarModule } from 'src/@vex/components/secondary-toolbar/se
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCardModule } from '@angular/material/card';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -48,6 +49,7 @@ import { DashboardService } from '../../services/dashboard.service';
     MatIconModule,
     MatButtonModule,
     MatProgressBarModule,
+    MatProgressSpinnerModule,
     MatCardModule,
     MatTooltipModule,
     MatFormFieldModule,

@@ -1,7 +1,9 @@
-import {ChangeDetectorRef, Component, Inject, Optional, OnInit, OnDestroy} from '@angular/core';
+import {ChangeDetectorRef, Component, Inject, Optional, OnInit, OnDestroy, ViewChild} from '@angular/core';
 import {TranslateService} from '@ngx-translate/core';
 import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from '@angular/material/dialog';
 import {BookingDialogComponent} from './components/booking-dialog/booking-dialog.component';
+import {ConfirmDialogComponent} from 'src/@vex/components/confirm-dialog/confirm-dialog.component';
+import {RentalService} from 'src/service/rental.service';
 import {ClientParticipantConflictDialogComponent} from './components/client-participant-conflict-dialog/client-participant-conflict-dialog.component';
 import {FormBuilder, FormGroup} from '@angular/forms';
 import {BookingService} from '../../../../service/bookings.service';
@@ -12,6 +14,7 @@ import moment from 'moment';
 import { SchoolService } from 'src/service/school.service';
 import { BookingPersistenceService } from 'src/app/services/booking-persistence.service';
 import { Subscription } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
 import {
   applyFlexibleDiscount as applyFlexibleDiscountUtil,
@@ -22,6 +25,8 @@ import {
   parseFlexibleDiscounts as parseFlexibleDiscountRules,
   resolveIntervalName
 } from 'src/app/pages/bookings-v2/shared/discount-utils';
+import { BookingRentalInlineComponent, BookingRentalInlineDraft, BookingRentalInlineSummary } from './components/booking-rental-inline/booking-rental-inline.component';
+import { BookingFormStepper } from './components/form-stepper/form-stepper.component';
 
 @Component({
   selector: "bookings-create-update-v2",
@@ -29,6 +34,9 @@ import {
   styleUrls: ["./bookings-create-update.component.scss"],
 })
 export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
+  @ViewChild(BookingRentalInlineComponent) bookingRentalInline?: BookingRentalInlineComponent;
+  @ViewChild(BookingFormStepper) bookingFormStepper?: BookingFormStepper;
+
   currentStep = 0;
   currentBookingData = {};
   mainClient: any;
@@ -71,6 +79,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   private currentBookingId: string = '';
   hasUnsavedChanges: boolean = false;
   isDraftLoaded: boolean = false;
+
+  // Rental integrated mode
+  rentalIntegrated = false;
+  inlineRentalDraft: BookingRentalInlineDraft | null = null;
+  inlineRentalSummary: BookingRentalInlineSummary | null = null;
 
   private buildDirectPaymentOptions(): Array<{ id: PaymentMethodId; label: string }> {
     const offlineIds: PaymentMethodId[] = [1, 2, 4];
@@ -192,6 +205,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private schoolService: SchoolService,
     private persistenceService: BookingPersistenceService,
+    private rentalService: RentalService,
     @Optional() public dialogRef: MatDialogRef<BookingsCreateUpdateV2Component>,
     @Optional() @Inject(MAT_DIALOG_DATA) public externalData: any
   ) {
@@ -222,10 +236,63 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     }
 
     this.loadDraftIfExists();
+    this.loadRentalPolicy();
   }
 
   ngOnDestroy(): void {
     this.cleanupPersistence();
+  }
+
+  private loadRentalPolicy(): void {
+    this.rentalService.getPolicy().subscribe({
+      next: (res: any) => {
+        const policy = res?.data;
+        if (!policy?.enabled) return;
+        let settings: any = policy.settings;
+        if (typeof settings === 'string') {
+          try { settings = JSON.parse(settings); } catch { settings = {}; }
+        }
+        this.rentalIntegrated = settings?.mode === 'integrated';
+      },
+      error: () => {}
+    });
+  }
+
+  private navigateAfterBooking(bookingId: number): void {
+    if (!this.rentalIntegrated || this.dialogRef) {
+      this.router.navigate([`/bookings/update/${bookingId}`]);
+      return;
+    }
+    const clientId = this.mainClient?.id;
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '480px',
+      data: {
+        title: this.translateService.instant('rentals.integrated.add_rental_title'),
+        message: this.translateService.instant('rentals.integrated.add_rental_message'),
+        confirmText: this.translateService.instant('rentals.integrated.add_rental_yes'),
+        cancelText: this.translateService.instant('rentals.integrated.add_rental_no'),
+      }
+    });
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        const params: any = { booking_id: bookingId };
+        if (clientId) params['client_id'] = clientId;
+        // Pass booking dates to pre-fill the rental form
+        if (Array.isArray(this.normalizedDates) && this.normalizedDates.length) {
+          const allDates = this.normalizedDates
+            .map((d: any) => d.date || d.start_date)
+            .filter(Boolean)
+            .sort();
+          if (allDates.length) {
+            params['start_date'] = allDates[0];
+            params['end_date'] = allDates[allDates.length - 1];
+          }
+        }
+        this.router.navigate(['/rentals/booking'], { queryParams: params });
+      } else {
+        this.router.navigate([`/bookings/update/${bookingId}`]);
+      }
+    });
   }
 
   /**
@@ -372,6 +439,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     if (data.total) this.total = data.total;
     if (data.subtotal) this.subtotal = data.subtotal;
     if (data.normalizedDates) this.normalizedDates = data.normalizedDates;
+    if (data.inlineRentalDraft) this.inlineRentalDraft = data.inlineRentalDraft;
 
     // MEJORA CRÍTICA: Limpiar datos de bookingData que pueden causar bonos automáticos
     const currentBookingData = this.bookingService.getBookingData();
@@ -420,8 +488,19 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       subtotal: this.subtotal,
       normalizedDates: this.normalizedDates,
       clientObs: this.clientObs,
-      schoolObs: this.schoolObs
+      schoolObs: this.schoolObs,
+      inlineRentalDraft: this.inlineRentalDraft
     };
+  }
+
+  handleInlineRentalDraftChange(draft: BookingRentalInlineDraft): void {
+    this.inlineRentalDraft = draft;
+    this.hasUnsavedChanges = true;
+  }
+
+  handleInlineRentalSummaryChange(summary: BookingRentalInlineSummary): void {
+    this.inlineRentalSummary = summary;
+    this.hasUnsavedChanges = true;
   }
 
   // MÃ©todos auxiliares
@@ -452,14 +531,16 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
   }
 
   handleFormChange(formData: any, createNew: boolean = false) {
+    const observationsControlName = this.rentalIntegrated ? 'step7' : 'step6';
+    const observationsValue = formData?.value?.[observationsControlName] || formData?.value?.step6 || {};
     const {
       step1: { client, mainClient },
       step2: { utilizers },
       step3: { sport, sportLevel },
       step4: { course },
       step5: { course_dates },
-      step6: { clientObs, schoolObs },
     } = formData.value;
+    const { clientObs, schoolObs } = observationsValue;
 
     // Preserve the original mainClient if it's already set, only update if it's not set yet
     if (!this.mainClient) {
@@ -500,7 +581,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       this.calculateTotal();
     }
 
-    if (this.course && this.dates && formData.controls.step6.touched) {
+    if (this.course && this.dates && formData.controls[observationsControlName]?.touched) {
       if (this.selectedIndexForm === null) {
         this.forms.push(formData);
       } else {
@@ -524,8 +605,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       step3: { sport, sportLevel },
       step4: { course },
       step5: { course_dates },
-      step6: { clientObs, schoolObs },
     } = this.selectedForm.value;
+    const observationsValue = this.selectedForm.value?.[this.rentalIntegrated ? 'step7' : 'step6'] || this.selectedForm.value?.step6 || {};
+    const { clientObs, schoolObs } = observationsValue;
 
     // Don't overwrite mainClient when editing activities - preserve the original mainClient
     if (!this.mainClient) {
@@ -557,7 +639,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       step3: this.fb.group({}),
       step4: this.fb.group({}),
       step5: this.fb.group({}),
-      step6: this.fb.group({})
+      step6: this.fb.group({}),
+      step7: this.fb.group({})
     });
     this.utilizers = [];
     this.sport = null;
@@ -602,7 +685,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           step3: this.fb.group({}),
           step4: this.fb.group(step4Controls),
           step5: this.fb.group(step5Controls),
-          step6: this.fb.group({})
+          step6: this.fb.group({}),
+          step7: this.fb.group({})
         });
 
         // Si hay mainClient, forzamos a step 1, si no, comenzamos desde el principio
@@ -694,7 +778,8 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         step3: this.fb.group({}),
         step4: this.fb.group({}),
         step5: this.fb.group({}),
-        step6: this.fb.group({})
+        step6: this.fb.group({}),
+        step7: this.fb.group({})
       });
       this.forceStep = 0;
       this.cdr.detectChanges();
@@ -741,8 +826,9 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
         step3: { sport, sportLevel },
         step4: { course },
         step5: { course_dates },
-        step6: { clientObs, schoolObs },
       } = form.value;
+      const observationsValue = form.value?.[this.rentalIntegrated ? 'step7' : 'step6'] || form.value?.step6 || {};
+      const { clientObs, schoolObs } = observationsValue;
 
       const normalizedCourseDates = this.ensureCourseDatesSource(course, course_dates);
       const dates = Array.isArray(normalizedCourseDates) && normalizedCourseDates.length
@@ -983,7 +1069,7 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     const utilizerCount = Array.isArray(this.utilizers) ? this.utilizers.length : 0;
     if (utilizerCount <= 0) {
       return 0;
-    }
+    }
 
     const price = parseFloat(course?.price ?? '0');
     const basePrice = isNaN(price) ? 0 : price;
@@ -1218,6 +1304,11 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.shouldCreateInlineRental() && !this.inlineRentalSummary?.readyToSubmit) {
+      this.showErrorSnackbar(this.translateService.instant('rentals.integrated.inline_invalid'));
+      return;
+    }
+
     // Asegurar que el total enviado incluya opcionales (p.e. seguro de cancelaciÃ³n)
     const finalPriceTotal = this.buildFinalPriceTotal(bookingData);
     bookingData.price_total = finalPriceTotal;
@@ -1281,40 +1372,60 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     this.isSubmitting = true;
     this.crudService.post('/admin/bookings', bookingData)
       .subscribe(
-        (result: any) => {
+        async (result: any) => {
           const bookingId = result.data.id;
+          const inlineRentalAttempted = this.shouldCreateInlineRental();
+          let inlineRentalCreated = false;
 
-          // Manejar pagos en lÃ­nea
+          if (inlineRentalAttempted) {
+            try {
+              inlineRentalCreated = await this.createInlineRentalForBooking(bookingId);
+              if (inlineRentalCreated) {
+                this.snackBar.open(
+                  this.translateService.instant('rentals.integrated.inline_create_success'),
+                  this.translateService.instant('close'),
+                  { duration: 2000, horizontalPosition: 'end', verticalPosition: 'top' }
+                );
+              }
+            } catch (error) {
+              this.showErrorSnackbar(this.translateService.instant('rentals.integrated.inline_create_error'));
+            }
+          }
+
+          // Manejar pagos en línea
           if (bookingData.payment_method_id === 2 || bookingData.payment_method_id === 3 || bookingData.payment_method_id === 7) {
             this.crudService.post(`/admin/bookings/payments/${bookingId}`, result.data.basket)
               .subscribe(
                 (paymentResult: any) => {
                   this.isSubmitting = false;
-                  if (bookingData.payment_method_id === 2) {
-                    if (this.dialogRef) {
-                      this.dialogRef.close();
-                    }
-                    window.open(paymentResult.data, "_self");
-                  } else {
-                    if (this.dialogRef) {
-                      this.dialogRef.close();
-                    }
-                    this.snackBar.open(this.translateService.instant('snackbar.booking_detail.send_mail'),
-                      this.translateService.instant('close'),
-                      { duration: 1000 });
-                    // MEJORA CRÃTICA: Limpiar borrador al completar reserva exitosamente
-                    this.persistenceService.removeDraft(this.currentBookingId);
-                    this.hasUnsavedChanges = false;
-
-                    this.router.navigate([`/bookings/update/${bookingId}`]);
+                  if (this.dialogRef) {
+                    this.dialogRef.close();
                   }
+
+                  this.persistenceService.removeDraft(this.currentBookingId);
+                  this.hasUnsavedChanges = false;
+
+                  if (bookingData.payment_method_id === 2) {
+                    window.open(paymentResult.data, "_self");
+                    return;
+                  }
+
+                  this.snackBar.open(this.translateService.instant('snackbar.booking_detail.send_mail'),
+                    this.translateService.instant('close'),
+                    { duration: 1000 });
+
+                  if (inlineRentalAttempted) {
+                    this.router.navigate([`/bookings/update/${bookingId}`]);
+                    return;
+                  }
+
+                  this.navigateAfterBooking(bookingId);
                 },
-                (error) => {
+                () => {
                   this.isSubmitting = false;
                   if (this.dialogRef) {
                     this.dialogRef.close();
                   }
-                  // MEJORA CRÃTICA: Incluso con error de pago, la reserva se creÃ³ exitosamente
                   this.persistenceService.removeDraft(this.currentBookingId);
                   this.hasUnsavedChanges = false;
 
@@ -1322,18 +1433,23 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
                   this.router.navigate([`/bookings/update/${bookingId}`]);
                 }
               );
-          } else {
-            this.isSubmitting = false;
-            if (this.dialogRef) {
-              this.dialogRef.close();
-            }
-            // MEJORA CRÃTICA: Limpiar borrador al completar reserva exitosamente
-            this.persistenceService.removeDraft(this.currentBookingId);
-            this.hasUnsavedChanges = false;
-
-            // Si no es pago online, llevar directamente a la pÃ¡gina de actualizaciÃ³n
-            this.router.navigate([`/bookings/update/${bookingId}`]);
+            return;
           }
+
+          this.isSubmitting = false;
+          if (this.dialogRef) {
+            this.dialogRef.close();
+          }
+          this.persistenceService.removeDraft(this.currentBookingId);
+          this.hasUnsavedChanges = false;
+          this.inlineRentalDraft = null;
+
+          if (inlineRentalAttempted) {
+            this.router.navigate([`/bookings/update/${bookingId}`]);
+            return;
+          }
+
+          this.navigateAfterBooking(bookingId);
         },
         (error) => {
           this.isSubmitting = false;
@@ -1345,6 +1461,28 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
           }
         }
       );
+  }
+
+  private shouldCreateInlineRental(): boolean {
+    return !!this.rentalIntegrated && !!this.inlineRentalSummary?.hasSelection && !!this.mainClient?.id;
+  }
+
+  private async createInlineRentalForBooking(bookingId: number): Promise<boolean> {
+    if (!this.inlineRentalSummary?.submission || !this.mainClient?.id) {
+      return false;
+    }
+    const payload = {
+      client_id: Number(this.mainClient.id),
+      booking_id: bookingId,
+      ...this.inlineRentalSummary.submission
+    };
+    await firstValueFrom(this.rentalService.createReservation(payload));
+    return true;
+  }
+
+  hasInlineRentalSelection(): boolean {
+    const selectedItems = this.inlineRentalDraft?.selectedItems || {};
+    return !!this.inlineRentalDraft?.enabled && Object.values(selectedItems).some((qty) => Number(qty || 0) > 0);
   }
 
   calculateTotalVoucherPrice(): number {
@@ -1515,10 +1653,6 @@ export class BookingsCreateUpdateV2Component implements OnInit, OnDestroy {
     });
   }
 }
-
-
-
-
 
 
 

@@ -15,6 +15,7 @@ import {MatDialog} from '@angular/material/dialog';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {CourseStatisticsModalComponent} from './course-statistics-modal/course-statistics-modal.component';
 import {MonitorsLegacyComponent} from './monitors-legacy/monitors-legacy.component';
+import {RentalService} from '../../../service/rental.service';
 
 // ==================== INTERFACES ====================
 
@@ -277,8 +278,15 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     payments: false,
     courses: false,
     sources: false,
-    monitors: false
+    monitors: false,
+    rental: false
   };
+
+  // ==================== RENTAL ANALYTICS ====================
+  rentalAnalytics: any = null;
+  loadingRentalAnalytics = false;
+  rentalAnalyticsDateFrom: string = '';
+  rentalAnalyticsDateTo: string = '';
 
   // ==================== USER DATA ====================
   user: any;
@@ -320,7 +328,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     { id: 'payments', label: 'payment_methods', icon: 'payment' },
     { id: 'courses', label: 'courses_analysis', icon: 'school' },
     { id: 'sources', label: 'booking_sources', icon: 'source' },
-    { id: 'monitors', label: 'monitors_tab', icon: 'person' } // ? NUEVA
+    { id: 'monitors', label: 'monitors_tab', icon: 'person' },
+    { id: 'rental', label: 'rentals.analytics_tab', icon: 'lock' }
   ];
 
   // ==================== MODAL PROPERTIES ====================
@@ -339,7 +348,8 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     private translateService: TranslateService,
     private apiService: ApiCrudService,
     private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private rentalService: RentalService
   ) {
     this.initializeForm();
     this.loadUserData();
@@ -1884,6 +1894,9 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   onTabChange(event: MatTabChangeEvent): void {
     this.activeTabIndex = event.index;
     this.activeTab = this.tabs[event.index].id;
+    if (this.activeTab === 'rental' && !this.rentalAnalytics && !this.loadingRentalAnalytics) {
+      this.loadRentalAnalytics();
+    }
     this.maybeLoadFullDashboard(this.activeTab);
     setTimeout(() => this.createChartsForTab(this.activeTab), 100);
         this.maybeLoadFullDashboard(this.activeTab);
@@ -2517,6 +2530,37 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
       minimumFractionDigits: 1,
       maximumFractionDigits: 1
     }).format(value / 100);
+  }
+
+  // ==================== RENTAL ANALYTICS METHODS ====================
+
+  loadRentalAnalytics(): void {
+    if (this.loadingRentalAnalytics) return;
+    this.loadingRentalAnalytics = true;
+    const filters: any = {};
+    if (this.rentalAnalyticsDateFrom) filters.date_from = this.rentalAnalyticsDateFrom;
+    if (this.rentalAnalyticsDateTo) filters.date_to = this.rentalAnalyticsDateTo;
+
+    this.rentalService.getRentalAnalytics(filters)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          this.rentalAnalytics = res?.data ?? res ?? null;
+          this.loadingRentalAnalytics = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.loadingRentalAnalytics = false;
+          this.cdr.detectChanges();
+        }
+      });
+  }
+
+  exportRentalCsv(): void {
+    const filters: any = {};
+    if (this.rentalAnalyticsDateFrom) filters.date_from = this.rentalAnalyticsDateFrom;
+    if (this.rentalAnalyticsDateTo) filters.date_to = this.rentalAnalyticsDateTo;
+    this.rentalService.exportRentalCsv(filters);
   }
 }
 

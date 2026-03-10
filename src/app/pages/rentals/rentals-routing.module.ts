@@ -10,6 +10,14 @@ const routes: Routes = [
     component: RentalsV2Component
   },
   {
+    path: 'booking',
+    component: RentalsV2Component
+  },
+  {
+    path: 'list',
+    component: RentalsV2Component
+  },
+  {
     path: 'item/:itemId',
     component: RentalsItemDetailComponent
   },

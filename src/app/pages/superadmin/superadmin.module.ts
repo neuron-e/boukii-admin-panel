@@ -12,7 +12,7 @@ import { SuperadminAdminEditComponent } from './superadmin-admin-edit/superadmin
 import { SuperadminAdminPasswordComponent } from './superadmin-admin-password/superadmin-admin-password.component';
 import { SuperadminSchoolCreateModalComponent } from './superadmin-school-create-modal/superadmin-school-create-modal.component';
 import { SuperadminSchoolDetailComponent } from './superadmin-school-detail/superadmin-school-detail.component';
-import { ReactiveFormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
@@ -25,6 +25,7 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -52,6 +53,7 @@ import { TranslateModule } from '@ngx-translate/core';
     SuperadminRoutingModule,
     ComponentsModule,
     PageLayoutModule,
+    FormsModule,
     ReactiveFormsModule,
     MatButtonModule,
     MatIconModule,
@@ -66,6 +68,7 @@ import { TranslateModule } from '@ngx-translate/core';
     MatSelectModule,
     MatTabsModule,
     MatSlideToggleModule,
+    MatRadioModule,
     MatDialogModule,
     MatCheckboxModule,
     AngularEditorModule,

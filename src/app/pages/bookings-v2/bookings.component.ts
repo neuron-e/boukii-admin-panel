@@ -12,6 +12,7 @@ import { forkJoin } from 'rxjs';
 import { LayoutService } from 'src/@vex/services/layout.service';
 import { buildDiscountInfoList } from 'src/app/pages/bookings-v2/shared/discount-utils';
 import { BookingService } from 'src/service/bookings.service';
+import { RentalService } from 'src/service/rental.service';
 
 @Component({
   selector: 'vex-bookings-v2',
@@ -90,12 +91,29 @@ export class BookingsV2Component implements OnInit, OnChanges {
     { label: 'Actions', property: 'actions', type: 'button', visible: true }
   ];
 
+  // ---- Rental indicator (shows if booking has a linked rental reservation) ----
+  rentalEnabled = false;
+  bookingRentals: Record<number, any[]> = {};  // bookingId -> rental_reservations[]
+  rentalDetailForBooking: any[] = [];
+  loadingRentalDetail = false;
+
+  // ---- Unified bookings tab ----
+  activeMainTab = 0; // 0 = courses, 1 = unified list
+  unifiedType: 'all' | 'course' | 'rental' = 'all';
+  unifiedSearch = '';
+  unifiedStatus = '';
+  unifiedData: any[] = [];
+  unifiedMeta = { total: 0, per_page: 50, current_page: 1, last_page: 1 };
+  loadingUnified = false;
+  readonly unifiedColumns = ['type', 'client_name', 'reference', 'start_date', 'end_date', 'status', 'total', 'actions'];
+
   constructor(
     private crudService: ApiCrudService,
     private router: Router,
     private schoolService: SchoolService,
     public LayoutService: LayoutService,
-    private bookingService: BookingService
+    private bookingService: BookingService,
+    private rentalService: RentalService
   ) {
     this.user = JSON.parse(localStorage.getItem('boukiiUser'));
 
@@ -124,6 +142,11 @@ export class BookingsV2Component implements OnInit, OnChanges {
       this.bonus = [];
       this.showDetail = true;
       this.detailLoading = true;
+
+      if (this.rentalEnabled) {
+        this.loadingRentalDetail = true;
+        this.rentalDetailForBooking = [];
+      }
 
       try {
         const res: any = await this.crudService
@@ -167,6 +190,8 @@ export class BookingsV2Component implements OnInit, OnChanges {
           });
         });
 
+        this.syncRentalPreviewData();
+
       } catch (e) {
         // Fallback mínimo si la carga de detalle falla
         this.detailData = event.item;
@@ -182,6 +207,9 @@ export class BookingsV2Component implements OnInit, OnChanges {
         this.detailData.bookingusers = this.orderBookingUsers(this.detailData.booking_users || []);
         this.getUniqueBookingUsers(this.detailData.bookingusers);
         this.enrichPreviewBookingUsers();
+        if (this.rentalEnabled) {
+          this.loadRentalDetailForBooking(event.item.id);
+        }
       }
       this.detailLoading = false;
     } else {
@@ -897,6 +925,7 @@ export class BookingsV2Component implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.checkIfFlexCourse();
+    this.checkRentalEnabled();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -920,8 +949,13 @@ export class BookingsV2Component implements OnInit, OnChanges {
     }
   }
 
+  // bookingId -> lightweight rental summary for the current table page
+  bookingRentalFlags: Record<number, any> = {};
+  private loadedRows: any[] = [];
+
   onDataLoaded(data: any[]): void {
     if (Array.isArray(data)) {
+      this.loadedRows = data;
       data.forEach(booking => {
         const displayTotal = this.resolveDisplayTotal(booking);
         const hasStoredTotal = booking?.price_total !== null
@@ -933,7 +967,14 @@ export class BookingsV2Component implements OnInit, OnChanges {
         } else if (Number(booking.price_total) < 0) {
           booking.price_total = normalizedTotal;
         }
+        if (this.rentalEnabled) booking.rental_link = null;
       });
+
+      // Load rental flags for visible bookings if rental is enabled
+      if (this.rentalEnabled && data.length > 0) {
+        const ids = data.map((b: any) => b.id).filter(Boolean);
+        this.loadRentalFlags(ids);
+      }
     }
 
     if (this.isFlexCourse && data.length > 0) {
@@ -959,4 +1000,221 @@ export class BookingsV2Component implements OnInit, OnChanges {
       const uniqueBookingsList = Array.from(uniqueBookings.values());
     }
   }
+
+  // ---- Rental indicator & detail methods ----
+
+  checkRentalEnabled(): void {
+    this.rentalService.getPolicy().subscribe({
+      next: (res: any) => {
+        const policy = this.rentalService.extractPolicy(res);
+        this.rentalEnabled = this.rentalService.isPolicyEnabled(policy);
+        if (this.rentalEnabled) {
+          this.addRentalColumn();
+        }
+      },
+      error: () => { this.rentalEnabled = false; }
+    });
+  }
+
+  onMainTabChange(index: number): void {
+    this.activeMainTab = index;
+    if (index === 1 && this.unifiedData.length === 0) {
+      this.loadUnified();
+    }
+  }
+
+  loadUnified(page = 1): void {
+    this.loadingUnified = true;
+    this.unifiedMeta.current_page = page;
+    const filters: Record<string, any> = {
+      type: this.unifiedType,
+      page,
+      per_page: this.unifiedMeta.per_page,
+    };
+    if (this.unifiedSearch) filters['search'] = this.unifiedSearch;
+    if (this.unifiedStatus) filters['status'] = this.unifiedStatus;
+
+    this.rentalService.listUnifiedBookings(filters).subscribe({
+      next: (res: any) => {
+        const payload = res?.data ?? res;
+        this.unifiedData = payload?.data ?? [];
+        this.unifiedMeta = payload?.meta ?? this.unifiedMeta;
+        this.loadingUnified = false;
+      },
+      error: () => {
+        this.unifiedData = [];
+        this.loadingUnified = false;
+      }
+    });
+  }
+
+  openUnifiedRow(row: any): void {
+    if (row.type === 'rental') {
+      this.router.navigate(['/rentals'], { queryParams: { reservation_id: row.source_id } });
+    } else {
+      this.router.navigate(['/bookings/update', row.source_id]);
+    }
+  }
+
+  unifiedStatusLabel(status: any): string {
+    // Map numeric booking statuses to labels
+    if (status === 0 || status === '0') return 'pending';
+    if (status === 1 || status === '1') return 'confirmed';
+    return String(status ?? '');
+  }
+
+  unifiedStatusClass(row: any): string {
+    const s = String(row.status ?? '');
+    if (['overdue'].includes(s)) return 'badge-red';
+    if (['cancelled', 'canceled'].includes(s)) return 'badge-grey';
+    if (['completed', 'returned', '1'].includes(s)) return 'badge-green';
+    if (['active', 'assigned', 'checked_out'].includes(s)) return 'badge-blue';
+    return 'badge-orange';
+  }
+
+  private addRentalColumn(): void {
+    const alreadyExists = this.columns.some(c => c.property === 'rental_link');
+    if (!alreadyExists) {
+      // Insert before 'Actions' column
+      const actionsIdx = this.columns.findIndex(c => c.property === 'actions');
+      const rentalCol: TableColumn<any> = {
+        label: 'Rental',
+        property: 'rental_link',
+        type: 'rental_booking',
+        visible: true,
+        cssClasses: ['text-center']
+      };
+      if (actionsIdx >= 0) {
+        this.columns.splice(actionsIdx, 0, rentalCol);
+      } else {
+        this.columns.push(rentalCol);
+      }
+    }
+  }
+
+  loadRentalFlags(ids: number[]): void {
+    // One bulk call per page — not N+1
+    const schoolId = this.user?.school?.id || this.user?.schools?.[0]?.id;
+    this.crudService.get('/admin/rentals/reservations', [], {
+      school_id: schoolId,
+      booking_id_in: ids.join(','),
+      per_page: 500,
+    }).subscribe({
+      next: (res: any) => {
+        const rows: any[] = res?.data?.data ?? res?.data ?? [];
+        const grouped: Record<number, any[]> = {};
+        rows.forEach((r: any) => {
+          const bookingId = Number(r?.booking_id || 0);
+          if (!bookingId) return;
+          if (!grouped[bookingId]) grouped[bookingId] = [];
+          grouped[bookingId].push(r);
+        });
+
+        Object.keys(grouped).forEach((bookingIdRaw) => {
+          const bookingId = Number(bookingIdRaw);
+          const summary = this.buildRentalLinkSummary(grouped[bookingId] || []);
+          if (!summary) return;
+          this.bookingRentalFlags[bookingId] = summary;
+          const row = this.loadedRows.find(b => Number(b.id) === bookingId);
+          if (row) row.rental_link = summary;
+        });
+      },
+      error: () => {}
+    });
+  }
+
+  loadRentalForBooking(bookingId: number): void {
+    if (this.bookingRentals[bookingId] !== undefined) return;
+    this.rentalService.listReservations({ booking_id: bookingId }).subscribe({
+      next: (res: any) => {
+        this.bookingRentals[bookingId] = res?.data?.data ?? res?.data ?? [];
+      },
+      error: () => { this.bookingRentals[bookingId] = []; }
+    });
+  }
+
+  bookingHasRental(bookingId: number): boolean {
+    return !!this.bookingRentalFlags[bookingId];
+  }
+
+  loadRentalDetailForBooking(bookingId: number): void {
+    this.loadingRentalDetail = true;
+    this.rentalDetailForBooking = [];
+    this.rentalService.listReservations({ booking_id: bookingId }).subscribe({
+      next: (res: any) => {
+        this.rentalDetailForBooking = res?.data?.data ?? res?.data ?? [];
+        this.loadingRentalDetail = false;
+      },
+      error: () => {
+        this.rentalDetailForBooking = [];
+        this.loadingRentalDetail = false;
+      }
+    });
+  }
+
+  openRentalReservation(rentalId: number): void {
+    this.router.navigate(['/rentals'], { queryParams: { reservation_id: rentalId } });
+  }
+
+  openBookingRentalCell(summary: any): void {
+    const reservationId = Number(summary?.reservation_id || summary?.id || 0);
+    if (!reservationId) return;
+    this.openRentalReservation(reservationId);
+  }
+
+  getDetailLinkedRentals(): any[] {
+    return Array.isArray(this.rentalDetailForBooking) ? this.rentalDetailForBooking : [];
+  }
+
+  getDetailRentalTotal(): number {
+    if (this.detailData?.rental_total !== null && this.detailData?.rental_total !== undefined) {
+      return Number(this.detailData.rental_total || 0);
+    }
+    return this.getDetailLinkedRentals().reduce((sum, rental) => sum + Number(rental?.total || 0), 0);
+  }
+
+  getDetailGrandTotal(): number {
+    if (this.detailData?.grand_total !== null && this.detailData?.grand_total !== undefined) {
+      return Number(this.detailData.grand_total || 0);
+    }
+    return this.getPreviewDisplayTotal() + this.getDetailRentalTotal();
+  }
+
+  detailRentalCurrency(): string {
+    return this.detailData?.currency || this.getDetailLinkedRentals()?.[0]?.currency || 'CHF';
+  }
+
+  private syncRentalPreviewData(): void {
+    const linked = this.detailData?.linked_rentals;
+    if (Array.isArray(linked)) {
+      this.rentalDetailForBooking = linked;
+      this.loadingRentalDetail = false;
+      return;
+    }
+
+    if (this.rentalEnabled && this.detailData?.id) {
+      this.loadRentalDetailForBooking(this.detailData.id);
+      return;
+    }
+
+    this.rentalDetailForBooking = [];
+    this.loadingRentalDetail = false;
+  }
+
+  private buildRentalLinkSummary(rentals: any[]): any {
+    if (!Array.isArray(rentals) || rentals.length === 0) {
+      return null;
+    }
+
+    const primary = rentals[0];
+    return {
+      id: Number(primary?.id || 0),
+      reservation_id: Number(primary?.id || 0),
+      status: primary?.status || 'pending',
+      item_count: rentals.reduce((sum, rental) => sum + Number(rental?.items_count || rental?.lines_count || 0), 0),
+      rental_count: rentals.length,
+      label: primary?.reference || ('#' + primary?.id),
+    };
+  }
+
 }

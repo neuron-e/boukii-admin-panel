@@ -1,0 +1,33 @@
+<h2 mat-dialog-title>{{ 'rentals.return_dialog_title' | translate }}</h2>
+<mat-dialog-content>
+  <form [formGroup]="form" class="form-grid">
+    <mat-form-field appearance="outline" class="full" *ngIf="!partialOnly">
+      <mat-label>{{ 'rentals.return_mode' | translate }}</mat-label>
+      <mat-select formControlName="mode">
+        <mat-option value="full">{{ 'rentals.return_full' | translate }}</mat-option>
+        <mat-option value="partial">{{ 'rentals.return_partial' | translate }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <ng-container *ngIf="partialOnly || form.get('mode')?.value === 'partial'">
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>{{ 'rentals.return_line' | translate }}</mat-label>
+        <mat-select formControlName="line_id">
+          <mat-option *ngFor="let line of lines" [value]="line.id">
+            #{{ line.id }} - {{ line.label }} (assigned: {{ line.maxReturnQty }})
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>{{ 'rentals.return_quantity' | translate }}</mat-label>
+        <input matInput type="number" min="1" [max]="selectedLineMaxQty" formControlName="quantity">
+        <mat-hint>Max: {{ selectedLineMaxQty }}</mat-hint>
+      </mat-form-field>
+    </ng-container>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="cancel()">{{ 'rentals.cancel' | translate }}</button>
+  <button mat-flat-button color="primary" type="button" (click)="save()">{{ 'rentals.return_confirm' | translate }}</button>
+</mat-dialog-actions>

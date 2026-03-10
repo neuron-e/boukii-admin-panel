@@ -6,6 +6,31 @@
   <div class="card" *ngIf="!loading">
     <mat-tab-group (selectedTabChange)="onFullTabChange($event)">
       <mat-tab label="{{ 'settings.school_info' | translate }}">
+        <mat-card class="rental-settings-card">
+          <div class="rental-settings-card__header">
+            <div>
+              <h2>{{ 'rentals.settings_title' | translate }}</h2>
+              <p>{{ 'rentals.settings_description' | translate }}</p>
+            </div>
+            <span class="rental-settings-card__state"
+                  [class.is-enabled]="rentalPolicyEnabled"
+                  [class.is-disabled]="!rentalPolicyEnabled">
+              {{ (rentalPolicyEnabled ? 'superadmin.rental_enabled' : 'superadmin.rental_disabled') | translate }}
+            </span>
+          </div>
+
+          <div class="rental-settings-card__controls">
+            <mat-slide-toggle
+              [checked]="rentalPolicyEnabled"
+              [disabled]="rentalPolicyLoading || rentalPolicySaving"
+              (change)="onRentalPolicyToggle($event.checked)">
+              {{ 'rentals.settings_toggle' | translate }}
+            </mat-slide-toggle>
+
+            <mat-spinner *ngIf="rentalPolicyLoading || rentalPolicySaving" diameter="20"></mat-spinner>
+          </div>
+        </mat-card>
+
         <vex-school-info-tab
           [form]="schoolInfoForm"
           [logoPreview]="schoolLogoPreview"

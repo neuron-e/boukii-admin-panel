@@ -1,11 +1,16 @@
 import { Component, OnInit, OnDestroy, signal, TemplateRef, ViewChild } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
+import { catchError } from 'rxjs/operators';
 import { finalize } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { retry } from 'rxjs/operators';
 import { MatDatepickerInputEvent } from '@angular/material/datepicker';
 import { MatDialog } from '@angular/material/dialog';
+import { Router } from '@angular/router';
 
 import { DashboardService } from '../../../services/dashboard.service';
+import { RentalService } from 'src/service/rental.service';
 import type {
   SystemStats,
   TodayOperations,
@@ -51,6 +56,14 @@ interface CommercialCard {
   styleUrls: ['./dashboard-analytics.component.scss']
 })
 export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
+  readonly emptyRentalSummary = {
+    active_today: 0,
+    pending_pickup: 0,
+    overdue: 0,
+    revenue_today: 0,
+    completed_today: 0
+  };
+
   // Signals for reactive state
   systemStats = signal<SystemStats | null>(null);
   operations = signal<TodayOperations | null>(null);
@@ -79,13 +92,27 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
 
   @ViewChild('systemDetailDialog') systemDetailDialog?: TemplateRef<any>;
 
+  rentalSummary = signal<{ active_today: number; pending_pickup: number; overdue: number; revenue_today: number; completed_today: number } | null>(null);
+  loadingRental = signal<boolean>(false);
+  rentalEnabled = signal<boolean>(false);
+
   constructor(
     private dashboardService: DashboardService,
     private translate: TranslateService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private rentalService: RentalService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
+    this.rentalService.watchPolicy()
+      .subscribe((policy) => {
+        const enabled = this.rentalService.isPolicyEnabled(policy);
+        this.rentalEnabled.set(enabled);
+        if (enabled && !this.loadingRental() && !this.rentalSummary()) {
+          this.loadRentalSummary();
+        }
+      });
     this.refreshAll();
   }
 
@@ -123,6 +150,24 @@ export class DashboardAnalyticsComponent implements OnInit, OnDestroy {
       });
 
     this.loadForecast(dateParam);
+    this.loadRentalSummary();
+  }
+
+  loadRentalSummary(): void {
+    if (!this.rentalEnabled()) {
+      this.rentalSummary.set(null);
+      return;
+    }
+
+    this.loadingRental.set(true);
+    this.rentalService.getDashboardRentalSummary().pipe(
+      retry(1),
+      catchError(() => of(null)),
+      finalize(() => this.loadingRental.set(false))
+    ).subscribe((response: any) => {
+      const data = response?.data ?? this.rentalSummary() ?? this.emptyRentalSummary;
+      this.rentalSummary.set(data);
+    });
   }
 
   loadCourses(): void {
@@ -735,5 +780,17 @@ formatWeatherTime(dateStr: string): string {    try {      const date = new Date
 
   getTrendLabel(trend: 'up' | 'down' | 'stable'): string {
     return this.translate.instant(`dashboard.trend_${trend}`);
+  }
+
+  openRentalList(status?: string, date?: string): void {
+    const queryParams: Record<string, string> = {};
+    if (status) {
+      queryParams['status'] = status;
+    }
+    if (date) {
+      queryParams['date'] = date;
+    }
+
+    this.router.navigate(['/rentals'], { queryParams });
   }
 }

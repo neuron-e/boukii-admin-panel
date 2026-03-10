@@ -70,6 +70,102 @@
                                         (payClick)="handlePayClick()"
                                        (invoiceAction)="handleInvoiceAction($event)">
     </booking-detail-reservation-detail>
+
+    <!-- Linked rental reservations -->
+    <mat-card *ngIf="rentalEnabled" class="rental-linked-card" style="margin-top: 16px; border-radius: 10px;">
+      <mat-card-header>
+        <mat-card-title style="display: flex; align-items: center; gap: 8px; font-size: 16px;">
+          <mat-icon style="font-size: 18px; width: 18px; height: 18px;">lock</mat-icon>
+          {{ 'rentals.page_title' | translate }}
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingRentals" style="padding: 12px; display: flex; align-items: center; gap: 8px;">
+          <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+          <span style="font-size: 13px; color: #888;">{{ 'loading' | translate }}</span>
+        </div>
+
+        <ng-container *ngIf="!loadingRentals">
+          <div class="rental-linked-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              [disabled]="linkingRentals"
+              (click)="openLinkExistingRentalDialog()">
+              <mat-icon>link</mat-icon>
+              {{ 'rentals.integrated.link_existing' | translate }}
+            </button>
+            <button
+              mat-flat-button
+              color="accent"
+              type="button"
+              (click)="createNewRental()">
+              <mat-icon>add</mat-icon>
+              {{ 'rentals.integrated.create_new' | translate }}
+            </button>
+          </div>
+
+          <p *ngIf="linkedRentals.length === 0" style="color: #888; font-size: 13px; padding: 8px 0; margin: 0;">
+            {{ 'rentals.no_reservations' | translate }}
+          </p>
+
+          <div *ngFor="let rental of linkedRentals" class="linked-rental-row">
+            <div class="linked-rental-row__header">
+              <div style="font-size: 13px; line-height: 1.6;">
+                <div class="linked-rental-row__title">
+                  <strong>{{ rental.reference || ('#' + rental.id) }}</strong>
+                  <app-rental-status-badge [status]="rental.status"></app-rental-status-badge>
+                </div>
+                <div style="color: #555; margin-top: 2px;">
+                  {{ rental.start_date }} – {{ rental.end_date }}
+                </div>
+                <div *ngIf="rental.pickup_point_name" style="color: #777; margin-top: 2px;">
+                  <mat-icon style="font-size: 12px; width: 12px; height: 12px; vertical-align: middle;">place</mat-icon>
+                  {{ rental.pickup_point_name }}
+                </div>
+                <div *ngIf="rentalItemsSummary(rental)" class="linked-rental-row__items">
+                  {{ rentalItemsSummary(rental) }}
+                </div>
+                <div *ngIf="rental.total" style="font-weight: 600; margin-top: 4px;">
+                  {{ rental.total | number:'1.2-2' }} {{ rental.currency }}
+                </div>
+              </div>
+            </div>
+
+            <div class="linked-rental-row__actions">
+              <button mat-stroked-button color="primary" type="button" (click)="openRentalReservation(rental.id)">
+                <mat-icon>open_in_new</mat-icon>
+                {{ 'rentals.view_detail' | translate }}
+              </button>
+              <button mat-stroked-button type="button" *ngIf="rental.booking_id" (click)="openBookingFromRental(rental)">
+                <mat-icon>event_note</mat-icon>
+                {{ 'rentals.integrated.view_booking' | translate }}
+              </button>
+              <button
+                mat-stroked-button
+                color="warn"
+                type="button"
+                *ngIf="canUnlinkRental(rental)"
+                [disabled]="linkingRentals"
+                (click)="unlinkRental(rental)">
+                <mat-icon>link_off</mat-icon>
+                {{ 'rentals.integrated.unlink' | translate }}
+              </button>
+            </div>
+          </div>
+
+          <div class="linked-rental-totals" *ngIf="linkedRentals.length > 0">
+            <div>{{ 'bookings.preview.booking_total' | translate }}</div>
+            <div><strong>{{ getBookingDisplayTotal() | number:'1.2-2' }}</strong> {{ bookingCurrency() }}</div>
+            <div>{{ 'rentals.total' | translate }}</div>
+            <div><strong>{{ linkedRentalTotal() | number:'1.2-2' }}</strong> {{ bookingCurrency() }}</div>
+            <div>{{ 'rentals.integrated.grand_total' | translate }}</div>
+            <div><strong>{{ linkedGrandTotal() | number:'1.2-2' }}</strong> {{ bookingCurrency() }}</div>
+          </div>
+        </ng-container>
+      </mat-card-content>
+    </mat-card>
   </div>
 </div>
 <div class="mobileFixe" *ngIf="bookingData && groupedActivities?.length > 0">

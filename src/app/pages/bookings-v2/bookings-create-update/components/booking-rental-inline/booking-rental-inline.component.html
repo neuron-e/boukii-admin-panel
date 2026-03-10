@@ -1,0 +1,247 @@
+<mat-card class="rental-inline-card">
+  <ng-container *ngIf="displayMode === 'summary'; else editorMode">
+    <div class="rental-inline-header rental-inline-header--summary">
+      <div>
+        <div class="rental-inline-title">{{ 'rentals.integrated.inline_title' | translate }}</div>
+        <div class="rental-inline-subtitle">{{ 'rentals.integrated.inline_subtitle' | translate }}</div>
+      </div>
+    </div>
+
+    <div class="rental-inline-body rental-inline-body--summary">
+      <div class="rental-inline-loading" *ngIf="loading">{{ 'loading' | translate }}</div>
+
+      <ng-container *ngIf="!loading">
+        <div class="rental-period-summary">
+          <div class="period-line">
+            <span>{{ 'rentals.dates' | translate }}</span>
+            <strong>{{ bookingPeriod.startDate | date:'dd/MM/yyyy' }} <ng-container *ngIf="bookingPeriod.endDate && bookingPeriod.endDate !== bookingPeriod.startDate">→ {{ bookingPeriod.endDate | date:'dd/MM/yyyy' }}</ng-container></strong>
+          </div>
+          <div class="period-line">
+            <span>{{ 'rentals.integrated.inline_total_items' | translate }}</span>
+            <strong>{{ selectionCount }}</strong>
+          </div>
+          <div class="period-line">
+            <span>{{ 'rentals.pickup_point' | translate }}</span>
+            <strong>{{ pickupPointName || '—' }}</strong>
+          </div>
+          <div class="period-line" *ngIf="returnPointName">
+            <span>{{ 'rentals.return_point' | translate }}</span>
+            <strong>{{ returnPointName }}</strong>
+          </div>
+        </div>
+
+        <div class="summary-empty" *ngIf="quoteLoading">
+          {{ 'loading' | translate }}
+        </div>
+
+        <ng-container *ngFor="let group of selectedProductGroups">
+          <div class="summary-row summary-row--group">
+            <div>
+              <strong>{{ group.name }}</strong>
+              <span>{{ group.brand }} {{ group.model }}</span>
+            </div>
+            <div class="summary-meta">
+              <span>x{{ group.totalQty }}</span>
+              <strong>{{ group.subtotal | number:'0.2-2' }} {{ estimateCurrency }}</strong>
+            </div>
+          </div>
+
+          <div class="summary-row summary-row--variant" *ngFor="let variant of group.variants">
+            <div>
+              <strong>{{ variant.sizeLabel }}</strong>
+              <span>
+                {{ variant.unitPrice | number:'0.2-2' }} {{ variant.currency }}
+                / {{ ('rentals.period_' + variant.appliedPeriodType) | translate }}
+                <ng-container *ngIf="variant.pricingMode === 'per_day' && variant.rentalDays > 1">
+                  · {{ variant.rentalDays }} {{ (variant.rentalDays === 1 ? 'rentals.day' : 'rentals.days') | translate | lowercase }}
+                </ng-container>
+              </span>
+            </div>
+            <div class="summary-meta">
+              <span>x{{ variant.quantity }}</span>
+              <strong>{{ variant.subtotal | number:'0.2-2' }} {{ variant.currency }}</strong>
+            </div>
+          </div>
+        </ng-container>
+
+        <div class="summary-total" *ngIf="hasSelection">
+          <span>{{ 'rentals.integrated.inline_total_estimate' | translate }}</span>
+          <strong>{{ estimateTotal | number:'0.2-2' }} {{ estimateCurrency }}</strong>
+        </div>
+      </ng-container>
+    </div>
+  </ng-container>
+
+  <ng-template #editorMode>
+  <div class="rental-inline-header">
+    <div>
+      <div class="rental-inline-title">{{ 'rentals.integrated.inline_title' | translate }}</div>
+      <div class="rental-inline-subtitle">{{ 'rentals.integrated.inline_subtitle' | translate }}</div>
+    </div>
+    <mat-checkbox [ngModel]="enabled" (ngModelChange)="toggleEnabled($event)">
+      {{ 'rentals.integrated.inline_toggle' | translate }}
+    </mat-checkbox>
+  </div>
+
+  <div class="rental-inline-body" *ngIf="enabled">
+    <div class="rental-inline-loading" *ngIf="loading">{{ 'loading' | translate }}</div>
+
+    <ng-container *ngIf="!loading">
+      <div class="rental-period-summary">
+        <label class="period-toggle">
+          <mat-checkbox [ngModel]="useBookingDates" (ngModelChange)="onUseBookingDatesChange($event)">
+            {{ 'rentals.integrated.use_booking_dates' | translate }}
+          </mat-checkbox>
+        </label>
+        <div class="period-line">
+          <span>{{ 'rentals.dates' | translate }}</span>
+          <strong>{{ bookingPeriod.startDate | date:'dd/MM/yyyy' }} <ng-container *ngIf="bookingPeriod.endDate && bookingPeriod.endDate !== bookingPeriod.startDate">→ {{ bookingPeriod.endDate | date:'dd/MM/yyyy' }}</ng-container></strong>
+        </div>
+        <div class="period-line">
+          <span>{{ 'rentals.period_type' | translate }}</span>
+          <strong>{{ ('rentals.period_' + bookingPeriod.periodType) | translate }}</strong>
+        </div>
+      </div>
+
+      <div class="rental-inline-fields rental-inline-fields--dates" *ngIf="!useBookingDates">
+        <mat-form-field appearance="fill">
+          <mat-label>{{ 'rentals.integrated.custom_start_date' | translate }}</mat-label>
+          <input matInput type="date" [ngModel]="customStartDate" (ngModelChange)="onCustomStartDateChange($event)" />
+        </mat-form-field>
+
+        <mat-form-field appearance="fill">
+          <mat-label>{{ 'rentals.integrated.custom_end_date' | translate }}</mat-label>
+          <input matInput type="date" [ngModel]="customEndDate" (ngModelChange)="onCustomEndDateChange($event)" />
+        </mat-form-field>
+      </div>
+
+      <div class="rental-inline-fields">
+        <mat-form-field appearance="fill">
+          <mat-label>{{ 'rentals.pickup_point' | translate }}</mat-label>
+          <mat-select [ngModel]="pickupPointId" (ngModelChange)="onPickupPointChange($event)">
+            <mat-option *ngFor="let pickupPoint of pickupPoints" [value]="pickupPoint.id">
+              {{ pickupPoint.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill">
+          <mat-label>{{ 'rentals.return_point' | translate }}</mat-label>
+          <mat-select [ngModel]="returnPointId" (ngModelChange)="onReturnPointChange($event)">
+            <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+            <mat-option *ngFor="let pickupPoint of pickupPoints" [value]="pickupPoint.id">
+              {{ pickupPoint.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="rental-inline-filters">
+        <mat-form-field appearance="fill" class="search-field">
+          <mat-label>{{ 'rentals.search_equipment' | translate }}</mat-label>
+          <input matInput [ngModel]="search" (ngModelChange)="onSearchChange($event)" />
+        </mat-form-field>
+
+        <div class="category-filter">
+          <button mat-stroked-button type="button" [class.active]="categoryFilter === 'all'" (click)="setCategoryFilter('all')">
+            {{ 'rentals.all_categories' | translate }}
+          </button>
+          <button
+            *ngFor="let category of categories"
+            mat-stroked-button
+            type="button"
+            [class.active]="categoryFilter === category.id"
+            (click)="setCategoryFilter(category.id)">
+            {{ category.name }}
+          </button>
+        </div>
+      </div>
+
+      <div class="rental-inline-grid">
+        <div class="inventory-list">
+          <div class="product-group" *ngFor="let group of groupedInventoryRows">
+            <button type="button" class="product-header" (click)="toggleProduct(group.item.id)">
+              <div class="product-copy">
+                <strong>{{ group.item?.name }}</strong>
+                  <span>{{ group.item?.brand }} {{ group.item?.model }}</span>
+                </div>
+                <div class="product-meta">
+                <span *ngIf="getProductSelectedQty(group) > 0" class="selected-pill">
+                  {{ getProductSelectedQty(group) }} {{ 'rentals.integrated.inline_selected_short' | translate }}
+                </span>
+                <span *ngIf="getProductSelectedQty(group) > 0" class="selected-pill">
+                  {{ getProductSubtotal(group) | number:'0.2-2' }} {{ estimateCurrency }}
+                </span>
+                <mat-icon>{{ isProductExpanded(group.item.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </div>
+            </button>
+
+            <div class="product-variants" *ngIf="isProductExpanded(group.item.id)">
+              <div class="inventory-row" *ngFor="let row of group.rows">
+                <div class="inventory-copy">
+                  <strong>{{ row.size_label || row.name }}</strong>
+                  <span>{{ group.item?.brand }} {{ group.item?.model }}</span>
+                  <small>
+                    {{ 'rentals.available' | translate }}: {{ row.available }} ·
+                    {{ rowUnitPrice(row, bookingPeriod.periodType) | number:'0.2-2' }} {{ estimateCurrency }}
+                  </small>
+                </div>
+                <div class="inventory-actions">
+                  <button mat-icon-button type="button" (click)="removeOneItem(row)" [disabled]="selectedQuantity(row.id) <= 0">
+                    <mat-icon>remove</mat-icon>
+                  </button>
+                  <span class="qty">{{ selectedQuantity(row.id) }}</span>
+                  <button mat-icon-button type="button" (click)="addOneItem(row)" [disabled]="selectedQuantity(row.id) >= row.available">
+                    <mat-icon>add</mat-icon>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="selection-summary">
+          <div class="summary-title">{{ 'rentals.selected_items' | translate }}</div>
+          <div class="summary-empty" *ngIf="quoteLoading">{{ 'loading' | translate }}</div>
+          <div class="summary-empty" *ngIf="!hasSelection">
+            {{ 'rentals.integrated.inline_no_equipment' | translate }}
+          </div>
+          <div class="summary-group" *ngFor="let group of selectedProductGroups">
+            <div class="summary-row summary-row--group">
+              <div>
+                <strong>{{ group.name }}</strong>
+                <span>{{ group.brand }} {{ group.model }}</span>
+              </div>
+              <div class="summary-meta">
+                <span>x{{ group.totalQty }}</span>
+                <strong>{{ group.subtotal | number:'0.2-2' }} {{ estimateCurrency }}</strong>
+              </div>
+            </div>
+            <div class="summary-row summary-row--variant" *ngFor="let variant of group.variants">
+              <div>
+                <strong>{{ variant.sizeLabel }}</strong>
+                <span>
+                  {{ variant.unitPrice | number:'0.2-2' }} {{ variant.currency }}
+                  / {{ ('rentals.period_' + variant.appliedPeriodType) | translate }}
+                  <ng-container *ngIf="variant.pricingMode === 'per_day' && variant.rentalDays > 1">
+                    · {{ variant.rentalDays }} {{ (variant.rentalDays === 1 ? 'rentals.day' : 'rentals.days') | translate | lowercase }}
+                  </ng-container>
+                </span>
+              </div>
+              <div class="summary-meta">
+                <span>x{{ variant.quantity }}</span>
+                <strong>{{ variant.subtotal | number:'0.2-2' }} {{ variant.currency }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-total" *ngIf="hasSelection">
+            <span>{{ 'rentals.integrated.inline_total_estimate' | translate }}</span>
+            <strong>{{ estimateTotal | number:'0.2-2' }} {{ estimateCurrency }}</strong>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+  </ng-template>
+</mat-card>

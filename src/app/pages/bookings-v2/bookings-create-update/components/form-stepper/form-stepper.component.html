@@ -38,10 +38,36 @@
   </ng-container>
 
   <ng-container *ngIf="currentStep === 5">
-    <booking-step-observations [initialData]="stepperForm.get('step6')?.value"
-      (stepCompleted)="handleStepCompletion(6, $event)"
+    <ng-container *ngIf="rentalStepEnabled; else observationsWithoutRental">
+      <mat-card-content class="cardWrapper">
+        <booking-rental-inline
+          [client]="rentalClient"
+          [bookingDates]="rentalBookingDates"
+          [initialDraft]="rentalInitialDraft"
+          (draftChange)="rentalDraftChange.emit($event)"
+          (summaryChange)="rentalSummaryChange.emit($event)">
+        </booking-rental-inline>
+
+        <div class="stepButtonsWrapper">
+          <app-form-button (click)="previousStep()" form="back" name="back" icon="mat:arrow_back"></app-form-button>
+          <app-form-button (click)="handleRentalStepCompletion()" form="flat" name="continue"></app-form-button>
+        </div>
+      </mat-card-content>
+    </ng-container>
+    <ng-template #observationsWithoutRental>
+      <booking-step-observations [initialData]="stepperForm.get('step6')?.value"
+        (stepCompleted)="handleStepCompletion(6, $event)"
+        (saveAndCreateNew)="handleSaveAndCreateNew($event)"
+        (prevStep)="previousStep()">
+      </booking-step-observations>
+    </ng-template>
+  </ng-container>
+
+  <ng-container *ngIf="currentStep === 6 && rentalStepEnabled">
+    <booking-step-observations [initialData]="stepperForm.get('step7')?.value"
+      (stepCompleted)="handleStepCompletion(7, $event)"
       (saveAndCreateNew)="handleSaveAndCreateNew($event)"
-                               (prevStep)="previousStep()">
+      (prevStep)="previousStep()">
     </booking-step-observations>
   </ng-container>
 </div>

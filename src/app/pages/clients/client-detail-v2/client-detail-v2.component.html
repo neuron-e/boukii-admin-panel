@@ -5,3 +5,100 @@
     {text:'client_info', subtitle: true}
     ]" class="flex"></vex-breadcrumbs>
 </vex-secondary-toolbar>
+
+<vex-page-layout>
+  <vex-page-layout-content class="p-6">
+
+    <mat-tab-group animationDuration="200ms">
+
+      <!-- ===== Existing client info tab (placeholder — widgets loaded here) ===== -->
+      <mat-tab [label]="'client_info' | translate">
+        <div class="pt-4">
+          <widget-clients-group [clientId]="id" [userId]="user?.id"></widget-clients-group>
+          <widget-clients-sports [clientId]="id"></widget-clients-sports>
+        </div>
+      </mat-tab>
+
+      <!-- ===== Rental History tab ===== -->
+      <mat-tab *ngIf="rentalEnabled" [label]="'rentals.client_rentals_tab' | translate">
+        <div class="pt-4">
+
+          <div *ngIf="rentalLoading" class="flex items-center gap-2 py-4">
+            <mat-spinner diameter="24"></mat-spinner>
+            <span class="text-secondary">{{ 'common.loading' | translate }}</span>
+          </div>
+
+          <ng-container *ngIf="!rentalLoading">
+            <p *ngIf="rentalReservations.length === 0" class="text-secondary py-4">
+              {{ 'rentals.client_no_rentals' | translate }}
+            </p>
+
+            <table *ngIf="rentalReservations.length > 0" mat-table [dataSource]="rentalReservations" class="w-full">
+
+              <!-- Reference -->
+              <ng-container matColumnDef="reference">
+                <th mat-header-cell *matHeaderCellDef>{{ 'rentals.reference' | translate }}</th>
+                <td mat-cell *matCellDef="let row">{{ row.reference || ('#' + row.id) }}</td>
+              </ng-container>
+
+              <!-- Dates -->
+              <ng-container matColumnDef="dates">
+                <th mat-header-cell *matHeaderCellDef>{{ 'rentals.dates' | translate }}</th>
+                <td mat-cell *matCellDef="let row">{{ row.start_date }} – {{ row.end_date }}</td>
+              </ng-container>
+
+              <!-- Items -->
+              <ng-container matColumnDef="items">
+                <th mat-header-cell *matHeaderCellDef>{{ 'rentals.items' | translate }}</th>
+                <td mat-cell *matCellDef="let row">{{ row.items_count ?? '—' }}</td>
+              </ng-container>
+
+              <!-- Status -->
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>{{ 'rentals.status' | translate }}</th>
+                <td mat-cell *matCellDef="let row">
+                  <app-rental-status-badge [status]="row.status"></app-rental-status-badge>
+                </td>
+              </ng-container>
+
+              <!-- Total -->
+              <ng-container matColumnDef="total">
+                <th mat-header-cell *matHeaderCellDef>{{ 'rentals.total' | translate }}</th>
+                <td mat-cell *matCellDef="let row">{{ row.total | number:'1.2-2' }}</td>
+              </ng-container>
+
+              <!-- Pickup Point -->
+              <ng-container matColumnDef="pickup_point">
+                <th mat-header-cell *matHeaderCellDef>{{ 'rentals.pickup_point' | translate }}</th>
+                <td mat-cell *matCellDef="let row">{{ row.pickup_point_name ?? '—' }}</td>
+              </ng-container>
+
+              <!-- Actions -->
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let row">
+                  <button mat-icon-button [matTooltip]="'rentals.view_detail' | translate" (click)="openRentalDetail(row)">
+                    <mat-icon>open_in_new</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="['reference','dates','items','status','total','pickup_point','actions']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['reference','dates','items','status','total','pickup_point','actions'];"></tr>
+            </table>
+
+            <!-- Pagination -->
+            <div *ngIf="rentalLastPage > 1" class="flex items-center gap-2 pt-4">
+              <button mat-stroked-button [disabled]="rentalPage <= 1" (click)="rentalPrevPage()">‹</button>
+              <span class="text-sm">{{ rentalPage }} / {{ rentalLastPage }}</span>
+              <button mat-stroked-button [disabled]="rentalPage >= rentalLastPage" (click)="rentalNextPage()">›</button>
+            </div>
+          </ng-container>
+
+        </div>
+      </mat-tab>
+
+    </mat-tab-group>
+
+  </vex-page-layout-content>
+</vex-page-layout>

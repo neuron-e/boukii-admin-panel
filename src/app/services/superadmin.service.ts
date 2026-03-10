@@ -78,6 +78,10 @@ export class SuperadminService {
     return this.crud.post('/superadmin/notifications', payload);
   }
 
+  updateRentalPolicy(id: number, payload: any) {
+    return this.crud.post(`/superadmin/schools/${id}/rental-policy`, payload);
+  }
+
   impersonate(payload: any) {
     return this.crud.post('/superadmin/impersonate', payload);
   }
