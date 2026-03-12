@@ -723,6 +723,14 @@ export class RentalsReservationEditComponent implements OnInit {
     return this.reconciliationActionRequired() === 'resolve_overpayment' && this.overpaidAmount() > 0;
   }
 
+  canKeepCredit(): boolean {
+    if (!this.canResolveOverpayment()) return false;
+    const allowed = Array.isArray(this.financialReconciliation?.allowed_actions)
+      ? this.financialReconciliation.allowed_actions.map((v: any) => String(v || '').toLowerCase())
+      : [];
+    return allowed.includes('keep_credit');
+  }
+
   processRefund(): void {
     if (!this.reservation?.id || !this.canResolveOverpayment()) return;
     if (!confirm(`Se registrará reembolso para resolver ${this.overpaidAmount().toFixed(2)} ${this.reservationCurrency()}. ¿Continuar?`)) {
@@ -737,6 +745,31 @@ export class RentalsReservationEditComponent implements OnInit {
       },
       error: (error) => {
         this.toast(error?.error?.message || 'No se pudo procesar el reembolso');
+      }
+    });
+  }
+
+  processKeepCredit(): void {
+    if (!this.reservation?.id || !this.canKeepCredit()) return;
+    const amount = this.overpaidAmount();
+    if (amount <= 0) return;
+    if (!confirm(`Se generará un crédito (voucher) de ${amount.toFixed(2)} ${this.reservationCurrency()} para resolver el saldo a favor. ¿Continuar?`)) {
+      return;
+    }
+
+    this.rentalService.refundPayment(this.reservation.id, {
+      amount,
+      refund_method: 'voucher',
+      voucher_name: `Crédito alquiler ${this.reservation.reference || ('#' + this.reservation.id)}`,
+      notes: 'Crédito generado desde conciliación de edición de reserva',
+    }).subscribe({
+      next: () => {
+        this.toast('Crédito generado correctamente');
+        this.loadPaymentInfo();
+        this.reloadReservation();
+      },
+      error: (error) => {
+        this.toast(error?.error?.message || 'No se pudo generar el crédito');
       }
     });
   }

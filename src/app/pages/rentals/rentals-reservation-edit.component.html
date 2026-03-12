@@ -284,7 +284,7 @@
         </section>
       </section>
 
-      <section class="reservation-edit-card reservation-edit-card--post" *ngIf="!isCreateMode()">
+      <section class="reservation-edit-card reservation-edit-card--payment" *ngIf="!isCreateMode()">
         <h4>Información de Pago</h4>
         <div class="reservation-edit-grid reservation-edit-grid--3">
           <mat-form-field appearance="outline">
@@ -300,7 +300,9 @@
             <input matInput [value]="depositAmount() | number:'1.2-2'" readonly>
           </mat-form-field>
         </div>
+      </section>
 
+      <section class="reservation-edit-card reservation-edit-card--status" *ngIf="!isCreateMode()">
         <h4>Estado</h4>
         <div class="reservation-status-row">
           <button
@@ -312,13 +314,17 @@
             {{ ('rentals.status_' + status) | translate }}
           </button>
         </div>
+      </section>
 
+      <section class="reservation-edit-card reservation-edit-card--notes" *ngIf="!isCreateMode()">
         <h4>Notas</h4>
         <mat-form-field appearance="outline" class="reservation-edit-notes-field">
           <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
           <textarea matInput rows="3" formControlName="notes"></textarea>
         </mat-form-field>
+      </section>
 
+      <section class="reservation-edit-card reservation-edit-card--billing" *ngIf="!isCreateMode()">
         <h4>Facturación</h4>
         <div class="reservation-billing-row">
           <button mat-stroked-button type="button">
@@ -334,22 +340,14 @@
             Ver Factura
           </button>
         </div>
-
-        <div class="reservation-edit-page__footer reservation-edit-page__footer--inside">
-          <button mat-stroked-button type="button" (click)="goBack()">{{ 'rentals.cancel' | translate }}</button>
-        </div>
       </section>
 
-      <section class="reservation-edit-card reservation-edit-card--post" *ngIf="isCreateMode()">
+      <section class="reservation-edit-card reservation-edit-card--notes" *ngIf="isCreateMode()">
         <h4>Notas</h4>
         <mat-form-field appearance="outline" class="reservation-edit-notes-field">
           <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
           <textarea matInput rows="3" formControlName="notes"></textarea>
         </mat-form-field>
-
-        <div class="reservation-edit-page__footer reservation-edit-page__footer--inside">
-          <button mat-stroked-button type="button" (click)="goBack()">{{ 'rentals.cancel' | translate }}</button>
-        </div>
       </section>
     </div>
 
@@ -416,6 +414,10 @@
         <button mat-stroked-button type="button" class="payment-add-btn payment-add-btn--warn" *ngIf="canResolveOverpayment()" (click)="processRefund()">
           <mat-icon>reply</mat-icon>
           Procesar reembolso
+        </button>
+        <button mat-stroked-button type="button" class="payment-add-btn" *ngIf="canKeepCredit()" (click)="processKeepCredit()">
+          <mat-icon>redeem</mat-icon>
+          Dejar como crédito
         </button>
 
         <button class="confirm-btn" type="button" [disabled]="form.invalid || saving" (click)="save()">
