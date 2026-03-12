@@ -1,4 +1,7 @@
+@use './rental-design-system' as ds;
+
 .rentals-detail-page {
+  @include ds.host-tokens;
   --rental-card-border: oklch(0.928 0.006 264.531);
   --rental-shell-bg: oklch(0.985 0.002 247.839);
   --rental-title: oklch(0.21 0.034 264.665);
@@ -8,10 +11,16 @@
   --rental-pill-fill: oklch(0.967 0.003 264.542);
   --rental-pill-text: oklch(0.446 0.03 256.802);
   --rental-primary: oklch(0.21 0.034 264.665);
-
-  padding: 24px;
-  background: var(--rental-shell-bg);
-  color: var(--rental-body);
+  --rental-card-border: var(--rental-ds-border-color);
+  --rental-shell-bg: var(--rental-ds-shell-bg);
+  --rental-title: var(--rental-ds-title);
+  --rental-body: var(--rental-ds-body);
+  --rental-muted: var(--rental-ds-subtitle);
+  --rental-fill: rgb(243, 243, 245);
+  --rental-pill-fill: var(--rental-ds-muted-fill);
+  --rental-pill-text: var(--rental-ds-muted-text);
+  --rental-primary: var(--rental-ds-primary);
+  @include ds.page-shell(24px, 20px);
 }
 
 .detail-topbar {
@@ -152,10 +161,7 @@
 .image-card,
 .info-card,
 .panel {
-  background: #fff;
-  border: 1px solid var(--rental-card-border);
-  border-radius: 14px;
-  padding: 24px;
+  @include ds.section-card();
   margin-bottom: 24px;
 }
 

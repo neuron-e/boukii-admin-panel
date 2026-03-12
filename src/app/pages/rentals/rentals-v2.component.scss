@@ -1,4 +1,7 @@
+@use './rental-design-system' as ds;
+
 :host {
+  @include ds.host-tokens;
   --rental-radius-base: 10px;
   --rental-radius-card: 14px;
   --rental-border: 1px solid oklch(0.928 0.006 264.531);
@@ -9,22 +12,23 @@
   --rental-muted-fill: oklch(0.967 0.003 264.542);
   --rental-muted-text: oklch(0.446 0.03 256.802);
   --rental-blue-outline: oklch(0.546 0.245 262.881);
+  --rental-radius-base: var(--rental-ds-radius-base);
+  --rental-radius-card: var(--rental-ds-radius-card);
+  --rental-border: var(--rental-ds-border);
+  --rental-title: var(--rental-ds-title);
+  --rental-subtitle: var(--rental-ds-subtitle);
+  --rental-neutral-dark: var(--rental-ds-body);
+  --rental-pill-active: oklch(0.985 0.002 247.839);
+  --rental-muted-fill: var(--rental-ds-muted-fill);
+  --rental-muted-text: var(--rental-ds-muted-text);
 }
 
 .rentals-v2-page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 24px;
-  background: oklch(0.985 0.002 247.839);
+  @include ds.page-shell();
 }
 
 .content-card {
-  background: #fff;
-  border: var(--rental-border);
-  border-radius: var(--rental-radius-card);
-  padding: 24px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  @include ds.section-card();
 }
 
 .content-card--stacked {

@@ -1,9 +1,12 @@
+@use './rental-design-system' as ds;
+
 :host {
+  @include ds.host-tokens;
   display: block;
 }
 
 .reservation-edit-page {
-  padding: 16px;
+  @include ds.page-shell(16px, 16px);
 }
 
 .reservation-edit-page__header {
@@ -121,10 +124,7 @@
 }
 
 .reservation-edit-card {
-  border: 1px solid #e6ebf2;
-  border-radius: 14px;
-  background: #fff;
-  padding: 16px;
+  @include ds.section-card(16px);
 }
 
 .reservation-edit-card h4 {
@@ -179,11 +179,7 @@
 }
 
 .field-label {
-  display: block;
-  font-size: 12px;
-  color: #64748b;
-  margin-bottom: 6px;
-  font-weight: 500;
+  @include ds.field-caption;
 }
 
 .custom-field {
@@ -393,20 +389,12 @@
 }
 
 .reservation-edit-line {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
+  @include ds.equipment-line-card;
   padding: 10px 12px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.reservation-edit-line:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
 }
 
 .reservation-edit-line__info strong {
@@ -902,28 +890,7 @@
 }
 
 .reservation-edit-metric {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #eef2f7;
-  gap: 10px;
-}
-
-.reservation-edit-metric:last-child {
-  border-bottom: 0;
-}
-
-.reservation-edit-metric span {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.reservation-edit-metric strong {
-  font-size: 18px;
-  line-height: 1.2;
-  color: #0f172a;
-  text-align: right;
+  @include ds.metric-row;
 }
 
 .payment-summary__title {
