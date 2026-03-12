@@ -75,6 +75,13 @@ export class RentalsComponent implements OnInit {
     start_date_to: '',
     search: ''
   };
+  stockMovementFilters = {
+    movement_type: '',
+    warehouse_id: null as number | null,
+    variant_id: null as number | null,
+    date_from: '',
+    date_to: ''
+  };
 
   categoryForm = this.fb.group({
     name: ['', Validators.required],
@@ -937,6 +944,25 @@ export class RentalsComponent implements OnInit {
     this.reloadReservations();
   }
 
+  applyStockMovementFilters(): void {
+    this.tableState.stockMovements.page = 1;
+    this.serverPagination.stockMovements.page = 1;
+    this.reloadStockMovements();
+  }
+
+  clearStockMovementFilters(): void {
+    this.stockMovementFilters = {
+      movement_type: '',
+      warehouse_id: null,
+      variant_id: null,
+      date_from: '',
+      date_to: ''
+    };
+    this.tableState.stockMovements.page = 1;
+    this.serverPagination.stockMovements.page = 1;
+    this.reloadStockMovements();
+  }
+
   private parse(res: any): any[] {
     if (!res) return [];
     if (Array.isArray(res)) return res;
@@ -1122,6 +1148,11 @@ export class RentalsComponent implements OnInit {
   private getStockMovementsQueryFilters(): Record<string, any> {
     return {
       search: this.tableState.stockMovements.search || undefined,
+      movement_type: this.stockMovementFilters.movement_type || undefined,
+      warehouse_id: this.stockMovementFilters.warehouse_id || undefined,
+      variant_id: this.stockMovementFilters.variant_id || undefined,
+      date_from: this.stockMovementFilters.date_from || undefined,
+      date_to: this.stockMovementFilters.date_to || undefined,
       sort_by: this.tableState.stockMovements.sortKey,
       sort_dir: this.tableState.stockMovements.sortDir,
       page: this.serverPagination.stockMovements.page,

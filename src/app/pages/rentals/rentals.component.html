@@ -231,6 +231,46 @@
                 <input matInput [value]="tableState.stockMovements.search" (input)="setSearch('stockMovements', $any($event.target).value)">
               </mat-form-field>
             </div>
+            <div class="server-filters">
+              <mat-form-field appearance="outline">
+                <mat-label>Type</mat-label>
+                <mat-select [(value)]="stockMovementFilters.movement_type">
+                  <mat-option value="">All</mat-option>
+                  <mat-option value="assign">assign</mat-option>
+                  <mat-option value="return">return</mat-option>
+                  <mat-option value="damage">damage</mat-option>
+                  <mat-option value="maintenance_set">maintenance_set</mat-option>
+                  <mat-option value="maintenance_released">maintenance_released</mat-option>
+                  <mat-option value="manual_adjustment">manual_adjustment</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Warehouse</mat-label>
+                <mat-select [(value)]="stockMovementFilters.warehouse_id">
+                  <mat-option [value]="null">All</mat-option>
+                  <mat-option *ngFor="let w of warehouses" [value]="w.id">{{ w.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Variant</mat-label>
+                <mat-select [(value)]="stockMovementFilters.variant_id">
+                  <mat-option [value]="null">All</mat-option>
+                  <mat-option *ngFor="let v of variants" [value]="v.id">{{ variantLabel(v.id) }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Date from</mat-label>
+                <input matInput type="date" [(ngModel)]="stockMovementFilters.date_from" [ngModelOptions]="{standalone: true}">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Date to</mat-label>
+                <input matInput type="date" [(ngModel)]="stockMovementFilters.date_to" [ngModelOptions]="{standalone: true}">
+              </mat-form-field>
+              <div class="server-filters__actions">
+                <button mat-stroked-button type="button" (click)="clearStockMovementFilters()">Clear</button>
+                <button mat-flat-button color="primary" type="button" (click)="applyStockMovementFilters()">Apply</button>
+              </div>
+            </div>
             <div class="table-head table-head--actions">
               <button class="sort-btn" type="button" (click)="setSort('stockMovements','occurred_at')">Date</button>
               <button class="sort-btn" type="button" (click)="setSort('stockMovements','movement_type')">Type</button>
