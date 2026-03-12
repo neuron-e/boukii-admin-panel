@@ -152,6 +152,22 @@ export class RentalService {
     return this.crudService.update('/admin/rentals/units', payload, id);
   }
 
+  setUnitMaintenance(id: number, reason: string, condition?: string): Observable<ApiResponse> {
+    return this.crudService.post(`/admin/rentals/units/${id}/maintenance`, this.withSchool({ reason, condition }));
+  }
+
+  releaseUnitMaintenance(id: number, reason: string, condition?: string): Observable<ApiResponse> {
+    return this.crudService.post(`/admin/rentals/units/${id}/maintenance/release`, this.withSchool({ reason, condition }));
+  }
+
+  getUnitMaintenanceHistory(id: number): Observable<ApiResponse> {
+    return this.crudService.get(`/admin/rentals/units/${id}/maintenance-history`, [], this.withSchool());
+  }
+
+  listStockMovements(filters: Record<string, any> = {}): Observable<ApiResponse> {
+    return this.crudService.get('/admin/rentals/stock-movements', [], this.withSchool(filters));
+  }
+
   deleteUnit(id: number): Observable<ApiResponse> {
     return this.crudService.delete('/admin/rentals/units', id);
   }

@@ -20,7 +20,8 @@ export class RentalsComponent implements OnInit {
     'pickupPoints',
     'units',
     'pricingRules',
-    'reservations'
+    'reservations',
+    'stockMovements'
   ]);
   serverPagination: Record<string, { page: number; lastPage: number; total: number; perPage: number }> = {
     categories: { page: 1, lastPage: 1, total: 0, perPage: this.defaultPageSize },
@@ -30,7 +31,8 @@ export class RentalsComponent implements OnInit {
     pickupPoints: { page: 1, lastPage: 1, total: 0, perPage: this.defaultPageSize },
     units: { page: 1, lastPage: 1, total: 0, perPage: this.defaultPageSize },
     pricingRules: { page: 1, lastPage: 1, total: 0, perPage: this.defaultPageSize },
-    reservations: { page: 1, lastPage: 1, total: 0, perPage: this.defaultPageSize }
+    reservations: { page: 1, lastPage: 1, total: 0, perPage: this.defaultPageSize },
+    stockMovements: { page: 1, lastPage: 1, total: 0, perPage: this.defaultPageSize }
   };
   tableState: Record<string, { search: string; page: number; pageSize: number; sortKey: string; sortDir: 'asc' | 'desc' }> = {
     categories: { search: '', page: 1, pageSize: this.defaultPageSize, sortKey: 'name', sortDir: 'asc' },
@@ -40,7 +42,8 @@ export class RentalsComponent implements OnInit {
     pickupPoints: { search: '', page: 1, pageSize: this.defaultPageSize, sortKey: 'name', sortDir: 'asc' },
     units: { search: '', page: 1, pageSize: this.defaultPageSize, sortKey: 'id', sortDir: 'desc' },
     pricingRules: { search: '', page: 1, pageSize: this.defaultPageSize, sortKey: 'id', sortDir: 'desc' },
-    reservations: { search: '', page: 1, pageSize: this.defaultPageSize, sortKey: 'id', sortDir: 'desc' }
+    reservations: { search: '', page: 1, pageSize: this.defaultPageSize, sortKey: 'id', sortDir: 'desc' },
+    stockMovements: { search: '', page: 1, pageSize: this.defaultPageSize, sortKey: 'occurred_at', sortDir: 'desc' }
   };
 
   editingCategoryId: number | null = null;
@@ -59,6 +62,7 @@ export class RentalsComponent implements OnInit {
   units: any[] = [];
   pricingRules: any[] = [];
   reservations: any[] = [];
+  stockMovements: any[] = [];
   policy: any = null;
   unitFilters = {
     warehouse_id: null as number | null,
@@ -204,8 +208,9 @@ export class RentalsComponent implements OnInit {
       this.wrapPaged(this.rentalService.listUnits(this.getUnitsQueryFilters()), 'units'),
       this.wrapPaged(this.rentalService.listPricingRules(this.getPricingRulesQueryFilters()), 'pricingRules'),
       this.wrapPaged(this.rentalService.listReservations(this.getReservationsQueryFilters()), 'reservations'),
+      this.wrapPaged(this.rentalService.listStockMovements(this.getStockMovementsQueryFilters()), 'stockMovements'),
       this.wrapObject(this.rentalService.getPolicy())
-    ]).then(([categories, items, variants, warehouses, pickupPoints, units, pricingRules, reservations, policy]) => {
+    ]).then(([categories, items, variants, warehouses, pickupPoints, units, pricingRules, reservations, stockMovements, policy]) => {
       this.categories = categories;
       this.items = items;
       this.variants = variants;
@@ -214,6 +219,7 @@ export class RentalsComponent implements OnInit {
       this.units = units;
       this.pricingRules = pricingRules;
       this.reservations = reservations;
+      this.stockMovements = stockMovements;
       this.policy = policy ?? null;
       if (policy) {
         this.policyForm.patchValue({
@@ -630,6 +636,32 @@ export class RentalsComponent implements OnInit {
     });
   }
 
+  setUnitToMaintenance(row: any): void {
+    const reason = window.prompt('Maintenance reason');
+    if (!reason || !reason.trim()) return;
+    this.rentalService.setUnitMaintenance(row.id, reason.trim(), row?.condition || '').subscribe({
+      next: () => {
+        this.toast('Unit moved to maintenance');
+        this.reloadUnits();
+        this.reloadStockMovements();
+      },
+      error: () => this.toast('Error setting unit maintenance')
+    });
+  }
+
+  releaseUnitFromMaintenance(row: any): void {
+    const reason = window.prompt('Release reason');
+    if (!reason || !reason.trim()) return;
+    this.rentalService.releaseUnitMaintenance(row.id, reason.trim(), row?.condition || '').subscribe({
+      next: () => {
+        this.toast('Unit released from maintenance');
+        this.reloadUnits();
+        this.reloadStockMovements();
+      },
+      error: () => this.toast('Error releasing unit maintenance')
+    });
+  }
+
   deletePricingRule(row: any): void {
     if (!confirm(`Delete pricing rule #${row.id}?`)) return;
     this.rentalService.deletePricingRule(row.id).subscribe({
@@ -868,6 +900,21 @@ export class RentalsComponent implements OnInit {
     });
   }
 
+  private reloadStockMovements(): void {
+    this.rentalService.listStockMovements(this.getStockMovementsQueryFilters()).subscribe((res: any) => {
+      const paged = this.parsePaged(res);
+      this.stockMovements = paged.data;
+      this.serverPagination.stockMovements = {
+        page: paged.page,
+        lastPage: paged.lastPage,
+        total: paged.total,
+        perPage: paged.perPage
+      };
+      this.tableState.stockMovements.page = paged.page;
+      this.tableState.stockMovements.pageSize = paged.perPage;
+    });
+  }
+
   applyUnitFilters(): void {
     this.tableState.units.page = 1;
     this.reloadUnits();
@@ -907,7 +954,7 @@ export class RentalsComponent implements OnInit {
     });
   }
 
-  private wrapPaged(obs: any, table: 'categories' | 'items' | 'variants' | 'warehouses' | 'pickupPoints' | 'units' | 'pricingRules' | 'reservations'): Promise<any[]> {
+  private wrapPaged(obs: any, table: 'categories' | 'items' | 'variants' | 'warehouses' | 'pickupPoints' | 'units' | 'pricingRules' | 'reservations' | 'stockMovements'): Promise<any[]> {
     return new Promise((resolve, reject) => {
       obs.subscribe({
         next: (res: any) => {
@@ -980,6 +1027,10 @@ export class RentalsComponent implements OnInit {
     }
     if (table === 'reservations') {
       this.reloadReservations();
+      return;
+    }
+    if (table === 'stockMovements') {
+      this.reloadStockMovements();
     }
   }
 
@@ -1065,6 +1116,16 @@ export class RentalsComponent implements OnInit {
       sort_dir: this.tableState.reservations.sortDir,
       page: this.serverPagination.reservations.page,
       per_page: this.tableState.reservations.pageSize
+    };
+  }
+
+  private getStockMovementsQueryFilters(): Record<string, any> {
+    return {
+      search: this.tableState.stockMovements.search || undefined,
+      sort_by: this.tableState.stockMovements.sortKey,
+      sort_dir: this.tableState.stockMovements.sortDir,
+      page: this.serverPagination.stockMovements.page,
+      per_page: this.tableState.stockMovements.pageSize
     };
   }
 

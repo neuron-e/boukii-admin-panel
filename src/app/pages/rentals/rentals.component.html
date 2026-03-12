@@ -207,9 +207,47 @@
             </div>
             <div class="table-row table-row--actions" *ngFor="let u of pagedRows('units', units)">
               <span>#{{ u.id }} <small class="muted">{{ u.serial || '' }}</small></span><span class="muted">{{ variantLabel(u.variant_id) }}</span><span class="badge" [class.badge--ok]="u.status === 'available'" [class.badge--warn]="u.status === 'assigned'" [class.badge--danger]="u.status === 'maintenance'">{{ u.status }}</span>
-              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditUnit(u)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deleteUnit(u)"><mat-icon>delete</mat-icon></button></span>
+              <span class="row-actions">
+                <button mat-icon-button type="button" *ngIf="u.status !== 'maintenance'" (click)="setUnitToMaintenance(u)" matTooltip="Set maintenance">
+                  <mat-icon>build</mat-icon>
+                </button>
+                <button mat-icon-button type="button" *ngIf="u.status === 'maintenance'" (click)="releaseUnitFromMaintenance(u)" matTooltip="Release maintenance">
+                  <mat-icon>build_circle</mat-icon>
+                </button>
+                <button mat-icon-button type="button" (click)="startEditUnit(u)"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button type="button" (click)="deleteUnit(u)"><mat-icon>delete</mat-icon></button>
+              </span>
             </div>
             <div class="table-footer"><span>{{ filteredCount('units', units) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.units.pageSize" (selectionChange)="setPageSize('units', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('units')" [disabled]="tableState.units.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.units.page }} / {{ totalPages('units', units) }}</span><button mat-icon-button type="button" (click)="nextPage('units', units)" [disabled]="tableState.units.page >= totalPages('units', units)"><mat-icon>chevron_right</mat-icon></button></span></div>
+          </mat-card>
+        </div>
+
+        <div class="section-grid">
+          <mat-card class="panel-card panel-wide">
+            <div class="table-toolbar">
+              <h3>Stock movements</h3>
+              <mat-form-field appearance="outline" class="search-field">
+                <mat-label>Search</mat-label>
+                <input matInput [value]="tableState.stockMovements.search" (input)="setSearch('stockMovements', $any($event.target).value)">
+              </mat-form-field>
+            </div>
+            <div class="table-head table-head--actions">
+              <button class="sort-btn" type="button" (click)="setSort('stockMovements','occurred_at')">Date</button>
+              <button class="sort-btn" type="button" (click)="setSort('stockMovements','movement_type')">Type</button>
+              <button class="sort-btn" type="button" (click)="setSort('stockMovements','variant_name')">Variant</button>
+              <button class="sort-btn" type="button" (click)="setSort('stockMovements','warehouse_from_name')">Warehouse</button>
+              <span>Qty</span>
+              <span>Reason</span>
+            </div>
+            <div class="table-row table-row--actions" *ngFor="let m of pagedRows('stockMovements', stockMovements)">
+              <span>{{ m.occurred_at | date:'short' }}</span>
+              <span class="muted">{{ m.movement_type }}</span>
+              <span>{{ m.variant_name || '-' }} <small class="muted">{{ m.variant_size_label || '' }}</small></span>
+              <span class="muted">{{ m.warehouse_from_name || m.warehouse_to_name || '-' }}</span>
+              <span>{{ m.quantity || 0 }}</span>
+              <span class="muted">{{ m.reason || '-' }}</span>
+            </div>
+            <div class="table-footer"><span>{{ filteredCount('stockMovements', stockMovements) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.stockMovements.pageSize" (selectionChange)="setPageSize('stockMovements', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('stockMovements')" [disabled]="tableState.stockMovements.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.stockMovements.page }} / {{ totalPages('stockMovements', stockMovements) }}</span><button mat-icon-button type="button" (click)="nextPage('stockMovements', stockMovements)" [disabled]="tableState.stockMovements.page >= totalPages('stockMovements', stockMovements)"><mat-icon>chevron_right</mat-icon></button></span></div>
           </mat-card>
         </div>
       </mat-tab>
