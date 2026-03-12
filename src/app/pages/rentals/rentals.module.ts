@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -27,6 +28,7 @@ import { RentalsRoutingModule } from './rentals-routing.module';
 import { RentalsComponent } from './rentals.component';
 import { RentalsItemDetailComponent } from './rentals-item-detail.component';
 import { RentalsItemDialogComponent } from './rentals-item-dialog.component';
+import { RentalsReservationEditComponent } from './rentals-reservation-edit.component';
 import { RentalsV2Component } from './rentals-v2.component';
 import { RentalsReservationEditDialogComponent } from './rentals-reservation-edit-dialog.component';
 import { RentalsReservationReturnDialogComponent } from './rentals-reservation-return-dialog.component';
@@ -39,6 +41,7 @@ import { RentalsPaymentDialogComponent } from './rentals-payment-dialog.componen
     RentalsV2Component,
     RentalsItemDetailComponent,
     RentalsItemDialogComponent,
+    RentalsReservationEditComponent,
     RentalsReservationEditDialogComponent,
     RentalsReservationReturnDialogComponent,
     RentalsDamageDialogComponent,
@@ -57,6 +60,7 @@ import { RentalsPaymentDialogComponent } from './rentals-payment-dialog.componen
     MatInputModule,
     MatSelectModule,
     MatTabsModule,
+    MatAutocompleteModule,
     MatSlideToggleModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,

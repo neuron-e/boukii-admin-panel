@@ -1,37 +1,38 @@
+:host {
+  --rental-radius-base: 10px;
+  --rental-radius-card: 14px;
+  --rental-border: 1px solid oklch(0.928 0.006 264.531);
+  --rental-title: oklch(0.21 0.034 264.665);
+  --rental-subtitle: oklch(0.551 0.027 264.364);
+  --rental-neutral-dark: oklch(0.145 0 0);
+  --rental-pill-active: oklch(0.985 0.002 247.839);
+  --rental-muted-fill: oklch(0.967 0.003 264.542);
+  --rental-muted-text: oklch(0.446 0.03 256.802);
+  --rental-blue-outline: oklch(0.546 0.245 262.881);
+}
+
 .rentals-v2-page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  background: #f5f7fb;
+  gap: 20px;
+  padding: 24px;
+  background: oklch(0.985 0.002 247.839);
 }
 
-.hero-card,
 .content-card {
   background: #fff;
-  border: 1px solid #e9edf6;
-  border-radius: 14px;
-  padding: 10px 12px;
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-card);
+  padding: 24px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
-.hero-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.hero-card h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: #101828;
-}
-
-.hero-card p {
-  margin: 4px 0 0;
-  color: #667085;
-  font-size: 11.5px;
+.content-card--stacked {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
 }
 
 .hero-actions {
@@ -40,15 +41,21 @@
   gap: 8px;
 }
 
-.hero-actions .mat-mdc-button,
-.hero-actions .mat-mdc-unelevated-button,
-.hero-actions .mat-mdc-outlined-button,
 .header-actions .mat-mdc-button,
 .header-actions .mat-mdc-unelevated-button,
 .header-actions .mat-mdc-outlined-button {
-  height: 32px;
+  height: 36px;
   padding: 0 12px;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  border-radius: 8px;
+}
+
+.hero-actions .mat-mdc-icon-button {
+  width: 36px;
+  height: 36px;
+  border: var(--rental-border);
   border-radius: 8px;
 }
 
@@ -62,36 +69,97 @@
   background: #fff;
 }
 
+.header-actions .btn-outline-blue {
+  background: #fff !important;
+  border: 1px solid #2563eb !important;
+  color: #2563eb !important;
+  font-weight: 600;
+  height: 40px;
+  border-radius: 10px;
+  padding: 0 16px;
+  --mdc-outlined-button-outline-color: #2563eb;
+  --mdc-outlined-button-label-text-color: #2563eb;
+  --mdc-outlined-button-label-text-hover-color: #1d4ed8;
+  --mdc-outlined-button-label-text-focus-color: #1d4ed8;
+  --mdc-outlined-button-label-text-pressed-color: #1d4ed8;
+  --mdc-outlined-button-hover-state-layer-color: #2563eb;
+  --mdc-outlined-button-focus-state-layer-color: #2563eb;
+  --mdc-outlined-button-pressed-state-layer-color: #2563eb;
+}
+
+.header-actions .btn-outline-blue mat-icon {
+  color: #2563eb !important;
+  margin-right: 6px;
+}
+
+.header-actions .btn-outline-blue:hover {
+  background: #eff6ff !important;
+  border-color: #1d4ed8 !important;
+  color: #1d4ed8 !important;
+}
+
+.header-actions .btn-outline-blue:hover mat-icon {
+  color: #1d4ed8 !important;
+}
+
+:host ::ng-deep .header-actions .btn-outline-blue .mdc-button__label {
+  color: #2563eb !important;
+}
+
+:host ::ng-deep .header-actions .btn-outline-blue:hover .mdc-button__label,
+:host ::ng-deep .header-actions .btn-outline-blue:focus .mdc-button__label,
+:host ::ng-deep .header-actions .btn-outline-blue:active .mdc-button__label {
+  color: #1d4ed8 !important;
+}
+
+.header-actions .btn-neutral {
+  background: #f8fafc;
+  border-color: #d1d5db;
+  color: #344054;
+  height: 40px;
+  border-radius: 10px;
+  padding: 0 16px;
+}
+
 .header-actions .mat-mdc-unelevated-button.btn-dark {
   background: #0f172a !important;
+}
+
+.refresh-button {
+  width: 36px;
+  height: 36px;
+  border: var(--rental-border);
+  border-radius: 8px;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
 }
 
-.stat-card {
-  border: 1px solid #ebeff7;
-  border-radius: 10px;
-  padding: 8px 10px;
+.stat-card,
+.stats-card {
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-card);
+  padding: 20px 24px;
   background: #fff;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .stat-card span {
-  color: #64748b;
-  font-size: 10.5px;
+  color: var(--rental-subtitle);
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .stat-card strong {
-  font-size: 18px;
-  line-height: 1;
-  color: #0f172a;
+  font-size: 28px;
+  line-height: 32px;
+  color: var(--rental-neutral-dark);
 }
 
 .stat-card strong.ok {
@@ -102,9 +170,14 @@
   color: #b45309;
 }
 
+.stat-card strong.rented {
+  color: #2563eb;
+}
+
 .stat-card small {
-  color: #94a3b8;
-  font-size: 10.5px;
+  color: var(--rental-subtitle);
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .toolbar-pills {
@@ -132,50 +205,55 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .content-header h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  color: var(--rental-title);
 }
 
 .content-header p {
-  margin: 3px 0 0;
-  color: #667085;
-  font-size: 12px;
+  margin: 6px 0 0;
+  color: var(--rental-subtitle);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .content-header--inventory {
   align-items: center;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #edf2f7;
-  margin-top: 6px;
+  padding-bottom: 0;
+  border-bottom: 0;
+  margin-top: 0;
 }
 
 .booking-hero {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #edf2f7;
-  margin-bottom: 10px;
+  gap: 16px;
+  padding: 0;
+  border-bottom: 0;
+  margin-bottom: 24px;
 }
 
 .booking-hero h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 24px;
+  line-height: 32px;
   font-weight: 700;
-  color: #101828;
+  color: var(--rental-title);
 }
 
 .booking-hero p {
-  margin: 3px 0 0;
-  color: #667085;
-  font-size: 11px;
+  margin: 6px 0 0;
+  color: var(--rental-subtitle);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .booking-hero__left {
@@ -187,11 +265,11 @@
 }
 
 .booking-back-link {
-  height: 30px;
+  height: 32px;
   border-radius: 8px;
   color: #475467 !important;
-  font-size: 12px;
-  padding: 0 6px 0 0;
+  font-size: 14px;
+  padding: 0 10px 0 0;
 }
 
 .booking-back-link mat-icon {
@@ -201,9 +279,10 @@
 }
 
 .booking-hero__actions .mat-mdc-outlined-button {
-  height: 30px;
-  padding: 0 12px;
-  font-size: 11px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 500;
   border-radius: 8px;
   border-color: #d0d5dd;
   color: #344054;
@@ -215,89 +294,109 @@
   gap: 8px;
 }
 
+.content-header--inventory .header-actions .btn-outline-blue,
+.content-header--inventory .header-actions .btn-neutral,
+.content-header--inventory .header-actions .btn-dark {
+  min-width: 214px;
+  justify-content: center;
+}
+
+.content-header--inventory .header-actions .btn-dark {
+  height: 40px;
+  border-radius: 10px;
+  padding: 0 16px;
+}
+
 .btn-dark {
   background: #0f172a !important;
   color: #fff !important;
 }
 
-.content-card {
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
 .category-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 12px;
   margin-bottom: 0;
 }
 
-.section-card {
-  border: 1px solid #e8edf6;
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
+.section-card,
+.inventory-card {
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-card);
+  padding: 24px;
+  margin-bottom: 22px;
   background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.inventory-shell {
+  margin-bottom: 0;
 }
 
 .section-card h4 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--rental-title);
 }
 
 .section-card p {
-  margin: 2px 0 10px;
-  color: #667085;
-  font-size: 11.5px;
+  margin: 6px 0 16px;
+  color: var(--rental-subtitle);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .category-pill {
-  border: 1px solid #d7deeb;
-  border-radius: 10px;
-  min-height: 36px;
+  border: 2px solid oklch(0.928 0.006 264.531);
+  border-radius: var(--rental-radius-base);
+  min-height: 48px;
+  height: 48px;
   background: #fff;
-  padding: 0 10px;
+  padding: 8px 16px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .category-pill.selected {
-  border-color: #3b82f6;
-  background: #eef4ff;
-  box-shadow: inset 0 0 0 1px #3b82f6;
+  border-color: var(--rental-title);
+  background: var(--rental-pill-active);
+  box-shadow: none;
 }
 
 .category-emoji {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  background: #eef2f7;
-  font-size: 13px;
+  border-radius: 0;
+  background: transparent;
+  font-size: 18px;
 }
 
 .category-pill span {
-  font-weight: 600;
+  font-weight: 500;
   color: #344054;
-  font-size: 12px;
+  font-size: 16px;
+  line-height: 24px;
 }
 
 .category-pill strong {
   border: 1px solid #d9e2f0;
   border-radius: 999px;
-  padding: 1px 7px;
-  font-size: 11px;
+  padding: 2px 8px;
+  font-size: 13px;
+  line-height: 18px;
   color: #344054;
 }
 
 .filters-row {
   display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 12px;
+  margin-bottom: 16px;
   align-items: flex-start;
 }
 .filters-row mat-form-field { max-width: 280px; }
@@ -305,21 +404,22 @@
 /* Reservation KPI row */
 .reservation-kpi-row {
   display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 .rkpi {
-  border: 1px solid #e7ecf5;
-  border-radius: 8px;
-  padding: 6px 12px;
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-card);
+  padding: 16px 18px;
   background: #fff;
   display: flex;
   flex-direction: column;
-  min-width: 70px;
+  gap: 4px;
+  min-width: 110px;
 }
-.rkpi span { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
-.rkpi strong { font-size: 18px; color: #0f172a; }
+.rkpi span { font-size: 12px; line-height: 16px; color: var(--rental-subtitle); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.rkpi strong { font-size: 24px; line-height: 28px; color: var(--rental-neutral-dark); }
 .rkpi--active strong { color: #15803d; }
 .rkpi--pending strong { color: #1d4ed8; }
 .rkpi--overdue strong { color: #b45309; }
@@ -328,119 +428,790 @@
 /* Status pills */
 .status-pills {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  border: 1px solid #dbe3f0;
-  border-radius: 999px;
+  gap: 8px;
+  min-height: 48px;
+  border: 2px solid oklch(0.928 0.006 264.531);
+  border-radius: var(--rental-radius-base);
   background: #fff;
   color: #475569;
-  padding: 4px 12px;
-  font-size: 11.5px;
-  font-weight: 600;
+  padding: 8px 16px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
   cursor: pointer;
 }
 .status-pill.active {
-  background: #101a2e;
-  border-color: #101a2e;
-  color: #fff;
+  background: var(--rental-pill-active);
+  border-color: var(--rental-title);
+  color: var(--rental-title);
 }
-.status-pill.active .pill-badge { background: rgba(255,255,255,0.2); color: #fff; }
+.status-pill.active .pill-badge { background: var(--rental-title); color: #fff; }
 .pill-badge {
   background: #edf2f9;
   color: #475569;
   border-radius: 999px;
-  padding: 0 5px;
-  font-size: 10px;
+  padding: 2px 7px;
+  font-size: 11px;
   font-weight: 700;
-  min-width: 16px;
+  min-width: 20px;
   text-align: center;
 }
 
 /* Period filter pills */
-.period-filter-pills { display: flex; gap: 4px; margin-bottom: 8px; }
+.period-filter-pills { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 .period-filter-pill {
-  border: 1px solid #dbe3f0;
-  border-radius: 999px;
-  background: #f8fafc;
+  min-height: 48px;
+  border: 2px solid oklch(0.928 0.006 264.531);
+  border-radius: var(--rental-radius-base);
+  background: #fff;
   color: #475569;
-  padding: 3px 10px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 8px 16px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
   cursor: pointer;
 }
-.period-filter-pill.active { background: #f1f5fe; border-color: #3b82f6; color: #1d4ed8; }
+.period-filter-pill.active { background: var(--rental-pill-active); border-color: var(--rental-title); color: var(--rental-title); }
 
 /* Reservation cards */
-.reservation-list { display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.reservation-list { display: flex; flex-direction: column; gap: 12px; padding: 0; }
 .reservation-card {
-  border: 1px solid #e7ecf5;
-  border-radius: 10px;
-  padding: 10px 12px;
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-card);
+  padding: 18px 20px;
   background: #fff;
   cursor: pointer;
   transition: box-shadow 0.15s, border-color 0.15s;
 }
 .reservation-card:hover { border-color: #c7d5ea; box-shadow: 0 2px 6px rgba(15,23,42,.06); }
-.reservation-card.selected { border-color: #3b82f6; background: #f0f7ff; }
+.reservation-card.selected { border-color: var(--rental-title); background: var(--rental-pill-active); }
 .reservation-card__header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
-.reservation-card__id { color: #94a3b8; font-size: 11px; font-weight: 600; }
-.reservation-card__client { font-size: 13px; font-weight: 600; color: #0f172a; flex: 1; }
+.reservation-card__id { color: #94a3b8; font-size: 12px; line-height: 16px; font-weight: 600; }
+.reservation-card__client { font-size: 16px; line-height: 24px; font-weight: 600; color: var(--rental-neutral-dark); flex: 1; }
 .reservation-card__body {
   display: flex;
   align-items: center;
-  gap: 14px;
-  font-size: 11.5px;
+  gap: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: #475569;
+  flex-wrap: wrap;
 }
-.reservation-card__body mat-icon { font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 3px; }
-.reservation-card__price { margin-left: auto; font-size: 13px; color: #0f172a; font-weight: 600; }
-.reservation-card__actions { display: flex; gap: 2px; margin-top: 6px; border-top: 1px solid #edf2f9; padding-top: 4px; }
+.reservation-card__body mat-icon { font-size: 16px; width: 16px; height: 16px; vertical-align: middle; margin-right: 6px; }
+.reservation-card__price { margin-left: auto; font-size: 16px; line-height: 24px; color: var(--rental-neutral-dark); font-weight: 600; }
+.reservation-card__actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #edf2f9; padding-top: 12px; }
 .reservation-empty { text-align: center; padding: 40px 20px; color: #94a3b8; }
 .reservation-empty mat-icon { font-size: 40px; width: 40px; height: 40px; display: block; margin: 0 auto 8px; }
+
+/* Modern rental list (design parity pass) */
+.rental-list-screen {
+  padding: 0;
+  background: transparent;
+}
+
+.rental-list-topbar {
+  margin: -24px -24px 18px;
+  padding: 8px 24px 10px;
+  border-bottom: var(--rental-border);
+  background: oklch(0.992 0.002 247.839);
+}
+
+.rental-list-topbar__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.rental-list-topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.rental-list-topbar__back {
+  height: 32px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--rental-muted-text) !important;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.rental-list-topbar__back:hover {
+  background: #f3f4f6 !important;
+  color: var(--rental-title) !important;
+}
+
+.rental-list-topbar__back mat-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  font-size: 16px;
+}
+
+.rental-list-topbar__divider {
+  width: 1px;
+  height: 28px;
+  background: oklch(0.928 0.006 264.531);
+  flex: 0 0 auto;
+}
+
+.rental-list-topbar__title {
+  min-width: 0;
+}
+
+.rental-list-topbar__title h3 {
+  margin: 0;
+  color: var(--rental-title);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.rental-list-topbar__title p {
+  margin: 4px 0 0;
+  color: var(--rental-subtitle);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.rental-list-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rental-list-action {
+  height: 36px;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rental-list-action mat-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  margin-right: 6px;
+}
+
+.rental-list-action--export {
+  border-color: #d0d5dd !important;
+  color: #111827 !important;
+  background: #fff;
+}
+
+.rental-list-action--new {
+  background: #0f172a !important;
+  color: #fff !important;
+}
+
+.rental-list-header {
+  margin-bottom: 14px;
+}
+
+.reservation-kpi-row--full {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.reservation-kpi-row--full .rkpi {
+  position: relative;
+  min-width: 0;
+  border-radius: 12px;
+  padding: 15px 14px;
+}
+
+.reservation-kpi-row--full .rkpi span {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.reservation-kpi-row--full .rkpi strong {
+  font-size: 27px;
+  line-height: 32px;
+}
+
+.reservation-kpi-row--full .rkpi__dot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.reservation-kpi-row--full .rkpi__icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.reservation-kpi-row--full .rkpi--active {
+  border-color: #b9eec8;
+}
+
+.reservation-kpi-row--full .rkpi--active .rkpi__dot {
+  background: #16a34a;
+}
+
+.reservation-kpi-row--full .rkpi--pending {
+  border-color: #bfd6ff;
+}
+
+.reservation-kpi-row--full .rkpi--pending .rkpi__dot {
+  background: #2563eb;
+}
+
+.reservation-kpi-row--full .rkpi--overdue {
+  border-color: #f2c3c3;
+}
+
+.reservation-kpi-row--full .rkpi--overdue .rkpi__dot {
+  background: #ef4444;
+}
+
+.filters-row--list {
+  border: var(--rental-border);
+  border-radius: 12px;
+  padding: 14px 22px;
+  background: #fff;
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 18px;
+}
+
+.filters-row--list .mat-mdc-form-field {
+  margin-bottom: 0;
+  width: 100%;
+  max-width: none;
+  align-self: center;
+}
+
+:host ::ng-deep .rental-list-search-field .mdc-text-field--outlined {
+  background: #fff;
+  --mdc-outlined-text-field-container-shape: 10px;
+}
+
+:host ::ng-deep .rental-list-search-field .mdc-notched-outline__leading,
+:host ::ng-deep .rental-list-search-field .mdc-notched-outline__notch,
+:host ::ng-deep .rental-list-search-field .mdc-notched-outline__trailing {
+  border-color: #d0d5dd !important;
+}
+
+:host ::ng-deep .rental-list-search-field .mat-mdc-form-field-infix {
+  min-height: 44px;
+}
+
+:host ::ng-deep .rental-list-search-field .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+:host ::ng-deep .rental-list-search-field .mat-mdc-form-field-icon-prefix {
+  color: #98a2b3;
+  padding-right: 8px;
+}
+
+.filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group__label {
+  font-size: 13px;
+  line-height: 18px;
+  color: #667085;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.filter-group--period {
+  padding-left: 12px;
+  border-left: 1px solid #e5e7eb;
+}
+
+.status-pills--inline,
+.period-filter-pills--inline {
+  margin-bottom: 0;
+  gap: 6px;
+}
+
+.status-pills--inline .status-pill,
+.period-filter-pills--inline .period-filter-pill {
+  min-height: 28px;
+  height: 28px;
+  border-width: 1px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+.status-pills--inline .status-pill.active,
+.period-filter-pills--inline .period-filter-pill.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.reservation-list--modern {
+  gap: 14px;
+}
+
+.reservation-card--modern {
+  --reservation-right-gutter: 0px;
+  --reservation-left-rail: 68px;
+  border-radius: 14px;
+  border: var(--rental-border);
+  padding: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: var(--reservation-left-rail) minmax(0, 1fr);
+}
+
+.reservation-card--modern.selected {
+  border-color: #c5d2e8;
+  background: #fff;
+}
+
+.reservation-card--modern:hover {
+  border-color: #c7d5ea;
+  background: #fff;
+}
+
+.reservation-card__header--modern {
+  margin-bottom: 0;
+  padding: 12px 14px 10px;
+  padding-right: calc(14px + var(--reservation-right-gutter));
+  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.reservation-card__rail {
+  padding: 12px 10px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.reservation-card__content {
+  min-width: 0;
+}
+
+.reservation-card__lead-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reservation-card__lead-icon mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: #64748b;
+}
+
+.reservation-card__lead-icon.is-active {
+  border-color: #9be7b2;
+  background: #dcfce7;
+}
+
+.reservation-card__lead-icon.is-active mat-icon {
+  color: #15803d;
+}
+
+.reservation-card__lead-icon.is-overdue {
+  border-color: #f2b6b6;
+  background: #fee2e2;
+}
+
+.reservation-card__lead-icon.is-overdue mat-icon {
+  color: #dc2626;
+}
+
+.reservation-card__lead-icon.is-completed {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+}
+
+.reservation-card__lead-icon.is-completed mat-icon {
+  color: #64748b;
+}
+
+.reservation-card__identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reservation-card__identity .reservation-card__client {
+  margin: 0;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.reservation-card__identity small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.reservation-card__identity-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.reservation-card__identity-meta span + span::before {
+  content: "•";
+  margin: 0 12px;
+  color: #94a3b8;
+}
+
+.reservation-card__identity-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.reservation-card__identity-top .status {
+  margin-left: 0 !important;
+  flex: 0 0 auto;
+}
+
+.reservation-card__status {
+  align-self: center;
+}
+
+.reservation-card__amount {
+  margin-left: auto;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reservation-card__amount strong {
+  font-size: 18px;
+  line-height: 22px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.reservation-card__amount small {
+  color: #98a2b3;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.reservation-card__body--modern {
+  padding: 10px 14px;
+  padding-right: calc(14px + var(--reservation-right-gutter));
+  margin: 0;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.reservation-card__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.reservation-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reservation-card__meta > span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+}
+
+.reservation-card__meta > strong {
+  display: inline-flex;
+  align-items: center;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.reservation-card__meta > strong mat-icon {
+  margin-right: 6px;
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: #94a3b8;
+}
+
+.reservation-card__equipment {
+  padding: 10px 14px 0;
+  padding-right: calc(14px + var(--reservation-right-gutter));
+}
+
+.reservation-card__equipment h5 {
+  margin: 0 0 8px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.reservation-card__line-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.reservation-card__line-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.reservation-card__line {
+  padding: 10px 12px;
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dde6f1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.reservation-card__line--full {
+  grid-column: 1 / -1;
+}
+
+.reservation-card__line strong {
+  display: block;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.reservation-card__line small {
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 16px;
+  display: block;
+}
+
+.reservation-card__line-subtext {
+  margin-top: 1px;
+  font-size: 12px !important;
+  color: #9ca3af !important;
+}
+
+.reservation-card__line > span {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.reservation-card__actions--modern {
+  margin-top: 0;
+  border-top: 0;
+  padding: 10px 14px;
+  padding-right: calc(14px + var(--reservation-right-gutter));
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reservation-card__actions--modern .mat-mdc-outlined-button,
+.reservation-card__actions--modern .mat-mdc-unelevated-button {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reservation-card__actions--modern .mat-mdc-outlined-button mat-icon,
+.reservation-card__actions--modern .mat-mdc-unelevated-button mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+}
+
+.reservation-card__contact-btn {
+  background: #dc2626 !important;
+  color: #fff !important;
+}
+
+.list-pagination {
+  margin-top: 12px;
+}
+
+@media (max-width: 1320px) {
+  .filters-row--list {
+    grid-template-columns: minmax(220px, 1fr);
+    align-items: flex-start;
+  }
+
+  .filter-group--period {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .reservation-card__body--modern {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reservation-card__meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .reservation-kpi-row--full {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reservation-card__line-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+@media (max-width: 640px) {
+  .rental-list-topbar {
+    margin: -16px -16px 14px;
+    padding: 8px 16px 10px;
+  }
+
+  .rental-list-topbar__row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .rental-list-topbar__left {
+    gap: 10px;
+  }
+
+  .rental-list-topbar__divider {
+    display: none;
+  }
+
+  .rental-list-topbar__title h3 {
+    font-size: 28px;
+  }
+
+  .reservation-kpi-row--full {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-card--modern {
+    --reservation-left-rail: 56px;
+  }
+
+  .reservation-card__header--modern {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .reservation-card__amount {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .reservation-card__meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-card__actions--modern {
+    flex-wrap: wrap;
+  }
+}
 
 .booking-select-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .booking-category-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
 }
 
 .booking-category-pills .category-pill {
-  padding: 0 10px;
-  min-height: 24px;
-  height: 24px;
-  font-size: 10.5px;
-  border-radius: 999px;
-  border-color: #d6deea;
-  background: #f8fafc;
+  padding: 8px 16px;
+  min-height: 38px;
+  height: 38px;
+  font-size: 14px;
+  line-height: 20px;
+  border-radius: var(--rental-radius-base);
+  border-width: 1px;
+  border-color: transparent;
+  background: var(--rental-muted-fill);
 }
 
+.booking-category-pills .category-pill,
 .booking-category-pills .category-pill span {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #667085;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--rental-muted-text);
 }
 
 .booking-category-pills .category-pill.selected {
-  border-color: #0f172a;
-  background: #0f172a;
+  border-color: var(--rental-title);
+  background: var(--rental-title);
   box-shadow: none;
 }
 
@@ -451,12 +1222,34 @@
 .inventory-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .inventory-controls .mat-mdc-form-field {
   width: 100%;
+}
+
+:host ::ng-deep .inventory-search-field .mdc-text-field--outlined {
+  --mdc-outlined-text-field-container-shape: 10px;
+  background: #f3f4f6;
+}
+
+:host ::ng-deep .inventory-search-field .mdc-notched-outline__leading,
+:host ::ng-deep .inventory-search-field .mdc-notched-outline__notch,
+:host ::ng-deep .inventory-search-field .mdc-notched-outline__trailing {
+  border-color: transparent !important;
+}
+
+:host ::ng-deep .inventory-search-field .mat-mdc-form-field-infix {
+  min-height: 44px;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+:host ::ng-deep .inventory-search-field .mat-mdc-form-field-icon-prefix {
+  color: #9ca3af;
+  padding-right: 8px;
 }
 
 .inventory-layout,
@@ -464,7 +1257,7 @@
 .booking-layout,
 .add-equipment-layout {
   display: grid;
-  gap: 10px;
+  gap: 20px;
 }
 
 .inventory-layout,
@@ -477,7 +1270,8 @@
 }
 
 .booking-layout {
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr);
+  align-items: start;
 }
 
 .add-equipment-layout {
@@ -488,14 +1282,15 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
 }
 
 .table-wrapper {
-  border: 1px solid #e7ecf5;
-  border-radius: 10px;
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-card);
   overflow: auto;
   background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .table-wrapper--full {
@@ -510,21 +1305,23 @@
 
 .inventory-table th,
 .inventory-table td {
-  padding: 6px 10px;
+  padding: 14px;
   border-bottom: 1px solid #eff3f9;
   text-align: left;
   vertical-align: middle;
 }
 
 .inventory-table th {
-  font-size: 11.5px;
+  font-size: 14px;
+  line-height: 20px;
   text-transform: none;
   color: #667085;
   font-weight: 600;
 }
 
 .inventory-table td {
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .inventory-table td strong {
@@ -534,7 +1331,8 @@
 
 .inventory-table td small {
   color: #98a2b3;
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .inventory-table tbody tr:hover {
@@ -549,13 +1347,46 @@
   white-space: nowrap;
 }
 
+.actions-cell__inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 32px;
+}
+
 .actions-cell .mat-mdc-icon-button {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  --mdc-icon-button-state-layer-size: 32px;
+}
+
+.actions-cell .mat-mdc-icon-button:hover {
+  background: transparent;
 }
 
 .actions-cell mat-icon {
-  font-size: 17px;
+  font-size: 18px;
+}
+
+:host ::ng-deep .actions-cell .mat-mdc-icon-button .mat-mdc-button-touch-target {
+  width: 32px;
+  height: 32px;
+}
+
+:host ::ng-deep .actions-cell .mat-mdc-icon-button .mat-mdc-button-persistent-ripple,
+:host ::ng-deep .actions-cell .mat-mdc-icon-button .mat-mdc-button-ripple,
+:host ::ng-deep .actions-cell .mat-mdc-icon-button .mat-mdc-focus-indicator {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+:host ::ng-deep .actions-cell .mat-mdc-icon-button .mat-mdc-button-persistent-ripple::before,
+:host ::ng-deep .actions-cell .mat-mdc-icon-button .mat-ripple-element {
+  opacity: 0 !important;
 }
 
 .equipment-cell {
@@ -572,14 +1403,22 @@
 .brand-model {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
+}
+
+.brand-model strong {
+  font-size: 14px;
+  line-height: 20px;
+  color: #0f172a;
+  font-weight: 600;
 }
 
 .price-lines {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 11px;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .price-line {
@@ -609,8 +1448,9 @@
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 10.5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 600;
 }
 
@@ -639,27 +1479,29 @@
 
 .detail-card,
 .booking-summary {
-  border: 1px solid #e7ecf5;
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: #fff;
+  border: var(--rental-border);
+  border-radius: 14px;
+  padding: 0;
+  background: transparent;
   align-self: start;
   position: sticky;
-  top: 8px;
-  min-width: 320px;
+  top: 24px;
+  min-width: 0;
 }
 
 .detail-card h4,
 .booking-summary h4 {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 700;
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
 }
 
 .summary-subtitle {
-  margin: 0 0 8px;
-  color: #98a2b3;
-  font-size: 11px;
+  margin: 0 0 12px;
+  color: var(--rental-subtitle);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .detail-card p {
@@ -682,8 +1524,8 @@
 .booking-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
 .booking-grid--single {
@@ -706,7 +1548,7 @@
   grid-template-areas:
     "start_time end_time"
     "pickup_point return_point";
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .period-field--type {
@@ -738,20 +1580,21 @@
 }
 
 .booking-section {
-  border: 1px solid #e6eaf2;
-  border-radius: 10px;
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-card);
   background: #fff;
-  padding: 10px 12px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
 }
 
 .booking-section__header h4 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #101828;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--rental-title);
 }
 
 .booking-section__header {
@@ -767,19 +1610,21 @@
 }
 
 .booking-section__actions .mat-mdc-outlined-button {
-  height: 30px;
+  height: 28px;
   padding: 0 12px;
-  border-radius: 999px;
-  font-size: 11px;
-  color: #0f172a !important;
-  border-color: #d0d5dd;
-  background: #f8fafc;
+  border-radius: var(--rental-radius-base);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--rental-muted-text) !important;
+  border-color: transparent;
+  background: var(--rental-muted-fill);
 }
 
 .booking-section__actions .mat-mdc-outlined-button.btn-dark {
-  background: #0f172a !important;
+  background: var(--rental-title) !important;
   color: #fff !important;
-  border-color: #0f172a;
+  border-color: var(--rental-title);
   --mdc-outlined-button-label-text-color: #fff;
   --mdc-outlined-button-label-text-color: #fff !important;
   --mdc-outlined-button-label-text-hover-color: #fff !important;
@@ -806,10 +1651,11 @@
 }
 
 .new-client-actions .mat-mdc-unelevated-button {
-  height: 32px;
+  height: 36px;
   border-radius: 8px;
   padding: 0 14px;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .booking-table {
@@ -819,18 +1665,18 @@
 .booking-selection {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  border: 1px solid #e8edf6;
-  border-radius: 10px;
-  padding: 8px;
-  background: #f8fafd;
+  gap: 12px;
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-card);
+  padding: 16px;
+  background: #fff;
   max-height: 460px;
   overflow: auto;
 }
 
 .booking-group {
   border: 1px solid #dce5f3;
-  border-radius: 10px;
+  border-radius: var(--rental-radius-base);
   background: #fff;
   overflow: hidden;
 }
@@ -838,20 +1684,12 @@
 .booking-group__header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  cursor: pointer;
-  background: #f3f7ff;
-  border-bottom: 1px solid #eef2f7;
-}
-
-.booking-group__header:hover {
-  background: #f3f7ff;
-}
-
-.booking-group__header.is-expanded {
-  background: #e8f0ff;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 18px 0;
+  cursor: default;
+  background: #fff;
+  border-bottom: 0;
 }
 
 .booking-group__header.has-selected {
@@ -866,12 +1704,14 @@
 
 .booking-group__info strong {
   display: block;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .booking-group__info small {
   color: #98a2b3;
-  font-size: 10.5px;
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .booking-group__description {
@@ -890,9 +1730,9 @@
 .booking-pill {
   border: 1px solid #d0d5dd;
   border-radius: 999px;
-  padding: 3px 9px;
-  font-size: 10.5px;
-  line-height: 1.4;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 16px;
   color: #344054;
   background: #fff;
   white-space: nowrap;
@@ -935,22 +1775,22 @@
 .booking-variants {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  padding: 10px;
-  background: #f8fbff;
-  border-top: 1px solid #eef2f7;
+  gap: 14px;
+  padding: 0 18px 18px;
+  background: transparent;
+  border-top: 0;
 }
 
 .booking-variant {
   border: 1px solid #dce5f3;
   border-radius: 10px;
-  padding: 9px 10px;
+  padding: 14px;
   background: #fff;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
-  min-height: 122px;
+  gap: 10px;
+  min-height: 0;
 }
 
 @media (max-width: 1100px) {
@@ -972,7 +1812,7 @@
     padding-bottom: 4px;
     grid-template-columns: unset !important;
   }
-  .period-pill { min-width: 90px; flex-shrink: 0; }
+  .period-pill { min-width: 120px; flex-shrink: 0; }
   .status-pills, .period-filter-pills {
     overflow-x: auto;
     flex-wrap: nowrap;
@@ -986,6 +1826,11 @@
 }
 
 @media (max-width: 640px) {
+  .rentals-v2-page {
+    padding: 16px;
+    gap: 16px;
+  }
+
   .content-header {
     flex-direction: column;
     align-items: stretch;
@@ -995,35 +1840,44 @@
     flex-wrap: wrap;
   }
   .header-actions button { flex: 1; min-width: 120px; }
+
+  .section-card,
+  .booking-section,
+  .detail-card,
+  .booking-summary,
+  .stat-card {
+    padding: 16px;
+  }
 }
 
 .booking-variant__title strong {
   display: block;
-  font-size: 11.5px;
-  line-height: 1.2;
-}
-
-.booking-variant__title small {
-  color: #98a2b3;
-  font-size: 10px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .booking-variant__meta {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 11px;
-  color: #475467;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .booking-variant__availability {
-  color: #16a34a;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #15803d;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .booking-variant__availability.low {
-  color: #b45309;
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .booking-group.has-selected {
@@ -1033,15 +1887,15 @@
 }
 
 .booking-variant.is-selected {
-  border-color: #86efac;
-  background: #ecfdf3;
-  box-shadow: inset 0 0 0 1px #bbf7d0;
+  border-color: #0f172a;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #0f172a;
 }
 
 .booking-variant .qty-editor {
   width: 100%;
-  border-radius: 7px;
-  border-color: #86efac;
+  border-radius: 8px;
+  border-color: #cbd5e1;
   background: #fff;
 }
 
@@ -1051,10 +1905,11 @@
 
 .variant-add-btn {
   width: 100%;
-  height: 26px;
-  border-radius: 6px;
-  padding: 0 8px;
-  font-size: 11px;
+  height: 40px;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
   background: #0f172a !important;
   color: #fff !important;
 }
@@ -1068,28 +1923,30 @@
 .period-pills {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .period-pill {
-  border: 1px solid #d7deeb;
+  border: 2px solid oklch(0.928 0.006 264.531);
   background: #fff;
   color: #334155;
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 11px;
-  font-weight: 600;
+  border-radius: var(--rental-radius-base);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-height: 44px;
+  justify-content: center;
+  gap: 4px;
+  min-height: 55px;
 }
 
 .period-pill.active {
-  border-color: #0f172a !important;
-  background: #0f172a !important;
+  border-color: var(--rental-title) !important;
+  background: var(--rental-title) !important;
   color: #fff !important;
 }
 
@@ -1112,12 +1969,14 @@
 }
 
 .period-pill__title {
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
 }
 
 .period-pill__subtitle {
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 16px;
   color: inherit;
   opacity: 0.75;
 }
@@ -1126,34 +1985,37 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid #e6eaf2;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 11px;
-  color: #667085;
-  background: #f8fafc;
-  min-height: 44px;
+  border: var(--rental-border);
+  border-radius: var(--rental-radius-base);
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--rental-subtitle);
+  background: #fff;
+  min-height: 52px;
   grid-area: duration;
-  margin-top: -2px;
+  margin-top: 0;
 }
 
 .period-duration strong {
-  font-size: 12px;
-  color: #0f172a;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--rental-neutral-dark);
 }
 
 .period-note {
-  margin-top: 8px;
+  margin-top: 4px;
   border: 1px solid #bfd7ff;
   background: #eff6ff;
   color: #1d4ed8;
   border-radius: 8px;
-  min-height: 32px;
-  padding: 6px 10px;
+  min-height: 40px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .period-note mat-icon {
@@ -1167,9 +2029,9 @@
   align-items: center;
   justify-content: space-between;
   border: 1px solid #dbe3f0;
-  border-radius: 7px;
+  border-radius: 8px;
   background: #f8fafc;
-  height: 26px;
+  height: 32px;
   overflow: hidden;
   width: 100%;
 }
@@ -1181,13 +2043,14 @@
   text-align: center;
   outline: none;
   background: transparent;
-  font-size: 11px;
-  color: #0f172a;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--rental-neutral-dark);
 }
 
 .qty-editor .mat-mdc-icon-button {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
 }
 
 .qty-editor mat-icon {
@@ -1197,8 +2060,8 @@
 .summary-lines {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 16px;
   max-height: 360px;
   overflow: auto;
 }
@@ -1206,19 +2069,21 @@
 .summary-line {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid #edf2f9;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #edf2f9;
+  border-radius: 12px;
+  background: #f8fafc;
 }
 
 .summary-line:last-child {
-  border-bottom: none;
+  border-bottom: 1px solid #edf2f9;
 }
 
 .summary-right {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .summary-right .mat-mdc-icon-button {
@@ -1234,8 +2099,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
-  font-size: 11px;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .summary-qty {
@@ -1244,41 +2110,27 @@
 }
 
 .summary-price {
-  color: #0f172a;
+  color: var(--rental-neutral-dark);
   font-weight: 700;
-  font-size: 11.5px;
-}
-
-.line-period-toggle {
-  grid-column: 1 / -1;
-  margin-top: 2px;
-}
-
-.line-period-editor {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.line-period-editor mat-form-field {
-  width: 100%;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .estimate-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 8px 0;
-  padding-top: 8px;
+  margin: 16px 0;
+  padding-top: 16px;
   border-top: 1px solid #e8edf6;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .summary-actions {
   display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+  gap: 10px;
+  justify-content: stretch;
 }
 
 .summary-empty-state {
@@ -1286,8 +2138,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 14px 8px;
+  gap: 8px;
+  padding: 24px 12px;
   color: #98a2b3;
   text-align: center;
 }
@@ -1301,21 +2153,111 @@
 
 .summary-empty-state strong {
   color: #475467;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 700;
 }
 
 .summary-empty-state p {
   margin: 0;
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .booking-summary .summary-actions .mat-mdc-unelevated-button,
 .booking-summary .summary-actions .mat-mdc-outlined-button {
-  height: 32px;
+  height: 36px;
   padding: 0 12px;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 500;
   border-radius: 8px;
+}
+
+.booking-summary .summary-actions .mat-mdc-unelevated-button,
+.booking-summary .summary-actions .mat-mdc-outlined-button,
+.booking-summary .summary-actions button {
+  flex: 1 1 0;
+}
+
+.equipment-selector {
+  gap: 18px;
+}
+
+.equipment-selector__header {
+  margin-bottom: 0;
+}
+
+.equipment-selector__filters {
+  gap: 14px;
+  margin-bottom: 0;
+}
+
+.equipment-selector__groups {
+  gap: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.equipment-selector__group {
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.equipment-selector__group-info {
+  min-width: 0;
+}
+
+.equipment-selector__group-meta {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.variants-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.variant-card {
+  border-radius: 10px;
+  gap: 14px;
+  padding: 16px;
+}
+
+.variant-card__title {
+  min-height: auto;
+}
+
+.variant-card__stock-badge {
+  white-space: nowrap;
+}
+
+.variant-card__actions,
+.variant-card__qty-editor {
+  margin-top: auto;
+}
+
+.booking-summary__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.booking-summary__lines {
+  padding-right: 2px;
+}
+
+.booking-summary__line {
+  align-items: start;
+}
+
+.booking-summary__estimate {
+  margin-top: 4px;
 }
 
 .status-actions {
@@ -1371,11 +2313,11 @@
 }
 
 :host ::ng-deep .rentals-v2-page .mat-mdc-form-field-infix {
-  min-height: 44px;
+  min-height: 48px;
 }
 
 :host ::ng-deep .rentals-v2-page .mat-mdc-form-field {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .footer-actions {
@@ -1395,6 +2337,10 @@
     position: static;
     min-width: 0;
   }
+
+  .variants-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
@@ -1403,6 +2349,21 @@
   .filters-row,
   .booking-grid {
     grid-template-columns: 1fr;
+  }
+
+  .booking-group__header,
+  .equipment-selector__group-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .booking-group__meta,
+  .equipment-selector__group-meta {
+    justify-content: flex-start;
+  }
+
+  .summary-actions {
+    flex-direction: column;
   }
 
   .period-pills {
@@ -1421,11 +2382,6 @@
     grid-template-columns: 1fr;
   }
 
-  .line-period-editor {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-card,
   .content-header {
     flex-direction: column;
   }
@@ -1465,5 +2421,179 @@
   span {
     flex: 1;
     font-weight: 500;
+  }
+}
+
+@media (max-width: 640px) {
+  .booking-summary {
+    padding: 0;
+  }
+
+  .booking-summary__card {
+    padding: 16px;
+  }
+}
+
+.size-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 32px;
+}
+
+/* Catalog base management */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.catalog-section {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.catalog-section--full {
+  margin-top: 16px;
+}
+
+.catalog-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.catalog-section__header h4 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.catalog-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 28px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 10px;
+}
+
+.catalog-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.catalog-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.catalog-search {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.catalog-table-wrap {
+  overflow: auto;
+  border-radius: 10px;
+}
+
+.catalog-table th,
+.catalog-table td {
+  font-size: 13px;
+}
+
+.catalog-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.catalog-brand-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.catalog-brand-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #fff;
+}
+
+.catalog-brand-card strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.catalog-brand-card small {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.catalog-brand-card span {
+  font-size: 12px;
+  color: #334155;
+}
+
+.muted-value {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.subcategory-name-cell {
+  min-width: 220px;
+}
+
+.subcategory-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subcategory-name__branch {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-brand-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .catalog-brand-grid {
+    grid-template-columns: 1fr;
   }
 }

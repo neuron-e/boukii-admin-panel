@@ -1,160 +1,87 @@
-<h2 mat-dialog-title>
-  <mat-icon style="vertical-align:middle;margin-right:8px;color:#ea580c;">payments</mat-icon>
-  {{ 'rentals.payment_dialog_title' | translate }} — #{{ reservation?.id }}
-</h2>
-
-<mat-dialog-content style="min-width:480px;max-width:600px;">
-
-  <!-- Current payment status banner -->
-  <div *ngIf="loadingInfo" style="text-align:center;padding:12px;">
-    <mat-progress-spinner diameter="24" mode="indeterminate"></mat-progress-spinner>
-  </div>
-
-  <div *ngIf="!loadingInfo && paymentInfo" class="payment-status-banner"
-       [style.background]="hasPayment ? '#dcfce7' : '#fff7ed'"
-       style="padding:10px 16px;border-radius:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
-    <div>
-      <span style="font-size:13px;color:#374151;">
-        <strong>{{ 'rentals.total' | translate }}:</strong> {{ reservationTotal | number:'1.2-2' }} {{ currency }}
-      </span>
-      <span style="margin-left:16px;font-size:13px;"
-            [style.color]="hasPayment ? '#15803d' : '#ea580c'">
-        <mat-icon style="font-size:14px;vertical-align:middle;">{{ hasPayment ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-        {{ (hasPayment ? 'rentals.payment_recorded' : 'rentals.payment_pending') | translate }}
-        <ng-container *ngIf="hasPayment">
-          &mdash; {{ paymentInfo.payment?.amount | number:'1.2-2' }} {{ currency }}
-          ({{ paymentInfo.payment?.payment_method }})
-        </ng-container>
-      </span>
+<div class="payment-dialog">
+  <div class="payment-dialog__header">
+    <h2 mat-dialog-title>
+      <mat-icon class="payment-dialog__title-icon">payments</mat-icon>
+      {{ 'rentals.payment_dialog_title' | translate }} - #{{ reservation?.id }}
+    </h2>
+    <div class="payment-dialog__subtitle">
+      {{ reservation?.reference || ('#' + (reservation?.id || '')) }}
+      <span *ngIf="reservation?.client_email"> • {{ reservation?.client_email }}</span>
     </div>
-    <button *ngIf="hasPayment" mat-stroked-button color="warn"
-            (click)="processRefund()" [disabled]="loading" style="font-size:12px;">
-      {{ 'rentals.refund' | translate }}
-    </button>
   </div>
 
-  <!-- Tabs -->
-  <mat-tab-group [selectedIndex]="activeTabIndex" (selectedIndexChange)="onTabChange($event)">
+  <mat-dialog-content>
+    <div *ngIf="loadingInfo" class="payment-dialog__loading">
+      <mat-progress-spinner diameter="24" mode="indeterminate"></mat-progress-spinner>
+    </div>
 
-    <!-- ── Tab 0: Manual payment ── -->
-    <mat-tab [label]="'rentals.tab_manual_payment' | translate">
-      <div style="padding:16px 0;" [formGroup]="manualForm">
+    <div
+      *ngIf="!loadingInfo && paymentInfo"
+      class="payment-dialog__status payment-dialog__status--summary"
+      [ngClass]="hasPayment ? 'payment-dialog__status--success' : 'payment-dialog__status--pending'">
+      <div class="payment-dialog__status-content">
+        <div class="payment-dialog__status-row">
+          <span class="payment-dialog__status-label">{{ 'rentals.total' | translate }}:</span>
+          <span>{{ reservationTotal | number:'1.2-2' }} {{ currency }}</span>
+        </div>
+        <div class="payment-dialog__status-row payment-dialog__status-row--highlight">
+          <mat-icon class="payment-dialog__status-icon">{{ hasPayment ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+          <span>
+            {{ (hasPayment ? 'rentals.payment_recorded' : 'rentals.payment_pending') | translate }}
+            <ng-container *ngIf="hasPayment">
+              - {{ paymentInfo.payment?.amount | number:'1.2-2' }} {{ currency }}
+              ({{ paymentInfo.payment?.payment_method }})
+            </ng-container>
+          </span>
+        </div>
+      </div>
 
-        <mat-form-field appearance="outline" style="width:100%;">
-          <mat-label>{{ 'rentals.payment_method' | translate }}</mat-label>
-          <mat-select formControlName="payment_method">
-            <mat-option *ngFor="let m of paymentMethods" [value]="m.value">
-              {{ m.label | translate }}
-            </mat-option>
+      <button
+        *ngIf="hasPayment"
+        mat-stroked-button
+        type="button"
+        class="payment-dialog__action payment-dialog__action--warning"
+        (click)="processRefund()"
+        [disabled]="loading">
+        {{ 'rentals.refund' | translate }}
+      </button>
+    </div>
+
+    <div *ngIf="!loadingInfo && hasPayment" class="payment-dialog__status payment-dialog__status--neutral">
+      <form [formGroup]="refundForm" class="payment-dialog__form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Importe a devolver ({{ currency }})</mat-label>
+          <input matInput type="number" step="0.01" formControlName="amount">
+          <mat-hint>Máximo: {{ refundableAmount | number:'1.2-2' }} {{ currency }}</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Método de devolución</mat-label>
+          <mat-select formControlName="refund_method">
+            <mat-option value="cash">Cash</mat-option>
+            <mat-option value="card">Card</mat-option>
+            <mat-option value="payrexx">Payrexx</mat-option>
+            <mat-option value="voucher">Voucher</mat-option>
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" style="width:100%;">
-          <mat-label>{{ 'rentals.amount' | translate }} ({{ currency }})</mat-label>
-          <input matInput type="number" step="0.01" formControlName="amount">
-          <mat-error *ngIf="manualForm.get('amount')?.hasError('required')">{{ 'required' | translate }}</mat-error>
-          <mat-error *ngIf="manualForm.get('amount')?.hasError('min')">{{ 'rentals.amount_min_error' | translate }}</mat-error>
+        <mat-form-field appearance="outline" class="payment-dialog__field payment-dialog__field--full" *ngIf="refundForm.get('refund_method')?.value === 'voucher'">
+          <mat-label>Nombre del bono</mat-label>
+          <input matInput formControlName="voucher_name" placeholder="Bono devolución alquiler">
         </mat-form-field>
 
-        <mat-form-field appearance="outline" style="width:100%;">
+        <mat-form-field appearance="outline" class="payment-dialog__field payment-dialog__field--full">
           <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
-          <textarea matInput formControlName="notes" rows="2"></textarea>
+          <textarea matInput rows="2" formControlName="notes"></textarea>
         </mat-form-field>
+      </form>
+    </div>
 
-        <button mat-raised-button color="primary"
-                (click)="saveManual()" [disabled]="loading || manualForm.invalid" style="width:100%;">
-          <mat-progress-spinner *ngIf="loading" diameter="18" mode="indeterminate"
-                                style="display:inline-block;margin-right:8px;"></mat-progress-spinner>
-          <mat-icon *ngIf="!loading">check</mat-icon>
-          {{ 'rentals.register_payment' | translate }}
-        </button>
-
-      </div>
-    </mat-tab>
-
-    <!-- ── Tab 1: Payrexx link ── -->
-    <mat-tab [label]="'rentals.tab_paylink' | translate">
-      <div style="padding:16px 0;" [formGroup]="paylinkForm">
-
-        <mat-form-field appearance="outline" style="width:100%;">
-          <mat-label>{{ 'rentals.amount' | translate }} ({{ currency }})</mat-label>
-          <input matInput type="number" step="0.01" formControlName="amount">
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" style="width:100%;">
-          <mat-label>{{ 'rentals.client_email' | translate }}</mat-label>
-          <input matInput type="email" formControlName="client_email">
-        </mat-form-field>
-
-        <mat-slide-toggle formControlName="send_email" style="margin-bottom:16px;">
-          {{ 'rentals.send_link_by_email' | translate }}
-        </mat-slide-toggle>
-
-        <button mat-raised-button color="primary"
-                (click)="generatePaylink()" [disabled]="loading" style="width:100%;margin-bottom:12px;">
-          <mat-progress-spinner *ngIf="loading" diameter="18" mode="indeterminate"
-                                style="display:inline-block;margin-right:8px;"></mat-progress-spinner>
-          <mat-icon *ngIf="!loading">link</mat-icon>
-          {{ 'rentals.generate_paylink' | translate }}
-        </button>
-
-        <!-- Generated link display -->
-        <div *ngIf="generatedLink"
-             style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;margin-top:8px;">
-          <div style="font-size:12px;color:#15803d;margin-bottom:6px;font-weight:bold;">
-            <mat-icon style="font-size:14px;vertical-align:middle;">check_circle</mat-icon>
-            {{ 'rentals.paylink_generated' | translate }}
-          </div>
-          <div style="word-break:break-all;font-size:12px;color:#374151;margin-bottom:8px;">{{ generatedLink }}</div>
-          <div style="display:flex;gap:8px;">
-            <button mat-stroked-button (click)="copyLink()">
-              <mat-icon>content_copy</mat-icon> {{ 'rentals.copy_link' | translate }}
-            </button>
-            <button mat-stroked-button (click)="openLink()">
-              <mat-icon>open_in_new</mat-icon> {{ 'rentals.open_link' | translate }}
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </mat-tab>
-
-    <!-- ── Tab 2: Deposit ── -->
-    <mat-tab [label]="'rentals.tab_deposit' | translate">
-      <div style="padding:16px 0;">
-
-        <!-- Current deposit status -->
-        <div style="background:#f4f4f4;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;">
-          <strong>{{ 'rentals.deposit_current' | translate }}:</strong>
-          {{ depositAmount | number:'1.2-2' }} {{ currency }}
-          &nbsp;&middot;&nbsp;
-          <span [style.color]="depositStatus === 'held' ? '#f59e0b'
-                             : depositStatus === 'forfeited' ? '#ef4444'
-                             : depositStatus === 'released' ? '#22c55e'
-                             : '#9ca3af'">
-            {{ ('rentals.deposit_status_' + depositStatus) | translate }}
-          </span>
-          <ng-container *ngIf="hasDepositPayment">
-            &nbsp;&middot;&nbsp;
-            <span style="color:#374151;">
-              {{ paymentInfo.deposit_payment?.payment_method }}
-              &mdash; {{ paymentInfo.deposit_payment?.status }}
-            </span>
-          </ng-container>
-        </div>
-
-        <div [formGroup]="depositForm">
-          <mat-form-field appearance="outline" style="width:100%;">
-            <mat-label>{{ 'rentals.deposit_action' | translate }}</mat-label>
-            <mat-select formControlName="action">
-              <mat-option *ngFor="let a of depositActions" [value]="a.value">
-                {{ a.label | translate }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <ng-container *ngIf="isHoldAction">
-            <mat-form-field appearance="outline" style="width:100%;">
+    <mat-tab-group class="payment-dialog__tabs" [selectedIndex]="activeTabIndex" (selectedIndexChange)="onTabChange($event)">
+      <mat-tab [label]="'rentals.tab_manual_payment' | translate">
+        <div class="payment-dialog__tab-panel">
+          <form [formGroup]="manualForm" class="payment-dialog__form-grid">
+            <mat-form-field appearance="outline">
               <mat-label>{{ 'rentals.payment_method' | translate }}</mat-label>
               <mat-select formControlName="payment_method">
                 <mat-option *ngFor="let m of paymentMethods" [value]="m.value">
@@ -163,53 +90,193 @@
               </mat-select>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" style="width:100%;">
-              <mat-label>{{ 'rentals.deposit_amount' | translate }} ({{ currency }})</mat-label>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ 'rentals.amount' | translate }} ({{ currency }})</mat-label>
               <input matInput type="number" step="0.01" formControlName="amount">
-              <mat-error *ngIf="depositForm.get('amount')?.hasError('required')">{{ 'required' | translate }}</mat-error>
-              <mat-error *ngIf="depositForm.get('amount')?.hasError('min')">{{ 'rentals.amount_min_error' | translate }}</mat-error>
+              <mat-error *ngIf="manualForm.get('amount')?.hasError('required')">{{ 'required' | translate }}</mat-error>
+              <mat-error *ngIf="manualForm.get('amount')?.hasError('min')">{{ 'rentals.amount_min_error' | translate }}</mat-error>
             </mat-form-field>
-          </ng-container>
 
-          <mat-form-field appearance="outline" style="width:100%;">
-            <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
-            <textarea matInput formControlName="notes" rows="2"></textarea>
-          </mat-form-field>
+            <mat-form-field appearance="outline" class="payment-dialog__field payment-dialog__field--full">
+              <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
+              <textarea matInput formControlName="notes" rows="2"></textarea>
+            </mat-form-field>
 
-          <button mat-raised-button color="primary"
-                  (click)="saveDeposit()" [disabled]="loading || depositForm.invalid" style="width:100%;">
-            <mat-progress-spinner *ngIf="loading" diameter="18" mode="indeterminate"
-                                  style="display:inline-block;margin-right:8px;"></mat-progress-spinner>
-            <mat-icon *ngIf="!loading">savings</mat-icon>
-            {{ 'rentals.save_deposit' | translate }}
-          </button>
-        </div>
-
-        <!-- Deposit Payrexx link (shown after hold with payrexx_link method) -->
-        <div *ngIf="depositPaymentLink"
-             style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;margin-top:12px;">
-          <div style="font-size:12px;color:#15803d;margin-bottom:6px;font-weight:bold;">
-            <mat-icon style="font-size:14px;vertical-align:middle;">check_circle</mat-icon>
-            {{ 'rentals.deposit_paylink_generated' | translate }}
-          </div>
-          <div style="word-break:break-all;font-size:12px;color:#374151;margin-bottom:8px;">{{ depositPaymentLink }}</div>
-          <div style="display:flex;gap:8px;">
-            <button mat-stroked-button (click)="copyDepositLink()">
-              <mat-icon>content_copy</mat-icon> {{ 'rentals.copy_link' | translate }}
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              class="payment-dialog__action payment-dialog__action--primary payment-dialog__field--full"
+              (click)="saveManual()"
+              [disabled]="loading || manualForm.invalid">
+              <mat-progress-spinner
+                *ngIf="loading"
+                diameter="18"
+                mode="indeterminate"
+                class="payment-dialog__button-spinner"></mat-progress-spinner>
+              <mat-icon *ngIf="!loading">check</mat-icon>
+              {{ 'rentals.register_payment' | translate }}
             </button>
-            <button mat-stroked-button (click)="openDepositLink()">
-              <mat-icon>open_in_new</mat-icon> {{ 'rentals.open_link' | translate }}
+          </form>
+        </div>
+      </mat-tab>
+
+      <mat-tab [label]="'rentals.tab_paylink' | translate">
+        <div class="payment-dialog__tab-panel">
+          <form [formGroup]="paylinkForm" class="payment-dialog__form-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>{{ 'rentals.amount' | translate }} ({{ currency }})</mat-label>
+              <input matInput type="number" step="0.01" formControlName="amount">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>{{ 'rentals.client_email' | translate }}</mat-label>
+              <input matInput type="email" formControlName="client_email">
+            </mat-form-field>
+
+            <mat-slide-toggle formControlName="send_email" class="payment-dialog__toggle payment-dialog__field--full">
+              {{ 'rentals.send_link_by_email' | translate }}
+            </mat-slide-toggle>
+
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              class="payment-dialog__action payment-dialog__action--primary payment-dialog__field--full"
+              (click)="generatePaylink()"
+              [disabled]="loading">
+              <mat-progress-spinner
+                *ngIf="loading"
+                diameter="18"
+                mode="indeterminate"
+                class="payment-dialog__button-spinner"></mat-progress-spinner>
+              <mat-icon *ngIf="!loading">link</mat-icon>
+              {{ 'rentals.generate_paylink' | translate }}
             </button>
+          </form>
+
+          <div *ngIf="generatedLink" class="payment-dialog__status payment-dialog__status--success">
+            <div class="payment-dialog__status-content">
+              <div class="payment-dialog__status-row payment-dialog__status-row--highlight">
+                <mat-icon class="payment-dialog__status-icon">check_circle</mat-icon>
+                <span>{{ 'rentals.paylink_generated' | translate }}</span>
+              </div>
+              <div class="payment-dialog__link">{{ generatedLink }}</div>
+              <div class="payment-dialog__link-actions">
+                <button mat-stroked-button type="button" class="payment-dialog__action" (click)="copyLink()">
+                  <mat-icon>content_copy</mat-icon>
+                  {{ 'rentals.copy_link' | translate }}
+                </button>
+                <button mat-stroked-button type="button" class="payment-dialog__action" (click)="openLink()">
+                  <mat-icon>open_in_new</mat-icon>
+                  {{ 'rentals.open_link' | translate }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+      </mat-tab>
 
-      </div>
-    </mat-tab>
+      <mat-tab [label]="'rentals.tab_deposit' | translate">
+        <div class="payment-dialog__tab-panel">
+          <div class="payment-dialog__status payment-dialog__status--neutral">
+            <div class="payment-dialog__status-content">
+              <div class="payment-dialog__status-row">
+                <span class="payment-dialog__status-label">{{ 'rentals.deposit_current' | translate }}:</span>
+                <span>{{ depositAmount | number:'1.2-2' }} {{ currency }}</span>
+              </div>
+              <div class="payment-dialog__status-row">
+                <span
+                  class="payment-dialog__deposit-pill"
+                  [ngClass]="'payment-dialog__deposit-pill--' + depositStatus">
+                  {{ ('rentals.deposit_status_' + depositStatus) | translate }}
+                </span>
+                <ng-container *ngIf="hasDepositPayment">
+                  <span class="payment-dialog__deposit-meta">
+                    {{ paymentInfo.deposit_payment?.payment_method }} - {{ paymentInfo.deposit_payment?.status }}
+                  </span>
+                </ng-container>
+              </div>
+            </div>
+          </div>
 
-  </mat-tab-group>
+          <form [formGroup]="depositForm" class="payment-dialog__form-grid">
+            <mat-form-field appearance="outline" class="payment-dialog__field payment-dialog__field--full">
+              <mat-label>{{ 'rentals.deposit_action' | translate }}</mat-label>
+              <mat-select formControlName="action">
+                <mat-option *ngFor="let a of depositActions" [value]="a.value">
+                  {{ a.label | translate }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
 
-</mat-dialog-content>
+            <ng-container *ngIf="isHoldAction">
+              <mat-form-field appearance="outline">
+                <mat-label>{{ 'rentals.payment_method' | translate }}</mat-label>
+                <mat-select formControlName="payment_method">
+                  <mat-option *ngFor="let m of paymentMethods" [value]="m.value">
+                    {{ m.label | translate }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
 
-<mat-dialog-actions align="end">
-  <button mat-button (click)="close()">{{ 'rentals.close' | translate }}</button>
-</mat-dialog-actions>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ 'rentals.deposit_amount' | translate }} ({{ currency }})</mat-label>
+                <input matInput type="number" step="0.01" formControlName="amount">
+                <mat-error *ngIf="depositForm.get('amount')?.hasError('required')">{{ 'required' | translate }}</mat-error>
+                <mat-error *ngIf="depositForm.get('amount')?.hasError('min')">{{ 'rentals.amount_min_error' | translate }}</mat-error>
+              </mat-form-field>
+            </ng-container>
+
+            <mat-form-field appearance="outline" class="payment-dialog__field payment-dialog__field--full">
+              <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
+              <textarea matInput formControlName="notes" rows="2"></textarea>
+            </mat-form-field>
+
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              class="payment-dialog__action payment-dialog__action--primary payment-dialog__field--full"
+              (click)="saveDeposit()"
+              [disabled]="loading || depositForm.invalid">
+              <mat-progress-spinner
+                *ngIf="loading"
+                diameter="18"
+                mode="indeterminate"
+                class="payment-dialog__button-spinner"></mat-progress-spinner>
+              <mat-icon *ngIf="!loading">savings</mat-icon>
+              {{ 'rentals.save_deposit' | translate }}
+            </button>
+          </form>
+
+          <div *ngIf="depositPaymentLink" class="payment-dialog__status payment-dialog__status--success">
+            <div class="payment-dialog__status-content">
+              <div class="payment-dialog__status-row payment-dialog__status-row--highlight">
+                <mat-icon class="payment-dialog__status-icon">check_circle</mat-icon>
+                <span>{{ 'rentals.deposit_paylink_generated' | translate }}</span>
+              </div>
+              <div class="payment-dialog__link">{{ depositPaymentLink }}</div>
+              <div class="payment-dialog__link-actions">
+                <button mat-stroked-button type="button" class="payment-dialog__action" (click)="copyDepositLink()">
+                  <mat-icon>content_copy</mat-icon>
+                  {{ 'rentals.copy_link' | translate }}
+                </button>
+                <button mat-stroked-button type="button" class="payment-dialog__action" (click)="openDepositLink()">
+                  <mat-icon>open_in_new</mat-icon>
+                  {{ 'rentals.open_link' | translate }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="payment-dialog__footer">
+    <button mat-stroked-button type="button" class="payment-dialog__action payment-dialog__action--secondary" (click)="close()">
+      {{ 'rentals.close' | translate }}
+    </button>
+  </mat-dialog-actions>
+</div>

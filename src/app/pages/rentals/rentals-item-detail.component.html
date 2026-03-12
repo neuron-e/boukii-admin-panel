@@ -1,37 +1,38 @@
 <vex-page-layout>
-  <vex-secondary-toolbar current>
-    <vex-breadcrumbs [crumbs]="[{ icon: 'settings' }, { text: 'rentals.page_title' }, { text: item?.name || ('rentals.equipment_details' | translate), title: true }]" class="flex"></vex-breadcrumbs>
-  </vex-secondary-toolbar>
-
   <vex-page-layout-content class="rentals-detail-page">
-    <div class="header-row">
-      <div class="header-row__left">
-        <button mat-button type="button" class="back-link" (click)="back()">
-          <mat-icon>arrow_back</mat-icon>
-          {{ 'rentals.back_to_inventory' | translate }}
-        </button>
-        <div class="title-block">
-          <h2>{{ item?.name || variant?.name || ('rentals.equipment_details' | translate) }}</h2>
-          <div class="title-meta">
-            <span class="status" [class.off]="!variant?.active">{{ (variant?.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span>
-            <small>{{ item?.category_name || '-' }} • {{ item?.model || '-' }} • {{ variant?.sku || '-' }}</small>
+    <div class="detail-topbar">
+      <div class="header-row">
+        <div class="header-row__left">
+          <button mat-button type="button" class="back-link" (click)="back()">
+            <mat-icon>arrow_back</mat-icon>
+            {{ 'rentals.back_to_inventory' | translate }}
+          </button>
+          <span class="header-divider" aria-hidden="true"></span>
+          <div class="title-block">
+            <div class="title-main">
+              <h2>{{ item?.name || variant?.name || ('rentals.equipment_details' | translate) }}</h2>
+              <span class="status" [class.off]="!variant?.active">{{ (variant?.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span>
+            </div>
+            <div class="title-meta">
+              <small>{{ item?.category_name || '-' }} • {{ item?.model || '-' }} • {{ variant?.sku || '-' }}</small>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="header-actions">
-        <button mat-stroked-button type="button" (click)="editCurrentProduct()">
-          <mat-icon>edit</mat-icon>
-          {{ 'rentals.detail_edit_product' | translate }}
-        </button>
-        <button mat-flat-button color="primary" type="button" (click)="exportProduct()">
-          <mat-icon>download</mat-icon>
-          {{ 'rentals.detail_export' | translate }}
-        </button>
+        <div class="header-actions">
+          <button mat-stroked-button type="button" class="header-action-button header-action-button--compact" (click)="editCurrentProduct()">
+            <mat-icon>edit</mat-icon>
+            {{ 'rentals.detail_edit_product' | translate }}
+          </button>
+          <button mat-stroked-button type="button" class="header-action-button header-action-button--compact" (click)="exportProduct()">
+            <mat-icon>download</mat-icon>
+            {{ 'rentals.detail_export' | translate }}
+          </button>
+        </div>
       </div>
     </div>
 
     <section class="detail-shell" *ngIf="!loading && variant; else loadingTpl">
-      <aside class="left-column">
+      <div class="left-column">
         <div class="image-card">
           <div class="hero-image" *ngIf="mainImageUrl; else noImage">
             <img [src]="mainImageUrl" alt="equipment image">
@@ -42,224 +43,379 @@
             </div>
           </ng-template>
           <div class="thumb-grid">
-            <div class="thumb active" *ngFor="let image of imageCandidates | slice:0:3; let first = first">
-              <img [src]="image" [alt]="first ? 'main image' : 'detail image'">
-            </div>
+            <button
+              type="button"
+              class="thumb"
+              [class.active]="image === mainImageUrl"
+              *ngFor="let image of imageCandidates | slice:0:5"
+              (click)="selectImage(image)">
+              <img [src]="image" alt="detail image">
+              <span class="thumb-primary-chip" *ngIf="isPrimaryImage(image)">★</span>
+              <span
+                class="thumb-delete"
+                *ngIf="imageCanBeDeleted(image)"
+                (click)="deleteImageByUrl(image, $event)">
+                ×
+              </span>
+            </button>
             <div class="thumb" *ngIf="!imageCandidates.length">
               <mat-icon>image</mat-icon>
             </div>
-            <div class="thumb upload"><mat-icon>upload</mat-icon></div>
+            <button type="button" class="thumb upload thumb-upload-button" [disabled]="imageUploading" (click)="imageInput.click()">
+              <mat-icon>{{ imageUploading ? 'hourglass_top' : 'upload' }}</mat-icon>
+            </button>
+            <input
+              #imageInput
+              type="file"
+              accept="image/*"
+              class="image-input-hidden"
+              (change)="onImageSelected($event)">
           </div>
         </div>
 
         <div class="info-card">
-          <h4>{{ 'rentals.detail_product_info' | translate }}</h4>
-          <div class="info-line"><span>{{ 'rentals.detail_description' | translate }}</span><strong>{{ item?.description || '-' }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_brand' | translate }}</span><strong>{{ item?.brand || '-' }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_model' | translate }}</span><strong>{{ item?.model || '-' }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_category' | translate }}</span><strong>{{ item?.category_name || '-' }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_created' | translate }}</span><strong>{{ item?.created_at | date:'shortDate' }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_updated' | translate }}</span><strong>{{ item?.updated_at | date:'shortDate' }}</strong></div>
-        </div>
-
-        <div class="stats-card">
-          <h4>{{ 'rentals.detail_summary_stats' | translate }}</h4>
-          <div class="info-line"><span>{{ 'rentals.detail_total_units' | translate }}</span><strong>{{ totalCount }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.available_units' | translate }}</span><strong class="ok">{{ availableCount }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_reserved' | translate }}</span><strong class="warn">{{ reservedCount }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_maintenance' | translate }}</span><strong class="danger">{{ maintenanceCount }}</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_inventory_value' | translate }}</span><strong>{{ inventoryValue | number:'1.2-2' }} CHF</strong></div>
-          <div class="info-line"><span>{{ 'rentals.detail_total_revenue' | translate }}</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} CHF</strong></div>
-        </div>
-      </aside>
-
-      <main class="right-column">
-        <div class="tabs-row">
-          <button type="button" [class.active]="activeTab === 'variants'" (click)="switchTab('variants')">{{ 'rentals.detail_tab_variants' | translate }} ({{ variants.length }})</button>
-          <button type="button" [class.active]="activeTab === 'services'" (click)="switchTab('services')">{{ 'rentals.detail_tab_services' | translate }} ({{ services.length }})</button>
-          <button type="button" [class.active]="activeTab === 'history'" (click)="switchTab('history')">{{ 'rentals.detail_tab_history' | translate }} ({{ history.length }})</button>
-          <button type="button" [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">{{ 'rentals.detail_tab_analytics' | translate }}</button>
-        </div>
-
-        <section class="panel" *ngIf="activeTab === 'variants'">
-          <div class="panel-header">
-            <h3>{{ 'rentals.detail_product_variants' | translate }}</h3>
-            <button mat-flat-button color="primary" type="button" (click)="toggleCreateVariant()">
-              <mat-icon>add</mat-icon>
-              {{ 'rentals.detail_add_variant' | translate }}
-            </button>
+          <div class="card-heading">
+            <p>{{ 'rentals.detail_product_info' | translate }}</p>
+            <h4>{{ item?.name || variant?.name || ('rentals.equipment_details' | translate) }}</h4>
           </div>
-          <div class="services-form" *ngIf="createVariantExpanded" style="margin-bottom: 16px;">
-            <h4>{{ 'rentals.detail_add_variant_title' | translate }}</h4>
-            <div class="service-grid">
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'rentals.variant_name' | translate }}</mat-label>
-                <input matInput [(ngModel)]="createVariantForm.name" [ngModelOptions]="{ standalone: true }">
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'rentals.size' | translate }}</mat-label>
-                <input matInput [(ngModel)]="createVariantForm.size_label" [ngModelOptions]="{ standalone: true }">
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'rentals.sku' | translate }}</mat-label>
-                <input matInput [(ngModel)]="createVariantForm.sku" [ngModelOptions]="{ standalone: true }">
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'rentals.code' | translate }}</mat-label>
-                <input matInput [(ngModel)]="createVariantForm.barcode" [ngModelOptions]="{ standalone: true }">
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'rentals.quantity' | translate }}</mat-label>
-                <input matInput type="number" min="1" [(ngModel)]="createVariantForm.quantity" [ngModelOptions]="{ standalone: true }">
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'rentals.condition' | translate }}</mat-label>
-                <mat-select [(ngModel)]="createVariantForm.condition" [ngModelOptions]="{ standalone: true }">
-                  <mat-option value="excellent">{{ 'rentals.condition_excellent' | translate }}</mat-option>
-                  <mat-option value="good">{{ 'rentals.condition_good' | translate }}</mat-option>
-                  <mat-option value="fair">{{ 'rentals.condition_fair' | translate }}</mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-            <div class="service-actions">
-              <button mat-stroked-button type="button" (click)="toggleCreateVariant()">{{ 'rentals.cancel' | translate }}</button>
-              <button mat-flat-button color="primary" type="button" (click)="createVariant()">{{ 'rentals.detail_create_variant' | translate }}</button>
-            </div>
+          <div class="info-field">
+            <span>{{ 'rentals.detail_description' | translate }}</span>
+            <p>{{ item?.description || '-' }}</p>
           </div>
-          <table class="variants-table">
-            <thead>
-            <tr>
-              <th>{{ 'rentals.detail_sku_variant' | translate }}</th>
-              <th>{{ 'rentals.detail_inventory' | translate }}</th>
-              <th>{{ 'rentals.detail_prices' | translate }}</th>
-              <th>{{ 'rentals.status' | translate }}</th>
-              <th>{{ 'rentals.actions' | translate }}</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr *ngFor="let v of variants" [class.active-row]="variant?.id === v.id">
-              <td>
-                <strong>{{ v.name }}</strong>
-                <small>{{ v.sku || '-' }} · {{ v.size_label || '-' }}</small>
-              </td>
-              <td>
-                <strong>{{ v.inventory?.available || 0 }}/{{ v.inventory?.total || 0 }}</strong>
-                <small>{{ v.inventory?.reserved || 0 }} reserved · {{ v.inventory?.maintenance || 0 }} maintenance</small>
-              </td>
-              <td>
-                <small *ngFor="let pr of v.pricing_rules">{{ ('rentals.period_' + pr.period_type) | translate }}: {{ pr.price }} {{ pr.currency || 'CHF' }}</small>
-              </td>
-              <td>
-                <span class="status" [class.off]="!v.active">{{ (v.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span>
-              </td>
-              <td class="actions">
-                  <button mat-icon-button type="button" (click)="openVariantDetail(v)"><mat-icon>visibility</mat-icon></button>
-                <button mat-icon-button type="button" (click)="deleteVariant(v)"><mat-icon>delete</mat-icon></button>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-        </section>
+          <div class="info-field">
+            <span>{{ 'rentals.detail_brand' | translate }}</span>
+            <p>{{ item?.brand || '-' }}</p>
+          </div>
+          <div class="info-field">
+            <span>{{ 'rentals.detail_model' | translate }}</span>
+            <p>{{ item?.model || '-' }}</p>
+          </div>
+          <div class="info-field" *ngIf="productTags.length">
+            <span>Tags</span>
+            <p class="tags-list">
+              <span class="tag-pill" *ngFor="let tag of productTags">{{ tag }}</span>
+            </p>
+          </div>
+          <div class="info-field">
+            <span>{{ 'rentals.detail_category' | translate }}</span>
+            <p>{{ item?.category_name || '-' }}</p>
+          </div>
+          <div class="info-field">
+            <span>{{ 'rentals.detail_created' | translate }}</span>
+            <p>{{ item?.created_at | date:'d/M/yyyy' }}</p>
+          </div>
+          <div class="info-field">
+            <span>{{ 'rentals.detail_updated' | translate }}</span>
+            <p>{{ item?.updated_at | date:'d/M/yyyy' }}</p>
+          </div>
+        </div>
 
-        <section class="panel" *ngIf="activeTab === 'services'">
-          <h3>{{ 'rentals.detail_services_title' | translate }}</h3>
-          <div class="services-layout">
-            <div class="services-form">
+        <div class="info-card">
+          <div class="card-heading">
+            <p>Summary</p>
+            <h4>Summary Statistics</h4>
+          </div>
+          <div class="info-line"><span><mat-icon>inventory_2</mat-icon> Total Units</span><strong>{{ totalCount }}</strong></div>
+          <div class="info-line"><span><mat-icon>check_circle</mat-icon> Available</span><strong class="ok">{{ availableCount }}</strong></div>
+          <div class="info-line"><span><mat-icon>schedule</mat-icon> Reserved</span><strong class="warn">{{ reservedCount }}</strong></div>
+          <div class="info-line"><span><mat-icon>build_circle</mat-icon> Maintenance</span><strong class="danger">{{ maintenanceCount }}</strong></div>
+          <div class="info-line"><span><mat-icon>euro</mat-icon> Inventory Value</span><strong>{{ inventoryValue | number:'1.2-2' }} {{ schoolCurrency }}</strong></div>
+          <div class="info-line"><span><mat-icon>trending_up</mat-icon> Total Revenue</span><strong class="ok">{{ analytics?.total_revenue || 0 | number:'1.2-2' }} {{ schoolCurrency }}</strong></div>
+        </div>
+      </div>
+
+      <div class="right-column">
+        <div class="tabbed-panel">
+          <div class="tabs-row tabs-row--inside">
+            <button type="button" [class.active]="activeTab === 'variants'" (click)="switchTab('variants')">{{ 'rentals.detail_tab_variants' | translate }} ({{ variants.length }})</button>
+            <button type="button" [class.active]="activeTab === 'services'" (click)="switchTab('services')">{{ 'rentals.detail_tab_services' | translate }} ({{ services.length }})</button>
+            <button type="button" [class.active]="activeTab === 'history'" (click)="switchTab('history')">{{ 'rentals.detail_tab_history' | translate }} ({{ history.length }})</button>
+            <button type="button" [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">{{ 'rentals.detail_tab_analytics' | translate }}</button>
+          </div>
+
+          <section class="panel panel--embedded" *ngIf="activeTab === 'variants'">
+            <div class="panel-header">
+              <div class="panel-title">
+                <p>{{ 'rentals.detail_tab_variants' | translate }}</p>
+                <h3>{{ 'rentals.detail_product_variants' | translate }}</h3>
+              </div>
+              <button mat-flat-button class="panel-action-button panel-action-button--dark" type="button" (click)="toggleCreateVariant()">
+                <mat-icon>add</mat-icon>
+                {{ 'rentals.detail_add_variant' | translate }}
+              </button>
+            </div>
+            <div class="services-form services-form--inset create-variant-form" *ngIf="createVariantExpanded">
+              <h4>{{ (editingVariantId ? 'rentals.detail_edit_variant_title' : 'rentals.detail_add_variant_title') | translate }}</h4>
+              <div class="create-variant-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.variant_name' | translate }}</mat-label>
+                  <input matInput [(ngModel)]="createVariantForm.name" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.size' | translate }}</mat-label>
+                  <input matInput [(ngModel)]="createVariantForm.size_label" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.sku' | translate }}</mat-label>
+                  <input matInput [(ngModel)]="createVariantForm.sku" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.code' | translate }}</mat-label>
+                  <input matInput [(ngModel)]="createVariantForm.barcode" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.quantity' | translate }}</mat-label>
+                  <input matInput type="number" min="1" [(ngModel)]="createVariantForm.quantity" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.condition' | translate }}</mat-label>
+                  <mat-select [(ngModel)]="createVariantForm.condition" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                    <mat-option value="excellent">{{ 'rentals.condition_excellent' | translate }}</mat-option>
+                    <mat-option value="good">{{ 'rentals.condition_good' | translate }}</mat-option>
+                    <mat-option value="fair">{{ 'rentals.condition_fair' | translate }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="create-variant-grid__full">
+                  <mat-label>{{ 'rentals.warehouse' | translate }}</mat-label>
+                  <mat-select [(ngModel)]="createVariantForm.warehouse_id" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                    <mat-option [value]="null">-</mat-option>
+                    <mat-option *ngFor="let warehouse of warehouses" [value]="warehouse.id">
+                      {{ warehouse.name }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>½ {{ 'rentals.period_half_day' | translate }} ({{ schoolCurrency }})</mat-label>
+                  <input matInput type="number" min="0" step="0.01" [(ngModel)]="createVariantForm.half_day_price" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.period_full_day' | translate }} ({{ schoolCurrency }})</mat-label>
+                  <input matInput type="number" min="0" step="0.01" [(ngModel)]="createVariantForm.full_day_price" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.period_week' | translate }} ({{ schoolCurrency }})</mat-label>
+                  <input matInput type="number" min="0" step="0.01" [(ngModel)]="createVariantForm.week_price" [disabled]="createVariantSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+              </div>
+              <div class="service-actions">
+                <button mat-stroked-button type="button" class="panel-action-button" [disabled]="createVariantSaving" (click)="toggleCreateVariant()">{{ 'rentals.cancel' | translate }}</button>
+                <button mat-flat-button type="button" class="panel-action-button panel-action-button--dark" [disabled]="createVariantSaving" (click)="createVariant()">
+                  <mat-icon *ngIf="createVariantSaving" class="spin">autorenew</mat-icon>
+                  {{ createVariantSaving ? ('rentals.saving' | translate) : (editingVariantId ? ('rentals.save_changes' | translate) : ('rentals.detail_create_variant' | translate)) }}
+                </button>
+              </div>
+            </div>
+            <table class="variants-table">
+              <thead>
+              <tr>
+                <th>{{ 'rentals.detail_sku_variant' | translate }}</th>
+                <th>{{ 'rentals.detail_inventory' | translate }}</th>
+                <th>{{ 'rentals.detail_prices' | translate }}</th>
+                <th>{{ 'rentals.status' | translate }}</th>
+                <th>{{ 'rentals.actions' | translate }}</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr *ngFor="let v of variants" [class.active-row]="variant?.id === v.id">
+                <td>
+                  <div class="variant-sku-cell">
+                    <span class="variant-icon">
+                      <mat-icon>inventory_2</mat-icon>
+                    </span>
+                    <div>
+                      <strong>{{ v.sku || v.name || '-' }}</strong>
+                      <small *ngIf="v?.name && v?.name !== v?.sku">{{ v.name }}</small>
+                      <small>{{ v.size_label || '-' }} • {{ item?.brand || '-' }} {{ item?.model || '' }}</small>
+                      <small *ngIf="getVariantWarehouseLabel(v)">{{ getVariantWarehouseLabel(v) }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div class="inventory-cell">
+                    <div class="inventory-main">
+                    <strong class="ok">{{ v.inventory?.available || 0 }}</strong>
+                    <span>/</span>
+                    <strong>{{ v.inventory?.total || 0 }}</strong>
+                  </div>
+                  <small>{{ 'rentals.available' | translate }} · {{ 'rentals.total' | translate }}</small>
+                  <small class="warn-text" *ngIf="(v.inventory?.reserved || 0) > 0 || (v.inventory?.maintenance || 0) > 0">
+                    <span *ngIf="(v.inventory?.reserved || 0) > 0">{{ v.inventory?.reserved || 0 }} reserved</span>
+                    <span *ngIf="(v.inventory?.reserved || 0) > 0 && (v.inventory?.maintenance || 0) > 0"> · </span>
+                    <span *ngIf="(v.inventory?.maintenance || 0) > 0">{{ v.inventory?.maintenance || 0 }} maintenance</span>
+                  </small>
+                </div>
+              </td>
+                <td>
+                  <div class="prices-cell">
+                    <small>Purchase: <span class="price-value">{{ getVariantPurchasePrice(v) | number:'1.0-2' }} {{ getVariantCurrency(v) }}</span></small>
+                    <small>Rental: <span class="price-value">{{ getVariantRentalPriceSummary(v) }}</span></small>
+                    <small class="ok">Sale: {{ getVariantSaleDisplay(v) }}</small>
+                  </div>
+                </td>
+                <td>
+                  <div class="status-cell">
+                    <span class="status-badge status-badge--{{ getVariantCondition(v) }}">{{ getVariantCondition(v) }}</span>
+                    <span class="status" [class.off]="!v.active">{{ (v.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span>
+                  </div>
+                </td>
+                <td class="actions">
+                  <button mat-icon-button type="button" (click)="downloadVariantQr(v)"><mat-icon>qr_code_2</mat-icon></button>
+                  <button mat-icon-button type="button" (click)="editVariant(v)"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button type="button" (click)="deleteVariant(v)"><mat-icon>delete_outline</mat-icon></button>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="panel panel--embedded" *ngIf="activeTab === 'services'">
+            <div class="panel-header">
+              <div class="panel-title">
+                <p>{{ 'rentals.detail_tab_services' | translate }}</p>
+                <h3>{{ 'rentals.detail_services_title' | translate }}</h3>
+              </div>
+              <button mat-flat-button class="panel-action-button panel-action-button--dark" type="button" (click)="toggleServiceEditor(true)">
+                <mat-icon>add</mat-icon>
+                {{ 'rentals.detail_add_service' | translate }}
+              </button>
+            </div>
+
+            <div class="services-form services-form--inset service-editor-form" *ngIf="serviceEditorExpanded">
               <h4>{{ (serviceForm.id ? 'rentals.detail_edit_service' : 'rentals.detail_add_service') | translate }}</h4>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'rentals.detail_service_name' | translate }}</mat-label>
-                <input matInput [(ngModel)]="serviceForm.name" [ngModelOptions]="{ standalone: true }">
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ 'rentals.detail_service_description' | translate }}</mat-label>
-                <textarea matInput rows="3" [(ngModel)]="serviceForm.description" [ngModelOptions]="{ standalone: true }"></textarea>
-              </mat-form-field>
               <div class="service-grid">
                 <mat-form-field appearance="outline">
-                  <mat-label>{{ 'rentals.detail_service_price' | translate }}</mat-label>
-                  <input matInput type="number" [(ngModel)]="serviceForm.price" [ngModelOptions]="{ standalone: true }">
+                  <mat-label>{{ 'rentals.detail_service_name' | translate }}</mat-label>
+                  <input matInput [(ngModel)]="serviceForm.name" [disabled]="serviceSaving" [ngModelOptions]="{ standalone: true }">
                 </mat-form-field>
                 <mat-form-field appearance="outline">
-                  <mat-label>{{ 'rentals.detail_service_currency' | translate }}</mat-label>
-                  <input matInput [(ngModel)]="serviceForm.currency" [ngModelOptions]="{ standalone: true }">
+                  <mat-label>{{ 'rentals.detail_service_price' | translate }} ({{ schoolCurrency }})</mat-label>
+                  <input matInput type="number" min="0" step="0.01" [(ngModel)]="serviceForm.price" [disabled]="serviceSaving" [ngModelOptions]="{ standalone: true }">
                 </mat-form-field>
+
+                <mat-form-field appearance="outline" class="create-variant-grid__full">
+                  <mat-label>{{ 'rentals.detail_service_description' | translate }}</mat-label>
+                  <textarea matInput rows="3" [(ngModel)]="serviceForm.description" [disabled]="serviceSaving" [ngModelOptions]="{ standalone: true }"></textarea>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'rentals.detail_service_duration_minutes' | translate }}</mat-label>
+                  <input matInput type="number" min="0" step="1" [(ngModel)]="serviceForm.duration_minutes" [disabled]="serviceSaving" [ngModelOptions]="{ standalone: true }">
+                </mat-form-field>
+
+                <div class="service-grid__checks create-variant-grid__full">
+                  <mat-checkbox class="service-check" [(ngModel)]="serviceForm.is_required" [disabled]="serviceSaving" [ngModelOptions]="{ standalone: true }">
+                    {{ 'rentals.detail_service_required' | translate }}
+                  </mat-checkbox>
+                  <mat-checkbox class="service-check" [(ngModel)]="serviceForm.active" [disabled]="serviceSaving" [ngModelOptions]="{ standalone: true }">
+                    {{ 'rentals.detail_service_active' | translate }}
+                  </mat-checkbox>
+                </div>
               </div>
-              <mat-checkbox [(ngModel)]="serviceForm.active" [ngModelOptions]="{ standalone: true }">{{ 'rentals.detail_service_active' | translate }}</mat-checkbox>
               <div class="service-actions">
-                <button mat-stroked-button type="button" (click)="startCreateService()">{{ 'rentals.detail_service_clear' | translate }}</button>
-                <button mat-flat-button color="primary" type="button" (click)="saveService()">{{ 'rentals.detail_service_save' | translate }}</button>
+                <button mat-stroked-button type="button" class="panel-action-button" [disabled]="serviceSaving" (click)="toggleServiceEditor(false)">
+                  {{ 'rentals.cancel' | translate }}
+                </button>
+                <button mat-flat-button type="button" class="panel-action-button panel-action-button--dark" [disabled]="serviceSaving" (click)="saveService()">
+                  <mat-icon *ngIf="serviceSaving" class="spin">autorenew</mat-icon>
+                  {{ serviceSaving ? ('rentals.saving' | translate) : ('rentals.detail_service_save' | translate) }}
+                </button>
               </div>
             </div>
-            <div class="services-list">
-              <table class="history-table" *ngIf="services.length; else noServices">
-                <thead>
-                <tr>
-                  <th>{{ 'rentals.detail_service_name' | translate }}</th>
-                  <th>{{ 'rentals.detail_service_description' | translate }}</th>
-                  <th>{{ 'rentals.detail_service_price' | translate }}</th>
-                  <th>{{ 'rentals.status' | translate }}</th>
-                  <th>{{ 'rentals.actions' | translate }}</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr *ngFor="let s of services">
-                  <td>{{ s.name }}</td>
-                  <td>{{ s.description || '-' }}</td>
-                  <td>{{ s.price || 0 | number:'1.2-2' }} {{ s.currency || 'CHF' }}</td>
-                  <td><span class="status" [class.off]="!s.active">{{ (s.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span></td>
-                  <td class="actions">
-                    <button mat-icon-button type="button" (click)="editService(s)"><mat-icon>edit</mat-icon></button>
-                    <button mat-icon-button type="button" (click)="removeService(s)"><mat-icon>delete</mat-icon></button>
-                  </td>
-                </tr>
-                </tbody>
-              </table>
-              <ng-template #noServices>
-                <p class="muted">{{ 'rentals.detail_no_services' | translate }}</p>
-              </ng-template>
+
+            <div class="services-cards" *ngIf="services.length; else noServices">
+              <article class="service-card" *ngFor="let s of services">
+                <div class="service-card__content">
+                  <div class="service-card__head">
+                    <h5>{{ s.name }}</h5>
+                    <span class="status-badge status-badge--pending" *ngIf="s.is_required">{{ 'rentals.detail_service_required' | translate }}</span>
+                    <span class="status" [class.off]="!s.active">
+                      {{ (s.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}
+                    </span>
+                  </div>
+                  <p>{{ s.description || '-' }}</p>
+                  <div class="service-card__meta">
+                    <span class="service-card__metric service-card__price">
+                      <strong>{{ s.price || 0 | number:'1.0-2' }} {{ s.currency || schoolCurrency }}</strong>
+                    </span>
+                    <span class="service-card__metric service-card__duration" *ngIf="(s.duration_minutes || 0) > 0">
+                      <mat-icon>schedule</mat-icon>
+                      <span>{{ s.duration_minutes }} min</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button mat-icon-button type="button" (click)="editService(s)"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button type="button" (click)="removeService(s)"><mat-icon>delete_outline</mat-icon></button>
+                </div>
+              </article>
+            </div>
+            <ng-template #noServices>
+              <p class="muted">{{ 'rentals.detail_no_services' | translate }}</p>
+            </ng-template>
+          </section>
+
+          <section class="panel panel--embedded" *ngIf="activeTab === 'history'">
+          <div class="panel-header panel-header--stacked">
+            <div class="panel-title">
+              <p>{{ 'rentals.detail_tab_history' | translate }}</p>
+              <h3>{{ 'rentals.detail_history_title' | translate }}</h3>
             </div>
           </div>
-        </section>
+          <div class="history-cards" *ngIf="history.length; else noHistory">
+            <article class="history-card" *ngFor="let h of history">
+              <div class="history-card__main">
+                <div class="history-card__head">
+                  <h5>{{ (h.first_name || '-') }} {{ (h.last_name || '') }}</h5>
+                  <span class="status-badge status-badge--{{ h.status }}">{{ ('rentals.status_' + h.status) | translate }}</span>
+                </div>
 
-        <section class="panel" *ngIf="activeTab === 'history'">
-          <h3>{{ 'rentals.detail_history_title' | translate }}</h3>
-          <table class="history-table" *ngIf="history.length; else noHistory">
-            <thead>
-            <tr>
-              <th>{{ 'rentals.detail_history_reservation' | translate }}</th>
-              <th>{{ 'rentals.client' | translate }}</th>
-              <th>{{ 'rentals.detail_history_dates' | translate }}</th>
-              <th>{{ 'rentals.status' | translate }}</th>
-              <th>{{ 'rentals.detail_history_qty' | translate }}</th>
-              <th>{{ 'rentals.detail_history_total' | translate }}</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr *ngFor="let h of history">
-              <td>#{{ h.reservation_id }} {{ h.reference || '' }}</td>
-              <td>{{ h.first_name || '' }} {{ h.last_name || '' }}</td>
-              <td>{{ h.start_date || '-' }} – {{ h.end_date || '-' }}</td>
-              <td><span class="status-badge status-badge--{{ h.status }}">{{ ('rentals.status_' + h.status) | translate }}</span></td>
-              <td>{{ h.quantity || 0 }}</td>
-              <td>{{ h.line_total || 0 | number:'1.2-2' }} CHF</td>
-            </tr>
-            </tbody>
-          </table>
+                <p class="history-card__sku">
+                  {{ 'rentals.sku' | translate }}:
+                  {{ getHistorySku(h) }}
+                  <ng-container *ngIf="getHistoryVariantName(h)"> · {{ getHistoryVariantName(h) }}</ng-container>
+                </p>
+
+                <div class="history-card__meta">
+                  <span class="history-card__dates">
+                    <mat-icon>event</mat-icon>
+                    {{ (h.start_date | date:'d/M/yyyy') || '-' }} - {{ (h.end_date | date:'d/M/yyyy') || '-' }}
+                  </span>
+                  <span class="history-card__total">
+                    {{ h.line_total || 0 | number:'1.2-2' }} {{ h.currency || schoolCurrency }}
+                  </span>
+                </div>
+              </div>
+
+              <button mat-stroked-button type="button" class="panel-action-button history-card__cta" (click)="openHistoryReservation(h)">
+                {{ 'rentals.view_detail' | translate }}
+              </button>
+            </article>
+          </div>
           <ng-template #noHistory>
             <p class="muted">{{ 'rentals.detail_no_history' | translate }}</p>
           </ng-template>
-        </section>
+          </section>
 
-        <section class="panel" *ngIf="activeTab === 'analytics'">
-          <h3>{{ 'rentals.detail_analytics_title' | translate }}</h3>
+          <section class="panel panel--embedded" *ngIf="activeTab === 'analytics'">
+          <div class="panel-header panel-header--stacked">
+            <div class="panel-title">
+              <p>{{ 'rentals.detail_tab_analytics' | translate }}</p>
+              <h3>{{ 'rentals.detail_analytics_title' | translate }}</h3>
+            </div>
+          </div>
           <div class="analytics-grid">
             <article><span>{{ 'rentals.detail_utilization' | translate }}</span><strong>{{ totalCount ? ((reservedCount / totalCount) * 100 | number:'1.0-0') : 0 }}%</strong></article>
-            <article><span>{{ 'rentals.detail_revenue' | translate }}</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} CHF</strong></article>
+            <article><span>{{ 'rentals.detail_revenue' | translate }}</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} {{ schoolCurrency }}</strong></article>
             <article><span>{{ 'rentals.detail_transactions' | translate }}</span><strong>{{ analytics?.history_count || 0 }}</strong></article>
             <article><span>{{ 'rentals.detail_units' | translate }}</span><strong>{{ totalCount }}</strong></article>
           </div>
-        </section>
-      </main>
+          </section>
+        </div>
+      </div>
     </section>
 
     <ng-template #loadingTpl>

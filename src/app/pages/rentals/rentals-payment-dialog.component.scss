@@ -1,0 +1,320 @@
+:host {
+  --rental-title: oklch(0.21 0.034 264.665);
+  --rental-body: oklch(0.145 0 0);
+  --rental-muted: oklch(0.551 0.027 264.364);
+  --rental-fill: rgb(243, 243, 245);
+  --rental-border: oklch(0.928 0.006 264.531);
+  --rental-primary: oklch(0.21 0.034 264.665);
+  --rental-success-bg: oklch(0.972 0.03 150.18);
+  --rental-success-border: oklch(0.879 0.096 154.449);
+  --rental-success-text: oklch(0.527 0.118 147.526);
+  --rental-pending-bg: oklch(0.975 0.023 68.28);
+  --rental-pending-border: oklch(0.903 0.082 71.137);
+  --rental-pending-text: oklch(0.646 0.163 52.014);
+  --rental-neutral-bg: oklch(0.985 0.002 247.839);
+  --rental-pill-held-bg: oklch(0.948 0.039 83.73);
+  --rental-pill-held-text: oklch(0.668 0.154 72.269);
+  --rental-pill-forfeited-bg: oklch(0.953 0.03 17.38);
+  --rental-pill-forfeited-text: oklch(0.577 0.211 27.325);
+  --rental-pill-released-bg: oklch(0.972 0.03 150.18);
+  --rental-pill-released-text: oklch(0.527 0.118 147.526);
+  --rental-pill-none-bg: oklch(0.967 0.003 264.542);
+  --rental-pill-none-text: oklch(0.551 0.027 264.364);
+
+  display: block;
+}
+
+:host ::ng-deep .mat-mdc-dialog-surface {
+  width: min(600px, calc(100vw - 32px));
+  max-width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+.payment-dialog {
+  padding: 24px;
+}
+
+.payment-dialog__header {
+  margin-bottom: 16px;
+}
+
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  color: var(--rental-title);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.payment-dialog__title-icon {
+  color: var(--rental-primary);
+}
+
+.payment-dialog__subtitle {
+  margin-top: 10px;
+  color: var(--rental-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+mat-dialog-content {
+  max-height: 70vh;
+  overflow: auto;
+  padding: 0 !important;
+  margin: 0;
+}
+
+.payment-dialog__loading {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 20px;
+}
+
+.payment-dialog__tabs {
+  margin-top: 4px;
+}
+
+.payment-dialog__tab-panel {
+  padding: 16px 0 0;
+}
+
+.payment-dialog__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.payment-dialog__field--full {
+  grid-column: 1 / -1;
+}
+
+.payment-dialog__toggle {
+  margin-bottom: 4px;
+  color: var(--rental-body);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.payment-dialog__status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--rental-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.payment-dialog__status--summary {
+  margin-bottom: 20px;
+}
+
+.payment-dialog__status--success {
+  background: var(--rental-success-bg);
+  border-color: var(--rental-success-border);
+}
+
+.payment-dialog__status--pending {
+  background: var(--rental-pending-bg);
+  border-color: var(--rental-pending-border);
+}
+
+.payment-dialog__status--neutral {
+  background: var(--rental-neutral-bg);
+}
+
+.payment-dialog__status-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.payment-dialog__status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--rental-body);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.payment-dialog__status-row + .payment-dialog__status-row {
+  margin-top: 8px;
+}
+
+.payment-dialog__status-row--highlight {
+  font-weight: 500;
+}
+
+.payment-dialog__status--success .payment-dialog__status-row--highlight,
+.payment-dialog__status--success .payment-dialog__status-icon {
+  color: var(--rental-success-text);
+}
+
+.payment-dialog__status--pending .payment-dialog__status-row--highlight,
+.payment-dialog__status--pending .payment-dialog__status-icon {
+  color: var(--rental-pending-text);
+}
+
+.payment-dialog__status-label {
+  font-weight: 600;
+}
+
+.payment-dialog__status-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+}
+
+.payment-dialog__deposit-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.payment-dialog__deposit-pill--held {
+  background: var(--rental-pill-held-bg);
+  color: var(--rental-pill-held-text);
+}
+
+.payment-dialog__deposit-pill--forfeited {
+  background: var(--rental-pill-forfeited-bg);
+  color: var(--rental-pill-forfeited-text);
+}
+
+.payment-dialog__deposit-pill--released {
+  background: var(--rental-pill-released-bg);
+  color: var(--rental-pill-released-text);
+}
+
+.payment-dialog__deposit-pill--none {
+  background: var(--rental-pill-none-bg);
+  color: var(--rental-pill-none-text);
+}
+
+.payment-dialog__deposit-meta {
+  color: var(--rental-muted);
+}
+
+.payment-dialog__link {
+  margin-top: 8px;
+  word-break: break-all;
+  color: var(--rental-body);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.payment-dialog__link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.payment-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 20px 0 0 !important;
+  margin: 0;
+}
+
+.payment-dialog__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.payment-dialog__action--primary {
+  background: var(--rental-primary) !important;
+  color: #fff !important;
+}
+
+.payment-dialog__action--secondary {
+  padding: 0 16px;
+}
+
+.payment-dialog__action--warning {
+  color: var(--rental-title);
+}
+
+.payment-dialog__button-spinner {
+  display: inline-block;
+}
+
+:host ::ng-deep .payment-dialog__form-grid .mat-mdc-form-field {
+  font-size: 14px;
+}
+
+:host ::ng-deep .payment-dialog__form-grid .mdc-text-field--outlined {
+  --mdc-outlined-text-field-container-shape: 8px;
+  background: var(--rental-fill);
+}
+
+:host ::ng-deep .payment-dialog__form-grid .mdc-notched-outline__leading,
+:host ::ng-deep .payment-dialog__form-grid .mdc-notched-outline__notch,
+:host ::ng-deep .payment-dialog__form-grid .mdc-notched-outline__trailing {
+  border-color: transparent !important;
+}
+
+:host ::ng-deep .payment-dialog__form-grid .mat-mdc-form-field-infix {
+  min-height: 36px;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+:host ::ng-deep .payment-dialog__form-grid textarea.mat-mdc-input-element {
+  min-height: 52px;
+}
+
+:host ::ng-deep .payment-dialog__form-grid .mat-mdc-floating-label {
+  color: var(--rental-muted) !important;
+  font-size: 14px !important;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+:host ::ng-deep .payment-dialog__form-grid .mdc-text-field__input,
+:host ::ng-deep .payment-dialog__form-grid .mat-mdc-select-value,
+:host ::ng-deep .payment-dialog__form-grid .mat-mdc-slide-toggle-label {
+  color: var(--rental-body);
+  font-size: 14px;
+}
+
+:host ::ng-deep .payment-dialog__action--primary .mdc-button__label,
+:host ::ng-deep .payment-dialog__action--primary .mat-icon {
+  color: inherit;
+}
+
+@media (max-width: 860px) {
+  .payment-dialog {
+    padding: 20px;
+  }
+
+  .payment-dialog__form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-dialog__status {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

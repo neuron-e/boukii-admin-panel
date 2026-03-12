@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { RentalsComponent } from './rentals.component';
 import { RentalsItemDetailComponent } from './rentals-item-detail.component';
+import { RentalsReservationEditComponent } from './rentals-reservation-edit.component';
 import { RentalsV2Component } from './rentals-v2.component';
 
 const routes: Routes = [
@@ -16,6 +17,18 @@ const routes: Routes = [
   {
     path: 'list',
     component: RentalsV2Component
+  },
+  {
+    path: 'catalog',
+    component: RentalsV2Component
+  },
+  {
+    path: 'reservation/:reservationId/edit',
+    component: RentalsReservationEditComponent
+  },
+  {
+    path: 'reservation/create',
+    component: RentalsReservationEditComponent
   },
   {
     path: 'item/:itemId',

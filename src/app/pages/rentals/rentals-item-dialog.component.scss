@@ -1,68 +1,178 @@
 :host {
+  --rental-title: oklch(0.21 0.034 264.665);
+  --rental-body: oklch(0.145 0 0);
+  --rental-muted: oklch(0.551 0.027 264.364);
+  --rental-fill: rgb(243, 243, 245);
+  --rental-primary: oklch(0.21 0.034 264.665);
+
   display: block;
 }
 
 :host ::ng-deep .mat-mdc-dialog-surface {
-  border-radius: 12px;
+  width: min(760px, calc(100vw - 32px));
+  max-width: 100%;
+  max-height: min(92vh, 980px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+.dialog-shell {
+  padding: 16px;
+}
+
+.dialog-header {
+  margin-bottom: 12px;
 }
 
 h2[mat-dialog-title] {
   margin: 0;
-  padding: 16px 20px 2px;
-  font-size: 20px;
-  line-height: 1.2;
-  font-weight: 700;
-  color: #101828;
+  padding: 0;
+  color: var(--rental-title);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 18px;
 }
 
 .subtitle {
-  color: #98a2b3;
-  margin: 0 20px 10px;
-  font-size: 12px;
+  margin-top: 10px;
+  color: var(--rental-muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
 }
 
 mat-dialog-content {
-  max-height: 70vh;
-  overflow: auto;
-  padding: 0 20px 10px !important;
+  max-height: none;
+  overflow: visible;
+  padding: 0 !important;
+  margin: 0;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px 12px;
 }
 
-:host ::ng-deep .form-grid .mat-mdc-form-field {
-  font-size: 12px;
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-:host ::ng-deep .form-grid .mat-mdc-form-field-infix {
-  min-height: 42px;
-}
-
-:host ::ng-deep .form-grid .mat-mdc-form-field-subscript-wrapper {
-  display: none;
+.field-caption {
+  color: var(--rental-body);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  padding: 0 2px;
 }
 
 .full {
   grid-column: 1 / -1;
 }
 
-mat-dialog-actions {
-  padding: 8px 20px 16px !important;
-  gap: 8px;
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 0 0 !important;
+  margin: 0;
 }
 
-mat-dialog-actions .mat-mdc-outlined-button,
-mat-dialog-actions .mat-mdc-unelevated-button {
-  height: 32px;
+.dialog-button {
+  height: 36px;
   border-radius: 8px;
-  padding: 0 12px;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.dialog-button--secondary {
+  padding: 0 16px;
+  border-color: #111827 !important;
+  color: #111827 !important;
+  background: #ffffff !important;
+}
+
+.dialog-button--primary {
+  padding: 0 14px;
+  background: #0f172a !important;
+  color: #fff !important;
+}
+
+.dialog-button--primary:hover {
+  background: #111827 !important;
+}
+
+:host ::ng-deep .dialog-button--primary .mdc-button__label {
+  color: #fff !important;
+}
+
+:host ::ng-deep .form-grid .mat-mdc-form-field {
+  font-size: 14px;
+  width: 100%;
+}
+
+:host ::ng-deep .form-grid .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+:host ::ng-deep .form-grid .mdc-text-field--outlined {
+  --mdc-outlined-text-field-container-shape: 8px;
+  background: var(--rental-fill);
+}
+
+:host ::ng-deep .form-grid .mdc-notched-outline__leading,
+:host ::ng-deep .form-grid .mdc-notched-outline__notch,
+:host ::ng-deep .form-grid .mdc-notched-outline__trailing {
+  border-color: transparent !important;
+}
+
+:host ::ng-deep .form-grid .mat-mdc-form-field-infix {
+  min-height: 44px;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+:host ::ng-deep .form-grid .mdc-text-field__input,
+:host ::ng-deep .form-grid .mat-mdc-select-value {
+  color: var(--rental-body);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:host ::ng-deep .form-grid .mat-mdc-text-field-wrapper {
+  height: 44px;
+  padding: 0 10px !important;
+}
+
+:host ::ng-deep .form-grid .mat-mdc-form-field-flex {
+  align-items: center;
+}
+
+:host ::ng-deep .form-grid .mat-mdc-select-trigger {
+  min-height: 20px;
+  align-items: center;
+}
+
+@media (max-height: 920px) {
+  :host ::ng-deep .mat-mdc-dialog-surface {
+    max-height: 92vh;
+  }
+
+  mat-dialog-content {
+    max-height: 68vh;
+    overflow: auto;
+  }
 }
 
 @media (max-width: 860px) {
+  .dialog-shell {
+    padding: 20px;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }

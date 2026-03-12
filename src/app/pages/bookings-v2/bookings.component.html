@@ -653,50 +653,85 @@
 				</div>
 			</mat-card-content>
 		<!-- ===== RENTAL SECTION in booking detail ===== -->
-		<mat-card *ngIf="rentalEnabled && showDetail && !loadingRentalDetail && getDetailLinkedRentals().length > 0" class="booking-preview-card rental-section-card">
-			<mat-card-header style="display:block">
-				<mat-card-title>
-					<mat-icon style="vertical-align:middle; margin-right:6px;">lock</mat-icon>
-					{{ 'rentals.page_title' | translate }}
-				</mat-card-title>
-			</mat-card-header>
+		<mat-card *ngIf="rentalEnabled && showDetail" class="booking-preview-card rental-section-card">
 			<mat-card-content>
-				<div *ngIf="loadingRentalDetail" style="padding:16px; display:flex; align-items:center; gap:8px;">
+				<div class="rental-section-card__header">
+					<div>
+						<div class="rental-section-card__eyebrow">{{ 'rentals.page_title' | translate }}</div>
+						<h3 class="rental-section-card__title">Material de alquiler</h3>
+					</div>
+					<div class="rental-section-card__count" *ngIf="getDetailLinkedRentals().length > 0">
+						{{ getDetailLinkedRentals().length }}
+					</div>
+				</div>
+
+				<div *ngIf="loadingRentalDetail" class="rental-section-card__loading">
 					<mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
-					<span>{{ 'common.loading' | translate }}</span>
+					<span>{{ 'loading' | translate }}</span>
 				</div>
 
 				<ng-container *ngIf="!loadingRentalDetail">
-					<!-- No rentals -->
-					<p *ngIf="getDetailLinkedRentals().length === 0" style="color:#888; padding:8px 0;">
-						{{ 'rentals.no_reservations' | translate }}
-					</p>
-
-					<!-- Rental list -->
-					<div *ngFor="let rental of getDetailLinkedRentals()" class="rental-booking-row">
-						<div class="rental-booking-info">
-							<span class="rental-ref"><strong>{{ rental.reference || ('#' + rental.id) }}</strong></span>
-							<span class="rental-dates">{{ rental.start_date }} – {{ rental.end_date }}</span>
-							<app-rental-status-badge [status]="rental.status"></app-rental-status-badge>
-							<div class="rental-items-list" *ngIf="rental.items?.length">
-								<div class="rental-items" *ngFor="let item of rental.items">
-									{{ item.variant_name }} x{{ item.quantity }} · {{ item.unit_price | number:'1.2-2' }} {{ rental.currency }}
-								</div>
-							</div>
-							<span class="rental-total"><strong>{{ rental.total | number:'1.2-2' }}</strong> {{ rental.currency }}</span>
+					<div *ngIf="getDetailLinkedRentals().length === 0" class="rental-preview-empty">
+						<div class="rental-preview-empty__title">{{ 'rentals.no_reservations' | translate }}</div>
+						<div class="rental-preview-empty__text">
+							El material de alquiler asociado a esta reserva aparecerá aquí.
 						</div>
-						<button mat-icon-button (click)="openRentalReservation(rental.id)" [matTooltip]="'rentals.view_detail' | translate">
-							<mat-icon>open_in_new</mat-icon>
-						</button>
 					</div>
 
-					<div class="rental-preview-total" *ngIf="getDetailLinkedRentals().length > 0">
-						<div>{{ 'bookings.preview.booking_total' | translate }}</div>
-						<div><strong>{{ getPreviewDisplayTotal() | number:'1.2-2' }}</strong> {{ detailRentalCurrency() }}</div>
-						<div>{{ 'rentals.total' | translate }}</div>
-						<div><strong>{{ getDetailRentalTotal() | number:'1.2-2' }}</strong> {{ detailRentalCurrency() }}</div>
-						<div>{{ 'rentals.integrated.grand_total' | translate }}</div>
-						<div><strong>{{ getDetailGrandTotal() | number:'1.2-2' }}</strong> {{ detailRentalCurrency() }}</div>
+					<div *ngIf="getDetailLinkedRentals().length > 0" class="rental-preview-list">
+						<div *ngFor="let rental of getDetailLinkedRentals()" class="rental-preview-summary">
+							<div class="rental-preview-summary__top">
+								<div class="rental-preview-summary__reference">
+									<strong>{{ rental.reference || ('#' + rental.id) }}</strong>
+									<app-rental-status-badge [status]="rental.status"></app-rental-status-badge>
+								</div>
+								<button
+									mat-stroked-button
+									type="button"
+									class="rental-preview-summary__button"
+									(click)="openRentalReservation(rental.id)">
+									<mat-icon>open_in_new</mat-icon>
+									{{ 'rentals.view_detail' | translate }}
+								</button>
+							</div>
+
+							<div class="rental-preview-summary__grid">
+								<div class="rental-preview-summary__field">
+									<span class="rental-preview-summary__label">Fechas</span>
+									<span class="rental-preview-summary__value">{{ rental.start_date }} – {{ rental.end_date }}</span>
+								</div>
+								<div class="rental-preview-summary__field">
+									<span class="rental-preview-summary__label">Punto de recogida</span>
+									<span class="rental-preview-summary__value">{{ rental.pickup_point_name || 'Por confirmar' }}</span>
+								</div>
+								<div class="rental-preview-summary__field">
+									<span class="rental-preview-summary__label">Artículos</span>
+									<span class="rental-preview-summary__value">
+										{{ rental.items?.length || rental.items_count || rental.lines_count || 0 }}
+									</span>
+								</div>
+							</div>
+
+							<div class="rental-preview-summary__price">
+								<span class="rental-preview-summary__label">Subtotal alquiler</span>
+								<strong>{{ rental.total | number:'1.2-2' }} {{ rental.currency || detailRentalCurrency() }}</strong>
+							</div>
+						</div>
+
+						<div class="rental-preview-total">
+							<div class="rental-preview-total__row">
+								<span>{{ 'bookings.preview.booking_total' | translate }}</span>
+								<strong>{{ getPreviewDisplayTotal() | number:'1.2-2' }} {{ detailRentalCurrency() }}</strong>
+							</div>
+							<div class="rental-preview-total__row">
+								<span>Total alquiler</span>
+								<strong>{{ getDetailRentalTotal() | number:'1.2-2' }} {{ detailRentalCurrency() }}</strong>
+							</div>
+							<div class="rental-preview-total__row rental-preview-total__row--grand">
+								<span>Total general</span>
+								<strong>{{ getDetailGrandTotal() | number:'1.2-2' }} {{ detailRentalCurrency() }}</strong>
+							</div>
+						</div>
 					</div>
 				</ng-container>
 			</mat-card-content>

@@ -67,12 +67,24 @@ export class RentalService {
     return this.crudService.get('/admin/rentals/items', [], this.withSchool(filters));
   }
 
+  listTags(filters: Record<string, any> = {}): Observable<ApiResponse> {
+    return this.crudService.get('/admin/rentals/tags', [], this.withSchool(filters));
+  }
+
+  createTag(payload: any): Observable<ApiResponse> {
+    return this.crudService.create('/admin/rentals/tags', this.withSchool(payload));
+  }
+
   createItem(payload: any): Observable<ApiResponse> {
     return this.crudService.create('/admin/rentals/items', this.withSchool(payload));
   }
 
   updateItem(id: number, payload: any): Observable<ApiResponse> {
     return this.crudService.update('/admin/rentals/items', payload, id);
+  }
+
+  syncItemTags(id: number, tags: any[]): Observable<ApiResponse> {
+    return this.crudService.update('/admin/rentals/items', this.withSchool({ tags }), `${id}/tags`);
   }
 
   deleteItem(id: number): Observable<ApiResponse> {
@@ -234,6 +246,22 @@ export class RentalService {
     return this.crudService.get(`/admin/rentals/items/${id}/detail`, [], this.withSchool(params));
   }
 
+  listItemImages(itemId: number): Observable<ApiResponse> {
+    return this.crudService.get(`/admin/rentals/items/${itemId}/images`, [], this.withSchool());
+  }
+
+  uploadItemImage(itemId: number, image: string): Observable<ApiResponse> {
+    return this.crudService.post(`/admin/rentals/items/${itemId}/images`, this.withSchool({ image }));
+  }
+
+  setPrimaryItemImage(itemId: number, imageId: number): Observable<ApiResponse> {
+    return this.crudService.update(`/admin/rentals/items/${itemId}/images`, this.withSchool({}), `${imageId}/primary`);
+  }
+
+  deleteItemImage(itemId: number, imageId: number): Observable<ApiResponse> {
+    return this.crudService.deletePath(`/admin/rentals/items/${itemId}/images/${imageId}`);
+  }
+
   assignUnits(reservationId: number, payload: any): Observable<ApiResponse> {
     return this.crudService.post(`/admin/rentals/reservations/${reservationId}/assign-units`, payload);
   }
@@ -322,8 +350,16 @@ export class RentalService {
     return this.crudService.create(`/admin/rentals/reservations/${reservationId}/deposit`, this.withSchool(payload));
   }
 
-  refundPayment(reservationId: number): Observable<ApiResponse> {
-    return this.crudService.create(`/admin/rentals/reservations/${reservationId}/refund`, this.withSchool());
+  refundPayment(
+    reservationId: number,
+    payload: {
+      amount?: number;
+      refund_method?: 'cash' | 'card' | 'payrexx' | 'voucher';
+      notes?: string;
+      voucher_name?: string;
+    } = {}
+  ): Observable<ApiResponse> {
+    return this.crudService.create(`/admin/rentals/reservations/${reservationId}/refund`, this.withSchool(payload));
   }
 
   // ==================== ANALYTICS ====================

@@ -32,6 +32,13 @@ export class RentalsDamageDialogComponent {
     return Number(this.form.get('damage_cost')?.value ?? 0);
   }
 
+  get currency(): string {
+    return this.resolveCurrencyCandidate(
+      this.data?.reservation?.currency,
+      this.schoolCurrencyFromUser()
+    );
+  }
+
   get depositCoversAll(): boolean {
     return this.depositAmount >= this.damageCost && this.depositAmount > 0;
   }
@@ -62,5 +69,28 @@ export class RentalsDamageDialogComponent {
 
   cancel(): void {
     this.dialogRef.close();
+  }
+
+  private schoolCurrencyFromUser(): string {
+    const raw = localStorage.getItem('boukiiUser');
+    if (!raw) return '';
+    try {
+      const user = JSON.parse(raw);
+      return this.resolveCurrencyCandidate(
+        user?.school?.taxes?.currency,
+        user?.school?.currency,
+        user?.schools?.[0]?.taxes?.currency,
+        user?.schools?.[0]?.currency
+      );
+    } catch {
+      return '';
+    }
+  }
+
+  private resolveCurrencyCandidate(...candidates: any[]): string {
+    const detected = candidates
+      .map((candidate) => String(candidate || '').trim().toUpperCase())
+      .find((candidate) => candidate.length > 0);
+    return detected || '';
   }
 }

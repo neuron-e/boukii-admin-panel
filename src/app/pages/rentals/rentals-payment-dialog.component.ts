@@ -7,13 +7,15 @@ import { RentalService } from 'src/service/rental.service';
 
 export interface RentalPaymentDialogData {
   reservation: any;
+  liveTotal?: number | null;
   /** Pre-selected tab: 'manual' | 'paylink' | 'deposit' */
   tab?: 'manual' | 'paylink' | 'deposit';
 }
 
 @Component({
   selector: 'vex-rentals-payment-dialog',
-  templateUrl: './rentals-payment-dialog.component.html'
+  templateUrl: './rentals-payment-dialog.component.html',
+  styleUrls: ['./rentals-payment-dialog.component.scss']
 })
 export class RentalsPaymentDialogComponent implements OnInit {
 
@@ -51,6 +53,13 @@ export class RentalsPaymentDialogComponent implements OnInit {
   // Payrexx link returned from deposit hold
   depositPaymentLink = '';
 
+  refundForm = this.fb.group({
+    amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
+    refund_method: ['cash', Validators.required],
+    notes: [''],
+    voucher_name: ['']
+  });
+
   paymentMethods = [
     { value: 'cash',             label: 'rentals.pay_cash' },
     { value: 'card',             label: 'rentals.pay_card' },
@@ -66,13 +75,29 @@ export class RentalsPaymentDialogComponent implements OnInit {
   ];
 
   get reservation(): any { return this.data.reservation; }
-  get reservationTotal(): number { return Number(this.reservation?.total ?? 0); }
-  get currency(): string { return this.reservation?.currency ?? 'CHF'; }
+  get reservationTotal(): number {
+    const live = Number(this.data?.liveTotal ?? NaN);
+    if (!Number.isNaN(live) && live >= 0) return live;
+    return Number(
+      this.reservation?.total
+      ?? this.reservation?.total_price
+      ?? this.reservation?.amount_due
+      ?? 0
+    );
+  }
+  get currency(): string {
+    return this.resolveCurrencyCandidate(this.reservation?.currency, this.schoolCurrencyFromUser());
+  }
   get depositAmount(): number { return Number(this.paymentInfo?.deposit_amount ?? this.reservation?.deposit_amount ?? 0); }
   get depositStatus(): string { return this.paymentInfo?.deposit_status ?? this.reservation?.deposit_status ?? 'none'; }
   get hasPayment(): boolean { return !!this.paymentInfo?.payment; }
   get hasDepositPayment(): boolean { return !!this.paymentInfo?.deposit_payment; }
   get isHoldAction(): boolean { return this.depositForm.get('action')?.value === 'hold'; }
+  get refundableAmount(): number {
+    const paid = Number(this.paymentInfo?.payment?.amount ?? 0);
+    const alreadyRefunded = Number((this.paymentInfo?.refunds || []).reduce((acc: number, row: any) => acc + Number(row?.amount || 0), 0));
+    return Math.max(0, paid - alreadyRefunded);
+  }
 
   constructor(
     private readonly fb: FormBuilder,
@@ -116,12 +141,24 @@ export class RentalsPaymentDialogComponent implements OnInit {
     });
 
     this.loadPaymentInfo();
+    this.refundForm.patchValue({
+      amount: this.refundableAmount || this.reservationTotal,
+      refund_method: this.paymentInfo?.payment?.payrexx_reference ? 'payrexx' : 'cash'
+    });
   }
 
   loadPaymentInfo(): void {
     this.loadingInfo = true;
     this.rentalService.getPaymentInfo(this.reservation.id).subscribe({
-      next: (res: any) => { this.paymentInfo = res?.data ?? null; this.loadingInfo = false; },
+      next: (res: any) => {
+        this.paymentInfo = res?.data ?? null;
+        const preferredMethod = this.paymentInfo?.payment?.payrexx_reference ? 'payrexx' : 'cash';
+        this.refundForm.patchValue({
+          amount: this.refundableAmount || this.reservationTotal,
+          refund_method: preferredMethod
+        }, { emitEvent: false });
+        this.loadingInfo = false;
+      },
       error: () => { this.loadingInfo = false; }
     });
   }
@@ -222,9 +259,16 @@ export class RentalsPaymentDialogComponent implements OnInit {
   // ── Refund ──────────────────────────────────────────────────────────────────
 
   processRefund(): void {
+    if (this.refundForm.invalid) { this.refundForm.markAllAsTouched(); return; }
     if (!confirm(this.translateService.instant('rentals.confirm_refund'))) return;
     this.loading = true;
-    this.rentalService.refundPayment(this.reservation.id).subscribe({
+    const val = this.refundForm.getRawValue();
+    this.rentalService.refundPayment(this.reservation.id, {
+      amount: Number(val.amount || 0),
+      refund_method: (val.refund_method as any) || 'cash',
+      notes: val.notes || '',
+      voucher_name: val.voucher_name || undefined,
+    }).subscribe({
       next: (res: any) => {
         this.loading = false;
         const d = res?.data;
@@ -232,6 +276,7 @@ export class RentalsPaymentDialogComponent implements OnInit {
           ? 'rentals.refund_manual_needed'
           : 'rentals.refund_success';
         this.toast(msg, d?.manual_action_needed);
+        this.loadPaymentInfo();
         this.dialogRef.close({ action: 'refunded', data: d });
       },
       error: (err: any) => {
@@ -242,6 +287,29 @@ export class RentalsPaymentDialogComponent implements OnInit {
   }
 
   close(): void { this.dialogRef.close(); }
+
+  private schoolCurrencyFromUser(): string {
+    const raw = localStorage.getItem('boukiiUser');
+    if (!raw) return '';
+    try {
+      const user = JSON.parse(raw);
+      return this.resolveCurrencyCandidate(
+        user?.school?.taxes?.currency,
+        user?.school?.currency,
+        user?.schools?.[0]?.taxes?.currency,
+        user?.schools?.[0]?.currency
+      );
+    } catch {
+      return '';
+    }
+  }
+
+  private resolveCurrencyCandidate(...candidates: any[]): string {
+    const detected = candidates
+      .map((candidate) => String(candidate || '').trim().toUpperCase())
+      .find((candidate) => candidate.length > 0);
+    return detected || '';
+  }
 
   private toast(key: string, isError = false): void {
     this.snackBar.open(

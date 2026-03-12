@@ -128,7 +128,7 @@ export class RentalsComponent implements OnInit {
     pricing_type: ['per_day', Validators.required],
     min_quantity: [1],
     price: [0, Validators.required],
-    currency: ['CHF'],
+    currency: [''],
     start_date: [''],
     end_date: [''],
     active: [true]
@@ -141,7 +141,7 @@ export class RentalsComponent implements OnInit {
     insurance_fee: [0],
     late_fee_enabled: [false],
     late_fee_per_day: [0],
-    currency: ['CHF']
+    currency: ['']
   });
 
   reservationForm = this.fb.group({
@@ -176,6 +176,8 @@ export class RentalsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.pricingForm.patchValue({ currency: this.schoolCurrency });
+    this.policyForm.patchValue({ currency: this.schoolCurrency });
     this.loadAll();
   }
 
@@ -221,7 +223,7 @@ export class RentalsComponent implements OnInit {
           insurance_fee: Number(policy.insurance_fee || 0),
           late_fee_enabled: !!policy.late_fee_enabled,
           late_fee_per_day: Number(policy.late_fee_per_day || 0),
-          currency: policy.currency || 'CHF'
+          currency: this.resolveCurrencyCandidate(policy.currency, this.schoolCurrency)
         });
       }
       this.loading = false;
@@ -336,7 +338,7 @@ export class RentalsComponent implements OnInit {
       next: () => {
         this.toast(this.editingPricingRuleId ? 'Pricing rule updated' : 'Pricing rule created');
         this.editingPricingRuleId = null;
-        this.pricingForm.reset({ pricing_type: 'per_day', min_quantity: 1, price: 0, currency: 'CHF', active: true });
+        this.pricingForm.reset({ pricing_type: 'per_day', min_quantity: 1, price: 0, currency: this.schoolCurrency, active: true });
         this.reloadPricingRules();
       },
       error: () => this.toast(this.editingPricingRuleId ? 'Error updating pricing rule' : 'Error creating pricing rule')
@@ -514,7 +516,7 @@ export class RentalsComponent implements OnInit {
       pricing_type: row.pricing_type ?? 'per_day',
       min_quantity: Number(row.min_quantity ?? 1),
       price: Number(row.price ?? 0),
-      currency: row.currency ?? 'CHF',
+      currency: this.resolveCurrencyCandidate(row.currency, this.schoolCurrency),
       start_date: row.start_date ?? '',
       end_date: row.end_date ?? '',
       active: !!row.active
@@ -553,7 +555,7 @@ export class RentalsComponent implements OnInit {
 
   cancelPricingRuleEdit(): void {
     this.editingPricingRuleId = null;
-    this.pricingForm.reset({ pricing_type: 'per_day', min_quantity: 1, price: 0, currency: 'CHF', active: true });
+    this.pricingForm.reset({ pricing_type: 'per_day', min_quantity: 1, price: 0, currency: this.schoolCurrency, active: true });
   }
 
   deleteCategory(row: any): void {
@@ -1064,5 +1066,28 @@ export class RentalsComponent implements OnInit {
       page: this.serverPagination.reservations.page,
       per_page: this.tableState.reservations.pageSize
     };
+  }
+
+  get schoolCurrency(): string {
+    const raw = localStorage.getItem('boukiiUser');
+    if (!raw) return '';
+    try {
+      const user = JSON.parse(raw);
+      return this.resolveCurrencyCandidate(
+        user?.school?.taxes?.currency,
+        user?.school?.currency,
+        user?.schools?.[0]?.taxes?.currency,
+        user?.schools?.[0]?.currency
+      );
+    } catch {
+      return '';
+    }
+  }
+
+  private resolveCurrencyCandidate(...candidates: any[]): string {
+    const detected = candidates
+      .map((candidate) => String(candidate || '').trim().toUpperCase())
+      .find((candidate) => candidate.length > 0);
+    return detected || '';
   }
 }

@@ -5,7 +5,6 @@ import { FormBuilder, Validators } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { RentalsItemDialogComponent } from './rentals-item-dialog.component';
-import { RentalsReservationEditDialogComponent } from './rentals-reservation-edit-dialog.component';
 import { RentalsReservationReturnDialogComponent } from './rentals-reservation-return-dialog.component';
 import { RentalsDamageDialogComponent } from './rentals-damage-dialog.component';
 import { RentalsPaymentDialogComponent } from './rentals-payment-dialog.component';
@@ -15,7 +14,7 @@ import { RentalService } from 'src/service/rental.service';
 
 import { RentalUiStatusKey } from 'src/app/shared/rental-status.util';
 
-type RentalsView = 'inventory' | 'booking' | 'list' | 'add-equipment' | 'advanced';
+type RentalsView = 'inventory' | 'booking' | 'list' | 'catalog' | 'add-equipment' | 'advanced';
 type PeriodType = 'season' | 'half_day' | 'full_day' | 'multi_day' | 'week';
 type ClientMode = 'existing' | 'new';
 type ScanTarget = 'barcode' | 'sku';
@@ -83,11 +82,15 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   pricingRules: any[] = [];
   reservations: any[] = [];
   clients: any[] = [];
+  private pendingReservationId: number | null = null;
 
   categoryFilter: number | 'all' = 'all';
-  subcategoryFilter: string | 'all' = 'all';
+  subcategoryFilter: number | 'all' = 'all';
 
   inventorySearch = '';
+  catalogCategorySearch = '';
+  catalogSubcategorySearch = '';
+  brandModelSearch = '';
   bookingSearch = '';
   clientMode: ClientMode = 'existing';
   bookingCategoryFilter: number | 'all' = 'all';
@@ -159,6 +162,21 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     quantity: [1, [Validators.required, Validators.min(1)]]
   });
 
+  catalogCategoryForm = this.fb.group({
+    name: ['', Validators.required],
+    active: [true]
+  });
+
+  catalogSubcategoryForm = this.fb.group({
+    category_id: this.fb.control<number | null>(null, Validators.required),
+    parent_id: this.fb.control<number | null>(null),
+    name: ['', Validators.required],
+    active: [true]
+  });
+
+  editingCategoryId: number | null = null;
+  editingSubcategoryId: number | null = null;
+
   constructor(
     private readonly fb: FormBuilder,
     private readonly rentalService: RentalService,
@@ -195,6 +213,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   private applyRouteQueryState(params: any): void {
     const bookingId = params['booking_id'];
     const clientId = params['client_id'];
+    const reservationId = Number(params['reservation_id'] || 0);
     const status = String(params['status'] || '').trim().toLowerCase();
     const date = String(params['date'] || '').trim().toLowerCase();
 
@@ -214,6 +233,14 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       if (Object.keys(patchValues).length) {
         this.bookingForm.patchValue(patchValues);
       }
+      return;
+    }
+
+    if (reservationId > 0) {
+      this.pendingReservationId = reservationId;
+      this.view = 'list';
+      this.reservationPage = 1;
+      this.loadReservations();
       return;
     }
 
@@ -289,6 +316,56 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     return this.filteredInventoryRows;
   }
 
+  get filteredCatalogCategories(): any[] {
+    const q = (this.catalogCategorySearch || '').trim().toLowerCase();
+    const rows = [...this.categories];
+    if (!q) return rows.sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+    return rows
+      .filter((row) => String(row?.name || '').toLowerCase().includes(q))
+      .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+  }
+
+  get filteredCatalogSubcategories(): any[] {
+    const q = (this.catalogSubcategorySearch || '').trim().toLowerCase();
+    const rows = this.subcategories.map((row) => ({
+      ...row,
+      categoryName: this.categoryName(Number(row?.category_id || 0)),
+      parentName: this.subcategoryPathLabel(Number(row?.parent_id || 0), Number(row?.category_id || 0)),
+      pathLabel: this.subcategoryPathLabel(Number(row?.id || 0), Number(row?.category_id || 0)),
+      depth: this.subcategoryDepth(Number(row?.id || 0), Number(row?.category_id || 0))
+    }));
+    const filtered = !q
+      ? rows
+      : rows.filter((row) =>
+          [row?.name, row?.categoryName, row?.parentName, row?.pathLabel]
+            .map((v) => String(v || '').toLowerCase())
+            .join(' ')
+            .includes(q)
+        );
+    return filtered.sort((a, b) => String(a?.pathLabel || '').localeCompare(String(b?.pathLabel || ''), 'es', { sensitivity: 'base' }));
+  }
+
+  get brandModelRegistry(): Array<{ brand: string; model: string; count: number }> {
+    const q = (this.brandModelSearch || '').trim().toLowerCase();
+    const byPair = new Map<string, { brand: string; model: string; count: number }>();
+    this.items.forEach((item) => {
+      const brand = String(item?.brand || '').trim();
+      const model = String(item?.model || '').trim();
+      if (!brand && !model) return;
+      const key = `${brand.toLowerCase()}|${model.toLowerCase()}`;
+      const current = byPair.get(key);
+      if (current) {
+        current.count += 1;
+      } else {
+        byPair.set(key, { brand: brand || '-', model: model || '-', count: 1 });
+      }
+    });
+    const rows = Array.from(byPair.values())
+      .sort((a, b) => `${a.brand} ${a.model}`.localeCompare(`${b.brand} ${b.model}`, 'es', { sensitivity: 'base' }));
+    if (!q) return rows;
+    return rows.filter((row) => `${row.brand} ${row.model}`.toLowerCase().includes(q));
+  }
+
   get inventoryBaseRows(): any[] {
     return this.buildInventoryRows();
   }
@@ -318,7 +395,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     return this.buildInventoryRows()
       .filter((row) => {
         if (selectedCategory !== 'all' && row.item?.category_id !== selectedCategory) return false;
-        if (selectedSubcategory !== 'all' && row.subcategoryName.toLowerCase() !== selectedSubcategory.toLowerCase()) return false;
+        if (selectedSubcategory !== 'all' && Number(row?.subcategory_id || row?.subcategory?.id || 0) !== Number(selectedSubcategory)) return false;
         if (!query) return true;
         const haystack = [
           row.name,
@@ -431,7 +508,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     const fromRows = this.inventoryRows.map((row) => (row.subcategoryName || '').trim()).filter((name) => !!name);
     const fromCatalog = this.subcategories
       .filter((subcategory) => selectedCategory === 'all' || subcategory.category_id === selectedCategory)
-      .map((subcategory) => (subcategory.name || '').trim())
+      .map((subcategory) => this.subcategoryPathLabel(Number(subcategory?.id || 0), Number(subcategory?.category_id || 0)))
       .filter((name) => !!name);
     return Array.from(new Set([...fromRows, ...fromCatalog])).sort((a, b) => a.localeCompare(b));
   }
@@ -439,7 +516,27 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   get filteredSubcategoriesForForm(): any[] {
     const categoryId = Number(this.addEquipmentForm.get('category_id')?.value || 0);
     if (!categoryId) return [];
-    return this.subcategories.filter((subcategory) => Number(subcategory.category_id) === categoryId);
+    return this.subcategories
+      .filter((subcategory) => Number(subcategory.category_id) === categoryId)
+      .map((subcategory) => ({
+        ...subcategory,
+        pathLabel: this.subcategoryPathLabel(Number(subcategory?.id || 0), categoryId)
+      }))
+      .sort((a, b) => String(a?.pathLabel || a?.name || '').localeCompare(String(b?.pathLabel || b?.name || ''), 'es', { sensitivity: 'base' }));
+  }
+
+  get parentSubcategoryOptionsForForm(): any[] {
+    const categoryId = Number(this.catalogSubcategoryForm.get('category_id')?.value || 0);
+    if (!categoryId) return [];
+    const currentId = Number(this.editingSubcategoryId || 0);
+    return this.subcategories
+      .filter((subcategory) => Number(subcategory?.category_id || 0) === categoryId)
+      .filter((subcategory) => Number(subcategory?.id || 0) !== currentId)
+      .map((subcategory) => ({
+        ...subcategory,
+        pathLabel: this.subcategoryPathLabel(Number(subcategory?.id || 0), categoryId)
+      }))
+      .sort((a, b) => String(a?.pathLabel || a?.name || '').localeCompare(String(b?.pathLabel || b?.name || ''), 'es', { sensitivity: 'base' }));
   }
 
   setView(view: RentalsView): void {
@@ -464,6 +561,10 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       this.loadReservations();
       return;
     }
+    if (url.includes('/rentals/catalog')) {
+      this.view = 'catalog';
+      return;
+    }
     if (url.includes('/rentals/advanced')) {
       this.view = 'advanced';
       return;
@@ -474,14 +575,20 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   private navigateForView(view: RentalsView): void {
     const current = this.router.url || '';
     if (view === 'booking') {
-      if (!current.includes('/rentals/booking')) {
-        this.router.navigate(['/rentals/booking']);
+      if (!current.includes('/rentals/reservation/create')) {
+        this.router.navigate(['/rentals/reservation/create']);
       }
       return;
     }
     if (view === 'list') {
       if (!current.includes('/rentals/list')) {
         this.router.navigate(['/rentals/list']);
+      }
+      return;
+    }
+    if (view === 'catalog') {
+      if (!current.includes('/rentals/catalog')) {
+        this.router.navigate(['/rentals/catalog']);
       }
       return;
     }
@@ -503,8 +610,131 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     this.subcategoryFilter = 'all';
   }
 
-  setSubcategoryFilter(value: string | 'all'): void {
+  setSubcategoryFilter(value: number | 'all'): void {
     this.subcategoryFilter = value;
+  }
+
+  subcategoryCountByCategory(categoryId: number): number {
+    return this.subcategories.filter((row) => Number(row?.category_id || 0) === Number(categoryId || 0)).length;
+  }
+
+  startEditCategory(category: any): void {
+    this.editingCategoryId = Number(category?.id || 0) || null;
+    this.catalogCategoryForm.patchValue({
+      name: String(category?.name || '').trim(),
+      active: Boolean(category?.active ?? true)
+    });
+  }
+
+  resetCategoryForm(): void {
+    this.editingCategoryId = null;
+    this.catalogCategoryForm.reset({ name: '', active: true });
+  }
+
+  async submitCategoryForm(): Promise<void> {
+    if (this.catalogCategoryForm.invalid) {
+      this.catalogCategoryForm.markAllAsTouched();
+      return;
+    }
+    const payload = {
+      name: String(this.catalogCategoryForm.get('name')?.value || '').trim(),
+      active: Boolean(this.catalogCategoryForm.get('active')?.value ?? true)
+    };
+    try {
+      if (this.editingCategoryId) {
+        const updated = await this.getData(this.rentalService.updateCategory(this.editingCategoryId, payload));
+        const id = Number(updated?.id || this.editingCategoryId);
+        this.categories = this.categories.map((row) => (Number(row?.id || 0) === id ? { ...row, ...updated, ...payload } : row));
+        this.toast('rentals.updated_successfully');
+      } else {
+        const created = await this.getData(this.rentalService.createCategory(payload));
+        if (created?.id) this.categories = [...this.categories, created];
+        this.toast('rentals.created_successfully');
+      }
+      this.resetCategoryForm();
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.create_error');
+    }
+  }
+
+  async deleteCategoryRow(category: any): Promise<void> {
+    const id = Number(category?.id || 0);
+    if (!id) return;
+    if (!confirm(`¿Eliminar categoría "${category?.name || '#'+id}"?`)) return;
+    try {
+      await this.getData(this.rentalService.deleteCategory(id));
+      this.categories = this.categories.filter((row) => Number(row?.id || 0) !== id);
+      this.subcategories = this.subcategories.filter((row) => Number(row?.category_id || 0) !== id);
+      if (this.editingCategoryId === id) this.resetCategoryForm();
+      this.toast('rentals.deleted_successfully');
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.delete_error');
+    }
+  }
+
+  startEditSubcategory(subcategory: any): void {
+    this.editingSubcategoryId = Number(subcategory?.id || 0) || null;
+    this.catalogSubcategoryForm.patchValue({
+      category_id: Number(subcategory?.category_id || 0) || null,
+      parent_id: Number(subcategory?.parent_id || 0) || null,
+      name: String(subcategory?.name || '').trim(),
+      active: Boolean(subcategory?.active ?? true)
+    });
+  }
+
+  resetSubcategoryForm(): void {
+    this.editingSubcategoryId = null;
+    this.catalogSubcategoryForm.reset({ category_id: null, parent_id: null, name: '', active: true });
+  }
+
+  async submitSubcategoryForm(): Promise<void> {
+    if (this.catalogSubcategoryForm.invalid) {
+      this.catalogSubcategoryForm.markAllAsTouched();
+      return;
+    }
+    const payload = {
+      category_id: Number(this.catalogSubcategoryForm.get('category_id')?.value || 0),
+      parent_id: Number(this.catalogSubcategoryForm.get('parent_id')?.value || 0) || null,
+      name: String(this.catalogSubcategoryForm.get('name')?.value || '').trim(),
+      active: Boolean(this.catalogSubcategoryForm.get('active')?.value ?? true)
+    };
+    if (!payload.category_id) {
+      this.toast('rentals.validation_error');
+      return;
+    }
+    if (this.editingSubcategoryId && Number(payload.parent_id || 0) === Number(this.editingSubcategoryId)) {
+      this.toast('rentals.validation_error');
+      return;
+    }
+    try {
+      if (this.editingSubcategoryId) {
+        const updated = await this.getData(this.rentalService.updateSubcategory(this.editingSubcategoryId, payload));
+        const id = Number(updated?.id || this.editingSubcategoryId);
+        this.subcategories = this.subcategories.map((row) => (Number(row?.id || 0) === id ? { ...row, ...updated, ...payload } : row));
+        this.toast('rentals.updated_successfully');
+      } else {
+        const created = await this.getData(this.rentalService.createSubcategory(payload));
+        if (created?.id) this.subcategories = [...this.subcategories, created];
+        this.toast('rentals.created_successfully');
+      }
+      this.resetSubcategoryForm();
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.create_error');
+    }
+  }
+
+  async deleteSubcategoryRow(subcategory: any): Promise<void> {
+    const id = Number(subcategory?.id || 0);
+    if (!id) return;
+    if (!confirm(`¿Eliminar subcategoría "${subcategory?.name || '#'+id}"?`)) return;
+    try {
+      await this.getData(this.rentalService.deleteSubcategory(id));
+      this.subcategories = this.subcategories.filter((row) => Number(row?.id || 0) !== id);
+      if (this.editingSubcategoryId === id) this.resetSubcategoryForm();
+      this.toast('rentals.deleted_successfully');
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.delete_error');
+    }
   }
 
   selectInventoryRow(row: any): void {
@@ -628,6 +858,22 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     }
   }
 
+  private schoolCurrencyFromUser(): string {
+    const userRaw = localStorage.getItem('boukiiUser');
+    if (!userRaw) return '';
+    try {
+      const user = JSON.parse(userRaw);
+      return this.resolveCurrencyCandidate(
+        user?.school?.taxes?.currency,
+        user?.school?.currency,
+        user?.schools?.[0]?.taxes?.currency,
+        user?.schools?.[0]?.currency
+      );
+    } catch {
+      return '';
+    }
+  }
+
 
   openDetail(row: any): void {
     const itemId = Number(row?.item?.id || row?.item_id || 0);
@@ -661,8 +907,23 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     const itemId = Number(row?.item?.id || row?.item_id || 0);
     const variantId = Number(row?.id || 0);
     if (!itemId || !variantId) return;
-    this.router.navigate(['/rentals/item', itemId], {
-      queryParams: { variant: variantId, edit: 1 }
+
+    const dialogRef = this.dialog.open(RentalsItemDialogComponent, {
+      width: '760px',
+      maxWidth: '95vw',
+      data: {
+        mode: 'edit',
+        row,
+        categories: this.categories,
+        subcategories: this.subcategories,
+        warehouses: this.warehouses,
+        pricingRules: this.pricingRules
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (!result) return;
+      this.persistDialog('edit', result, row).catch(() => this.toast('rentals.create_error'));
     });
   }
 
@@ -682,6 +943,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       name: payload.item_name,
       brand: payload.brand,
       model: payload.model,
+      tags: this.normalizeTagsInput(payload.tags),
       purchase_date: payload.purchase_date || null,
       last_maintenance_date: payload.last_maintenance_date || null,
       active: true
@@ -714,6 +976,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       name: payload.item_name,
       brand: payload.brand,
       model: payload.model,
+      tags: this.normalizeTagsInput(payload.tags),
       purchase_date: payload.purchase_date || null,
       last_maintenance_date: payload.last_maintenance_date || null,
       active: true
@@ -767,6 +1030,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   }
 
   private async upsertPricing(variantId: number, halfDay: number, fullDay: number, week: number): Promise<void> {
+    const defaultCurrency = this.bookingEstimateCurrency || this.schoolCurrencyFromUser();
     const periodPrices: Array<{ period: string; price: number }> = [
       { period: 'half_day', price: halfDay },
       { period: 'full_day', price: fullDay },
@@ -781,7 +1045,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
           variant_id: variantId,
           period_type: line.period,
           price: line.price,
-          currency: existing.currency || 'CHF',
+          currency: this.resolveCurrencyCandidate(existing.currency, defaultCurrency),
           active: true
         }));
       } else {
@@ -789,7 +1053,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
           variant_id: variantId,
           period_type: line.period,
           price: line.price,
-          currency: 'CHF',
+          currency: defaultCurrency,
           active: true
         }));
       }
@@ -809,7 +1073,8 @@ export class RentalsV2Component implements OnInit, OnDestroy {
         message: this.translateService.instant('rentals.delete_confirm_message'),
         confirmText: this.translateService.instant('rentals.delete_confirm_button'),
         cancelText: this.translateService.instant('rentals.cancel'),
-        isError: true
+        isError: true,
+        variant: 'rental'
       }
     });
 
@@ -823,7 +1088,18 @@ export class RentalsV2Component implements OnInit, OnDestroy {
           }
           this.loadAll();
         },
-        error: () => this.toast('rentals.status_error')
+        error: (error: any) => {
+          const backendMessage =
+            error?.error?.message ||
+            error?.error?.error ||
+            error?.message ||
+            '';
+          if (backendMessage) {
+            this.snackBar.open(String(backendMessage), 'OK', { duration: 3800 });
+            return;
+          }
+          this.toast('rentals.status_error');
+        }
       });
     });
   }
@@ -1154,6 +1430,68 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     this.reservationPage = Math.max(1, this.reservationPage - 1);
   }
 
+  exportReservationsCsv(): void {
+    const rows = this.filteredReservations.map((reservation) => {
+      const client = this.reservationClient(reservation);
+      return {
+        id: Number(reservation?.id || 0),
+        reference: String(reservation?.reference || ''),
+        status: this.reservationUiStatusKey(reservation),
+        client_name: this.clientLabel(client),
+        client_email: String(client?.email || ''),
+        start_date: this.dateOnly(reservation?.start_date),
+        end_date: this.dateOnly(reservation?.end_date),
+        pickup_time: this.reservationPickupTime(reservation),
+        items: this.reservationTotalItems(reservation),
+        total: this.reservationTotalPrice(reservation),
+        currency: this.reservationCurrency(reservation)
+      };
+    });
+
+    const header = [
+      'id',
+      'reference',
+      'status',
+      'client_name',
+      'client_email',
+      'start_date',
+      'end_date',
+      'pickup_time',
+      'items',
+      'total',
+      'currency'
+    ];
+
+    const lines = [
+      header.join(','),
+      ...rows.map((row) =>
+        [
+          row.id,
+          this.escapeCsv(row.reference),
+          this.escapeCsv(row.status),
+          this.escapeCsv(row.client_name),
+          this.escapeCsv(row.client_email),
+          this.escapeCsv(row.start_date),
+          this.escapeCsv(row.end_date),
+          this.escapeCsv(row.pickup_time),
+          row.items,
+          Number(row.total || 0).toFixed(2),
+          this.escapeCsv(row.currency)
+        ].join(',')
+      )
+    ];
+
+    const csv = '\uFEFF' + lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = this.todayDateString().replace(/-/g, '');
+    link.href = url;
+    link.download = `rental_reservations_${stamp}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   selectReservation(reservation: any): void {
     this.selectedReservation = reservation;
     this.openReservationDetails(reservation);
@@ -1205,26 +1543,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   editReservation(reservation: any): void {
     const reservationId = Number(reservation?.id || 0);
     if (!reservationId) return;
-
-    const dialogRef = this.dialog.open(RentalsReservationEditDialogComponent, {
-      width: '640px',
-      maxWidth: '95vw',
-      data: {
-        reservation,
-        pickupPoints: this.pickupPoints
-      }
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (!result) return;
-      this.rentalService.updateReservation(reservationId, result).subscribe({
-        next: () => {
-          this.toast('rentals.status_updated');
-          this.loadReservations();
-        },
-        error: () => this.toast('rentals.status_error')
-      });
-    });
+    this.router.navigate(['/rentals/reservation', reservationId, 'edit']);
   }
 
   markReservationPickedUp(reservation: any): void {
@@ -1302,6 +1621,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   reservationLines(reservation: any): any[] {
     if (!reservation) return [];
     if (Array.isArray(reservation?.lines)) return reservation.lines;
+    if (Array.isArray(reservation?.lines_preview)) return reservation.lines_preview;
     if (Array.isArray(reservation?.items)) return reservation.items;
     if (Array.isArray(reservation?.rental_items)) return reservation.rental_items;
     return [];
@@ -1331,6 +1651,11 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   }
 
   reservationLineLabel(line: any): string {
+    const explicitVariantName = String(line?.variant_name || '').trim();
+    const explicitItemName = String(line?.item_name || '').trim();
+    if (explicitVariantName) return explicitVariantName;
+    if (explicitItemName) return explicitItemName;
+
     const variantId = Number(line?.variant_id || 0);
     const variant = variantId ? this.variants.find((candidate) => Number(candidate?.id || 0) === variantId) : null;
     const itemId = Number(line?.item_id || 0);
@@ -1341,16 +1666,24 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   }
 
   reservationLineSize(line: any): string {
+    const explicitSize = String(line?.variant_size_label || line?.size_label || '').trim();
+    if (explicitSize) return explicitSize;
+
     const variantId = Number(line?.variant_id || 0);
     const variant = variantId ? this.variants.find((candidate) => Number(candidate?.id || 0) === variantId) : null;
     return String(variant?.size_label || '').trim() || '-';
   }
 
   reservationLineSubtitle(line: any): string {
-    const qty = Number(line?.quantity || line?.qty || 0);
-    const status = String(line?.status || '').trim();
-    const suffix = status ? ` - ${status}` : '';
-    return `${qty} u.${suffix}`;
+    const brand = String(line?.item_brand || '').trim();
+    const model = String(line?.item_model || '').trim();
+    const sku = String(line?.variant_sku || line?.sku || '').trim();
+
+    const left = [brand, model].filter(Boolean).join(' · ');
+    if (left && sku) return `${left} · ${sku}`;
+    if (left) return left;
+    if (sku) return sku;
+    return '';
   }
 
   reservationLinePeriod(line: any, reservation: any): string {
@@ -1391,6 +1724,70 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       return 'active';
     }
     return 'pending';
+  }
+
+  reservationDateRangeLabel(reservation: any): string {
+    const start = this.dateOnly(reservation?.start_date);
+    const end = this.dateOnly(reservation?.end_date);
+    if (!start && !end) return '-';
+    const startLabel = start ? this.formatDateShort(start) : '-';
+    const endLabel = end ? this.formatDateShort(end) : '-';
+    return `${startLabel} - ${endLabel}`;
+  }
+
+  reservationDurationDays(reservation: any): number {
+    const start = this.dateOnly(reservation?.start_date);
+    const end = this.dateOnly(reservation?.end_date);
+    if (!start || !end) return 1;
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 1;
+    return Math.max(1, Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
+  }
+
+  reservationPickupTime(reservation: any): string {
+    const time = String(
+      reservation?.pickup_time ||
+      reservation?.start_time ||
+      reservation?.hour_start ||
+      ''
+    ).trim();
+    if (!time) return '';
+    const withSeconds = /^(\d{1,2}):(\d{2})(?::\d{2})$/;
+    const match = time.match(withSeconds);
+    if (match) {
+      const hour = String(Number(match[1])).padStart(2, '0');
+      return `${hour}:${match[2]}`;
+    }
+    return time;
+  }
+
+  reservationDepositValue(reservation: any): number {
+    return Number(
+      reservation?.deposit_amount ??
+      reservation?.deposit_total ??
+      reservation?.deposit ??
+      reservation?.payment?.deposit ??
+      0
+    );
+  }
+
+  private formatDateShort(dateText: string): string {
+    if (!dateText) return '-';
+    const date = new Date(dateText);
+    if (isNaN(date.getTime())) return dateText;
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear());
+    return `${day}/${month}/${year}`;
+  }
+
+  private escapeCsv(value: any): string {
+    const text = String(value ?? '');
+    if (!text.includes(',') && !text.includes('"') && !text.includes('\n')) {
+      return text;
+    }
+    return `"${text.replace(/"/g, '""')}"`;
   }
 
   matchesPeriodFilter(reservation: any): boolean {
@@ -1437,9 +1834,23 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     return this.toDateInput(new Date());
   }
 
+  private normalizeTagsInput(raw: any): string[] {
+    if (Array.isArray(raw)) {
+      return raw
+        .map((entry) => String(entry || '').trim())
+        .filter((entry) => entry.length > 0);
+    }
+    const text = String(raw || '').trim();
+    if (!text) return [];
+    return text
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+
   categoryName(categoryId: number | null): string {
     if (!categoryId) return '-';
-    return this.categories.find((category) => category.id === categoryId)?.name || `#${categoryId}`;
+    return this.categories.find((category) => Number(category?.id || 0) === Number(categoryId))?.name || `#${categoryId}`;
   }
 
   categoryCount(categoryId: number): number {
@@ -1481,7 +1892,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       this.pricingRules.find((pricingRule) => pricingRule.variant_id === row.id) ||
       this.pricingRules.find((pricingRule) => pricingRule.item_id === row.item_id);
     if (!rule) return '-';
-    return `${rule.price} ${rule.currency || 'CHF'}`;
+    return `${rule.price} ${this.resolveCurrencyCandidate(rule.currency, this.bookingEstimateCurrency)}`;
   }
 
   rowPriceLines(row: any): Array<{ label: string; price: number; currency: string }> {
@@ -1568,7 +1979,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       return this.pricingQuote.currency;
     }
     const firstRule = this.pricingRules.find((rule) => !!rule?.currency);
-    return firstRule?.currency || 'CHF';
+    return this.resolveCurrencyCandidate(firstRule?.currency, this.schoolCurrencyFromUser());
   }
 
   rowCondition(row: any): string {
@@ -1725,12 +2136,22 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     this.wrapPaged(this.rentalService.listReservations({ per_page: 400 }))
       .then((reservations) => {
         this.reservations = reservations;
+        this.tryOpenReservationFromQuery();
         this.loadingReservations = false;
       })
       .catch(() => {
         this.loadingReservations = false;
         this.toast('rentals.load_error');
       });
+  }
+
+  private tryOpenReservationFromQuery(): void {
+    const reservationId = Number(this.pendingReservationId || 0);
+    if (!reservationId || !Array.isArray(this.reservations) || this.reservations.length === 0) return;
+    const reservation = this.reservations.find((row: any) => Number(row?.id || 0) === reservationId);
+    if (!reservation) return;
+    this.pendingReservationId = null;
+    this.openReservationDetails(reservation);
   }
 
   private applyPeriodPreset(period: PeriodType): void {
@@ -1911,8 +2332,9 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   }
 
   private normalizeQuote(quote: any): RentalPricingQuote {
+    const fallbackCurrency = this.resolveCurrencyCandidate(quote?.currency, this.schoolCurrencyFromUser());
     return {
-      currency: String(quote?.currency || 'CHF'),
+      currency: String(fallbackCurrency || ''),
       subtotal: Number(quote?.subtotal || 0),
       discount_total: Number(quote?.discount_total || 0),
       tax_total: Number(quote?.tax_total || 0),
@@ -1929,7 +2351,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
         item_id: line?.item_id ?? null,
         variant_id: Number(line?.variant_id || 0),
         quantity: Number(line?.quantity || 0),
-        currency: String(line?.currency || quote?.currency || 'CHF'),
+        currency: String(this.resolveCurrencyCandidate(line?.currency, quote?.currency, fallbackCurrency)),
         period_type: (line?.period_type || 'full_day') as PeriodType,
         pricing_mode: line?.pricing_mode === 'flat' ? 'flat' : 'per_day',
         pricing_basis_key: String(line?.pricing_basis_key || ''),
@@ -1981,6 +2403,78 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     return this.subcategories.find((subcategory) => Number(subcategory.id) === Number(subcategoryId))?.name || null;
   }
 
+  subcategoryOptionLabel(subcategory: any): string {
+    return String(subcategory?.pathLabel || subcategory?.name || '').trim();
+  }
+
+  private subcategoryPathLabel(subcategoryId: number, categoryId: number): string {
+    if (!subcategoryId) return '';
+    const byId = new Map<number, any>();
+    this.subcategories
+      .filter((subcategory) => Number(subcategory?.category_id || 0) === Number(categoryId || 0))
+      .forEach((subcategory) => byId.set(Number(subcategory?.id || 0), subcategory));
+
+    const labels: string[] = [];
+    let cursor = byId.get(Number(subcategoryId));
+    let guard = 0;
+    while (cursor && guard < 50) {
+      const name = String(cursor?.name || '').trim();
+      if (name) labels.unshift(name);
+      const parentId = Number(cursor?.parent_id || 0);
+      if (!parentId) break;
+      cursor = byId.get(parentId);
+      guard++;
+    }
+
+    return labels.join(' / ') || String(byId.get(Number(subcategoryId))?.name || '').trim();
+  }
+
+  private subcategoryDepth(subcategoryId: number, categoryId: number): number {
+    if (!subcategoryId) return 0;
+    const byId = new Map<number, any>();
+    this.subcategories
+      .filter((subcategory) => Number(subcategory?.category_id || 0) === Number(categoryId || 0))
+      .forEach((subcategory) => byId.set(Number(subcategory?.id || 0), subcategory));
+
+    let depth = 0;
+    let cursor = byId.get(Number(subcategoryId));
+    let guard = 0;
+    while (cursor && guard < 50) {
+      const parentId = Number(cursor?.parent_id || 0);
+      if (!parentId) break;
+      const parent = byId.get(parentId);
+      if (!parent) break;
+      depth++;
+      cursor = parent;
+      guard++;
+    }
+    return depth;
+  }
+
+  private toastCrudError(error: any, fallbackKey: string): void {
+    const backendMessage = this.extractBackendErrorMessage(error);
+    if (backendMessage) {
+      this.snackBar.open(backendMessage, 'OK', { duration: 3800 });
+      return;
+    }
+    this.toast(fallbackKey);
+  }
+
+  private extractBackendErrorMessage(error: any): string | null {
+    const direct = String(error?.error?.message || error?.message || '').trim();
+    if (direct) return direct;
+
+    const errors = error?.error?.errors;
+    if (errors && typeof errors === 'object') {
+      const firstField = Object.keys(errors)[0];
+      const firstMessage = firstField ? errors[firstField]?.[0] : null;
+      const text = String(firstMessage || '').trim();
+      if (text) return text;
+    }
+
+    return null;
+  }
+
   private async resolveSubcategoryForForm(categoryId: number): Promise<number | null> {
     const subcategoryId = Number(this.addEquipmentForm.get('subcategory_id')?.value || 0);
     if (subcategoryId) {
@@ -2018,5 +2512,12 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   private toast(message: string): void {
     const translated = this.translateService.instant(message);
     this.snackBar.open(translated, 'OK', { duration: 2800 });
+  }
+
+  private resolveCurrencyCandidate(...candidates: any[]): string {
+    const detected = candidates
+      .map((candidate) => String(candidate || '').trim().toUpperCase())
+      .find((candidate) => candidate.length > 0);
+    return detected || '';
   }
 }

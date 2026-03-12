@@ -1,0 +1,507 @@
+<section class="reservation-edit-page">
+  <header class="reservation-edit-page__header">
+    <div class="reservation-edit-page__left">
+      <button mat-button type="button" class="reservation-edit-page__back" (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Volver al Listado
+      </button>
+      <span class="reservation-edit-page__divider" aria-hidden="true"></span>
+    </div>
+    <div class="reservation-edit-page__title">
+      <h2>{{ pageTitle() }}</h2>
+      <p *ngIf="reservation || isCreateMode()">
+        <ng-container *ngIf="reservation; else createRefTpl">
+          {{ reservation.reference || ('RNT-' + reservation.id) }}
+          <ng-container *ngIf="reservation.booking_reference"> · {{ reservation.booking_reference }}</ng-container>
+          · Cliente: {{ reservationClientName() }}
+        </ng-container>
+        <ng-template #createRefTpl>
+          Nueva reserva de alquiler
+        </ng-template>
+      </p>
+    </div>
+    <span *ngIf="!isCreateMode()" class="status status--{{ reservation?.status || 'pending' }}">
+      {{ ('rentals.status_' + (reservation?.status || 'pending')) | translate }}
+    </span>
+  </header>
+
+  <div class="reservation-edit-page__content" *ngIf="!loading; else loadingTpl">
+    <div class="reservation-edit-main" [formGroup]="form">
+      <section class="reservation-edit-card reservation-edit-card--customer">
+        <div class="reservation-edit-section-header">
+          <svg class="section-lucide-icon section-lucide-icon--blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <path d="M20 8v6"></path>
+            <path d="M23 11h-6"></path>
+          </svg>
+          <h4>Información del Cliente</h4>
+        </div>
+        <div class="reservation-edit-grid reservation-edit-grid--2">
+          <div class="custom-field">
+            <label class="field-label">Cliente</label>
+            <div class="input-container">
+              <svg class="input-lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21a8 8 0 0 0-16 0"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <select class="custom-input custom-select" formControlName="client_id">
+                <option [ngValue]="null">Seleccionar cliente</option>
+                <option *ngFor="let client of clients" [ngValue]="client.id">
+                  {{ client.full_name || ((client.first_name || '') + ' ' + (client.last_name || '')) }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="custom-field">
+            <label class="field-label">Email</label>
+            <div class="input-container readonly">
+              <svg class="input-lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16v16H4z"></path>
+                <path d="m22 6-10 7L2 6"></path>
+              </svg>
+              <input class="custom-input" [value]="reservationClientEmail()" readonly>
+            </div>
+          </div>
+          <div class="custom-field reservation-edit-grid__full">
+            <label class="field-label">Teléfono</label>
+            <div class="input-container readonly">
+              <svg class="input-lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3.09 5.18 2 2 0 0 1 5.1 3h3a2 2 0 0 1 2 1.72c.12.9.33 1.8.62 2.65a2 2 0 0 1-.45 2.11L9.1 10.65a16 16 0 0 0 4.25 4.25l1.17-1.17a2 2 0 0 1 2.11-.45c.85.29 1.75.5 2.65.62A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <input class="custom-input" [value]="reservationClientPhone()" readonly>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="reservation-edit-card reservation-edit-card--period">
+        <h4>Período de Alquiler</h4>
+        <div class="period-type-selector">
+          <label class="field-label">Tipo de Período</label>
+          <div class="period-type-grid">
+            <button
+              type="button"
+              class="period-type-btn"
+              *ngFor="let period of periodTypeOptions"
+              [class.active]="isPeriodTypeSelected(period.value)"
+              (click)="setPeriodType(period.value)">
+              <strong>{{ period.label }}</strong>
+            </button>
+          </div>
+        </div>
+
+        <div class="reservation-edit-grid reservation-edit-grid--4">
+          <div class="custom-field col-span-2">
+            <label class="field-label">{{ 'rentals.pickup_point' | translate }}</label>
+            <div class="input-container">
+              <select class="custom-input custom-select" formControlName="pickup_point_id">
+                <option [ngValue]="null">Seleccionar punto de recogida</option>
+                <option *ngFor="let point of pickupPoints" [ngValue]="point.id">{{ point.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="custom-field">
+            <label class="field-label">{{ 'rentals.start_date' | translate }}</label>
+            <div class="input-container">
+              <input class="custom-input" type="date" formControlName="start_date" (change)="onStartDateChange()">
+            </div>
+          </div>
+          <div class="custom-field">
+            <label class="field-label">{{ 'rentals.end_date' | translate }}</label>
+            <div class="input-container">
+              <input class="custom-input" type="date" formControlName="end_date">
+            </div>
+          </div>
+          <div class="custom-field">
+            <label class="field-label">{{ 'rentals.start_time' | translate }}</label>
+            <div class="input-container">
+              <input class="custom-input" type="time" formControlName="start_time">
+            </div>
+          </div>
+          <div class="custom-field">
+            <label class="field-label">{{ 'rentals.end_time' | translate }}</label>
+            <div class="input-container">
+              <input class="custom-input" type="time" formControlName="end_time">
+            </div>
+          </div>
+          <div class="duration-display col-span-2">
+            <span class="field-label">Duración Calculada</span>
+            <div class="duration-value">
+              <strong>{{ calculateDurationDays() }} días</strong>
+              <span class="duration-badge" [ngClass]="durationBadgeClass()">
+                {{ getPeriodTypeLabel() }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-banner info-banner--blue">
+          <mat-icon>info</mat-icon>
+          <div>
+            <strong class="font-semibold">Período automático:</strong>
+            al cambiar el tipo de período, las fechas se ajustan automáticamente según el formato seleccionado.
+          </div>
+        </div>
+      </section>
+
+      <section class="reservation-edit-card reservation-edit-card--equipment">
+        <h4>Equipo Alquilado</h4>
+        <section class="equipment-selector-edit">
+          <div class="equipment-selector-edit__title-row">
+            <h5>Select Equipment</h5>
+            <span class="equipment-selector-edit__selected-count">
+              {{ selectedProductsCount() }} productos seleccionados
+            </span>
+          </div>
+
+          <div class="equipment-selector-edit__quote-bar">
+            <span>
+              {{ selectedVariantsCount() }} variantes seleccionadas
+            </span>
+            <span *ngIf="quoteLoading" class="equipment-selector-edit__quote-loading">Actualizando precio...</span>
+            <span *ngIf="!quoteLoading">
+              Subtotal: <strong>{{ quoteSubtotal() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
+              · Total: <strong>{{ quoteTotal() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
+            </span>
+          </div>
+
+          <div class="equipment-selector-edit__header">
+              <mat-form-field appearance="outline" class="equipment-selector-edit__search">
+                <mat-icon matPrefix>search</mat-icon>
+                <input
+                  matInput
+                  [(ngModel)]="equipmentSearch"
+                  (ngModelChange)="onEquipmentSearchChange($event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  placeholder="Buscar material, marca o modelo...">
+              </mat-form-field>
+            <div class="equipment-selector-edit__categories">
+              <button type="button" class="category-pill" [class.selected]="equipmentCategoryFilter === 'all'" (click)="setEquipmentCategoryFilter('all')">All</button>
+              <button
+                type="button"
+                class="category-pill"
+                *ngFor="let category of categories"
+                [class.selected]="isEquipmentCategorySelected(category.id)"
+                (click)="setEquipmentCategoryFilter(category.id)">
+                {{ category.name }}
+              </button>
+            </div>
+          </div>
+
+          <div class="equipment-selector-edit__results">
+          <div class="equipment-selector-edit__groups">
+            <article class="equipment-group" *ngFor="let group of equipmentGroupsView">
+              <header class="equipment-group__head" [class.selected]="group.selectedQty > 0" (click)="toggleEquipmentGroup(group.id)">
+                <div class="equipment-group__left">
+                  <span class="category-emoji">{{ categoryEmoji(group.item?.name || '') }}</span>
+                  <div>
+                    <strong>{{ group.item?.name || 'Producto' }}</strong>
+                    <small>{{ group.item?.description || (group.item?.brand + ' ' + group.item?.model) }}</small>
+                    <small class="equipment-group__price">
+                      Precio: {{ groupPrimaryPrice(group) }}
+                      <span class="equipment-group__stock">{{ group.totalAvailable }} disponibles</span>
+                    </small>
+                  </div>
+                </div>
+                <div class="equipment-group__right">
+                  <span class="booking-pill booking-pill--selected" *ngIf="group.selectedCount > 0">{{ group.selectedCount }} selected</span>
+                  <mat-icon>{{ isEquipmentGroupExpanded(group.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                </div>
+              </header>
+
+              <div class="equipment-group__variants" *ngIf="isEquipmentGroupExpanded(group.id)">
+                <div class="equipment-group__variants-head">
+                  <strong>AVAILABLE VARIANTS ({{ filteredGroupVariants(group).length }} OF {{ group.variants.length }})</strong>
+                  <mat-form-field appearance="outline" class="equipment-group__variant-search">
+                    <mat-icon matPrefix>search</mat-icon>
+                    <input
+                      matInput
+                      [ngModel]="groupVariantSearch[group.id] || ''"
+                      [ngModelOptions]="{ standalone: true }"
+                      (ngModelChange)="setGroupVariantSearch(group.id, $event)"
+                      placeholder="Search by size, color, brand, model, SKU...">
+                  </mat-form-field>
+                </div>
+
+                <div class="equipment-group__variant-grid">
+                  <div class="equipment-variant-card" *ngFor="let row of filteredGroupVariants(group)" [class.is-selected]="selectedQtyForVariant(row.id) > 0" [class.is-out-of-stock]="variantAvailableQty(row) <= 0 && selectedQtyForVariant(row.id) <= 0">
+                    <div class="equipment-variant-card__top-meta" *ngIf="selectedQtyForVariant(row.id) > 0">
+                      <span class="equipment-variant-card__stock" [class.is-zero]="variantAvailableQty(row) <= 0">
+                        {{ variantAvailableQty(row) }}/{{ variantTotalQty(row) }}
+                      </span>
+                      <mat-icon class="equipment-variant-card__check">check</mat-icon>
+                    </div>
+
+                  <div class="equipment-variant-card__head">
+                    <div>
+                      <strong>{{ variantCardTitle(row) }}</strong>
+                      <small>{{ variantSubTitle(row) }}</small>
+                    </div>
+                      <span class="equipment-variant-card__stock" *ngIf="selectedQtyForVariant(row.id) === 0" [class.is-zero]="variantAvailableQty(row) <= 0">
+                      {{ variantAvailableQty(row) }}/{{ variantTotalQty(row) }}
+                    </span>
+                  </div>
+                  <small class="equipment-variant-card__line-total" *ngIf="selectedQtyForVariant(row.id) > 0 && quoteLineForVariant(row.id) as quoteLine">
+                    {{ (quoteLine?.line_total || 0) | number:'1.2-2' }} {{ reservationCurrency() }}
+                  </small>
+
+                    <div class="equipment-variant-card__actions" *ngIf="selectedQtyForVariant(row.id) === 0; else qtyControlsTpl">
+                      <button type="button" class="variant-add-btn" [disabled]="!canAddVariantSelection(row)" (click)="addVariantSelection(row)">
+                        <mat-icon>add</mat-icon>
+                        {{ canAddVariantSelection(row) ? 'Add' : 'Sin stock' }}
+                      </button>
+                    </div>
+
+                    <ng-template #qtyControlsTpl>
+                      <div class="equipment-variant-card__qty-controls">
+                        <button mat-icon-button type="button" class="line-action-btn" (click)="removeVariantSelection(row)">
+                          <mat-icon>remove</mat-icon>
+                        </button>
+                        <span class="line-qty-badge">
+                          <strong>{{ selectedQtyForVariant(row.id) }}</strong>
+                          <small>qty</small>
+                        </span>
+                        <button mat-icon-button type="button" class="line-action-btn" [disabled]="!canAddVariantSelection(row)" (click)="addVariantSelection(row)">
+                          <mat-icon>add</mat-icon>
+                        </button>
+                      </div>
+                    </ng-template>
+                  </div>
+
+                  <p class="equipment-group__empty" *ngIf="!filteredGroupVariants(group).length">
+                    No hay variantes para este filtro.
+                  </p>
+                </div>
+              </div>
+            </article>
+          </div>
+          </div>
+
+          <div class="reservation-edit-lines" *ngIf="!equipmentGroupsView.length">
+            <p class="reservation-edit-lines__empty">No hay equipo disponible para los filtros actuales.</p>
+          </div>
+        </section>
+      </section>
+
+      <section class="reservation-edit-card reservation-edit-card--post" *ngIf="!isCreateMode()">
+        <h4>Información de Pago</h4>
+        <div class="reservation-edit-grid reservation-edit-grid--3">
+          <mat-form-field appearance="outline">
+            <mat-label>Total</mat-label>
+            <input matInput [value]="totalAmount() | number:'1.2-2'" readonly>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Pagado</mat-label>
+            <input matInput [value]="paidAmount() | number:'1.2-2'" readonly>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Depósito</mat-label>
+            <input matInput [value]="depositAmount() | number:'1.2-2'" readonly>
+          </mat-form-field>
+        </div>
+
+        <h4>Estado</h4>
+        <div class="reservation-status-row">
+          <button
+            type="button"
+            class="reservation-status-btn"
+            *ngFor="let status of statusOptions()"
+            [class.active]="isStatusSelected(status)"
+            (click)="setStatus(status)">
+            {{ ('rentals.status_' + status) | translate }}
+          </button>
+        </div>
+
+        <h4>Notas</h4>
+        <mat-form-field appearance="outline" class="reservation-edit-notes-field">
+          <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
+          <textarea matInput rows="3" formControlName="notes"></textarea>
+        </mat-form-field>
+
+        <h4>Facturación</h4>
+        <div class="reservation-billing-row">
+          <button mat-stroked-button type="button">
+            <mat-icon>print</mat-icon>
+            Imprimir Factura
+          </button>
+          <button mat-stroked-button type="button">
+            <mat-icon>mail</mat-icon>
+            Enviar por Email
+          </button>
+          <button mat-stroked-button type="button">
+            <mat-icon>description</mat-icon>
+            Ver Factura
+          </button>
+        </div>
+
+        <div class="reservation-edit-page__footer reservation-edit-page__footer--inside">
+          <button mat-stroked-button type="button" (click)="goBack()">{{ 'rentals.cancel' | translate }}</button>
+        </div>
+      </section>
+
+      <section class="reservation-edit-card reservation-edit-card--post" *ngIf="isCreateMode()">
+        <h4>Notas</h4>
+        <mat-form-field appearance="outline" class="reservation-edit-notes-field">
+          <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
+          <textarea matInput rows="3" formControlName="notes"></textarea>
+        </mat-form-field>
+
+        <div class="reservation-edit-page__footer reservation-edit-page__footer--inside">
+          <button mat-stroked-button type="button" (click)="goBack()">{{ 'rentals.cancel' | translate }}</button>
+        </div>
+      </section>
+    </div>
+
+    <aside class="reservation-edit-side" *ngIf="!isCreateMode()">
+      <section class="reservation-edit-card">
+        <h4 class="payment-summary__title">
+          <mat-icon>euro</mat-icon>
+          Resumen de Pagos
+        </h4>
+        <div class="reservation-edit-metric">
+          <span>Importe Total</span>
+          <strong>{{ totalAmount() | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}</strong>
+        </div>
+        <div class="reservation-edit-metric">
+          <span>Pagado</span>
+          <strong class="metric-paid">{{ paidAmount() | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}</strong>
+        </div>
+        <div class="reservation-edit-metric">
+          <span>Depósito</span>
+          <strong class="metric-deposit">{{ depositAmount() | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}</strong>
+        </div>
+        <div class="reservation-edit-metric" *ngIf="balanceDue() > 0">
+          <span>Saldo pendiente</span>
+          <strong>{{ balanceDue() | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}</strong>
+        </div>
+        <div class="reservation-edit-metric" *ngIf="overpaidAmount() > 0">
+          <span>Saldo a favor</span>
+          <strong>{{ overpaidAmount() | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}</strong>
+        </div>
+
+        <div class="reservation-edit-status-box" *ngIf="totalAmount() <= paidAmount(); else pendingPayments">
+          <strong>{{ paymentStatusLabel() }}</strong>
+          <small>{{ paymentStatusHint() }}</small>
+        </div>
+        <ng-template #pendingPayments>
+          <div class="reservation-edit-status-box reservation-edit-status-box--warning">
+            <strong>{{ paymentStatusLabel() }}</strong>
+            <small>{{ paymentStatusHint() }}</small>
+          </div>
+        </ng-template>
+
+        <div class="payment-history" *ngIf="paymentHistoryEntries().length">
+          <h5>Historial de Pagos</h5>
+          <div class="payment-history__item" *ngFor="let entry of paymentHistoryEntries()">
+            <div class="payment-history__icon" [class.green]="entry.tone === 'green'" [class.blue]="entry.tone === 'blue'">
+              <mat-icon>{{ entry.icon }}</mat-icon>
+            </div>
+            <div class="payment-history__text">
+              <strong>{{ entry.title }}</strong>
+              <small>{{ entry.subtitle }}</small>
+            </div>
+            <div class="payment-history__amount">{{ entry.amount | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}</div>
+          </div>
+        </div>
+
+        <button mat-stroked-button type="button" class="payment-add-btn" (click)="openPaymentDialog()">
+          <mat-icon>add_circle_outline</mat-icon>
+          Añadir pago
+        </button>
+        <button mat-stroked-button type="button" class="payment-add-btn" *ngIf="canCollectAdditionalPayment()" (click)="openPaymentDialog()">
+          <mat-icon>payments</mat-icon>
+          Cobrar saldo pendiente
+        </button>
+        <button mat-stroked-button type="button" class="payment-add-btn payment-add-btn--warn" *ngIf="canResolveOverpayment()" (click)="processRefund()">
+          <mat-icon>reply</mat-icon>
+          Procesar reembolso
+        </button>
+
+        <button class="confirm-btn" type="button" [disabled]="form.invalid || saving" (click)="save()">
+          <span>{{ saving ? 'Guardando...' : 'Confirmar Cambios' }}</span>
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </section>
+    </aside>
+
+    <aside class="reservation-edit-side" *ngIf="isCreateMode()">
+      <section class="reservation-edit-card">
+        <h4 class="payment-summary__title">
+          <mat-icon>receipt_long</mat-icon>
+          Resumen de Reserva
+        </h4>
+
+        <div class="reservation-edit-metric">
+          <span>Período de alquiler</span>
+          <strong>{{ getPeriodTypeLabel() }}</strong>
+        </div>
+        <div class="reservation-edit-metric">
+          <span>Duración</span>
+          <strong>{{ calculateDurationDays() }} días</strong>
+        </div>
+        <div class="reservation-edit-metric">
+          <span>Importe Total</span>
+          <strong>{{ quoteTotal() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
+        </div>
+        <div class="reservation-edit-metric">
+          <span>Pagado</span>
+          <strong>0.00 {{ reservationCurrency() }}</strong>
+        </div>
+        <div class="reservation-edit-metric">
+          <span>Depósito</span>
+          <strong>0.00 {{ reservationCurrency() }}</strong>
+        </div>
+
+        <div class="reservation-edit-status-box reservation-edit-status-box--warning">
+          <strong>Pago Pendiente</strong>
+          <small>Falta saldo por pagar</small>
+        </div>
+
+        <div class="booking-summary-lines" *ngIf="reservationLines().length; else emptySummaryTpl">
+          <h5>Equipo seleccionado</h5>
+          <div class="booking-summary-line" *ngFor="let line of reservationLines()">
+            <div class="booking-summary-line__head">
+              <div>
+                <strong>{{ reservationLineLabel(line) }}</strong>
+                <small>{{ reservationLineSubtitle(line) }}</small>
+                <small>Qty: {{ line?.quantity || 0 }}</small>
+              </div>
+              <div class="booking-summary-line__total">
+                {{ (quoteLineFor(line)?.line_total || 0) | number:'1.2-2' }} {{ reservationCurrency() }}
+              </div>
+            </div>
+            <div class="booking-summary-line__periods">
+              <button
+                type="button"
+                *ngFor="let period of periodTypeOptions"
+                [class.active]="linePeriodType(line) === period.value"
+                (click)="setLinePeriodType(line, period.value)">
+                {{ period.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #emptySummaryTpl>
+          <div class="booking-summary-empty">
+            <mat-icon>error_outline</mat-icon>
+            <p>No hay equipo seleccionado</p>
+            <small>Expande productos y añade variantes</small>
+          </div>
+        </ng-template>
+
+        <button class="confirm-btn" type="button" [disabled]="form.invalid || saving || !reservationLines().length" (click)="save()">
+          <span>{{ saving ? 'Guardando...' : 'Crear Reserva' }}</span>
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<ng-template #loadingTpl>
+  <section class="reservation-edit-loading">
+    <mat-progress-spinner mode="indeterminate" diameter="30"></mat-progress-spinner>
+  </section>
+</ng-template>

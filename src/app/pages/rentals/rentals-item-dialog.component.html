@@ -1,116 +1,167 @@
-<h2 mat-dialog-title>{{ isEdit ? ('rentals.item_dialog_title_edit' | translate) : ('rentals.item_dialog_title_create' | translate) }}</h2>
-<div class="subtitle">{{ isEdit ? ('rentals.item_dialog_subtitle_edit' | translate) : ('rentals.item_dialog_subtitle_create' | translate) }}</div>
-<mat-dialog-content>
+<div class="dialog-shell">
+  <div class="dialog-header">
+    <h2 mat-dialog-title>{{ isEdit ? ('rentals.item_dialog_title_edit' | translate) : ('rentals.item_dialog_title_create' | translate) }}</h2>
+    <div class="subtitle">{{ isEdit ? ('rentals.item_dialog_subtitle_edit' | translate) : ('rentals.item_dialog_subtitle_create' | translate) }}</div>
+  </div>
+  <mat-dialog-content>
   <form [formGroup]="form" class="form-grid">
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.category' | translate }}</mat-label>
-      <mat-select formControlName="category_id">
-        <mat-option *ngFor="let category of data.categories" [value]="category.id">{{ category.name }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.category' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <mat-select formControlName="category_id">
+          <mat-option *ngFor="let category of data.categories" [value]="category.id">{{ category.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.subcategory' | translate }}</mat-label>
-      <mat-select formControlName="subcategory_id">
-        <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
-        <mat-option *ngFor="let subcategory of filteredSubcategories" [value]="subcategory.id">{{ subcategory.name }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.subcategory' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <mat-select formControlName="subcategory_id">
+          <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+          <mat-option *ngFor="let subcategory of filteredSubcategories" [value]="subcategory.id">{{ subcategoryOptionLabel(subcategory) }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.item_name' | translate }}</mat-label>
-      <input matInput formControlName="item_name">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.item_name' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="item_name">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.brand' | translate }}</mat-label>
-      <input matInput formControlName="brand">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.brand' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="brand">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.model' | translate }}</mat-label>
-      <input matInput formControlName="model">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">Tags</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="tags" placeholder="ski, premium, junior">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.variant_name' | translate }}</mat-label>
-      <input matInput formControlName="variant_name">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.model' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="model">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.size' | translate }}</mat-label>
-      <input matInput formControlName="size_label">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.variant_name' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="variant_name">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.quantity' | translate }}</mat-label>
-      <input matInput type="number" min="1" formControlName="quantity">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.size' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="size_label">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.condition' | translate }}</mat-label>
-      <mat-select formControlName="condition">
-        <mat-option value="excellent">{{ 'rentals.condition_excellent' | translate }}</mat-option>
-        <mat-option value="good">{{ 'rentals.condition_good' | translate }}</mat-option>
-        <mat-option value="fair">{{ 'rentals.condition_fair' | translate }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.quantity' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput type="number" min="1" formControlName="quantity">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.purchase_date' | translate }}</mat-label>
-      <input matInput type="date" formControlName="purchase_date">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.condition' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <mat-select formControlName="condition">
+          <mat-option value="excellent">{{ 'rentals.condition_excellent' | translate }}</mat-option>
+          <mat-option value="good">{{ 'rentals.condition_good' | translate }}</mat-option>
+          <mat-option value="fair">{{ 'rentals.condition_fair' | translate }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.last_maintenance' | translate }}</mat-label>
-      <input matInput type="date" formControlName="last_maintenance_date">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.purchase_date' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput type="date" formControlName="purchase_date" (focus)="openNativeDatePicker($event)" (click)="openNativeDatePicker($event)">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.half_day_price' | translate }}</mat-label>
-      <input matInput type="number" formControlName="half_day_price">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.last_maintenance' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput type="date" formControlName="last_maintenance_date" (focus)="openNativeDatePicker($event)" (click)="openNativeDatePicker($event)">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.full_day_price' | translate }}</mat-label>
-      <input matInput type="number" formControlName="full_day_price">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.half_day_price' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput type="number" formControlName="half_day_price">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.week_price' | translate }}</mat-label>
-      <input matInput type="number" formControlName="week_price">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.full_day_price' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput type="number" formControlName="full_day_price">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.warehouse' | translate }}</mat-label>
-      <mat-select formControlName="warehouse_id">
-        <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
-        <mat-option *ngFor="let warehouse of data.warehouses" [value]="warehouse.id">{{ warehouse.name }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.week_price' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput type="number" formControlName="week_price">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.code' | translate }}</mat-label>
-      <input matInput formControlName="barcode">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.warehouse' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <mat-select formControlName="warehouse_id">
+          <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+          <mat-option *ngFor="let warehouse of data.warehouses" [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.sku' | translate }}</mat-label>
-      <input matInput formControlName="sku">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.code' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="barcode">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ 'rentals.serial_prefix' | translate }}</mat-label>
-      <input matInput formControlName="serial_prefix">
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.sku' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="sku">
+      </mat-form-field>
+    </div>
 
-    <mat-form-field appearance="outline" class="full">
-      <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
-      <textarea matInput rows="3" formControlName="notes"></textarea>
-    </mat-form-field>
+    <div class="field">
+      <div class="field-caption">{{ 'rentals.serial_prefix' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <input matInput formControlName="serial_prefix">
+      </mat-form-field>
+    </div>
+
+    <div class="field full">
+      <div class="field-caption">{{ 'rentals.notes' | translate }}</div>
+      <mat-form-field appearance="outline">
+        <textarea matInput rows="2" formControlName="notes"></textarea>
+      </mat-form-field>
+    </div>
   </form>
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-  <button mat-stroked-button type="button" (click)="close()">{{ 'rentals.cancel' | translate }}</button>
-  <button mat-flat-button color="primary" type="button" (click)="save()">{{ isEdit ? ('rentals.save_changes' | translate) : ('rentals.add_equipment' | translate) }}</button>
-</mat-dialog-actions>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end" class="dialog-actions">
+    <button mat-stroked-button type="button" class="dialog-button dialog-button--secondary" (click)="close()">{{ 'rentals.cancel' | translate }}</button>
+    <button mat-flat-button color="primary" type="button" class="dialog-button dialog-button--primary" (click)="save()">{{ isEdit ? ('rentals.save_changes' | translate) : ('rentals.add_equipment' | translate) }}</button>
+  </mat-dialog-actions>
+</div>
+
+
