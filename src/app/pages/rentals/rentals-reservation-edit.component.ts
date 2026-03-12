@@ -23,6 +23,7 @@ export class RentalsReservationEditComponent implements OnInit {
   pickupPoints: any[] = [];
   clients: any[] = [];
   categories: any[] = [];
+  subcategories: any[] = [];
   variants: any[] = [];
   units: any[] = [];
   pricingRules: any[] = [];
@@ -64,6 +65,7 @@ export class RentalsReservationEditComponent implements OnInit {
   private quoteRequestId = 0;
   private availableByVariant = new Map<number, number>();
   private totalByVariant = new Map<number, number>();
+  private subcategoryCategoryById = new Map<number, number>();
 
   constructor(
     private readonly fb: FormBuilder,
@@ -520,6 +522,7 @@ export class RentalsReservationEditComponent implements OnInit {
           variant?.item?.category_id
           || variant?.item?.category?.id
           || (catalogItem as any)?.category_id
+          || this.subcategoryCategoryById.get(Number(variant?.subcategory_id || 0))
           || variant?.category_id
           || 0
         ) || null,
@@ -543,16 +546,33 @@ export class RentalsReservationEditComponent implements OnInit {
     const variantId = Number(variant?.id || 0);
     const fromUnits = this.availableByVariant.get(variantId);
     if (typeof fromUnits === 'number') return Math.max(0, fromUnits);
-    const direct = Number(variant?.available_qty ?? variant?.available ?? variant?.qty_available ?? -1);
+    const direct = Number(
+      variant?.available_qty
+      ?? variant?.available
+      ?? variant?.qty_available
+      ?? variant?.available_units
+      ?? variant?.available_stock
+      ?? variant?.stock_available
+      ?? variant?.in_stock
+      ?? -1
+    );
     if (direct >= 0) return direct;
-    return Number(variant?.quantity || 0);
+    return Number(variant?.quantity ?? variant?.total_quantity ?? variant?.total_units ?? variant?.stock_total ?? 0);
   }
 
   variantTotalQty(variant: any): number {
     const variantId = Number(variant?.id || 0);
     const fromUnits = this.totalByVariant.get(variantId);
     if (typeof fromUnits === 'number') return Math.max(0, fromUnits);
-    const total = Number(variant?.total_qty ?? variant?.total ?? variant?.quantity ?? 0);
+    const total = Number(
+      variant?.total_qty
+      ?? variant?.total
+      ?? variant?.quantity
+      ?? variant?.total_quantity
+      ?? variant?.total_units
+      ?? variant?.stock_total
+      ?? 0
+    );
     return total > 0 ? total : this.variantAvailableQty(variant);
   }
 
@@ -930,6 +950,26 @@ export class RentalsReservationEditComponent implements OnInit {
       },
       error: () => {
         this.categories = [];
+      }
+    });
+    this.rentalService.listSubcategories({ per_page: 600 }).subscribe({
+      next: (resp: any) => {
+        const list = resp?.data?.data ?? resp?.data ?? [];
+        this.subcategories = Array.isArray(list) ? list : [];
+        this.subcategoryCategoryById = new Map<number, number>();
+        this.subcategories.forEach((subcategory) => {
+          const subcategoryId = Number(subcategory?.id || 0);
+          const categoryId = Number(subcategory?.category_id || subcategory?.category?.id || 0);
+          if (subcategoryId > 0 && categoryId > 0) {
+            this.subcategoryCategoryById.set(subcategoryId, categoryId);
+          }
+        });
+        this.rebuildEquipmentGroups();
+      },
+      error: () => {
+        this.subcategories = [];
+        this.subcategoryCategoryById = new Map<number, number>();
+        this.rebuildEquipmentGroups();
       }
     });
     this.rentalService.listPickupPoints({ page_size: 200 }).subscribe({
