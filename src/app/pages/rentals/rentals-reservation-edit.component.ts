@@ -722,14 +722,28 @@ export class RentalsReservationEditComponent implements OnInit {
   }
 
   balanceDue(): number {
+    if (this.useLiveFinancialPreview()) {
+      return Number(Math.max(0, this.totalAmount() - this.paidAmount()));
+    }
+    const backendValue = Number(this.financialReconciliation?.balance_due ?? NaN);
+    if (!Number.isNaN(backendValue)) return Number(Math.max(0, backendValue));
     return Number(Math.max(0, this.totalAmount() - this.paidAmount()));
   }
 
   overpaidAmount(): number {
+    if (this.useLiveFinancialPreview()) {
+      return Number(Math.max(0, this.paidAmount() - this.totalAmount()));
+    }
+    const backendValue = Number(this.financialReconciliation?.overpaid_amount ?? NaN);
+    if (!Number.isNaN(backendValue)) return Number(Math.max(0, backendValue));
     return Number(Math.max(0, this.paidAmount() - this.totalAmount()));
   }
 
   reconciliationActionRequired(): string {
+    if (!this.useLiveFinancialPreview()) {
+      const backendAction = String(this.financialReconciliation?.action_required || '').trim();
+      if (backendAction) return backendAction;
+    }
     if (this.overpaidAmount() > 0) return 'resolve_overpayment';
     if (this.balanceDue() > 0) return 'collect_additional_payment';
     return 'none';
@@ -745,10 +759,17 @@ export class RentalsReservationEditComponent implements OnInit {
 
   canKeepCredit(): boolean {
     if (!this.canResolveOverpayment()) return false;
-    const allowed = Array.isArray(this.financialReconciliation?.allowed_actions)
-      ? this.financialReconciliation.allowed_actions.map((v: any) => String(v || '').toLowerCase())
-      : [];
+    const allowed = this.allowedReconciliationActions();
+    if (!allowed.length) return true;
     return allowed.includes('keep_credit');
+  }
+
+  reconciliationDeltaTotal(): number {
+    if (!this.useLiveFinancialPreview()) {
+      const backendDelta = Number(this.financialReconciliation?.delta_total ?? NaN);
+      if (!Number.isNaN(backendDelta)) return backendDelta;
+    }
+    return Number(this.totalAmount() - this.reconciliationBaseTotal());
   }
 
   processRefund(): void {
@@ -1139,10 +1160,32 @@ export class RentalsReservationEditComponent implements OnInit {
             : (Array.isArray(payload?.lines_preview) ? payload.lines_preview : [])
         );
         this.rebuildEquipmentGroups();
+        void this.refreshQuotePreview();
         this.loadPaymentInfo();
       },
       error: () => {}
     });
+  }
+
+  private useLiveFinancialPreview(): boolean {
+    if (this.isCreateMode()) return true;
+    if (!this.quotePreview) return false;
+    return Math.abs(this.totalAmount() - this.reconciliationBaseTotal()) > 0.009;
+  }
+
+  private reconciliationBaseTotal(): number {
+    const backendTotal = Number(this.financialReconciliation?.new_total ?? NaN);
+    if (!Number.isNaN(backendTotal)) return backendTotal;
+    return Number(this.reservation?.total_price ?? this.reservation?.total ?? 0);
+  }
+
+  private allowedReconciliationActions(): string[] {
+    const raw = Array.isArray(this.financialReconciliation?.allowed_actions)
+      ? this.financialReconciliation.allowed_actions
+      : [];
+    return raw
+      .map((entry: any) => String(entry || '').toLowerCase().trim())
+      .filter((entry: string) => entry.length > 0);
   }
 
   private dateOnly(value: any): string {

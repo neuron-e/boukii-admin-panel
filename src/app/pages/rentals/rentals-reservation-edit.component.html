@@ -369,6 +369,12 @@
           <span>Depósito</span>
           <strong class="metric-deposit">{{ depositAmount() | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}</strong>
         </div>
+        <div class="reservation-edit-metric" *ngIf="reconciliationDeltaTotal() !== 0">
+          <span>Ajuste tras edición</span>
+          <strong [class.metric-paid]="reconciliationDeltaTotal() > 0" [class.metric-refund]="reconciliationDeltaTotal() < 0">
+            {{ reconciliationDeltaTotal() > 0 ? '+' : '' }}{{ reconciliationDeltaTotal() | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}
+          </strong>
+        </div>
         <div class="reservation-edit-metric" *ngIf="balanceDue() > 0">
           <span>Saldo pendiente</span>
           <strong>{{ balanceDue() | number:'1.2-2' }} {{ reservation?.currency || reservation?.price_currency || 'CHF' }}</strong>
