@@ -814,8 +814,8 @@
 
 .reservation-card__header--modern {
   margin-bottom: 0;
-  padding: 12px 14px 10px;
-  padding-right: calc(14px + var(--reservation-right-gutter));
+  padding: 12px 12px 10px;
+  padding-right: calc(12px + var(--reservation-right-gutter));
   align-items: flex-start;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -915,7 +915,7 @@
 .reservation-card__identity-top {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-start;
 }
@@ -938,8 +938,8 @@
 }
 
 .reservation-card__amount strong {
-  font-size: 18px;
-  line-height: 22px;
+  font-size: 14px;
+  line-height: 18px;
   color: #0f172a;
   font-weight: 700;
 }
@@ -951,16 +951,18 @@
 }
 
 .reservation-card__body--modern {
-  padding: 10px 14px;
-  padding-right: calc(14px + var(--reservation-right-gutter));
+  padding: 10px 12px;
+  padding-right: calc(12px + var(--reservation-right-gutter));
   margin: 0;
   border-bottom: 1px solid #eef2f7;
 }
 
 .reservation-card__meta-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(150px, max-content));
+  column-gap: 28px;
+  row-gap: 8px;
+  justify-content: start;
 }
 
 .reservation-card__meta {
@@ -994,8 +996,8 @@
 }
 
 .reservation-card__equipment {
-  padding: 10px 14px 0;
-  padding-right: calc(14px + var(--reservation-right-gutter));
+  padding: 10px 12px 0;
+  padding-right: calc(12px + var(--reservation-right-gutter));
 }
 
 .reservation-card__equipment h5 {
@@ -1027,7 +1029,7 @@
   gap: 10px;
   border: 1px solid #dde6f1;
   border-radius: 10px;
-  background: #f8fafc;
+  background: #f3f5f8;
 }
 
 .reservation-card__line--full {
@@ -1065,8 +1067,8 @@
 .reservation-card__actions--modern {
   margin-top: 0;
   border-top: 0;
-  padding: 10px 14px;
-  padding-right: calc(14px + var(--reservation-right-gutter));
+  padding: 10px 12px;
+  padding-right: calc(12px + var(--reservation-right-gutter));
   display: flex;
   gap: 8px;
   align-items: center;

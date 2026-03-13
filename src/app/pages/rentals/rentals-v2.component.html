@@ -692,7 +692,7 @@
                     </div>
                     <div class="reservation-card__amount">
                       <strong>{{ reservationTotalPrice(reservation) | number:'1.2-2' }} {{ reservationCurrency(reservation) }}</strong>
-                      <small *ngIf="reservationDepositValue(reservation) > 0">Deposit: {{ reservationDepositValue(reservation) | number:'1.2-2' }} {{ reservationCurrency(reservation) }}</small>
+                      <small *ngIf="reservationDepositValue(reservation) > 0">{{ 'rentals.tab_deposit' | translate }}: {{ reservationDepositValue(reservation) | number:'1.2-2' }} {{ reservationCurrency(reservation) }}</small>
                     </div>
                   </header>
 
