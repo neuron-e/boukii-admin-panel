@@ -659,7 +659,7 @@ export class RentalsItemDetailComponent implements OnInit {
   openHistoryReservation(h: any): void {
     const reservationId = Number(h?.reservation_id || 0);
     if (!reservationId) return;
-    this.router.navigate(['/rentals/list'], { queryParams: { reservation_id: reservationId } });
+    this.router.navigate(['/rentals/reservation', reservationId, 'edit']);
   }
 
   getVariantWarehouseLabel(v: any): string {
