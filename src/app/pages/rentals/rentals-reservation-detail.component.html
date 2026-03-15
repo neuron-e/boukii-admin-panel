@@ -1,0 +1,212 @@
+<section class="reservation-detail-page">
+  <header class="reservation-detail-page__header">
+    <div class="reservation-detail-page__left">
+      <button mat-button type="button" class="reservation-detail-page__back" (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Volver al Listado
+      </button>
+      <span class="reservation-detail-page__divider" aria-hidden="true"></span>
+    </div>
+    <div class="reservation-detail-page__title">
+      <h2>{{ pageTitle() }}</h2>
+      <p *ngIf="reservation">
+        {{ reservation.reference || ('RNT-' + reservation.id) }}
+        <ng-container *ngIf="reservation.booking_reference"> · {{ reservation.booking_reference }}</ng-container>
+        · Cliente: {{ reservationClientName() }}
+      </p>
+    </div>
+    <span *ngIf="reservation" class="status status--{{ statusKey() }}">
+      {{ statusLabel() }}
+    </span>
+  </header>
+
+  <ng-container *ngIf="!loading && reservation; else loadingTpl">
+    <div class="reservation-detail-page__content">
+      <div class="reservation-detail-main">
+        <section class="reservation-detail-card reservation-detail-card--hero">
+          <div class="reservation-detail-card__hero-grid">
+            <div class="reservation-detail-card__identity-block">
+              <div class="reservation-detail-card__lead-icon" [ngClass]="'is-' + leadIconTone()">
+                <mat-icon>{{ leadIconName() }}</mat-icon>
+              </div>
+              <div class="reservation-detail-card__identity-copy">
+                <div class="reservation-detail-card__identity-top">
+                  <strong>{{ reservationClientName() }}</strong>
+                  <span class="status status--{{ statusKey() }}">
+                    {{ statusLabel() }}
+                  </span>
+                </div>
+                <small class="reservation-detail-card__identity-meta">
+                  <span>{{ reservation.reference || ('#' + reservation.id) }}</span>
+                  <span *ngIf="reservationClientEmail() !== '—'">{{ reservationClientEmail() }}</span>
+                  <span *ngIf="reservationClientPhone() !== '—'">{{ reservationClientPhone() }}</span>
+                </small>
+              </div>
+            </div>
+
+            <div class="reservation-detail-card__amount-block">
+              <strong>{{ totalAmount() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
+              <small *ngIf="depositAmount() > 0">Depósito: {{ depositAmount() | number:'1.2-2' }} {{ reservationCurrency() }}</small>
+            </div>
+          </div>
+
+          <div class="reservation-detail-card__meta-grid">
+            <div class="reservation-detail-card__meta">
+              <span>Período de alquiler</span>
+              <strong><mat-icon>calendar_today</mat-icon>{{ reservationDateRangeLabel() }}</strong>
+            </div>
+            <div class="reservation-detail-card__meta">
+              <span>Duración</span>
+              <strong><mat-icon>schedule</mat-icon>{{ reservationDurationDays() }} días</strong>
+            </div>
+            <div class="reservation-detail-card__meta">
+              <span>Punto de recogida</span>
+              <strong><mat-icon>meeting_room</mat-icon>{{ reservationPickupPointLabel() }}</strong>
+            </div>
+            <div class="reservation-detail-card__meta">
+              <span>Hora de recogida</span>
+              <strong><mat-icon>access_time</mat-icon>{{ reservationPickupTime() }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="reservation-detail-card" *ngIf="reservationLines().length">
+          <div class="reservation-detail-section-head">
+            <h4>Equipo alquilado</h4>
+            <span>{{ reservationTotalItems() }} item{{ reservationTotalItems() === 1 ? '' : 's' }}</span>
+          </div>
+          <div class="reservation-detail-lines" [class.reservation-detail-lines--single]="reservationLines().length <= 1">
+            <article class="reservation-detail-line" *ngFor="let line of reservationLines(); trackBy: trackById" [class.reservation-detail-line--full]="reservationLines().length % 2 === 1 && reservationLines()[reservationLines().length - 1] === line">
+              <div>
+                <strong>{{ reservationLineLabel(line) }}</strong>
+                <small>{{ reservationLineSize(line) }}</small>
+                <small class="reservation-detail-line__subtext" *ngIf="reservationLineSubtitle(line)">{{ reservationLineSubtitle(line) }}</small>
+              </div>
+              <span>Qty:{{ line?.quantity || line?.qty || 0 }}</span>
+            </article>
+          </div>
+        </section>
+
+        <section class="reservation-detail-card" *ngIf="hasNotes()">
+          <div class="reservation-detail-section-head">
+            <h4>Notas</h4>
+          </div>
+          <p class="reservation-detail-notes">{{ notesText() }}</p>
+        </section>
+
+        <section class="reservation-detail-card">
+          <div class="reservation-detail-section-head">
+            <h4>Historial de eventos</h4>
+            <span>{{ reservationEvents.length }} eventos</span>
+          </div>
+          <div class="reservation-detail-events" *ngIf="reservationEvents.length; else emptyEventsTpl">
+            <article class="reservation-detail-event" *ngFor="let event of reservationEvents; trackBy: trackById">
+              <div class="reservation-detail-event__icon">
+                <mat-icon>history</mat-icon>
+              </div>
+              <div class="reservation-detail-event__content">
+                <strong>{{ event?.title || event?.event_type || event?.type || 'Evento' }}</strong>
+                <small>{{ event?.description || event?.message || event?.notes || 'Sin detalle adicional' }}</small>
+              </div>
+              <span class="reservation-detail-event__date">{{ event?.created_at || event?.occurred_at || '—' }}</span>
+            </article>
+          </div>
+          <ng-template #emptyEventsTpl>
+            <div class="reservation-detail-empty">No hay eventos registrados todavía.</div>
+          </ng-template>
+        </section>
+      </div>
+
+      <aside class="reservation-detail-side">
+        <section class="reservation-detail-card reservation-detail-card--side">
+          <h4>Resumen de Reserva</h4>
+          <div class="reservation-detail-metrics">
+            <div class="reservation-detail-metric">
+              <span>Período de alquiler</span>
+              <strong>{{ reservationDateRangeLabel() }}</strong>
+            </div>
+            <div class="reservation-detail-metric">
+              <span>Duración</span>
+              <strong>{{ reservationDurationDays() }} días</strong>
+            </div>
+            <div class="reservation-detail-metric">
+              <span>Importe Total</span>
+              <strong>{{ totalAmount() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
+            </div>
+            <div class="reservation-detail-metric">
+              <span>Pagado</span>
+              <strong>{{ paidAmount() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
+            </div>
+            <div class="reservation-detail-metric">
+              <span>Depósito</span>
+              <strong>{{ depositAmount() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
+            </div>
+          </div>
+
+          <div class="reservation-detail-payment-box reservation-detail-payment-box--{{ paymentStatusTone() }}">
+            <strong>{{ paymentStatusLabel() }}</strong>
+            <small>{{ paymentStatusHint() }}</small>
+          </div>
+
+          <div class="reservation-detail-actions">
+            <button mat-flat-button type="button" class="reservation-detail-btn reservation-detail-btn--primary" (click)="editReservation()">
+              <mat-icon>edit</mat-icon>
+              Editar reserva
+            </button>
+            <button mat-stroked-button type="button" class="reservation-detail-btn" (click)="openPaymentDialog('manual')">
+              <mat-icon>payments</mat-icon>
+              Gestionar pago
+            </button>
+            <button mat-stroked-button type="button" class="reservation-detail-btn" *ngIf="canMarkPickedUp()" (click)="openHandoverConfirm()">
+              <mat-icon>assignment_turned_in</mat-icon>
+              Registrar entrega
+            </button>
+            <button mat-stroked-button type="button" class="reservation-detail-btn" *ngIf="canProcessReturn()" (click)="openReturnFlow()">
+              <mat-icon>assignment_return</mat-icon>
+              Procesar devolución
+            </button>
+            <button mat-stroked-button type="button" class="reservation-detail-btn" *ngIf="canReportDamage() && !canProcessReturn()" (click)="reportDamage()">
+              <mat-icon>report_problem</mat-icon>
+              Reportar daño
+            </button>
+            <button mat-stroked-button type="button" class="reservation-detail-btn" *ngIf="reservation?.booking_id" (click)="openLinkedBooking()">
+              <mat-icon>calendar_month</mat-icon>
+              Ver booking asociado
+            </button>
+            <button mat-stroked-button type="button" class="reservation-detail-btn" (click)="contactCustomer()">
+              <mat-icon>mail</mat-icon>
+              Contactar cliente
+            </button>
+          </div>
+        </section>
+
+        <section class="reservation-detail-card reservation-detail-card--side" *ngIf="!loadingPayment">
+          <div class="reservation-detail-section-head">
+            <h4>Historial de pagos</h4>
+          </div>
+          <div class="reservation-detail-payment-history" *ngIf="paymentHistoryEntries().length; else emptyPaymentsTpl">
+            <article class="reservation-detail-payment-entry" *ngFor="let entry of paymentHistoryEntries()">
+              <div class="reservation-detail-payment-entry__icon reservation-detail-payment-entry__icon--{{ entry.tone }}">
+                <mat-icon>{{ entry.icon }}</mat-icon>
+              </div>
+              <div class="reservation-detail-payment-entry__copy">
+                <strong>{{ entry.title }}</strong>
+                <small>{{ entry.subtitle }}</small>
+              </div>
+              <span>{{ entry.amount | number:'1.2-2' }} {{ reservationCurrency() }}</span>
+            </article>
+          </div>
+          <ng-template #emptyPaymentsTpl>
+            <div class="reservation-detail-empty">Todavía no hay pagos registrados.</div>
+          </ng-template>
+        </section>
+      </aside>
+    </div>
+  </ng-container>
+
+  <ng-template #loadingTpl>
+    <section class="reservation-detail-loading">
+      <mat-spinner diameter="36"></mat-spinner>
+    </section>
+  </ng-template>
+</section>

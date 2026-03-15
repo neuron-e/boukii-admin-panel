@@ -2,9 +2,8 @@
 <mat-dialog-content>
   <form [formGroup]="form" class="form-grid">
     <mat-form-field appearance="outline" class="full">
-      <mat-label>{{ 'rentals.damage_line' | translate }}</mat-label>
-      <mat-select formControlName="line_id">
-        <mat-option [value]="null">{{ 'rentals.damage_line_all' | translate }}</mat-option>
+      <mat-label>Unidad o línea con daño</mat-label>
+      <mat-select formControlName="assignment_id">
         <mat-option *ngFor="let line of data.lines" [value]="line.id">
           {{ line.label }}
         </mat-option>

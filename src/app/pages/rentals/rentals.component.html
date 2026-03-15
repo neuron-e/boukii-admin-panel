@@ -134,6 +134,9 @@
           </mat-card>
           <mat-card class="panel-card">
             <div class="table-toolbar"><h3>Warehouses</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.warehouses.search" (input)="setSearch('warehouses', $any($event.target).value)"></mat-form-field></div>
+            <div class="table-toolbar table-toolbar--compact">
+              <mat-slide-toggle [checked]="showArchivedWarehouses" (change)="toggleArchivedWarehouses($event.checked)">Show archived</mat-slide-toggle>
+            </div>
             <div class="table-head table-head--actions">
               <button class="sort-btn" type="button" (click)="setSort('warehouses','name')">Name</button>
               <button class="sort-btn" type="button" (click)="setSort('warehouses','code')">Code</button>
@@ -141,8 +144,13 @@
               <span>Actions</span>
             </div>
             <div class="table-row table-row--actions" *ngFor="let w of pagedRows('warehouses', warehouses)">
-              <span>{{ w.name }}</span><span>{{ w.code || '-' }}</span><span class="muted">{{ w.address || '-' }}</span>
-              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditWarehouse(w)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deleteWarehouse(w)"><mat-icon>delete</mat-icon></button></span>
+              <span>{{ w.name }} <small class="muted" *ngIf="w.deleted_at">(archived)</small></span><span>{{ w.code || '-' }}</span><span class="muted">{{ w.address || '-' }}</span>
+              <span class="row-actions">
+                <button mat-icon-button type="button" *ngIf="!w.deleted_at" (click)="startEditWarehouse(w)"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button type="button" (click)="deleteWarehouse(w)" [matTooltip]="w.deleted_at ? 'Restore warehouse' : 'Archive warehouse'">
+                  <mat-icon>{{ w.deleted_at ? 'restore' : 'archive' }}</mat-icon>
+                </button>
+              </span>
             </div>
             <div class="table-footer"><span>{{ filteredCount('warehouses', warehouses) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.warehouses.pageSize" (selectionChange)="setPageSize('warehouses', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('warehouses')" [disabled]="tableState.warehouses.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.warehouses.page }} / {{ totalPages('warehouses', warehouses) }}</span><button mat-icon-button type="button" (click)="nextPage('warehouses', warehouses)" [disabled]="tableState.warehouses.page >= totalPages('warehouses', warehouses)"><mat-icon>chevron_right</mat-icon></button></span></div>
           </mat-card>
@@ -164,6 +172,9 @@
 
           <mat-card class="panel-card">
             <div class="table-toolbar"><h3>Pickup / return points</h3><mat-form-field appearance="outline" class="search-field"><mat-label>Search</mat-label><input matInput [value]="tableState.pickupPoints.search" (input)="setSearch('pickupPoints', $any($event.target).value)"></mat-form-field></div>
+            <div class="table-toolbar table-toolbar--compact">
+              <mat-slide-toggle [checked]="showArchivedPickupPoints" (change)="toggleArchivedPickupPoints($event.checked)">Show archived</mat-slide-toggle>
+            </div>
             <div class="table-head table-head--actions">
               <button class="sort-btn" type="button" (click)="setSort('pickupPoints','name')">Name</button>
               <button class="sort-btn" type="button" (click)="setSort('pickupPoints','warehouse_id')">Warehouse</button>
@@ -171,8 +182,13 @@
               <span>Actions</span>
             </div>
             <div class="table-row table-row--actions" *ngFor="let p of pagedRows('pickupPoints', pickupPoints)">
-              <span>{{ p.name }}</span><span class="muted">{{ warehouseName(p.warehouse_id) }}</span><span>{{ p.allow_pickup ? 'Pickup' : '' }}{{ p.allow_pickup && p.allow_return ? ' / ' : '' }}{{ p.allow_return ? 'Return' : '' }}</span>
-              <span class="row-actions"><button mat-icon-button type="button" (click)="startEditPickupPoint(p)"><mat-icon>edit</mat-icon></button><button mat-icon-button type="button" (click)="deletePickupPoint(p)"><mat-icon>delete</mat-icon></button></span>
+              <span>{{ p.name }} <small class="muted" *ngIf="p.deleted_at">(archived)</small></span><span class="muted">{{ warehouseName(p.warehouse_id) }}</span><span>{{ p.allow_pickup ? 'Pickup' : '' }}{{ p.allow_pickup && p.allow_return ? ' / ' : '' }}{{ p.allow_return ? 'Return' : '' }}</span>
+              <span class="row-actions">
+                <button mat-icon-button type="button" *ngIf="!p.deleted_at" (click)="startEditPickupPoint(p)"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button type="button" (click)="deletePickupPoint(p)" [matTooltip]="p.deleted_at ? 'Restore pickup point' : 'Archive pickup point'">
+                  <mat-icon>{{ p.deleted_at ? 'restore' : 'archive' }}</mat-icon>
+                </button>
+              </span>
             </div>
             <div class="table-footer"><span>{{ filteredCount('pickupPoints', pickupPoints) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.pickupPoints.pageSize" (selectionChange)="setPageSize('pickupPoints', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('pickupPoints')" [disabled]="tableState.pickupPoints.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.pickupPoints.page }} / {{ totalPages('pickupPoints', pickupPoints) }}</span><button mat-icon-button type="button" (click)="nextPage('pickupPoints', pickupPoints)" [disabled]="tableState.pickupPoints.page >= totalPages('pickupPoints', pickupPoints)"><mat-icon>chevron_right</mat-icon></button></span></div>
           </mat-card>
@@ -208,17 +224,63 @@
             <div class="table-row table-row--actions" *ngFor="let u of pagedRows('units', units)">
               <span>#{{ u.id }} <small class="muted">{{ u.serial || '' }}</small></span><span class="muted">{{ variantLabel(u.variant_id) }}</span><span class="badge" [class.badge--ok]="u.status === 'available'" [class.badge--warn]="u.status === 'assigned'" [class.badge--danger]="u.status === 'maintenance'">{{ u.status }}</span>
               <span class="row-actions">
-                <button mat-icon-button type="button" *ngIf="u.status !== 'maintenance'" (click)="setUnitToMaintenance(u)" matTooltip="Set maintenance">
+                <button mat-icon-button type="button" *ngIf="u.status !== 'maintenance'" (click)="beginUnitMaintenanceAction(u, 'set')" matTooltip="Set maintenance">
                   <mat-icon>build</mat-icon>
                 </button>
-                <button mat-icon-button type="button" *ngIf="u.status === 'maintenance'" (click)="releaseUnitFromMaintenance(u)" matTooltip="Release maintenance">
+                <button mat-icon-button type="button" *ngIf="u.status === 'maintenance'" (click)="beginUnitMaintenanceAction(u, 'release')" matTooltip="Release maintenance">
                   <mat-icon>build_circle</mat-icon>
+                </button>
+                <button mat-icon-button type="button" (click)="viewUnitMaintenanceHistory(u)" matTooltip="View maintenance history">
+                  <mat-icon>history</mat-icon>
                 </button>
                 <button mat-icon-button type="button" (click)="startEditUnit(u)"><mat-icon>edit</mat-icon></button>
                 <button mat-icon-button type="button" (click)="deleteUnit(u)"><mat-icon>delete</mat-icon></button>
               </span>
             </div>
             <div class="table-footer"><span>{{ filteredCount('units', units) }} results</span><span class="pager"><mat-form-field appearance="outline" class="page-size-field"><mat-select [value]="tableState.units.pageSize" (selectionChange)="setPageSize('units', $event.value)"><mat-option [value]="8">8</mat-option><mat-option [value]="15">15</mat-option><mat-option [value]="30">30</mat-option></mat-select></mat-form-field><button mat-icon-button type="button" (click)="prevPage('units')" [disabled]="tableState.units.page <= 1"><mat-icon>chevron_left</mat-icon></button><span>{{ tableState.units.page }} / {{ totalPages('units', units) }}</span><button mat-icon-button type="button" (click)="nextPage('units', units)" [disabled]="tableState.units.page >= totalPages('units', units)"><mat-icon>chevron_right</mat-icon></button></span></div>
+
+            <div class="maintenance-card" *ngIf="maintenanceActionUnit">
+              <div class="maintenance-card__header">
+                <div>
+                  <h4>Maintenance history · Unit #{{ maintenanceActionUnit.id }}</h4>
+                  <p class="muted">{{ variantLabel(maintenanceActionUnit.variant_id) }}</p>
+                </div>
+                <button mat-stroked-button type="button" (click)="cancelUnitMaintenanceAction()">Close</button>
+              </div>
+
+              <form class="maintenance-form" [formGroup]="maintenanceActionForm" *ngIf="maintenanceActionMode" (ngSubmit)="submitUnitMaintenanceAction()">
+                <mat-form-field appearance="outline" class="span-2">
+                  <mat-label>Reason</mat-label>
+                  <textarea matInput rows="2" formControlName="reason"></textarea>
+                  <mat-error *ngIf="maintenanceActionForm.controls.reason.invalid">Reason is required</mat-error>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Condition</mat-label>
+                  <input matInput formControlName="condition">
+                </mat-form-field>
+                <div class="maintenance-form__actions">
+                  <button mat-stroked-button type="button" (click)="maintenanceActionMode = null">Cancel action</button>
+                  <button mat-flat-button color="primary" type="submit">
+                    {{ maintenanceActionMode === 'set' ? 'Move to maintenance' : 'Release maintenance' }}
+                  </button>
+                </div>
+              </form>
+
+              <div class="maintenance-history" *ngIf="!maintenanceHistoryLoading; else maintenanceHistoryLoadingTpl">
+                <div class="maintenance-history__empty muted" *ngIf="maintenanceHistory.length === 0">No maintenance events yet.</div>
+                <div class="maintenance-history__row" *ngFor="let event of maintenanceHistory">
+                  <div>
+                    <div class="maintenance-history__title">{{ event.movement_type }}</div>
+                    <div class="muted">{{ event.reason || '-' }}</div>
+                  </div>
+                  <div class="muted">{{ event.actor_name || '-' }}</div>
+                  <div>{{ event.occurred_at | date:'short' }}</div>
+                </div>
+              </div>
+              <ng-template #maintenanceHistoryLoadingTpl>
+                <div class="muted">Loading maintenance history...</div>
+              </ng-template>
+            </div>
           </mat-card>
         </div>
 
@@ -252,6 +314,20 @@
                 </mat-select>
               </mat-form-field>
               <mat-form-field appearance="outline">
+                <mat-label>Actor</mat-label>
+                <mat-select [(value)]="stockMovementFilters.user_id">
+                  <mat-option [value]="null">All</mat-option>
+                  <mat-option *ngFor="let actor of stockMovementActors" [value]="actor.id">{{ actor.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Item</mat-label>
+                <mat-select [(value)]="stockMovementFilters.item_id">
+                  <mat-option [value]="null">All</mat-option>
+                  <mat-option *ngFor="let item of items" [value]="item.id">{{ item.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
                 <mat-label>Variant</mat-label>
                 <mat-select [(value)]="stockMovementFilters.variant_id">
                   <mat-option [value]="null">All</mat-option>
@@ -271,17 +347,19 @@
                 <button mat-flat-button color="primary" type="button" (click)="applyStockMovementFilters()">Apply</button>
               </div>
             </div>
-            <div class="table-head table-head--actions">
+            <div class="table-head table-head--stock">
               <button class="sort-btn" type="button" (click)="setSort('stockMovements','occurred_at')">Date</button>
               <button class="sort-btn" type="button" (click)="setSort('stockMovements','movement_type')">Type</button>
+              <span>Actor</span>
               <button class="sort-btn" type="button" (click)="setSort('stockMovements','variant_name')">Variant</button>
               <button class="sort-btn" type="button" (click)="setSort('stockMovements','warehouse_from_name')">Warehouse</button>
               <span>Qty</span>
               <span>Reason</span>
             </div>
-            <div class="table-row table-row--actions" *ngFor="let m of pagedRows('stockMovements', stockMovements)">
+            <div class="table-row table-row--stock" *ngFor="let m of pagedRows('stockMovements', stockMovements)">
               <span>{{ m.occurred_at | date:'short' }}</span>
               <span class="muted">{{ m.movement_type }}</span>
+              <span class="muted">{{ m.actor_name || '-' }}</span>
               <span>{{ m.variant_name || '-' }} <small class="muted">{{ m.variant_size_label || '' }}</small></span>
               <span class="muted">{{ m.warehouse_from_name || m.warehouse_to_name || '-' }}</span>
               <span>{{ m.quantity || 0 }}</span>

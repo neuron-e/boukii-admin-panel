@@ -8,13 +8,14 @@ import { RentalsItemDialogComponent } from './rentals-item-dialog.component';
 import { RentalsReservationReturnDialogComponent } from './rentals-reservation-return-dialog.component';
 import { RentalsDamageDialogComponent } from './rentals-damage-dialog.component';
 import { RentalsPaymentDialogComponent } from './rentals-payment-dialog.component';
+import { RentalsReasonDialogComponent } from './rentals-reason-dialog.component';
 import { ConfirmDialogComponent } from 'src/@vex/components/confirm-dialog/confirm-dialog.component';
 import { firstValueFrom } from 'rxjs';
 import { RentalService } from 'src/service/rental.service';
 
 import { RentalUiStatusKey } from 'src/app/shared/rental-status.util';
 
-type RentalsView = 'inventory' | 'booking' | 'list' | 'catalog' | 'add-equipment' | 'advanced';
+type RentalsView = 'inventory' | 'booking' | 'list' | 'catalog' | 'add-equipment';
 type PeriodType = 'season' | 'half_day' | 'full_day' | 'multi_day' | 'week';
 type ClientMode = 'existing' | 'new';
 type ScanTarget = 'barcode' | 'sku';
@@ -74,11 +75,14 @@ export class RentalsV2Component implements OnInit, OnDestroy {
 
   categories: any[] = [];
   subcategories: any[] = [];
+  brands: any[] = [];
+  models: any[] = [];
   items: any[] = [];
   variants: any[] = [];
   units: any[] = [];
   warehouses: any[] = [];
   pickupPoints: any[] = [];
+  stockMovements: any[] = [];
   pricingRules: any[] = [];
   reservations: any[] = [];
   clients: any[] = [];
@@ -90,7 +94,13 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   inventorySearch = '';
   catalogCategorySearch = '';
   catalogSubcategorySearch = '';
-  brandModelSearch = '';
+  catalogBrandSearch = '';
+  catalogModelSearch = '';
+  catalogWarehouseSearch = '';
+  catalogPickupPointSearch = '';
+  maintenanceSearch = '';
+  maintenanceStatusFilter: 'all' | 'maintenance' | 'available' | 'assigned' = 'all';
+  stockMovementSearch = '';
   bookingSearch = '';
   clientMode: ClientMode = 'existing';
   bookingCategoryFilter: number | 'all' = 'all';
@@ -150,8 +160,8 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     subcategory_id: [null],
     subcategory_name: [''],
     item_name: ['', Validators.required],
-    brand: [''],
-    model: [''],
+    brand_id: this.fb.control<number | null>(null),
+    model_id: this.fb.control<number | null>(null),
     variant_name: ['', Validators.required],
     size_label: [''],
     sku: [''],
@@ -174,8 +184,63 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     active: [true]
   });
 
+  catalogBrandForm = this.fb.group({
+    name: ['', Validators.required],
+    active: [true]
+  });
+
+  catalogModelForm = this.fb.group({
+    brand_id: this.fb.control<number | null>(null),
+    name: ['', Validators.required],
+    active: [true]
+  });
+
+  warehouseForm = this.fb.group({
+    name: ['', Validators.required],
+    code: [''],
+    address: [''],
+    active: [true]
+  });
+
+  pickupPointForm = this.fb.group({
+    warehouse_id: this.fb.control<number | null>(null),
+    name: ['', Validators.required],
+    address: [''],
+    allow_pickup: [true],
+    allow_return: [true],
+    active: [true]
+  });
+
+  maintenanceActionForm = this.fb.group({
+    reason: ['', Validators.required],
+    condition: ['']
+  });
+
   editingCategoryId: number | null = null;
   editingSubcategoryId: number | null = null;
+  editingBrandId: number | null = null;
+  editingModelId: number | null = null;
+  editingWarehouseId: number | null = null;
+  editingPickupPointId: number | null = null;
+  showArchivedWarehouses = false;
+  showArchivedPickupPoints = false;
+  maintenanceActionUnit: any | null = null;
+  maintenanceActionMode: 'set' | 'release' | null = null;
+  maintenanceHistoryLoading = false;
+  maintenanceHistory: any[] = [];
+  stockMovementFilters = {
+    movement_type: '',
+    warehouse_id: null as number | null,
+    user_id: null as number | null,
+    item_id: null as number | null,
+    variant_id: null as number | null,
+    date_from: '',
+    date_to: ''
+  };
+  addEquipmentCreateBrandOpen = false;
+  addEquipmentCreateModelOpen = false;
+  addEquipmentCreateBrandName = '';
+  addEquipmentCreateModelName = '';
 
   constructor(
     private readonly fb: FormBuilder,
@@ -204,6 +269,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     this.bookingForm.get('end_date')?.valueChanges.subscribe(() => void this.refreshPricingQuote());
     this.bookingForm.get('start_time')?.valueChanges.subscribe(() => void this.refreshPricingQuote());
     this.bookingForm.get('end_time')?.valueChanges.subscribe(() => void this.refreshPricingQuote());
+    this.addEquipmentForm.get('brand_id')?.valueChanges.subscribe((value) => this.onAddEquipmentBrandChanged(Number(value || 0) || null));
   }
 
   ngOnDestroy(): void {
@@ -325,6 +391,29 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
   }
 
+  get categoryTreeCards(): any[] {
+    return this.filteredCatalogCategories.map((category) => {
+      const categoryId = Number(category?.id || 0);
+      const children = this.subcategories
+        .filter((row) => Number(row?.category_id || 0) === categoryId)
+        .map((row) => ({
+          ...row,
+          pathLabel: this.subcategoryPathLabel(Number(row?.id || 0), categoryId),
+          depth: this.subcategoryDepth(Number(row?.id || 0), categoryId),
+          childCount: this.subcategories.filter((candidate) => Number(candidate?.parent_id || 0) === Number(row?.id || 0)).length,
+          itemCount: this.items.filter((item) => Number(item?.subcategory_id || 0) === Number(row?.id || 0)).length
+        }))
+        .sort((a, b) => String(a?.pathLabel || '').localeCompare(String(b?.pathLabel || ''), 'es', { sensitivity: 'base' }));
+
+      return {
+        ...category,
+        children,
+        activeChildren: children.filter((row) => !!row?.active).length,
+        itemCount: this.items.filter((item) => Number(item?.category_id || 0) === categoryId).length
+      };
+    });
+  }
+
   get filteredCatalogSubcategories(): any[] {
     const q = (this.catalogSubcategorySearch || '').trim().toLowerCase();
     const rows = this.subcategories.map((row) => ({
@@ -345,25 +434,219 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     return filtered.sort((a, b) => String(a?.pathLabel || '').localeCompare(String(b?.pathLabel || ''), 'es', { sensitivity: 'base' }));
   }
 
-  get brandModelRegistry(): Array<{ brand: string; model: string; count: number }> {
-    const q = (this.brandModelSearch || '').trim().toLowerCase();
-    const byPair = new Map<string, { brand: string; model: string; count: number }>();
-    this.items.forEach((item) => {
-      const brand = String(item?.brand || '').trim();
-      const model = String(item?.model || '').trim();
-      if (!brand && !model) return;
-      const key = `${brand.toLowerCase()}|${model.toLowerCase()}`;
-      const current = byPair.get(key);
-      if (current) {
-        current.count += 1;
-      } else {
-        byPair.set(key, { brand: brand || '-', model: model || '-', count: 1 });
-      }
-    });
-    const rows = Array.from(byPair.values())
-      .sort((a, b) => `${a.brand} ${a.model}`.localeCompare(`${b.brand} ${b.model}`, 'es', { sensitivity: 'base' }));
+  get filteredCatalogBrands(): any[] {
+    const q = (this.catalogBrandSearch || '').trim().toLowerCase();
+    const rows = [...(this.brands || [])].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
     if (!q) return rows;
-    return rows.filter((row) => `${row.brand} ${row.model}`.toLowerCase().includes(q));
+    return rows.filter((row) => String(row?.name || '').toLowerCase().includes(q));
+  }
+
+  get filteredCatalogModels(): any[] {
+    const q = (this.catalogModelSearch || '').trim().toLowerCase();
+    const rows = [...(this.models || [])]
+      .map((row) => ({
+        ...row,
+        brand_name: this.brandName(Number(row?.brand_id || 0))
+      }))
+      .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+    if (!q) return rows;
+    return rows.filter((row) => [row?.name, row?.brand_name].map((v) => String(v || '').toLowerCase()).join(' ').includes(q));
+  }
+
+  get catalogBrandCards(): any[] {
+    return this.filteredCatalogBrands.map((brand) => {
+      const brandId = Number(brand?.id || 0);
+      const relatedModels = this.models.filter((row) => Number(row?.brand_id || 0) === brandId);
+      const relatedItems = this.items.filter((item) => Number(item?.brand_id || 0) === brandId);
+      return {
+        ...brand,
+        model_count: relatedModels.length,
+        active_model_count: relatedModels.filter((row) => !!row?.active).length,
+        item_count: relatedItems.length,
+        legacy_item_count: relatedItems.filter((item) => String(item?.brand || '').trim() && !Number(item?.brand_id || 0)).length
+      };
+    });
+  }
+
+  get catalogLegacyBrandModelItems(): any[] {
+    return this.items
+      .filter((item) => {
+        const brandText = String(item?.brand || '').trim();
+        const modelText = String(item?.model || '').trim();
+        return (!!brandText && !Number(item?.brand_id || 0)) || (!!modelText && !Number(item?.model_id || 0));
+      })
+      .map((item) => ({
+        id: Number(item?.id || 0),
+        name: String(item?.name || item?.title || `#${item?.id || '-'}`),
+        brand: String(item?.brand || '').trim(),
+        model: String(item?.model || '').trim(),
+        resolved_brand: this.brandName(Number(item?.brand_id || 0)),
+        resolved_model: this.modelNameById(Number(item?.model_id || 0) || null) || '-',
+        category_name: this.categoryName(Number(item?.category_id || 0))
+      }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es', { sensitivity: 'base' }));
+  }
+
+  get filteredCatalogWarehouses(): any[] {
+    const q = (this.catalogWarehouseSearch || '').trim().toLowerCase();
+    const rows = [...(this.warehouses || [])].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+    if (!q) return rows;
+    return rows.filter((row) => [row?.name, row?.code, row?.address].map((v) => String(v || '').toLowerCase()).join(' ').includes(q));
+  }
+
+  get filteredCatalogPickupPoints(): any[] {
+    const q = (this.catalogPickupPointSearch || '').trim().toLowerCase();
+    const rows = [...(this.pickupPoints || [])]
+      .map((row) => ({
+        ...row,
+        warehouse_name: this.warehouseNameById(Number(row?.warehouse_id || 0))
+      }))
+      .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+    if (!q) return rows;
+    return rows.filter((row) => [row?.name, row?.address, row?.warehouse_name].map((v) => String(v || '').toLowerCase()).join(' ').includes(q));
+  }
+
+  get warehouseOpsCards(): any[] {
+    return this.filteredCatalogWarehouses.map((warehouse) => {
+      const warehouseId = Number(warehouse?.id || 0);
+      const unitCount = this.units.filter((unit) => Number(unit?.warehouse_id || 0) === warehouseId).length;
+      const maintenanceCount = this.units.filter(
+        (unit) => Number(unit?.warehouse_id || 0) === warehouseId && String(unit?.status || '').toLowerCase() === 'maintenance'
+      ).length;
+      const pickupCount = this.pickupPoints.filter((point) => Number(point?.warehouse_id || 0) === warehouseId && !point?.deleted_at).length;
+      return {
+        ...warehouse,
+        unit_count: unitCount,
+        maintenance_count: maintenanceCount,
+        pickup_count: pickupCount
+      };
+    });
+  }
+
+  get pickupPointOpsCards(): any[] {
+    return this.filteredCatalogPickupPoints.map((point) => ({
+      ...point,
+      warehouse_name: this.warehouseNameById(Number(point?.warehouse_id || 0)),
+      capability_label: this.pickupPointCapabilityLabel(point)
+    }));
+  }
+
+  get maintenanceKpis(): Array<{ key: string; label: string; value: number }> {
+    return [
+      { key: 'all', label: 'Total units', value: this.units.length },
+      {
+        key: 'maintenance',
+        label: 'In maintenance',
+        value: this.units.filter((row) => String(row?.status || '').toLowerCase() === 'maintenance').length
+      },
+      {
+        key: 'available',
+        label: 'Available',
+        value: this.units.filter((row) => String(row?.status || '').toLowerCase() === 'available').length
+      },
+      {
+        key: 'assigned',
+        label: 'Assigned',
+        value: this.units.filter((row) => String(row?.status || '').toLowerCase() === 'assigned').length
+      }
+    ];
+  }
+
+  get filteredMaintenanceUnits(): any[] {
+    const query = String(this.maintenanceSearch || '').trim().toLowerCase();
+    return this.units
+      .map((unit) => {
+        const variant = this.variants.find((row) => Number(row?.id || 0) === Number(unit?.variant_id || 0)) || unit?.variant || null;
+        const item = this.items.find((row) => Number(row?.id || 0) === Number(variant?.item_id || unit?.item_id || 0)) || unit?.item || null;
+        const warehouseName = this.warehouseNameById(Number(unit?.warehouse_id || 0));
+        return {
+          ...unit,
+          variant_name: String(variant?.name || variant?.sku || `#${unit?.variant_id || '-'}`),
+          item_name: String(item?.name || item?.title || '-'),
+          warehouse_name: warehouseName,
+          status_key: String(unit?.status || '').toLowerCase(),
+          status_label: this.titleizeText(unit?.status || 'unknown'),
+          condition_label: this.titleizeText(unit?.condition || 'unknown')
+        };
+      })
+      .filter((unit) => {
+        if (this.maintenanceStatusFilter !== 'all' && unit.status_key !== this.maintenanceStatusFilter) {
+          return false;
+        }
+        if (!query) return true;
+        return [unit?.id, unit?.item_name, unit?.variant_name, unit?.warehouse_name, unit?.status_label, unit?.condition_label]
+          .map((value) => String(value || '').toLowerCase())
+          .join(' ')
+          .includes(query);
+      })
+      .sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0));
+  }
+
+  get stockMovementTypeSummary(): Array<{ key: string; label: string; value: number }> {
+    const counts = new Map<string, number>();
+    for (const row of this.stockMovements || []) {
+      const key = String(row?.movement_type || 'other').toLowerCase();
+      counts.set(key, Number(counts.get(key) || 0) + Number(row?.quantity || 0 || 1));
+    }
+    return Array.from(counts.entries())
+      .map(([key, value]) => ({ key, label: this.stockMovementTypeLabel(key), value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }
+
+  get filteredStockMovements(): any[] {
+    const query = String(this.stockMovementSearch || '').trim().toLowerCase();
+    return (this.stockMovements || [])
+      .map((movement) => {
+        const quantity = Number(movement?.quantity || 0);
+        const variantName = String(movement?.variant_name || movement?.variant?.name || `#${movement?.variant_id || '-'}`);
+        const itemName = this.resolveStockMovementItemName(movement);
+        const warehouseName = String(movement?.warehouse_name || this.warehouseNameById(Number(movement?.warehouse_id || 0)) || '-');
+        const actorName = String(movement?.actor_name || '-');
+        const movementType = String(movement?.movement_type || '').toLowerCase();
+        return {
+          ...movement,
+          display_date: String(movement?.occurred_at || movement?.created_at || '-'),
+          type_key: movementType,
+          type_label: this.stockMovementTypeLabel(movementType),
+          direction_class: this.stockMovementDirectionClass(movementType),
+          quantity_label: `${quantity > 0 ? '+' : ''}${quantity}`,
+          item_name: itemName,
+          variant_name: variantName,
+          warehouse_name: warehouseName,
+          actor_name: actorName
+        };
+      })
+      .filter((movement) => {
+        if (!query) return true;
+        return [
+          movement?.display_date,
+          movement?.type_label,
+          movement?.item_name,
+          movement?.variant_name,
+          movement?.warehouse_name,
+          movement?.actor_name,
+          movement?.reference,
+          movement?.notes
+        ]
+          .map((value) => String(value || '').toLowerCase())
+          .join(' ')
+          .includes(query);
+      });
+  }
+
+  get stockMovementActors(): any[] {
+    const byId = new Map<number, any>();
+    for (const row of this.stockMovements || []) {
+      const actorId = Number(row?.user_id || 0);
+      if (actorId > 0 && !byId.has(actorId)) {
+        byId.set(actorId, {
+          id: actorId,
+          name: row?.actor_name || `#${actorId}`
+        });
+      }
+    }
+    return Array.from(byId.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   }
 
   get inventoryBaseRows(): any[] {
@@ -459,6 +742,15 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     return this.bookingExpandedGroups.includes(groupId);
   }
 
+  setMaintenanceStatusFilter(key: string): void {
+    const normalized = String(key || '').toLowerCase();
+    if (normalized === 'available' || normalized === 'assigned' || normalized === 'maintenance' || normalized === 'all') {
+      this.maintenanceStatusFilter = normalized;
+      return;
+    }
+    this.maintenanceStatusFilter = 'all';
+  }
+
   toggleBookingGroup(groupId: number): void {
     if (this.bookingExpandedGroups.includes(groupId)) {
       this.bookingExpandedGroups = this.bookingExpandedGroups.filter((id) => id !== groupId);
@@ -525,13 +817,24 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       .sort((a, b) => String(a?.pathLabel || a?.name || '').localeCompare(String(b?.pathLabel || b?.name || ''), 'es', { sensitivity: 'base' }));
   }
 
+  get filteredModelsForAddEquipment(): any[] {
+    const selectedBrandId = Number(this.addEquipmentForm.get('brand_id')?.value || 0) || null;
+    const rows = (this.models || []).filter((model) => {
+      if (!selectedBrandId) return true;
+      return Number(model?.brand_id || 0) === selectedBrandId;
+    });
+    return [...rows].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+  }
+
   get parentSubcategoryOptionsForForm(): any[] {
     const categoryId = Number(this.catalogSubcategoryForm.get('category_id')?.value || 0);
     if (!categoryId) return [];
     const currentId = Number(this.editingSubcategoryId || 0);
+    const blocked = currentId ? this.descendantSubcategoryIds(currentId, categoryId) : new Set<number>();
     return this.subcategories
       .filter((subcategory) => Number(subcategory?.category_id || 0) === categoryId)
       .filter((subcategory) => Number(subcategory?.id || 0) !== currentId)
+      .filter((subcategory) => !blocked.has(Number(subcategory?.id || 0)))
       .map((subcategory) => ({
         ...subcategory,
         pathLabel: this.subcategoryPathLabel(Number(subcategory?.id || 0), categoryId)
@@ -542,6 +845,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   setView(view: RentalsView): void {
     this.view = view;
     if (view === 'list') this.loadReservations();
+    if (view === 'catalog') void this.loadOperationalData();
     if (view !== 'add-equipment') this.stopScanner();
     if (view === 'list') {
       this.reservationPage = 1;
@@ -566,7 +870,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       return;
     }
     if (url.includes('/rentals/advanced')) {
-      this.view = 'advanced';
+      this.view = 'catalog';
       return;
     }
     this.view = 'inventory';
@@ -589,12 +893,6 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     if (view === 'catalog') {
       if (!current.includes('/rentals/catalog')) {
         this.router.navigate(['/rentals/catalog']);
-      }
-      return;
-    }
-    if (view === 'advanced') {
-      if (!current.includes('/rentals/advanced')) {
-        this.router.navigate(['/rentals/advanced']);
       }
       return;
     }
@@ -660,7 +958,12 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   async deleteCategoryRow(category: any): Promise<void> {
     const id = Number(category?.id || 0);
     if (!id) return;
-    if (!confirm(`¿Eliminar categoría "${category?.name || '#'+id}"?`)) return;
+    const confirmed = await this.openRentalConfirmDialog(
+      'Eliminar categoría',
+      `¿Eliminar categoría "${category?.name || '#'+id}"?`,
+      'Eliminar'
+    );
+    if (!confirmed) return;
     try {
       await this.getData(this.rentalService.deleteCategory(id));
       this.categories = this.categories.filter((row) => Number(row?.id || 0) !== id);
@@ -726,7 +1029,12 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   async deleteSubcategoryRow(subcategory: any): Promise<void> {
     const id = Number(subcategory?.id || 0);
     if (!id) return;
-    if (!confirm(`¿Eliminar subcategoría "${subcategory?.name || '#'+id}"?`)) return;
+    const confirmed = await this.openRentalConfirmDialog(
+      'Eliminar subcategoría',
+      `¿Eliminar subcategoría "${subcategory?.name || '#'+id}"?`,
+      'Eliminar'
+    );
+    if (!confirmed) return;
     try {
       await this.getData(this.rentalService.deleteSubcategory(id));
       this.subcategories = this.subcategories.filter((row) => Number(row?.id || 0) !== id);
@@ -735,6 +1043,428 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     } catch (error) {
       this.toastCrudError(error, 'rentals.delete_error');
     }
+  }
+
+  startEditBrand(brand: any): void {
+    this.editingBrandId = Number(brand?.id || 0) || null;
+    this.catalogBrandForm.patchValue({
+      name: String(brand?.name || '').trim(),
+      active: Boolean(brand?.active ?? true)
+    });
+  }
+
+  resetBrandForm(): void {
+    this.editingBrandId = null;
+    this.catalogBrandForm.reset({ name: '', active: true });
+  }
+
+  async submitBrandForm(): Promise<void> {
+    if (this.catalogBrandForm.invalid) {
+      this.catalogBrandForm.markAllAsTouched();
+      return;
+    }
+    const payload = {
+      name: String(this.catalogBrandForm.get('name')?.value || '').trim(),
+      active: Boolean(this.catalogBrandForm.get('active')?.value ?? true)
+    };
+    try {
+      if (this.editingBrandId) {
+        const updated = await this.getData(this.rentalService.updateBrand(this.editingBrandId, payload));
+        const id = Number(updated?.id || this.editingBrandId);
+        this.brands = this.brands.map((row) => (Number(row?.id || 0) === id ? { ...row, ...updated, ...payload } : row));
+        this.toast('rentals.updated_successfully');
+      } else {
+        const created = await this.getData(this.rentalService.createBrand(payload));
+        if (created?.id) this.brands = [...this.brands, created];
+        this.toast('rentals.created_successfully');
+      }
+      this.resetBrandForm();
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.create_error');
+    }
+  }
+
+  async deleteBrandRow(brand: any): Promise<void> {
+    const id = Number(brand?.id || 0);
+    if (!id) return;
+    const confirmed = await this.openRentalConfirmDialog(
+      'Eliminar marca',
+      `¿Eliminar marca "${brand?.name || '#' + id}"?`,
+      'Eliminar'
+    );
+    if (!confirmed) return;
+    try {
+      await this.getData(this.rentalService.deleteBrand(id));
+      this.brands = this.brands.filter((row) => Number(row?.id || 0) !== id);
+      this.models = this.models.filter((row) => Number(row?.brand_id || 0) !== id);
+      if (this.editingBrandId === id) this.resetBrandForm();
+      if (Number(this.catalogModelForm.get('brand_id')?.value || 0) === id) {
+        this.catalogModelForm.patchValue({ brand_id: null });
+      }
+      this.toast('rentals.deleted_successfully');
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.delete_error');
+    }
+  }
+
+  startEditModel(model: any): void {
+    this.editingModelId = Number(model?.id || 0) || null;
+    this.catalogModelForm.patchValue({
+      brand_id: Number(model?.brand_id || 0) || null,
+      name: String(model?.name || '').trim(),
+      active: Boolean(model?.active ?? true)
+    });
+  }
+
+  resetModelForm(): void {
+    this.editingModelId = null;
+    this.catalogModelForm.reset({ brand_id: null, name: '', active: true });
+  }
+
+  async submitModelForm(): Promise<void> {
+    if (this.catalogModelForm.invalid) {
+      this.catalogModelForm.markAllAsTouched();
+      return;
+    }
+    const payload = {
+      brand_id: Number(this.catalogModelForm.get('brand_id')?.value || 0) || null,
+      name: String(this.catalogModelForm.get('name')?.value || '').trim(),
+      active: Boolean(this.catalogModelForm.get('active')?.value ?? true)
+    };
+    try {
+      if (this.editingModelId) {
+        const updated = await this.getData(this.rentalService.updateModel(this.editingModelId, payload));
+        const id = Number(updated?.id || this.editingModelId);
+        this.models = this.models.map((row) => (Number(row?.id || 0) === id ? { ...row, ...updated, ...payload } : row));
+        this.toast('rentals.updated_successfully');
+      } else {
+        const created = await this.getData(this.rentalService.createModel(payload));
+        if (created?.id) this.models = [...this.models, created];
+        this.toast('rentals.created_successfully');
+      }
+      this.resetModelForm();
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.create_error');
+    }
+  }
+
+  toggleAddEquipmentCreateBrand(): void {
+    this.addEquipmentCreateBrandOpen = !this.addEquipmentCreateBrandOpen;
+    if (!this.addEquipmentCreateBrandOpen) this.addEquipmentCreateBrandName = '';
+  }
+
+  toggleAddEquipmentCreateModel(): void {
+    this.addEquipmentCreateModelOpen = !this.addEquipmentCreateModelOpen;
+    if (!this.addEquipmentCreateModelOpen) this.addEquipmentCreateModelName = '';
+  }
+
+  async createBrandInlineForAddEquipment(): Promise<void> {
+    const name = String(this.addEquipmentCreateBrandName || '').trim();
+    if (!name) {
+      this.toast('rentals.validation_error');
+      return;
+    }
+    try {
+      const created = await this.getData(this.rentalService.createBrand({ name, active: true }));
+      if (!created?.id) {
+        this.toast('rentals.create_error');
+        return;
+      }
+      this.brands = [...this.brands, created].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+      this.addEquipmentForm.patchValue({
+        brand_id: Number(created.id),
+        model_id: null
+      });
+      this.addEquipmentCreateBrandName = '';
+      this.addEquipmentCreateBrandOpen = false;
+      this.toast('rentals.created_successfully');
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.create_error');
+    }
+  }
+
+  async createModelInlineForAddEquipment(): Promise<void> {
+    const name = String(this.addEquipmentCreateModelName || '').trim();
+    const brandId = Number(this.addEquipmentForm.get('brand_id')?.value || 0) || null;
+    if (!name) {
+      this.toast('rentals.validation_error');
+      return;
+    }
+    if (!brandId) {
+      this.toast('Selecciona una marca antes de crear un modelo');
+      return;
+    }
+    try {
+      const created = await this.getData(this.rentalService.createModel({ name, brand_id: brandId, active: true }));
+      if (!created?.id) {
+        this.toast('rentals.create_error');
+        return;
+      }
+      this.models = [...this.models, created].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+      this.addEquipmentForm.patchValue({ model_id: Number(created.id) });
+      this.addEquipmentCreateModelName = '';
+      this.addEquipmentCreateModelOpen = false;
+      this.toast('rentals.created_successfully');
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.create_error');
+    }
+  }
+
+  async deleteModelRow(model: any): Promise<void> {
+    const id = Number(model?.id || 0);
+    if (!id) return;
+    const confirmed = await this.openRentalConfirmDialog(
+      'Eliminar modelo',
+      `¿Eliminar modelo "${model?.name || '#' + id}"?`,
+      'Eliminar'
+    );
+    if (!confirmed) return;
+    try {
+      await this.getData(this.rentalService.deleteModel(id));
+      this.models = this.models.filter((row) => Number(row?.id || 0) !== id);
+      if (this.editingModelId === id) this.resetModelForm();
+      this.toast('rentals.deleted_successfully');
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.delete_error');
+    }
+  }
+
+  startEditWarehouse(row: any): void {
+    this.editingWarehouseId = Number(row?.id || 0) || null;
+    this.warehouseForm.patchValue({
+      name: String(row?.name || '').trim(),
+      code: String(row?.code || '').trim(),
+      address: String(row?.address || '').trim(),
+      active: Boolean(row?.active ?? true)
+    });
+  }
+
+  resetWarehouseForm(): void {
+    this.editingWarehouseId = null;
+    this.warehouseForm.reset({ name: '', code: '', address: '', active: true });
+  }
+
+  async submitWarehouseForm(): Promise<void> {
+    if (this.warehouseForm.invalid) {
+      this.warehouseForm.markAllAsTouched();
+      return;
+    }
+    const payload = {
+      name: String(this.warehouseForm.get('name')?.value || '').trim(),
+      code: String(this.warehouseForm.get('code')?.value || '').trim(),
+      address: String(this.warehouseForm.get('address')?.value || '').trim(),
+      active: Boolean(this.warehouseForm.get('active')?.value ?? true)
+    };
+    try {
+      if (this.editingWarehouseId) {
+        const updated = await this.getData(this.rentalService.updateWarehouse(this.editingWarehouseId, payload));
+        const id = Number(updated?.id || this.editingWarehouseId);
+        this.warehouses = this.warehouses.map((row) => (Number(row?.id || 0) === id ? { ...row, ...updated, ...payload } : row));
+        this.toast('rentals.updated_successfully');
+      } else {
+        const created = await this.getData(this.rentalService.createWarehouse(payload));
+        if (created?.id) this.warehouses = [...this.warehouses, created];
+        this.toast('rentals.created_successfully');
+      }
+      this.resetWarehouseForm();
+      await this.loadInventoryData();
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.create_error');
+    }
+  }
+
+  async deleteWarehouseRow(row: any): Promise<void> {
+    const id = Number(row?.id || 0);
+    if (!id) return;
+    const isArchived = !!row?.deleted_at;
+    const confirmed = await this.openRentalConfirmDialog(
+      isArchived ? 'Restaurar almacén' : 'Archivar almacén',
+      isArchived ? '¿Restaurar almacén?' : '¿Archivar almacén?',
+      isArchived ? 'Restaurar' : 'Archivar'
+    );
+    if (!confirmed) return;
+    try {
+      if (isArchived) {
+        await this.getData(this.rentalService.restoreWarehouse(id));
+      } else {
+        await this.getData(this.rentalService.deleteWarehouse(id));
+      }
+      this.toast(isArchived ? 'rentals.updated_successfully' : 'rentals.deleted_successfully');
+      await this.loadWarehouseData();
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.delete_error');
+    }
+  }
+
+  toggleArchivedWarehouses(show: boolean): void {
+    this.showArchivedWarehouses = !!show;
+    void this.loadWarehouseData();
+  }
+
+  startEditPickupPoint(row: any): void {
+    this.editingPickupPointId = Number(row?.id || 0) || null;
+    this.pickupPointForm.patchValue({
+      warehouse_id: Number(row?.warehouse_id || 0) || null,
+      name: String(row?.name || '').trim(),
+      address: String(row?.address || '').trim(),
+      allow_pickup: Boolean(row?.allow_pickup ?? true),
+      allow_return: Boolean(row?.allow_return ?? true),
+      active: Boolean(row?.active ?? true)
+    });
+  }
+
+  resetPickupPointForm(): void {
+    this.editingPickupPointId = null;
+    this.pickupPointForm.reset({
+      warehouse_id: null,
+      name: '',
+      address: '',
+      allow_pickup: true,
+      allow_return: true,
+      active: true
+    });
+  }
+
+  async submitPickupPointForm(): Promise<void> {
+    if (this.pickupPointForm.invalid) {
+      this.pickupPointForm.markAllAsTouched();
+      return;
+    }
+    const payload = {
+      warehouse_id: Number(this.pickupPointForm.get('warehouse_id')?.value || 0) || null,
+      name: String(this.pickupPointForm.get('name')?.value || '').trim(),
+      address: String(this.pickupPointForm.get('address')?.value || '').trim(),
+      allow_pickup: Boolean(this.pickupPointForm.get('allow_pickup')?.value ?? true),
+      allow_return: Boolean(this.pickupPointForm.get('allow_return')?.value ?? true),
+      active: Boolean(this.pickupPointForm.get('active')?.value ?? true)
+    };
+    try {
+      if (this.editingPickupPointId) {
+        const updated = await this.getData(this.rentalService.updatePickupPoint(this.editingPickupPointId, payload));
+        const id = Number(updated?.id || this.editingPickupPointId);
+        this.pickupPoints = this.pickupPoints.map((row) => (Number(row?.id || 0) === id ? { ...row, ...updated, ...payload } : row));
+        this.toast('rentals.updated_successfully');
+      } else {
+        const created = await this.getData(this.rentalService.createPickupPoint(payload));
+        if (created?.id) this.pickupPoints = [...this.pickupPoints, created];
+        this.toast('rentals.created_successfully');
+      }
+      this.resetPickupPointForm();
+      await this.loadPickupPointData();
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.create_error');
+    }
+  }
+
+  async deletePickupPointRow(row: any): Promise<void> {
+    const id = Number(row?.id || 0);
+    if (!id) return;
+    const isArchived = !!row?.deleted_at;
+    const confirmed = await this.openRentalConfirmDialog(
+      isArchived ? 'Restaurar punto de recogida' : 'Archivar punto de recogida',
+      isArchived ? '¿Restaurar punto de recogida?' : '¿Archivar punto de recogida?',
+      isArchived ? 'Restaurar' : 'Archivar'
+    );
+    if (!confirmed) return;
+    try {
+      if (isArchived) {
+        await this.getData(this.rentalService.restorePickupPoint(id));
+      } else {
+        await this.getData(this.rentalService.deletePickupPoint(id));
+      }
+      this.toast(isArchived ? 'rentals.updated_successfully' : 'rentals.deleted_successfully');
+      await this.loadPickupPointData();
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.delete_error');
+    }
+  }
+
+  toggleArchivedPickupPoints(show: boolean): void {
+    this.showArchivedPickupPoints = !!show;
+    void this.loadPickupPointData();
+  }
+
+  beginUnitMaintenanceAction(row: any, mode: 'set' | 'release'): void {
+    this.maintenanceActionUnit = row;
+    this.maintenanceActionMode = mode;
+    this.maintenanceActionForm.reset({
+      reason: '',
+      condition: String(row?.condition || '')
+    });
+    this.loadUnitMaintenanceHistory(row?.id);
+  }
+
+  viewUnitMaintenanceHistory(row: any): void {
+    this.maintenanceActionUnit = row;
+    this.maintenanceActionMode = null;
+    this.maintenanceActionForm.reset({
+      reason: '',
+      condition: String(row?.condition || '')
+    });
+    this.loadUnitMaintenanceHistory(row?.id);
+  }
+
+  cancelUnitMaintenanceAction(): void {
+    this.maintenanceActionMode = null;
+    this.maintenanceActionForm.reset({
+      reason: '',
+      condition: String(this.maintenanceActionUnit?.condition || '')
+    });
+  }
+
+  closeMaintenancePanel(): void {
+    this.maintenanceActionUnit = null;
+    this.maintenanceActionMode = null;
+    this.maintenanceHistory = [];
+    this.maintenanceActionForm.reset({ reason: '', condition: '' });
+  }
+
+  async submitUnitMaintenanceAction(): Promise<void> {
+    const unit = this.maintenanceActionUnit;
+    const mode = this.maintenanceActionMode;
+    if (!unit || !mode || this.maintenanceActionForm.invalid) {
+      this.maintenanceActionForm.markAllAsTouched();
+      return;
+    }
+    const reason = String(this.maintenanceActionForm.value.reason || '').trim();
+    if (!reason) {
+      this.maintenanceActionForm.controls.reason.setErrors({ required: true });
+      return;
+    }
+    const condition = String(this.maintenanceActionForm.value.condition || unit?.condition || '');
+    try {
+      const action$ = mode === 'set'
+        ? this.rentalService.setUnitMaintenance(unit.id, reason, condition)
+        : this.rentalService.releaseUnitMaintenance(unit.id, reason, condition);
+      await this.getData(action$);
+      this.toast(mode === 'set' ? 'rentals.status_updated' : 'rentals.updated_successfully');
+      await Promise.all([this.loadInventoryData(), this.loadOperationalData()]);
+      this.loadUnitMaintenanceHistory(unit.id);
+      this.maintenanceActionMode = null;
+      this.maintenanceActionForm.reset({
+        reason: '',
+        condition
+      });
+    } catch (error) {
+      this.toastCrudError(error, 'rentals.update_error');
+    }
+  }
+
+  applyStockMovementFilters(): void {
+    void this.loadOperationalData();
+  }
+
+  clearStockMovementFilters(): void {
+    this.stockMovementFilters = {
+      movement_type: '',
+      warehouse_id: null,
+      user_id: null,
+      item_id: null,
+      variant_id: null,
+      date_from: '',
+      date_to: ''
+    };
+    void this.loadOperationalData();
   }
 
   selectInventoryRow(row: any): void {
@@ -892,6 +1622,8 @@ export class RentalsV2Component implements OnInit, OnDestroy {
         mode: 'create',
         categories: this.categories,
         subcategories: this.subcategories,
+        brands: this.brands,
+        models: this.models,
         warehouses: this.warehouses,
         pricingRules: this.pricingRules
       }
@@ -907,23 +1639,11 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     const itemId = Number(row?.item?.id || row?.item_id || 0);
     const variantId = Number(row?.id || 0);
     if (!itemId || !variantId) return;
-
-    const dialogRef = this.dialog.open(RentalsItemDialogComponent, {
-      width: '760px',
-      maxWidth: '95vw',
-      data: {
-        mode: 'edit',
-        row,
-        categories: this.categories,
-        subcategories: this.subcategories,
-        warehouses: this.warehouses,
-        pricingRules: this.pricingRules
+    this.router.navigate(['/rentals/item', itemId], {
+      queryParams: {
+        variant: variantId,
+        edit: 1
       }
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (!result) return;
-      this.persistDialog('edit', result, row).catch(() => this.toast('rentals.create_error'));
     });
   }
 
@@ -941,8 +1661,10 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     await this.getData(this.rentalService.updateItem(Number(row.item_id), {
       category_id: Number(payload.category_id),
       name: payload.item_name,
-      brand: payload.brand,
-      model: payload.model,
+      brand_id: payload.brand_id ? Number(payload.brand_id) : null,
+      model_id: payload.model_id ? Number(payload.model_id) : null,
+      brand: this.brandNameById(payload.brand_id ? Number(payload.brand_id) : null),
+      model: this.modelNameById(payload.model_id ? Number(payload.model_id) : null),
       tags: this.normalizeTagsInput(payload.tags),
       purchase_date: payload.purchase_date || null,
       last_maintenance_date: payload.last_maintenance_date || null,
@@ -965,7 +1687,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     await this.upsertPricing(Number(row.id), Number(payload.half_day_price || 0), Number(payload.full_day_price || 0), Number(payload.week_price || 0));
 
     this.toast('rentals.status_updated');
-    this.loadAll();
+    await this.loadInventoryData();
   }
 
   private async addEquipmentFromDialog(payload: any): Promise<void> {
@@ -974,8 +1696,10 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     const createdItem: any = await this.getData(this.rentalService.createItem({
       category_id: categoryId,
       name: payload.item_name,
-      brand: payload.brand,
-      model: payload.model,
+      brand_id: payload.brand_id ? Number(payload.brand_id) : null,
+      model_id: payload.model_id ? Number(payload.model_id) : null,
+      brand: this.brandNameById(payload.brand_id ? Number(payload.brand_id) : null),
+      model: this.modelNameById(payload.model_id ? Number(payload.model_id) : null),
       tags: this.normalizeTagsInput(payload.tags),
       purchase_date: payload.purchase_date || null,
       last_maintenance_date: payload.last_maintenance_date || null,
@@ -1026,7 +1750,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     }
 
     this.toast('rentals.create_success');
-    this.loadAll();
+    await this.loadInventoryData();
   }
 
   private async upsertPricing(variantId: number, halfDay: number, fullDay: number, week: number): Promise<void> {
@@ -1086,7 +1810,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
           if (this.selectedInventoryRow?.id === variantId) {
             this.selectedInventoryRow = null;
           }
-          this.loadAll();
+          void this.loadInventoryData();
         },
         error: (error: any) => {
           const backendMessage =
@@ -1159,8 +1883,10 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       const createdItem: any = await this.getData(this.rentalService.createItem({
         category_id: categoryId,
         name: form.item_name,
-        brand: form.brand,
-        model: form.model,
+        brand_id: form.brand_id ? Number(form.brand_id) : null,
+        model_id: form.model_id ? Number(form.model_id) : null,
+        brand: this.brandNameById(form.brand_id ? Number(form.brand_id) : null),
+        model: this.modelNameById(form.model_id ? Number(form.model_id) : null),
         active: true
       }));
       const itemId = Number(createdItem?.id);
@@ -1204,9 +1930,11 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       this.toast('rentals.create_success');
       this.addEquipmentForm.reset({
         condition: 'excellent',
+        brand_id: null,
+        model_id: null,
         quantity: 1
       });
-      this.loadAll();
+      await this.loadInventoryData();
       this.setView('inventory');
     } catch (error) {
       this.toast('rentals.create_error');
@@ -1267,7 +1995,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
         const wasLinked = !!this.linkedBookingId;
         const linkedId = this.linkedBookingId;
         this.linkedBookingId = null;
-        this.loadAll();
+        void this.loadInventoryData();
         if (wasLinked && linkedId) {
           this.router.navigate([`/bookings/update/${linkedId}`]);
         } else {
@@ -1383,26 +2111,52 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       return;
     }
 
-    const reasonKey = 'rentals.cancel_reason_prompt';
-    const reason = window.prompt(this.translateService.instant(reasonKey) || 'Cancellation reason (optional):') ?? '';
-    if (reason === null) {
-      // user pressed Cancel on the prompt
-      return;
-    }
-
-    this.rentalService.cancelReservation(Number(reservation.id), reason).subscribe({
-      next: () => {
-        this.toast('rentals.cancel_success');
-        this.loadReservations();
-        if (this.selectedReservation && Number(this.selectedReservation.id) === Number(reservation.id)) {
-          this.selectedReservation = null;
-        }
-      },
-      error: (err: any) => {
-        const msg = err?.error?.message || this.translateService.instant('rentals.cancel_error');
-        this.snackBar.open(msg, 'OK', { duration: 3500 });
+    const dialogRef = this.dialog.open(RentalsReasonDialogComponent, {
+      width: '560px',
+      maxWidth: '95vw',
+      data: {
+        title: 'Cancelar reserva',
+        message: 'Añade un motivo de cancelación. Se registrará en el historial de la reserva.',
+        label: 'Motivo de cancelación',
+        placeholder: this.translateService.instant('rentals.cancel_reason_prompt') || 'Motivo opcional',
+        confirmText: 'Cancelar reserva',
+        cancelText: this.translateService.instant('rentals.cancel') || 'Cancelar',
+        required: false
       }
     });
+
+    dialogRef.afterClosed().subscribe((reason: string | null) => {
+      if (reason === null) return;
+
+      this.rentalService.cancelReservation(Number(reservation.id), reason).subscribe({
+        next: () => {
+          this.toast('rentals.cancel_success');
+          this.loadReservations();
+          if (this.selectedReservation && Number(this.selectedReservation.id) === Number(reservation.id)) {
+            this.selectedReservation = null;
+          }
+        },
+        error: (err: any) => {
+          const msg = err?.error?.message || this.translateService.instant('rentals.cancel_error');
+          this.snackBar.open(msg, 'OK', { duration: 3500 });
+        }
+      });
+    });
+  }
+
+  private async openRentalConfirmDialog(title: string, message: string, confirmText = 'Confirmar'): Promise<boolean> {
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title,
+        message,
+        confirmText,
+        cancelText: this.translateService.instant('rentals.cancel') || 'Cancelar',
+        isError: /eliminar|archivar/i.test(title),
+        variant: 'rental'
+      }
+    });
+
+    return Boolean(await firstValueFrom(dialogRef.afterClosed()));
   }
 
   reservationEvents: any[] = [];
@@ -1500,23 +2254,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
   openReservationDetails(reservation: any): void {
     const reservationId = Number(reservation?.id || 0);
     if (!reservationId) return;
-
-    this.selectedReservation = reservation;
-    this.reservationEvents = [];
-    this.rentalService.getReservation(reservationId).subscribe({
-      next: (response: any) => {
-        const payload = response?.data?.data ?? response?.data ?? response ?? null;
-        if (payload?.id) {
-          this.selectedReservation = {
-            ...reservation,
-            ...payload
-          };
-        }
-      },
-      error: () => {}
-    });
-
-    this.loadReservationEvents(reservationId);
+    this.router.navigate(['/rentals/reservation', reservationId]);
   }
 
   openLinkedBooking(reservation: any): void {
@@ -2103,32 +2841,61 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     this.loading = true;
 
     Promise.all([
-      this.wrapPaged(this.rentalService.listCategories({ per_page: 300 })),
-      this.wrapPaged(this.rentalService.listSubcategories({ per_page: 500 })),
-      this.wrapPaged(this.rentalService.listItems({ per_page: 1000 })),
-      this.wrapPaged(this.rentalService.listVariants({ per_page: 2000 })),
-      this.wrapPaged(this.rentalService.listUnits({ per_page: 3000 })),
-      this.wrapPaged(this.rentalService.listWarehouses({ per_page: 500 })),
-      this.wrapPaged(this.rentalService.listPickupPoints({ per_page: 500 })),
-      this.wrapPaged(this.rentalService.listPricingRules({ per_page: 1000 })),
-      this.wrapPaged(this.rentalService.listClients({ per_page: 300 }))
+      this.loadReferenceData(),
+      this.loadInventoryData(),
+      this.view === 'catalog' ? this.loadOperationalData() : Promise.resolve()
     ])
-      .then(([categories, subcategories, items, variants, units, warehouses, pickupPoints, pricingRules, clients]) => {
-        this.categories = categories;
-        this.subcategories = subcategories;
-        this.items = items;
-        this.variants = variants;
-        this.units = units;
-        this.warehouses = warehouses;
-        this.pickupPoints = pickupPoints;
-        this.pricingRules = pricingRules;
-        this.clients = clients;
+      .then(() => {
         this.loading = false;
       })
       .catch(() => {
         this.loading = false;
         this.toast('rentals.load_error');
       });
+  }
+
+  private async loadReferenceData(): Promise<void> {
+    const [categories, subcategories, brands, models, clients] = await Promise.all([
+      this.wrapPaged(this.rentalService.listCategories({ per_page: 300 })),
+      this.wrapPaged(this.rentalService.listSubcategories({ per_page: 500 })),
+      this.wrapPaged(this.rentalService.listBrands({ per_page: 500 })),
+      this.wrapPaged(this.rentalService.listModels({ per_page: 1000 })),
+      this.wrapPaged(this.rentalService.listClients({ per_page: 300 }))
+    ]);
+    this.categories = categories;
+    this.subcategories = subcategories;
+    this.brands = brands;
+    this.models = models;
+    this.clients = clients;
+  }
+
+  private async loadInventoryData(): Promise<void> {
+    const [items, variants, units, warehouses, pickupPoints, pricingRules] = await Promise.all([
+      this.wrapPaged(this.rentalService.listItems({ per_page: 1000 })),
+      this.wrapPaged(this.rentalService.listVariants({ per_page: 2000 })),
+      this.wrapPaged(this.rentalService.listUnits({ per_page: 3000 })),
+      this.wrapPaged(this.rentalService.listWarehouses(this.getWarehousesQueryFilters())),
+      this.wrapPaged(this.rentalService.listPickupPoints(this.getPickupPointsQueryFilters())),
+      this.wrapPaged(this.rentalService.listPricingRules({ per_page: 1000 }))
+    ]);
+    this.items = items;
+    this.variants = variants;
+    this.units = units;
+    this.warehouses = warehouses;
+    this.pickupPoints = pickupPoints;
+    this.pricingRules = pricingRules;
+  }
+
+  private async loadWarehouseData(): Promise<void> {
+    this.warehouses = await this.wrapPaged(this.rentalService.listWarehouses(this.getWarehousesQueryFilters()));
+  }
+
+  private async loadPickupPointData(): Promise<void> {
+    this.pickupPoints = await this.wrapPaged(this.rentalService.listPickupPoints(this.getPickupPointsQueryFilters()));
+  }
+
+  private async loadOperationalData(): Promise<void> {
+    this.stockMovements = await this.wrapPaged(this.rentalService.listStockMovements(this.getStockMovementsQueryFilters()));
   }
 
   private loadReservations(): void {
@@ -2403,6 +3170,79 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     return this.subcategories.find((subcategory) => Number(subcategory.id) === Number(subcategoryId))?.name || null;
   }
 
+  brandName(brandId: number): string {
+    if (!brandId) return '-';
+    const matched = this.brands.find((brand) => Number(brand?.id || 0) === Number(brandId));
+    return String(matched?.name || '-');
+  }
+
+  warehouseNameById(warehouseId: number): string {
+    if (!warehouseId) return '-';
+    const matched = this.warehouses.find((warehouse) => Number(warehouse?.id || 0) === Number(warehouseId));
+    return String(matched?.name || '-');
+  }
+
+  modelUsageCount(modelId: number): number {
+    return this.items.filter((item) => Number(item?.model_id || 0) === Number(modelId)).length;
+  }
+
+  private brandNameById(brandId: number | null): string {
+    if (!brandId) return '';
+    return String(this.brands.find((brand) => Number(brand?.id || 0) === Number(brandId))?.name || '').trim();
+  }
+
+  private modelNameById(modelId: number | null): string {
+    if (!modelId) return '';
+    return String(this.models.find((model) => Number(model?.id || 0) === Number(modelId))?.name || '').trim();
+  }
+
+  private titleizeText(value: string): string {
+    return String(value || '')
+      .replace(/[_-]+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  pickupPointCapabilityLabel(point: any): string {
+    const allowsPickup = !!point?.allow_pickup;
+    const allowsReturn = !!point?.allow_return;
+    if (allowsPickup && allowsReturn) return 'Recogida y devolución';
+    if (allowsPickup) return 'Solo recogida';
+    if (allowsReturn) return 'Solo devolución';
+    return 'Operación inactiva';
+  }
+
+  stockMovementTypeLabel(value: string): string {
+    const key = String(value || '').toLowerCase();
+    const labels: Record<string, string> = {
+      in: 'Entrada',
+      out: 'Salida',
+      transfer: 'Transferencia',
+      adjustment: 'Ajuste',
+      assign: 'Asignado',
+      return: 'Devuelto',
+      damage: 'Daño',
+      maintenance_set: 'Entrada a mantenimiento',
+      maintenance_release: 'Salida de mantenimiento'
+    };
+    return labels[key] || this.titleizeText(key || 'other');
+  }
+
+  stockMovementDirectionClass(value: string): string {
+    const key = String(value || '').toLowerCase();
+    if (['in', 'return', 'maintenance_release'].includes(key)) return 'positive';
+    if (['out', 'assign', 'damage', 'maintenance_set'].includes(key)) return 'negative';
+    return 'neutral';
+  }
+
+  private resolveStockMovementItemName(movement: any): string {
+    const direct = String(movement?.item_name || movement?.item?.name || '').trim();
+    if (direct) return direct;
+    const variant = this.variants.find((row) => Number(row?.id || 0) === Number(movement?.variant_id || 0));
+    const item = this.items.find((row) => Number(row?.id || 0) === Number(variant?.item_id || 0));
+    return String(item?.name || item?.title || '-');
+  }
+
   subcategoryOptionLabel(subcategory: any): string {
     return String(subcategory?.pathLabel || subcategory?.name || '').trim();
   }
@@ -2416,8 +3256,16 @@ export class RentalsV2Component implements OnInit, OnDestroy {
 
     const labels: string[] = [];
     let cursor = byId.get(Number(subcategoryId));
+    const visited = new Set<number>();
     let guard = 0;
     while (cursor && guard < 50) {
+      const cursorId = Number(cursor?.id || 0);
+      if (cursorId > 0 && visited.has(cursorId)) {
+        break;
+      }
+      if (cursorId > 0) {
+        visited.add(cursorId);
+      }
       const name = String(cursor?.name || '').trim();
       if (name) labels.unshift(name);
       const parentId = Number(cursor?.parent_id || 0);
@@ -2438,8 +3286,16 @@ export class RentalsV2Component implements OnInit, OnDestroy {
 
     let depth = 0;
     let cursor = byId.get(Number(subcategoryId));
+    const visited = new Set<number>();
     let guard = 0;
     while (cursor && guard < 50) {
+      const cursorId = Number(cursor?.id || 0);
+      if (cursorId > 0 && visited.has(cursorId)) {
+        break;
+      }
+      if (cursorId > 0) {
+        visited.add(cursorId);
+      }
       const parentId = Number(cursor?.parent_id || 0);
       if (!parentId) break;
       const parent = byId.get(parentId);
@@ -2449,6 +3305,87 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       guard++;
     }
     return depth;
+  }
+
+  private descendantSubcategoryIds(rootId: number, categoryId: number): Set<number> {
+    const childrenByParent = new Map<number, number[]>();
+    this.subcategories
+      .filter((subcategory) => Number(subcategory?.category_id || 0) === Number(categoryId || 0))
+      .forEach((subcategory) => {
+        const parentId = Number(subcategory?.parent_id || 0);
+        if (!parentId) {
+          return;
+        }
+        const list = childrenByParent.get(parentId) || [];
+        list.push(Number(subcategory?.id || 0));
+        childrenByParent.set(parentId, list);
+      });
+
+    const blocked = new Set<number>();
+    const queue: number[] = [Number(rootId || 0)];
+    while (queue.length) {
+      const current = Number(queue.shift() || 0);
+      if (!current) {
+        continue;
+      }
+      const children = childrenByParent.get(current) || [];
+      children.forEach((childId) => {
+        if (blocked.has(childId)) {
+          return;
+        }
+        blocked.add(childId);
+        queue.push(childId);
+      });
+    }
+    return blocked;
+  }
+
+  private getWarehousesQueryFilters(): Record<string, any> {
+    return {
+      per_page: 500,
+      include_archived: this.showArchivedWarehouses ? 1 : undefined
+    };
+  }
+
+  private getPickupPointsQueryFilters(): Record<string, any> {
+    return {
+      per_page: 500,
+      include_archived: this.showArchivedPickupPoints ? 1 : undefined
+    };
+  }
+
+  private getStockMovementsQueryFilters(): Record<string, any> {
+    return {
+      per_page: 1000,
+      movement_type: this.stockMovementFilters.movement_type || undefined,
+      warehouse_id: this.stockMovementFilters.warehouse_id || undefined,
+      user_id: this.stockMovementFilters.user_id || undefined,
+      item_id: this.stockMovementFilters.item_id || undefined,
+      variant_id: this.stockMovementFilters.variant_id || undefined,
+      date_from: this.stockMovementFilters.date_from || undefined,
+      date_to: this.stockMovementFilters.date_to || undefined
+    };
+  }
+
+  private loadUnitMaintenanceHistory(unitId: number | null | undefined): void {
+    const id = Number(unitId || 0);
+    if (!id) {
+      this.maintenanceHistory = [];
+      this.maintenanceHistoryLoading = false;
+      return;
+    }
+    this.maintenanceHistoryLoading = true;
+    this.rentalService.getUnitMaintenanceHistory(id).subscribe({
+      next: (response: any) => {
+        const rows = response?.data?.data ?? response?.data ?? [];
+        this.maintenanceHistory = Array.isArray(rows) ? rows : [];
+        this.maintenanceHistoryLoading = false;
+      },
+      error: () => {
+        this.maintenanceHistory = [];
+        this.maintenanceHistoryLoading = false;
+      }
+    });
   }
 
   private toastCrudError(error: any, fallbackKey: string): void {
@@ -2519,5 +3456,18 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       .map((candidate) => String(candidate || '').trim().toUpperCase())
       .find((candidate) => candidate.length > 0);
     return detected || '';
+  }
+
+  private onAddEquipmentBrandChanged(brandId: number | null): void {
+    const modelId = Number(this.addEquipmentForm.get('model_id')?.value || 0);
+    if (!modelId) return;
+    const model = this.models.find((entry) => Number(entry?.id || 0) === modelId);
+    if (!model) {
+      this.addEquipmentForm.patchValue({ model_id: null }, { emitEvent: false });
+      return;
+    }
+    if (brandId && Number(model?.brand_id || 0) !== brandId) {
+      this.addEquipmentForm.patchValue({ model_id: null }, { emitEvent: false });
+    }
   }
 }

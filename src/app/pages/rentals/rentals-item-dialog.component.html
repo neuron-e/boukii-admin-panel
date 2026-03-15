@@ -17,9 +17,30 @@
     <div class="field">
       <div class="field-caption">{{ 'rentals.subcategory' | translate }}</div>
       <mat-form-field appearance="outline">
-        <mat-select formControlName="subcategory_id">
+        <mat-select
+          formControlName="subcategory_id"
+          [disabled]="!hasCategorySelected"
+          panelClass="subcategory-select-panel"
+          (openedChange)="onSubcategoryOpenedChange($event)">
+          <mat-option class="subcategory-search-row">
+            <div class="subcategory-search" (click)="$event.stopPropagation()">
+              <mat-icon>search</mat-icon>
+              <input
+                matInput
+                [(ngModel)]="subcategorySearch"
+                [ngModelOptions]="{ standalone: true }"
+                placeholder="Buscar subcategoría..."
+                (keydown)="onSubcategorySearchKeydown($event)"
+                (click)="$event.stopPropagation()">
+            </div>
+          </mat-option>
           <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
-          <mat-option *ngFor="let subcategory of filteredSubcategories" [value]="subcategory.id">{{ subcategoryOptionLabel(subcategory) }}</mat-option>
+          <mat-option *ngFor="let subcategory of filteredSubcategories" [value]="subcategory.id">
+            <div class="subcategory-option" [style.padding-left.px]="8 + (subcategoryDepth(subcategory) * 14)">
+              <div class="subcategory-option__name">{{ subcategory.name }}</div>
+              <div class="subcategory-option__path" *ngIf="subcategoryDepth(subcategory) > 0">{{ subcategory.pathLabel }}</div>
+            </div>
+          </mat-option>
         </mat-select>
       </mat-form-field>
     </div>
@@ -34,7 +55,12 @@
     <div class="field">
       <div class="field-caption">{{ 'rentals.brand' | translate }}</div>
       <mat-form-field appearance="outline">
-        <input matInput formControlName="brand">
+        <mat-select formControlName="brand_id">
+          <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+          <mat-option *ngFor="let brand of data.brands" [value]="brand.id">
+            {{ brand.name }}
+          </mat-option>
+        </mat-select>
       </mat-form-field>
     </div>
 
@@ -48,7 +74,12 @@
     <div class="field">
       <div class="field-caption">{{ 'rentals.model' | translate }}</div>
       <mat-form-field appearance="outline">
-        <input matInput formControlName="model">
+        <mat-select formControlName="model_id">
+          <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+          <mat-option *ngFor="let model of filteredModels" [value]="model.id">
+            {{ model.name }}
+          </mat-option>
+        </mat-select>
       </mat-form-field>
     </div>
 

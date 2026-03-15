@@ -3,6 +3,7 @@ import { FormBuilder, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ConfirmDialogComponent } from 'src/@vex/components/confirm-dialog/confirm-dialog.component';
 import { RentalService } from 'src/service/rental.service';
 import { RentalsPaymentDialogComponent } from './rentals-payment-dialog.component';
 
@@ -697,6 +698,19 @@ export class RentalsReservationEditComponent implements OnInit {
     );
   }
 
+  originalTotalAmount(): number {
+    const backendOriginal = Number(
+      this.financialReconciliation?.old_total
+      ?? this.financialReconciliation?.previous_total
+      ?? this.financialReconciliation?.original_total
+      ?? NaN
+    );
+    if (!Number.isNaN(backendOriginal) && backendOriginal >= 0) {
+      return backendOriginal;
+    }
+    return Number(this.reservation?.total_price ?? this.reservation?.total ?? 0);
+  }
+
   depositAmount(): number {
     return Number(this.paymentInfo?.deposit_amount ?? this.reservation?.deposit_amount ?? this.reservation?.deposit ?? 0);
   }
@@ -774,19 +788,28 @@ export class RentalsReservationEditComponent implements OnInit {
 
   processRefund(): void {
     if (!this.reservation?.id || !this.canResolveOverpayment()) return;
-    if (!confirm(`Se registrará reembolso para resolver ${this.overpaidAmount().toFixed(2)} ${this.reservationCurrency()}. ¿Continuar?`)) {
-      return;
-    }
-
-    this.rentalService.refundPayment(this.reservation.id).subscribe({
-      next: () => {
-        this.toast('Reembolso procesado');
-        this.loadPaymentInfo();
-        this.reloadReservation();
-      },
-      error: (error) => {
-        this.toast(error?.error?.message || 'No se pudo procesar el reembolso');
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Confirmar reembolso',
+        message: `Se registrará reembolso para resolver ${this.overpaidAmount().toFixed(2)} ${this.reservationCurrency()}.`,
+        confirmText: 'Procesar reembolso',
+        cancelText: 'Cancelar',
+        variant: 'rental'
       }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) return;
+      this.rentalService.refundPayment(this.reservation.id).subscribe({
+        next: () => {
+          this.toast('Reembolso procesado');
+          this.loadPaymentInfo();
+          this.reloadReservation();
+        },
+        error: (error) => {
+          this.toast(error?.error?.message || 'No se pudo procesar el reembolso');
+        }
+      });
     });
   }
 
@@ -794,24 +817,33 @@ export class RentalsReservationEditComponent implements OnInit {
     if (!this.reservation?.id || !this.canKeepCredit()) return;
     const amount = this.overpaidAmount();
     if (amount <= 0) return;
-    if (!confirm(`Se generará un crédito (voucher) de ${amount.toFixed(2)} ${this.reservationCurrency()} para resolver el saldo a favor. ¿Continuar?`)) {
-      return;
-    }
-
-    this.rentalService.refundPayment(this.reservation.id, {
-      amount,
-      refund_method: 'voucher',
-      voucher_name: `Crédito alquiler ${this.reservation.reference || ('#' + this.reservation.id)}`,
-      notes: 'Crédito generado desde conciliación de edición de reserva',
-    }).subscribe({
-      next: () => {
-        this.toast('Crédito generado correctamente');
-        this.loadPaymentInfo();
-        this.reloadReservation();
-      },
-      error: (error) => {
-        this.toast(error?.error?.message || 'No se pudo generar el crédito');
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Confirmar crédito',
+        message: `Se generará un crédito (voucher) de ${amount.toFixed(2)} ${this.reservationCurrency()} para resolver el saldo a favor.`,
+        confirmText: 'Generar crédito',
+        cancelText: 'Cancelar',
+        variant: 'rental'
       }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) return;
+      this.rentalService.refundPayment(this.reservation.id, {
+        amount,
+        refund_method: 'voucher',
+        voucher_name: `Crédito alquiler ${this.reservation.reference || ('#' + this.reservation.id)}`,
+        notes: 'Crédito generado desde conciliación de edición de reserva',
+      }).subscribe({
+        next: () => {
+          this.toast('Crédito generado correctamente');
+          this.loadPaymentInfo();
+          this.reloadReservation();
+        },
+        error: (error) => {
+          this.toast(error?.error?.message || 'No se pudo generar el crédito');
+        }
+      });
     });
   }
 
@@ -1174,9 +1206,7 @@ export class RentalsReservationEditComponent implements OnInit {
   }
 
   private reconciliationBaseTotal(): number {
-    const backendTotal = Number(this.financialReconciliation?.new_total ?? NaN);
-    if (!Number.isNaN(backendTotal)) return backendTotal;
-    return Number(this.reservation?.total_price ?? this.reservation?.total ?? 0);
+    return this.originalTotalAmount();
   }
 
   private allowedReconciliationActions(): string[] {

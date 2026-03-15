@@ -78,10 +78,18 @@ export class RentalsComponent implements OnInit {
   stockMovementFilters = {
     movement_type: '',
     warehouse_id: null as number | null,
+    user_id: null as number | null,
+    item_id: null as number | null,
     variant_id: null as number | null,
     date_from: '',
     date_to: ''
   };
+  showArchivedWarehouses = false;
+  showArchivedPickupPoints = false;
+  maintenanceActionUnit: any | null = null;
+  maintenanceActionMode: 'set' | 'release' | null = null;
+  maintenanceHistoryLoading = false;
+  maintenanceHistory: any[] = [];
 
   categoryForm = this.fb.group({
     name: ['', Validators.required],
@@ -155,6 +163,11 @@ export class RentalsComponent implements OnInit {
     currency: ['']
   });
 
+  maintenanceActionForm = this.fb.group({
+    reason: ['', Validators.required],
+    condition: ['']
+  });
+
   reservationForm = this.fb.group({
     client_id: [null, Validators.required],
     pickup_point_id: [null],
@@ -202,6 +215,20 @@ export class RentalsComponent implements OnInit {
 
   get pendingReservations(): number {
     return this.reservations.filter((r) => (r?.status || '').toLowerCase() === 'pending').length;
+  }
+
+  get stockMovementActors(): any[] {
+    const byId = new Map<number, any>();
+    for (const row of this.stockMovements || []) {
+      const actorId = Number(row?.user_id || 0);
+      if (actorId > 0 && !byId.has(actorId)) {
+        byId.set(actorId, {
+          id: actorId,
+          name: row?.actor_name || `#${actorId}`
+        });
+      }
+    }
+    return Array.from(byId.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   }
 
   loadAll(): void {
@@ -607,27 +634,49 @@ export class RentalsComponent implements OnInit {
     });
   }
 
+  toggleArchivedWarehouses(show: boolean): void {
+    this.showArchivedWarehouses = !!show;
+    this.tableState.warehouses.page = 1;
+    this.serverPagination.warehouses.page = 1;
+    this.reloadWarehouses();
+  }
+
+  toggleArchivedPickupPoints(show: boolean): void {
+    this.showArchivedPickupPoints = !!show;
+    this.tableState.pickupPoints.page = 1;
+    this.serverPagination.pickupPoints.page = 1;
+    this.reloadPickupPoints();
+  }
+
   deleteWarehouse(row: any): void {
-    if (!confirm(`Delete warehouse "${row.name}"?`)) return;
-    this.rentalService.deleteWarehouse(row.id).subscribe({
+    const isArchived = !!row?.deleted_at;
+    if (!confirm(`${isArchived ? 'Restore' : 'Archive'} warehouse "${row.name}"?`)) return;
+    const action$ = isArchived
+      ? this.rentalService.restoreWarehouse(row.id)
+      : this.rentalService.deleteWarehouse(row.id);
+    action$.subscribe({
       next: () => {
         if (this.editingWarehouseId === row.id) this.cancelWarehouseEdit();
-        this.toast('Warehouse deleted');
+        this.toast(isArchived ? 'Warehouse restored' : 'Warehouse archived');
         this.reloadWarehouses();
       },
-      error: () => this.toast('Error deleting warehouse')
+      error: () => this.toast(isArchived ? 'Error restoring warehouse' : 'Error archiving warehouse')
     });
   }
 
   deletePickupPoint(row: any): void {
-    if (!confirm(`Delete pickup point "${row.name}"?`)) return;
-    this.rentalService.deletePickupPoint(row.id).subscribe({
+    const isArchived = !!row?.deleted_at;
+    if (!confirm(`${isArchived ? 'Restore' : 'Archive'} pickup point "${row.name}"?`)) return;
+    const action$ = isArchived
+      ? this.rentalService.restorePickupPoint(row.id)
+      : this.rentalService.deletePickupPoint(row.id);
+    action$.subscribe({
       next: () => {
         if (this.editingPickupPointId === row.id) this.cancelPickupPointEdit();
-        this.toast('Pickup point deleted');
+        this.toast(isArchived ? 'Pickup point restored' : 'Pickup point archived');
         this.reloadPickupPoints();
       },
-      error: () => this.toast('Error deleting pickup point')
+      error: () => this.toast(isArchived ? 'Error restoring pickup point' : 'Error archiving pickup point')
     });
   }
 
@@ -643,29 +692,65 @@ export class RentalsComponent implements OnInit {
     });
   }
 
-  setUnitToMaintenance(row: any): void {
-    const reason = window.prompt('Maintenance reason');
-    if (!reason || !reason.trim()) return;
-    this.rentalService.setUnitMaintenance(row.id, reason.trim(), row?.condition || '').subscribe({
-      next: () => {
-        this.toast('Unit moved to maintenance');
-        this.reloadUnits();
-        this.reloadStockMovements();
-      },
-      error: () => this.toast('Error setting unit maintenance')
+  beginUnitMaintenanceAction(row: any, mode: 'set' | 'release'): void {
+    this.maintenanceActionUnit = row;
+    this.maintenanceActionMode = mode;
+    this.maintenanceActionForm.reset({
+      reason: '',
+      condition: row?.condition || ''
+    });
+    this.loadUnitMaintenanceHistory(row?.id);
+  }
+
+  viewUnitMaintenanceHistory(row: any): void {
+    this.maintenanceActionUnit = row;
+    this.maintenanceActionMode = null;
+    this.maintenanceActionForm.reset({
+      reason: '',
+      condition: row?.condition || ''
+    });
+    this.loadUnitMaintenanceHistory(row?.id);
+  }
+
+  cancelUnitMaintenanceAction(): void {
+    this.maintenanceActionUnit = null;
+    this.maintenanceActionMode = null;
+    this.maintenanceHistory = [];
+    this.maintenanceActionForm.reset({
+      reason: '',
+      condition: ''
     });
   }
 
-  releaseUnitFromMaintenance(row: any): void {
-    const reason = window.prompt('Release reason');
-    if (!reason || !reason.trim()) return;
-    this.rentalService.releaseUnitMaintenance(row.id, reason.trim(), row?.condition || '').subscribe({
+  submitUnitMaintenanceAction(): void {
+    const unit = this.maintenanceActionUnit;
+    const mode = this.maintenanceActionMode;
+    if (!unit || !mode || this.maintenanceActionForm.invalid) {
+      this.maintenanceActionForm.markAllAsTouched();
+      return;
+    }
+    const reason = String(this.maintenanceActionForm.value.reason || '').trim();
+    if (!reason) {
+      this.maintenanceActionForm.controls.reason.setErrors({ required: true });
+      return;
+    }
+    const condition = String(this.maintenanceActionForm.value.condition || unit?.condition || '');
+    const request$ = mode === 'set'
+      ? this.rentalService.setUnitMaintenance(unit.id, reason, condition)
+      : this.rentalService.releaseUnitMaintenance(unit.id, reason, condition);
+    request$.subscribe({
       next: () => {
-        this.toast('Unit released from maintenance');
+        this.toast(mode === 'set' ? 'Unit moved to maintenance' : 'Unit released from maintenance');
         this.reloadUnits();
         this.reloadStockMovements();
+        this.loadUnitMaintenanceHistory(unit.id);
+        this.maintenanceActionMode = null;
+        this.maintenanceActionForm.reset({
+          reason: '',
+          condition
+        });
       },
-      error: () => this.toast('Error releasing unit maintenance')
+      error: () => this.toast(mode === 'set' ? 'Error setting unit maintenance' : 'Error releasing unit maintenance')
     });
   }
 
@@ -954,6 +1039,8 @@ export class RentalsComponent implements OnInit {
     this.stockMovementFilters = {
       movement_type: '',
       warehouse_id: null,
+      user_id: null,
+      item_id: null,
       variant_id: null,
       date_from: '',
       date_to: ''
@@ -1092,6 +1179,7 @@ export class RentalsComponent implements OnInit {
 
   private getWarehousesQueryFilters(): Record<string, any> {
     return {
+      include_archived: this.showArchivedWarehouses ? 1 : undefined,
       search: this.tableState.warehouses.search || undefined,
       sort_by: this.tableState.warehouses.sortKey,
       sort_dir: this.tableState.warehouses.sortDir,
@@ -1102,6 +1190,7 @@ export class RentalsComponent implements OnInit {
 
   private getPickupPointsQueryFilters(): Record<string, any> {
     return {
+      include_archived: this.showArchivedPickupPoints ? 1 : undefined,
       search: this.tableState.pickupPoints.search || undefined,
       sort_by: this.tableState.pickupPoints.sortKey,
       sort_dir: this.tableState.pickupPoints.sortDir,
@@ -1150,6 +1239,8 @@ export class RentalsComponent implements OnInit {
       search: this.tableState.stockMovements.search || undefined,
       movement_type: this.stockMovementFilters.movement_type || undefined,
       warehouse_id: this.stockMovementFilters.warehouse_id || undefined,
+      user_id: this.stockMovementFilters.user_id || undefined,
+      item_id: this.stockMovementFilters.item_id || undefined,
       variant_id: this.stockMovementFilters.variant_id || undefined,
       date_from: this.stockMovementFilters.date_from || undefined,
       date_to: this.stockMovementFilters.date_to || undefined,
@@ -1181,5 +1272,25 @@ export class RentalsComponent implements OnInit {
       .map((candidate) => String(candidate || '').trim().toUpperCase())
       .find((candidate) => candidate.length > 0);
     return detected || '';
+  }
+
+  private loadUnitMaintenanceHistory(unitId: number | null | undefined): void {
+    if (!unitId || Number(unitId) <= 0) {
+      this.maintenanceHistory = [];
+      this.maintenanceHistoryLoading = false;
+      return;
+    }
+    this.maintenanceHistoryLoading = true;
+    this.rentalService.getUnitMaintenanceHistory(Number(unitId)).subscribe({
+      next: (res: any) => {
+        this.maintenanceHistory = this.parse(res);
+        this.maintenanceHistoryLoading = false;
+      },
+      error: () => {
+        this.maintenanceHistory = [];
+        this.maintenanceHistoryLoading = false;
+        this.toast('Error loading maintenance history');
+      }
+    });
   }
 }

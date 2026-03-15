@@ -121,11 +121,22 @@
                 <div class="linked-rental-card__title">
                   <strong>{{ rental.reference || ('#' + rental.id) }}</strong>
                   <app-rental-status-badge [status]="rental.status"></app-rental-status-badge>
+                  <span *ngIf="linkedRentalHasDateMismatch(rental)" class="linked-rental-card__warning-pill">
+                    Fechas distintas al booking
+                  </span>
                 </div>
                 <div class="linked-rental-card__price">
                   <span>Subtotal alquiler</span>
                   <strong>{{ rental.total | number:'1.2-2' }} {{ rental.currency || bookingCurrency() }}</strong>
+                  <span *ngIf="(rental.deposit_amount || 0) > 0" class="linked-rental-card__price-note">
+                    Depósito: {{ rental.deposit_amount | number:'1.2-2' }} {{ rental.currency || bookingCurrency() }}
+                  </span>
                 </div>
+              </div>
+
+              <div *ngIf="linkedRentalHasDateMismatch(rental)" class="linked-rental-card__warning">
+                <mat-icon>warning_amber</mat-icon>
+                <span>El alquiler no sigue exactamente las fechas del booking ({{ linkedRentalDateWarning(rental) }}).</span>
               </div>
 
               <div class="linked-rental-card__grid">
@@ -141,6 +152,10 @@
                   <span class="linked-rental-card__label">Material</span>
                   <span class="linked-rental-card__value">{{ rentalItemsSummary(rental) || ((rental.items_count || rental.lines_count || 0) + ' artículos') }}</span>
                 </div>
+                <div class="linked-rental-card__field">
+                  <span class="linked-rental-card__label">Cobro</span>
+                  <span class="linked-rental-card__value">{{ linkedRentalPaymentState(rental) }}</span>
+                </div>
               </div>
 
               <div class="linked-rental-card__actions">
@@ -148,9 +163,9 @@
                   <mat-icon>open_in_new</mat-icon>
                   {{ 'rentals.view_detail' | translate }}
                 </button>
-                <button mat-stroked-button type="button" *ngIf="rental.booking_id" (click)="openBookingFromRental(rental)">
-                  <mat-icon>event_note</mat-icon>
-                  {{ 'rentals.integrated.view_booking' | translate }}
+                <button mat-stroked-button type="button" (click)="editRentalReservation(rental.id)">
+                  <mat-icon>edit</mat-icon>
+                  Editar alquiler
                 </button>
                 <button
                   mat-stroked-button

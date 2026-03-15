@@ -1,8 +1,9 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
+import { ConfirmDialogComponent } from 'src/@vex/components/confirm-dialog/confirm-dialog.component';
 import { RentalService } from 'src/service/rental.service';
 
 export interface RentalPaymentDialogData {
@@ -93,6 +94,25 @@ export class RentalsPaymentDialogComponent implements OnInit {
   get hasPayment(): boolean { return !!this.paymentInfo?.payment; }
   get hasDepositPayment(): boolean { return !!this.paymentInfo?.deposit_payment; }
   get isHoldAction(): boolean { return this.depositForm.get('action')?.value === 'hold'; }
+  get paidAmount(): number {
+    return Number(
+      this.paymentInfo?.paid_total
+      ?? this.paymentInfo?.payment?.amount
+      ?? this.reservation?.amount_paid
+      ?? this.reservation?.paid_total
+      ?? 0
+    );
+  }
+  get balanceDue(): number {
+    const backend = Number(this.paymentInfo?.financial_reconciliation?.balance_due ?? NaN);
+    if (!Number.isNaN(backend)) return Math.max(0, backend);
+    return Math.max(0, this.reservationTotal - this.paidAmount);
+  }
+  get overpaidAmount(): number {
+    const backend = Number(this.paymentInfo?.financial_reconciliation?.overpaid_amount ?? NaN);
+    if (!Number.isNaN(backend)) return Math.max(0, backend);
+    return Math.max(0, this.paidAmount - this.reservationTotal);
+  }
   get refundableAmount(): number {
     const paid = Number(this.paymentInfo?.payment?.amount ?? 0);
     const alreadyRefunded = Number((this.paymentInfo?.refunds || []).reduce((acc: number, row: any) => acc + Number(row?.amount || 0), 0));
@@ -102,6 +122,7 @@ export class RentalsPaymentDialogComponent implements OnInit {
   constructor(
     private readonly fb: FormBuilder,
     private readonly dialogRef: MatDialogRef<RentalsPaymentDialogComponent>,
+    private readonly dialog: MatDialog,
     private readonly rentalService: RentalService,
     private readonly snackBar: MatSnackBar,
     private readonly translateService: TranslateService,
@@ -260,29 +281,41 @@ export class RentalsPaymentDialogComponent implements OnInit {
 
   processRefund(): void {
     if (this.refundForm.invalid) { this.refundForm.markAllAsTouched(); return; }
-    if (!confirm(this.translateService.instant('rentals.confirm_refund'))) return;
-    this.loading = true;
-    const val = this.refundForm.getRawValue();
-    this.rentalService.refundPayment(this.reservation.id, {
-      amount: Number(val.amount || 0),
-      refund_method: (val.refund_method as any) || 'cash',
-      notes: val.notes || '',
-      voucher_name: val.voucher_name || undefined,
-    }).subscribe({
-      next: (res: any) => {
-        this.loading = false;
-        const d = res?.data;
-        const msg = d?.manual_action_needed
-          ? 'rentals.refund_manual_needed'
-          : 'rentals.refund_success';
-        this.toast(msg, d?.manual_action_needed);
-        this.loadPaymentInfo();
-        this.dialogRef.close({ action: 'refunded', data: d });
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.toast(err?.error?.message ?? 'rentals.refund_error', true);
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Confirmar reembolso',
+        message: this.translateService.instant('rentals.confirm_refund'),
+        confirmText: 'Confirmar',
+        cancelText: this.translateService.instant('rentals.cancel'),
+        variant: 'rental'
       }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) return;
+      this.loading = true;
+      const val = this.refundForm.getRawValue();
+      this.rentalService.refundPayment(this.reservation.id, {
+        amount: Number(val.amount || 0),
+        refund_method: (val.refund_method as any) || 'cash',
+        notes: val.notes || '',
+        voucher_name: val.voucher_name || undefined,
+      }).subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          const d = res?.data;
+          const msg = d?.manual_action_needed
+            ? 'rentals.refund_manual_needed'
+            : 'rentals.refund_success';
+          this.toast(msg, d?.manual_action_needed);
+          this.loadPaymentInfo();
+          this.dialogRef.close({ action: 'refunded', data: d });
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.toast(err?.error?.message ?? 'rentals.refund_error', true);
+        }
+      });
     });
   }
 

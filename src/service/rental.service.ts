@@ -51,6 +51,38 @@ export class RentalService {
     return this.crudService.get('/admin/rentals/subcategories', [], this.withSchool(filters));
   }
 
+  listBrands(filters: Record<string, any> = {}): Observable<ApiResponse> {
+    return this.crudService.get('/admin/rentals/brands', [], this.withSchool(filters));
+  }
+
+  createBrand(payload: any): Observable<ApiResponse> {
+    return this.crudService.create('/admin/rentals/brands', this.withSchool(payload));
+  }
+
+  updateBrand(id: number, payload: any): Observable<ApiResponse> {
+    return this.crudService.update('/admin/rentals/brands', payload, id);
+  }
+
+  deleteBrand(id: number): Observable<ApiResponse> {
+    return this.crudService.delete('/admin/rentals/brands', id);
+  }
+
+  listModels(filters: Record<string, any> = {}): Observable<ApiResponse> {
+    return this.crudService.get('/admin/rentals/models', [], this.withSchool(filters));
+  }
+
+  createModel(payload: any): Observable<ApiResponse> {
+    return this.crudService.create('/admin/rentals/models', this.withSchool(payload));
+  }
+
+  updateModel(id: number, payload: any): Observable<ApiResponse> {
+    return this.crudService.update('/admin/rentals/models', payload, id);
+  }
+
+  deleteModel(id: number): Observable<ApiResponse> {
+    return this.crudService.delete('/admin/rentals/models', id);
+  }
+
   createSubcategory(payload: any): Observable<ApiResponse> {
     return this.crudService.create('/admin/rentals/subcategories', this.withSchool(payload));
   }
@@ -81,6 +113,10 @@ export class RentalService {
 
   updateItem(id: number, payload: any): Observable<ApiResponse> {
     return this.crudService.update('/admin/rentals/items', payload, id);
+  }
+
+  updateItemDetail(id: number, payload: any): Observable<ApiResponse> {
+    return this.crudService.update('/admin/rentals/items', this.withSchool(payload), `${id}/detail`);
   }
 
   syncItemTags(id: number, tags: any[]): Observable<ApiResponse> {
@@ -124,6 +160,10 @@ export class RentalService {
     return this.crudService.delete('/admin/rentals/warehouses', id);
   }
 
+  restoreWarehouse(id: number): Observable<ApiResponse> {
+    return this.crudService.post(`/admin/rentals/warehouses/${id}/restore`, this.withSchool({}));
+  }
+
   listPickupPoints(filters: Record<string, any> = {}): Observable<ApiResponse> {
     return this.crudService.get('/admin/rentals/pickup-points', [], this.withSchool(filters));
   }
@@ -138,6 +178,10 @@ export class RentalService {
 
   deletePickupPoint(id: number): Observable<ApiResponse> {
     return this.crudService.delete('/admin/rentals/pickup-points', id);
+  }
+
+  restorePickupPoint(id: number): Observable<ApiResponse> {
+    return this.crudService.post(`/admin/rentals/pickup-points/${id}/restore`, this.withSchool({}));
   }
 
   listUnits(filters: Record<string, any> = {}): Observable<ApiResponse> {

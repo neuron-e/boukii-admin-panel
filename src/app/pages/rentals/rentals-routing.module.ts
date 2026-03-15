@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { RentalsComponent } from './rentals.component';
 import { RentalsItemDetailComponent } from './rentals-item-detail.component';
+import { RentalsReservationDetailComponent } from './rentals-reservation-detail.component';
 import { RentalsReservationEditComponent } from './rentals-reservation-edit.component';
 import { RentalsV2Component } from './rentals-v2.component';
 
@@ -23,6 +23,10 @@ const routes: Routes = [
     component: RentalsV2Component
   },
   {
+    path: 'reservation/:reservationId',
+    component: RentalsReservationDetailComponent
+  },
+  {
     path: 'reservation/:reservationId/edit',
     component: RentalsReservationEditComponent
   },
@@ -40,7 +44,8 @@ const routes: Routes = [
   },
   {
     path: 'advanced',
-    component: RentalsComponent
+    redirectTo: 'catalog',
+    pathMatch: 'full'
   }
 ];
 

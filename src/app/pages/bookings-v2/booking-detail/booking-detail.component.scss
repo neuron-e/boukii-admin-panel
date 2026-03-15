@@ -315,9 +315,50 @@
   color: #334155;
 }
 
+.linked-rental-card__price-note {
+  font-family: var(--font-dm);
+  font-size: 12px;
+  line-height: 18px;
+  color: #64748b;
+}
+
+.linked-rental-card__warning-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-family: var(--font-dm);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.linked-rental-card__warning {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+  font-family: var(--font-dm);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.linked-rental-card__warning mat-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
 .linked-rental-card__grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-top: 16px;
 }

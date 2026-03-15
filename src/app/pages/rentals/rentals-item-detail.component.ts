@@ -4,10 +4,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom, forkJoin, of } from 'rxjs';
 import { RentalService } from 'src/service/rental.service';
-import { RentalsItemDialogComponent } from './rentals-item-dialog.component';
 import { ConfirmDialogComponent } from 'src/@vex/components/confirm-dialog/confirm-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
 import * as QRCode from 'qrcode';
+import { RentalsQrPreviewDialogComponent } from './rentals-qr-preview-dialog.component';
 
 @Component({
   selector: 'vex-rentals-item-detail',
@@ -34,8 +34,14 @@ export class RentalsItemDetailComponent implements OnInit {
   selectedImageUrl = '';
   categories: any[] = [];
   subcategories: any[] = [];
+  brands: any[] = [];
+  models: any[] = [];
   warehouses: any[] = [];
   private pendingAutoEdit = false;
+  editorOpen = false;
+  editorSaving = false;
+  readonlyOperationalFields = true;
+  productForm: any = this.buildProductForm();
 
   createVariantExpanded = false;
   createVariantSaving = false;
@@ -57,7 +63,7 @@ export class RentalsItemDetailComponent implements OnInit {
     sale_price: 0
   };
 
-  activeTab: 'variants' | 'services' | 'history' | 'analytics' = 'variants';
+  activeTab: 'overview' | 'variants' | 'services' | 'history' | 'analytics' = 'overview';
   serviceForm: any = {
     id: null,
     name: '',
@@ -103,8 +109,78 @@ export class RentalsItemDetailComponent implements OnInit {
     this.router.navigate(['/rentals']);
   }
 
-  switchTab(tab: 'variants' | 'services' | 'history' | 'analytics'): void {
+  switchTab(tab: 'overview' | 'variants' | 'services' | 'history' | 'analytics'): void {
     this.activeTab = tab;
+  }
+
+  openInlineEditor(): void {
+    this.editorOpen = true;
+    this.activeTab = 'overview';
+    this.syncProductForm();
+  }
+
+  closeInlineEditor(): void {
+    this.editorOpen = false;
+    this.syncProductForm();
+  }
+
+  async saveProduct(): Promise<void> {
+    if (this.editorSaving || !this.item?.id || !this.variant?.id) {
+      return;
+    }
+
+    const itemName = String(this.productForm?.item_name || '').trim();
+    const variantName = String(this.productForm?.variant_name || '').trim();
+    if (!itemName || !variantName) {
+      this.snackBar.open('Item name and variant name are required', 'OK', { duration: 2200 });
+      return;
+    }
+
+    this.editorSaving = true;
+    try {
+      const brandId = Number(this.productForm?.brand_id || 0) || null;
+      const modelId = Number(this.productForm?.model_id || 0) || null;
+      const subcategoryId = Number(this.productForm?.subcategory_id || 0) || null;
+      await firstValueFrom(this.rentalService.updateItemDetail(Number(this.item.id), {
+        variant_id: Number(this.variant.id),
+        category_id: Number(this.productForm?.category_id || this.item?.category_id || 0) || null,
+        name: itemName,
+        brand_id: brandId,
+        model_id: modelId,
+        brand: this.brandNameById(brandId),
+        model: this.modelNameById(modelId),
+        tags: this.normalizeTagsInput(this.productForm?.tags),
+        description: String(this.productForm?.description || '').trim() || null,
+        active: this.productForm?.item_active !== false,
+        subcategory_id: subcategoryId,
+        size_group: this.subcategoryNameById(subcategoryId),
+        size_label: String(this.productForm?.size_label || '').trim() || null,
+        sku: String(this.productForm?.sku || '').trim() || null,
+        barcode: String(this.productForm?.barcode || '').trim() || null,
+        serial_prefix: String(this.productForm?.serial_prefix || '').trim() || null,
+        purchase_date: this.productForm?.purchase_date || null,
+        last_maintenance_date: this.productForm?.last_maintenance_date || null,
+        notes: String(this.productForm?.notes || '').trim() || null,
+        pricing: {
+          half_day: { price: Number(this.productForm?.half_day_price || 0), currency: this.schoolCurrency },
+          full_day: { price: Number(this.productForm?.full_day_price || 0), currency: this.schoolCurrency },
+          week: { price: Number(this.productForm?.week_price || 0), currency: this.schoolCurrency }
+        }
+      }));
+
+      this.editorSaving = false;
+      this.editorOpen = false;
+      this.snackBar.open('Product updated', 'OK', { duration: 2200 });
+      this.loadByItem(this.itemId, Number(this.variant?.id || 0));
+    } catch (error: any) {
+      this.editorSaving = false;
+      const backendMessage =
+        error?.error?.message ||
+        error?.error?.error ||
+        error?.message ||
+        'Error updating product';
+      this.snackBar.open(String(backendMessage), 'OK', { duration: 3200 });
+    }
   }
 
   startCreateService(): void {
@@ -471,35 +547,7 @@ export class RentalsItemDetailComponent implements OnInit {
 
   editCurrentProduct(): void {
     if (!this.variant) return;
-
-    const unitSample = this.units.find((unit: any) => Number(unit?.variant_id || 0) === Number(this.variant?.id || 0)) || null;
-    const dialogRow = {
-      ...this.variant,
-      item: this.item,
-      item_id: this.item?.id ?? this.variant?.item_id,
-      quantity: this.units.filter((unit: any) => Number(unit?.variant_id || 0) === Number(this.variant?.id || 0)).length || 1,
-      warehouse_id: unitSample?.warehouse_id ?? null,
-      condition: unitSample?.condition || this.variant?.condition || 'excellent',
-      notes: this.variant?.notes ?? unitSample?.notes ?? ''
-    };
-
-    const dialogRef = this.dialog.open(RentalsItemDialogComponent, {
-      width: '760px',
-      maxWidth: '95vw',
-      data: {
-        mode: 'edit',
-        row: dialogRow,
-        categories: this.categories,
-        subcategories: this.subcategories,
-        warehouses: this.warehouses,
-        pricingRules: this.pricingRules
-      }
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (!result) return;
-      this.updateCurrentVariant(result);
-    });
+    this.openInlineEditor();
   }
 
   exportProduct(): void {
@@ -588,7 +636,7 @@ export class RentalsItemDetailComponent implements OnInit {
     };
   }
 
-  async downloadVariantQr(v: any): Promise<void> {
+  async openVariantQrPreview(v: any): Promise<void> {
     const codeValue = String(v?.barcode || v?.sku || `RV-${v?.id || ''}`).trim();
     if (!codeValue) {
       this.snackBar.open('Variant code not available', 'OK', { duration: 2200 });
@@ -600,13 +648,69 @@ export class RentalsItemDetailComponent implements OnInit {
         width: 720,
         margin: 2
       });
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `${String(v?.sku || v?.name || 'variant').replace(/\s+/g, '-').toLowerCase()}-qr.png`;
-      link.click();
+      this.dialog.open(RentalsQrPreviewDialogComponent, {
+        width: '560px',
+        maxWidth: '94vw',
+        data: {
+          title: String(this.item?.name || this.variant?.name || 'Rental product'),
+          subtitle: String(v?.name || v?.sku || '').trim(),
+          codeValue,
+          sku: String(v?.sku || '').trim(),
+          barcode: String(v?.barcode || '').trim(),
+          fileName: `${String(v?.sku || v?.name || 'variant').replace(/\s+/g, '-').toLowerCase()}-qr.png`,
+          dataUrl
+        }
+      });
     } catch {
       this.snackBar.open('Unable to generate QR', 'OK', { duration: 2200 });
     }
+  }
+
+  get filteredModels(): any[] {
+    const selectedBrandId = Number(this.productForm?.brand_id || 0) || null;
+    const rows = (this.models || []).filter((model) => {
+      if (!selectedBrandId) return true;
+      return Number(model?.brand_id || 0) === selectedBrandId;
+    });
+    return [...rows].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
+  }
+
+  onProductCategoryChange(): void {
+    const selectedSubcategoryId = Number(this.productForm?.subcategory_id || 0);
+    if (!selectedSubcategoryId) return;
+    const rows = this.filteredSubcategories;
+    const existsInCategory = rows.some((entry) => Number(entry?.id || 0) === selectedSubcategoryId);
+    if (!existsInCategory) {
+      this.productForm.subcategory_id = null;
+    }
+  }
+
+  onProductBrandChange(): void {
+    const selectedModelId = Number(this.productForm?.model_id || 0);
+    if (!selectedModelId) return;
+    const model = (this.models || []).find((entry) => Number(entry?.id || 0) === selectedModelId);
+    const brandId = Number(this.productForm?.brand_id || 0) || null;
+    if (!model || (brandId && Number(model?.brand_id || 0) !== brandId)) {
+      this.productForm.model_id = null;
+    }
+  }
+
+  get filteredSubcategories(): any[] {
+    const categoryId = Number(this.productForm?.category_id || 0);
+    if (!categoryId) return [];
+    return this.subcategories
+      .filter((subcategory) => Number(subcategory?.category_id || 0) === categoryId)
+      .map((subcategory) => ({
+        ...subcategory,
+        pathLabel: this.subcategoryPathLabel(Number(subcategory?.id || 0), categoryId)
+      }))
+      .sort((a, b) =>
+        String(a?.pathLabel || a?.name || '').localeCompare(
+          String(b?.pathLabel || b?.name || ''),
+          'es',
+          { sensitivity: 'base' }
+        )
+      );
   }
 
   getVariantCondition(v: any): string {
@@ -728,50 +832,6 @@ export class RentalsItemDetailComponent implements OnInit {
     }
   }
 
-  private async updateCurrentVariant(payload: any): Promise<void> {
-    if (!this.variant?.id || !this.variant?.item_id) return;
-
-    try {
-      await firstValueFrom(this.rentalService.updateItem(Number(this.variant.item_id), {
-        category_id: Number(payload.category_id || this.item?.category_id),
-        name: payload.item_name,
-        brand: payload.brand,
-        model: payload.model,
-        tags: this.normalizeTagsInput(payload.tags),
-        description: this.item?.description || null,
-        image: this.item?.image || this.item?.image_url || null,
-        active: true
-      }));
-
-      await firstValueFrom(this.rentalService.updateVariant(Number(this.variant.id), {
-        item_id: Number(this.variant.item_id),
-        subcategory_id: payload.subcategory_id ? Number(payload.subcategory_id) : null,
-        name: payload.variant_name,
-        size_label: payload.size_label,
-        sku: payload.sku,
-        barcode: payload.barcode,
-        serial_prefix: payload.serial_prefix || null,
-        purchase_date: payload.purchase_date || null,
-        last_maintenance_date: payload.last_maintenance_date || null,
-        notes: payload.notes || null,
-        active: true
-      }));
-
-      await this.upsertVariantPricing(Number(this.variant.id), payload);
-      await this.syncVariantUnits(Number(this.variant.id), payload);
-
-      this.snackBar.open('Product updated', 'OK', { duration: 2200 });
-      this.loadByItem(this.itemId, Number(this.variant?.id || 0));
-    } catch (error: any) {
-      const backendMessage =
-        error?.error?.message ||
-        error?.error?.error ||
-        error?.message ||
-        'Error updating product';
-      this.snackBar.open(String(backendMessage), 'OK', { duration: 3200 });
-    }
-  }
-
   private loadFromLegacyVariant(variantId: number): void {
     this.loading = true;
     this.rentalService.getVariant(variantId).subscribe({
@@ -822,6 +882,7 @@ export class RentalsItemDetailComponent implements OnInit {
         this.selectedImageUrl = String(primaryImage?.image_url || this.itemImages[0]?.image_url || this.selectedImageUrl || '');
 
         this.syncVariantScopedData();
+        this.syncProductForm();
         this.loading = false;
         if (this.pendingAutoEdit && this.variant) {
           this.pendingAutoEdit = false;
@@ -831,7 +892,7 @@ export class RentalsItemDetailComponent implements OnInit {
             queryParamsHandling: 'merge',
             replaceUrl: true
           });
-          setTimeout(() => this.editCurrentProduct(), 0);
+          setTimeout(() => this.openInlineEditor(), 0);
         }
       },
       error: () => {
@@ -1014,18 +1075,22 @@ export class RentalsItemDetailComponent implements OnInit {
   }
 
   private ensureLookupsLoaded(): void {
-    if (this.categories.length && this.subcategories.length && this.warehouses.length) {
+    if (this.categories.length && this.subcategories.length && this.brands.length && this.models.length && this.warehouses.length) {
       return;
     }
 
     forkJoin([
       this.rentalService.listCategories({ per_page: 500 }),
       this.rentalService.listSubcategories({ per_page: 500 }),
+      this.rentalService.listBrands({ per_page: 500 }),
+      this.rentalService.listModels({ per_page: 1000 }),
       this.rentalService.listWarehouses({ per_page: 500 })
     ]).subscribe({
-      next: ([categoriesRes, subcategoriesRes, warehousesRes]) => {
+      next: ([categoriesRes, subcategoriesRes, brandsRes, modelsRes, warehousesRes]) => {
         this.categories = this.extractRows(categoriesRes);
         this.subcategories = this.extractRows(subcategoriesRes);
+        this.brands = this.extractRows(brandsRes);
+        this.models = this.extractRows(modelsRes);
         this.warehouses = this.extractRows(warehousesRes);
       }
     });
@@ -1069,6 +1134,12 @@ export class RentalsItemDetailComponent implements OnInit {
     return this.pickPreferredWarehouseId();
   }
 
+  private resolveProductWarehouseId(): number | null {
+    const selected = Number(this.productForm?.warehouse_id || 0);
+    if (selected > 0) return selected;
+    return this.pickPreferredWarehouseId();
+  }
+
   private resetCreateVariantForm(): void {
     this.editingVariantId = null;
     this.createVariantForm = {
@@ -1098,6 +1169,132 @@ export class RentalsItemDetailComponent implements OnInit {
 
   private extractPayload(response: any): any {
     return response?.data?.data ?? response?.data ?? response ?? null;
+  }
+
+  private buildProductForm(): any {
+    return {
+      category_id: null,
+      subcategory_id: null,
+      item_name: '',
+      variant_name: '',
+      brand_id: null,
+      model_id: null,
+      description: '',
+      tags: '',
+      size_label: '',
+      sku: '',
+      barcode: '',
+      serial_prefix: '',
+      quantity: 1,
+      condition: 'good',
+      warehouse_id: null,
+      half_day_price: 0,
+      full_day_price: 0,
+      week_price: 0,
+      purchase_price: 0,
+      sale_price: 0,
+      purchase_date: '',
+      last_maintenance_date: '',
+      notes: '',
+      item_active: true,
+      variant_active: true
+    };
+  }
+
+  private syncProductForm(): void {
+    const pricingRules = Array.isArray(this.variant?.pricing_rules) ? this.variant.pricing_rules : [];
+    const getPrice = (periodType: string): number =>
+      Number(pricingRules.find((rule: any) => String(rule?.period_type || '').toLowerCase() === periodType)?.price || 0);
+
+    const unitSample = this.units.find((unit: any) => Number(unit?.variant_id || 0) === Number(this.variant?.id || 0));
+    this.productForm = {
+      category_id: Number(this.item?.category_id || 0) || null,
+      subcategory_id: Number(this.variant?.subcategory_id || this.variant?.subcategory?.id || 0) || null,
+      item_name: String(this.item?.name || '').trim(),
+      variant_name: String(this.variant?.name || '').trim(),
+      brand_id: this.resolveBrandId(this.item),
+      model_id: this.resolveModelId(this.item),
+      description: String(this.item?.description || '').trim(),
+      tags: this.productTags.join(', '),
+      size_label: String(this.variant?.size_label || '').trim(),
+      sku: String(this.variant?.sku || '').trim(),
+      barcode: String(this.variant?.barcode || '').trim(),
+      serial_prefix: String(this.variant?.serial_prefix || '').trim(),
+      quantity: this.units.filter((unit: any) => Number(unit?.variant_id || 0) === Number(this.variant?.id || 0)).length || 1,
+      condition: this.getVariantCondition(this.variant),
+      warehouse_id: Number(unitSample?.warehouse_id || 0) || null,
+      half_day_price: getPrice('half_day'),
+      full_day_price: getPrice('full_day'),
+      week_price: getPrice('week'),
+      purchase_price: this.getVariantPurchasePrice(this.variant),
+      sale_price: this.getVariantSalePrice(this.variant),
+      purchase_date: this.variant?.purchase_date || this.item?.purchase_date || '',
+      last_maintenance_date: this.variant?.last_maintenance_date || this.item?.last_maintenance_date || '',
+      notes: String(this.variant?.notes || unitSample?.notes || '').trim(),
+      item_active: this.item?.active !== false,
+      variant_active: this.variant?.active !== false
+    };
+  }
+
+  private resolveBrandId(item: any): number | null {
+    const direct = Number(item?.brand_id || 0);
+    if (direct > 0) return direct;
+    const brandName = String(item?.brand || '').trim().toLowerCase();
+    if (!brandName) return null;
+    const matched = (this.brands || []).find((brand) => String(brand?.name || '').trim().toLowerCase() === brandName);
+    return matched?.id ? Number(matched.id) : null;
+  }
+
+  private resolveModelId(item: any): number | null {
+    const direct = Number(item?.model_id || 0);
+    if (direct > 0) return direct;
+    const modelName = String(item?.model || '').trim().toLowerCase();
+    if (!modelName) return null;
+    const brandId = this.resolveBrandId(item);
+    const matched = (this.models || []).find((model) => {
+      const sameName = String(model?.name || '').trim().toLowerCase() === modelName;
+      if (!sameName) return false;
+      if (!brandId) return true;
+      return Number(model?.brand_id || 0) === brandId;
+    });
+    return matched?.id ? Number(matched.id) : null;
+  }
+
+  private brandNameById(brandId: number | null): string {
+    if (!brandId) return '';
+    return String(this.brands.find((brand) => Number(brand?.id || 0) === Number(brandId))?.name || '').trim();
+  }
+
+  private modelNameById(modelId: number | null): string {
+    if (!modelId) return '';
+    return String(this.models.find((model) => Number(model?.id || 0) === Number(modelId))?.name || '').trim();
+  }
+
+  private subcategoryNameById(subcategoryId: number | null): string | null {
+    if (!subcategoryId) return null;
+    return this.subcategories.find((subcategory) => Number(subcategory?.id || 0) === Number(subcategoryId))?.name || null;
+  }
+
+  private subcategoryPathLabel(subcategoryId: number, categoryId: number): string {
+    if (!subcategoryId) return '';
+    const byId = new Map<number, any>();
+    this.subcategories
+      .filter((subcategory) => Number(subcategory?.category_id || 0) === Number(categoryId || 0))
+      .forEach((subcategory) => byId.set(Number(subcategory?.id || 0), subcategory));
+
+    const labels: string[] = [];
+    let cursor = byId.get(Number(subcategoryId));
+    let guard = 0;
+    while (cursor && guard < 50) {
+      const name = String(cursor?.name || '').trim();
+      if (name) labels.unshift(name);
+      const parentId = Number(cursor?.parent_id || 0);
+      if (!parentId) break;
+      cursor = byId.get(parentId);
+      guard++;
+    }
+
+    return labels.join(' / ') || String(byId.get(Number(subcategoryId))?.name || '').trim();
   }
 }
 

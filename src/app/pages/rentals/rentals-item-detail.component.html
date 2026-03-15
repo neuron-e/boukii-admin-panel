@@ -10,7 +10,7 @@
           <span class="header-divider" aria-hidden="true"></span>
           <div class="title-block">
             <div class="title-main">
-              <h2>{{ item?.name || variant?.name || ('rentals.equipment_details' | translate) }}</h2>
+              <h1>{{ item?.name || variant?.name || ('rentals.equipment_details' | translate) }}</h1>
               <span class="status" [class.off]="!variant?.active">{{ (variant?.active ? 'rentals.status_active_label' : 'rentals.status_inactive_label') | translate }}</span>
             </div>
             <div class="title-meta">
@@ -75,8 +75,7 @@
 
         <div class="info-card">
           <div class="card-heading">
-            <p>{{ 'rentals.detail_product_info' | translate }}</p>
-            <h4>{{ item?.name || variant?.name || ('rentals.equipment_details' | translate) }}</h4>
+            <h3>{{ 'rentals.detail_product_info' | translate }}</h3>
           </div>
           <div class="info-field">
             <span>{{ 'rentals.detail_description' | translate }}</span>
@@ -91,7 +90,7 @@
             <p>{{ item?.model || '-' }}</p>
           </div>
           <div class="info-field" *ngIf="productTags.length">
-            <span>Tags</span>
+            <span>Etiquetas</span>
             <p class="tags-list">
               <span class="tag-pill" *ngFor="let tag of productTags">{{ tag }}</span>
             </p>
@@ -112,26 +111,222 @@
 
         <div class="info-card">
           <div class="card-heading">
-            <p>Summary</p>
-            <h4>Summary Statistics</h4>
+            <h3>Resumen</h3>
           </div>
-          <div class="info-line"><span><mat-icon>inventory_2</mat-icon> Total Units</span><strong>{{ totalCount }}</strong></div>
-          <div class="info-line"><span><mat-icon>check_circle</mat-icon> Available</span><strong class="ok">{{ availableCount }}</strong></div>
-          <div class="info-line"><span><mat-icon>schedule</mat-icon> Reserved</span><strong class="warn">{{ reservedCount }}</strong></div>
-          <div class="info-line"><span><mat-icon>build_circle</mat-icon> Maintenance</span><strong class="danger">{{ maintenanceCount }}</strong></div>
-          <div class="info-line"><span><mat-icon>euro</mat-icon> Inventory Value</span><strong>{{ inventoryValue | number:'1.2-2' }} {{ schoolCurrency }}</strong></div>
-          <div class="info-line"><span><mat-icon>trending_up</mat-icon> Total Revenue</span><strong class="ok">{{ analytics?.total_revenue || 0 | number:'1.2-2' }} {{ schoolCurrency }}</strong></div>
+          <div class="info-line"><span><mat-icon>inventory_2</mat-icon> Unidades totales</span><strong>{{ totalCount }}</strong></div>
+          <div class="info-line"><span><mat-icon>check_circle</mat-icon> Disponibles</span><strong class="ok">{{ availableCount }}</strong></div>
+          <div class="info-line"><span><mat-icon>schedule</mat-icon> Reservadas</span><strong class="warn">{{ reservedCount }}</strong></div>
+          <div class="info-line"><span><mat-icon>build_circle</mat-icon> En mantenimiento</span><strong class="danger">{{ maintenanceCount }}</strong></div>
+          <div class="info-line"><span><mat-icon>euro</mat-icon> Valor inventario</span><strong>{{ inventoryValue | number:'1.2-2' }} {{ schoolCurrency }}</strong></div>
+          <div class="info-line"><span><mat-icon>trending_up</mat-icon> Ingresos totales</span><strong class="ok">{{ analytics?.total_revenue || 0 | number:'1.2-2' }} {{ schoolCurrency }}</strong></div>
         </div>
       </div>
 
       <div class="right-column">
         <div class="tabbed-panel">
           <div class="tabs-row tabs-row--inside">
+            <button type="button" [class.active]="activeTab === 'overview'" (click)="switchTab('overview')">Vista general</button>
             <button type="button" [class.active]="activeTab === 'variants'" (click)="switchTab('variants')">{{ 'rentals.detail_tab_variants' | translate }} ({{ variants.length }})</button>
             <button type="button" [class.active]="activeTab === 'services'" (click)="switchTab('services')">{{ 'rentals.detail_tab_services' | translate }} ({{ services.length }})</button>
             <button type="button" [class.active]="activeTab === 'history'" (click)="switchTab('history')">{{ 'rentals.detail_tab_history' | translate }} ({{ history.length }})</button>
             <button type="button" [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">{{ 'rentals.detail_tab_analytics' | translate }}</button>
           </div>
+
+          <section class="panel panel--embedded" *ngIf="activeTab === 'overview'">
+            <div class="panel-header panel-header--editor">
+              <div class="panel-title">
+                <p>Gestión del producto</p>
+                <h3>Editor de la ficha</h3>
+              </div>
+              <div class="panel-header__actions">
+                <button mat-stroked-button type="button" class="panel-action-button" *ngIf="!editorOpen" (click)="openInlineEditor()">
+                  <mat-icon>edit</mat-icon>
+                  {{ 'rentals.detail_edit_product' | translate }}
+                </button>
+                <ng-container *ngIf="editorOpen">
+                  <button mat-stroked-button type="button" class="panel-action-button" [disabled]="editorSaving" (click)="closeInlineEditor()">
+                    {{ 'rentals.cancel' | translate }}
+                  </button>
+                  <button mat-flat-button type="button" class="panel-action-button panel-action-button--dark" [disabled]="editorSaving" (click)="saveProduct()">
+                    <mat-icon *ngIf="editorSaving" class="spin">autorenew</mat-icon>
+                    {{ editorSaving ? ('rentals.saving' | translate) : ('rentals.save_changes' | translate) }}
+                  </button>
+                </ng-container>
+              </div>
+            </div>
+
+            <div class="overview-shell" *ngIf="editorOpen; else overviewReadMode">
+              <div class="overview-card">
+                <h4>Información básica</h4>
+                <div class="overview-grid">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.item_name' | translate }}</mat-label>
+                    <input matInput [(ngModel)]="productForm.item_name" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.variant_name' | translate }}</mat-label>
+                    <input matInput [(ngModel)]="productForm.variant_name" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.category' | translate }}</mat-label>
+                    <mat-select [(ngModel)]="productForm.category_id" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving" (selectionChange)="onProductCategoryChange()">
+                      <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+                      <mat-option *ngFor="let category of categories" [value]="category.id">{{ category.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.subcategory' | translate }}</mat-label>
+                    <mat-select [(ngModel)]="productForm.subcategory_id" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving || !productForm.category_id">
+                      <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+                      <mat-option *ngFor="let subcategory of filteredSubcategories" [value]="subcategory.id">{{ subcategory.pathLabel || subcategory.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.brand' | translate }}</mat-label>
+                    <mat-select [(ngModel)]="productForm.brand_id" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving" (selectionChange)="onProductBrandChange()">
+                      <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+                      <mat-option *ngFor="let brand of brands" [value]="brand.id">{{ brand.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.model' | translate }}</mat-label>
+                    <mat-select [(ngModel)]="productForm.model_id" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                      <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+                      <mat-option *ngFor="let model of filteredModels" [value]="model.id">{{ model.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="overview-grid__full">
+                    <mat-label>{{ 'rentals.detail_description' | translate }}</mat-label>
+                    <textarea matInput rows="4" [(ngModel)]="productForm.description" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving"></textarea>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="overview-grid__full">
+                    <mat-label>Etiquetas</mat-label>
+                    <input matInput [(ngModel)]="productForm.tags" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving" placeholder="ski, premium, junior">
+                  </mat-form-field>
+                </div>
+              </div>
+
+              <div class="overview-card">
+                <h4>Variante seleccionada</h4>
+                <p class="overview-card__hint" *ngIf="readonlyOperationalFields">
+                  El stock físico, la asignación de almacén y el estado de las unidades se gestionan desde los flujos operativos.
+                </p>
+                <div class="overview-grid">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.size' | translate }}</mat-label>
+                    <input matInput [(ngModel)]="productForm.size_label" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.quantity' | translate }}</mat-label>
+                    <input matInput type="number" min="1" [(ngModel)]="productForm.quantity" [ngModelOptions]="{ standalone: true }" [disabled]="true">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.sku' | translate }}</mat-label>
+                    <input matInput [(ngModel)]="productForm.sku" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.code' | translate }}</mat-label>
+                    <input matInput [(ngModel)]="productForm.barcode" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.serial_prefix' | translate }}</mat-label>
+                    <input matInput [(ngModel)]="productForm.serial_prefix" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.warehouse' | translate }}</mat-label>
+                    <mat-select [(ngModel)]="productForm.warehouse_id" [ngModelOptions]="{ standalone: true }" [disabled]="true">
+                      <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+                      <mat-option *ngFor="let warehouse of warehouses" [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.condition' | translate }}</mat-label>
+                    <mat-select [(ngModel)]="productForm.condition" [ngModelOptions]="{ standalone: true }" [disabled]="true">
+                      <mat-option value="excellent">{{ 'rentals.condition_excellent' | translate }}</mat-option>
+                      <mat-option value="good">{{ 'rentals.condition_good' | translate }}</mat-option>
+                      <mat-option value="fair">{{ 'rentals.condition_fair' | translate }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.purchase_date' | translate }}</mat-label>
+                    <input matInput type="date" [(ngModel)]="productForm.purchase_date" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.last_maintenance' | translate }}</mat-label>
+                    <input matInput type="date" [(ngModel)]="productForm.last_maintenance_date" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Purchase ({{ schoolCurrency }})</mat-label>
+                    <input matInput type="number" min="0" step="0.01" [(ngModel)]="productForm.purchase_price" [ngModelOptions]="{ standalone: true }" [disabled]="true">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Sale ({{ schoolCurrency }})</mat-label>
+                    <input matInput type="number" min="0" step="0.01" [(ngModel)]="productForm.sale_price" [ngModelOptions]="{ standalone: true }" [disabled]="true">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>½ {{ 'rentals.period_half_day' | translate }} ({{ schoolCurrency }})</mat-label>
+                    <input matInput type="number" min="0" step="0.01" [(ngModel)]="productForm.half_day_price" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.period_full_day' | translate }} ({{ schoolCurrency }})</mat-label>
+                    <input matInput type="number" min="0" step="0.01" [(ngModel)]="productForm.full_day_price" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ 'rentals.period_week' | translate }} ({{ schoolCurrency }})</mat-label>
+                    <input matInput type="number" min="0" step="0.01" [(ngModel)]="productForm.week_price" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="overview-grid__full">
+                    <mat-label>{{ 'rentals.notes' | translate }}</mat-label>
+                    <textarea matInput rows="3" [(ngModel)]="productForm.notes" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving"></textarea>
+                  </mat-form-field>
+                </div>
+              </div>
+            </div>
+
+            <ng-template #overviewReadMode>
+              <div class="overview-shell overview-shell--summary">
+                <article class="overview-summary-card">
+                  <span>Información básica</span>
+                  <strong>{{ item?.name || '-' }}</strong>
+                  <p>{{ item?.description || 'Sin descripción todavía.' }}</p>
+                  <div class="overview-summary-card__meta">
+                    <small>{{ item?.category_name || '-' }}</small>
+                    <small>{{ item?.brand || '-' }} {{ item?.model || '' }}</small>
+                    <small *ngIf="productTags.length">{{ productTags.join(', ') }}</small>
+                  </div>
+                </article>
+                <article class="overview-summary-card">
+                  <span>Variante seleccionada</span>
+                  <strong>{{ variant?.name || '-' }}</strong>
+                  <p>{{ variant?.sku || '-' }} · {{ variant?.barcode || ('RV-' + (variant?.id || '')) }}</p>
+                  <div class="overview-summary-card__meta">
+                    <small>{{ variant?.size_label || '-' }}</small>
+                    <small>{{ getVariantRentalPriceSummary(variant) }}</small>
+                    <small>{{ getVariantWarehouseLabel(variant) || 'Sin almacén asignado' }}</small>
+                  </div>
+                </article>
+                <article class="overview-summary-card overview-summary-card--qr">
+                  <span>QR / barcode</span>
+                  <strong>{{ variant?.barcode || variant?.sku || ('RV-' + (variant?.id || '')) }}</strong>
+                  <p>Previsualización antes de imprimir o descargar.</p>
+                  <button mat-stroked-button type="button" class="panel-action-button" (click)="openVariantQrPreview(variant)">
+                    <mat-icon>qr_code_2</mat-icon>
+                    Vista previa QR
+                  </button>
+                </article>
+              </div>
+            </ng-template>
+          </section>
 
           <section class="panel panel--embedded" *ngIf="activeTab === 'variants'">
             <div class="panel-header">
@@ -263,7 +458,7 @@
                   </div>
                 </td>
                 <td class="actions">
-                  <button mat-icon-button type="button" (click)="downloadVariantQr(v)"><mat-icon>qr_code_2</mat-icon></button>
+                  <button mat-icon-button type="button" (click)="openVariantQrPreview(v)"><mat-icon>qr_code_2</mat-icon></button>
                   <button mat-icon-button type="button" (click)="editVariant(v)"><mat-icon>edit</mat-icon></button>
                   <button mat-icon-button type="button" (click)="deleteVariant(v)"><mat-icon>delete_outline</mat-icon></button>
                 </td>

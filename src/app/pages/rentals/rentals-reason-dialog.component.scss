@@ -1,0 +1,56 @@
+.rentals-reason-dialog {
+  min-width: 520px;
+  max-width: 640px;
+}
+
+.rentals-reason-dialog__title {
+  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 20px;
+  margin-bottom: 10px;
+}
+
+.rentals-reason-dialog__content {
+  margin-bottom: 20px;
+}
+
+.rentals-reason-dialog__message {
+  color: #374151;
+  font-size: 14px;
+  line-height: 22px;
+  margin: 0 0 16px;
+}
+
+.rentals-reason-dialog__field {
+  width: 100%;
+}
+
+.rentals-reason-dialog__actions {
+  border-top: 1px solid #e5e7eb;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.rentals-reason-dialog__cancel {
+  border: 1px solid #111827;
+  border-radius: 8px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 500;
+  height: 36px;
+  line-height: 20px;
+  min-width: 96px;
+  padding: 0 14px;
+}
+
+.rentals-reason-dialog__confirm {
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 500;
+  height: 36px;
+  line-height: 20px;
+  min-width: 110px;
+  padding: 0 14px;
+}

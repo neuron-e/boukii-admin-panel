@@ -16,9 +16,9 @@ import { SchoolService } from 'src/service/school.service';
 import { RentalService } from 'src/service/rental.service';
 import { PAYMENT_METHODS, PaymentMethodId } from '../../../shared/payment-methods';
 import { buildDiscountInfoList } from '../shared/discount-utils';
-import { rentalUiStatus } from 'src/app/shared/rental-status.util';
 import { BookingRentalLinkDialogComponent } from './components/booking-rental-link-dialog/booking-rental-link-dialog.component';
 import { BookingRentalCancelWarningDialogComponent } from './components/booking-rental-cancel-warning-dialog/booking-rental-cancel-warning-dialog.component';
+import { ConfirmDialogComponent } from 'src/@vex/components/confirm-dialog/confirm-dialog.component';
 import moment from 'moment';
 
 @Component({
@@ -253,7 +253,11 @@ export class BookingDetailV2Component implements OnInit {
   }
 
   openRentalReservation(rentalId: number): void {
-    this.router.navigate(['/rentals'], { queryParams: { reservation_id: rentalId } });
+    this.router.navigate(['/rentals/reservation', rentalId]);
+  }
+
+  editRentalReservation(rentalId: number): void {
+    this.router.navigate(['/rentals/reservation', rentalId, 'edit']);
   }
 
   openBookingFromRental(rental: any): void {
@@ -312,9 +316,63 @@ export class BookingDetailV2Component implements OnInit {
       .join(', ');
   }
 
+  private linkedRentalStatusKey(rental: any): string {
+    return String(rental?.status || '').trim().toLowerCase();
+  }
+
+  linkedRentalHasDateMismatch(rental: any): boolean {
+    const bookingRange = this.getBookingDateRange();
+    const rentalStart = this.normalizeDateValue(rental?.start_date);
+    const rentalEnd = this.normalizeDateValue(rental?.end_date);
+
+    if (!bookingRange.start || !bookingRange.end || !rentalStart || !rentalEnd) {
+      return false;
+    }
+
+    return bookingRange.start !== rentalStart || bookingRange.end !== rentalEnd;
+  }
+
+  linkedRentalDateWarning(rental: any): string {
+    if (!this.linkedRentalHasDateMismatch(rental)) {
+      return '';
+    }
+
+    const bookingRange = this.getBookingDateRange();
+    if (!bookingRange.start || !bookingRange.end) {
+      return '';
+    }
+
+    return `${bookingRange.start} – ${bookingRange.end}`;
+  }
+
+  linkedRentalPaymentState(rental: any): string {
+    const depositStatus = String(rental?.deposit_status || '').trim().toLowerCase();
+    if (depositStatus === 'held') {
+      return 'Depósito retenido';
+    }
+    if (depositStatus === 'forfeited') {
+      return 'Depósito retenido definitivamente';
+    }
+    if (depositStatus === 'released') {
+      return 'Depósito liberado';
+    }
+    if (Number(rental?.payment_id || 0) > 0) {
+      return 'Cobro registrado';
+    }
+    return 'Cobro pendiente';
+  }
+
+  private isWarnableLinkedRentalStatus(status: string): boolean {
+    return ['pending', 'assigned', 'active', 'checked_out', 'partial_return', 'overdue'].includes(status);
+  }
+
+  private isTerminalLinkedRentalStatus(status: string): boolean {
+    return ['returned', 'completed', 'cancelled'].includes(status);
+  }
+
   canUnlinkRental(rental: any): boolean {
-    const status = rentalUiStatus(rental?.status).label;
-    return status !== 'completed';
+    const status = this.linkedRentalStatusKey(rental);
+    return !this.isTerminalLinkedRentalStatus(status);
   }
 
   openLinkExistingRentalDialog(): void {
@@ -376,50 +434,86 @@ export class BookingDetailV2Component implements OnInit {
       return;
     }
 
-    const status = rentalUiStatus(rental?.status).label;
-    const confirmed = status === 'active' || status === 'overdue'
-      ? window.confirm(this.translateService.instant('rentals.integrated.unlink_active_confirm'))
-      : true;
-
-    if (!confirmed) {
-      return;
-    }
-
-    this.linkingRentals = true;
-    this.rentalService.unlinkFromBooking(Number(rental.id)).pipe(
-      finalize(() => this.linkingRentals = false)
-    ).subscribe({
-      next: () => {
-        this.getBooking();
-        this.loadLinkedRentals();
-        this.snackBar.open(
-          this.translateService.instant('rentals.integrated.unlink_success'),
-          this.getCloseActionLabel(),
-          { duration: 3000 }
-        );
-      },
-      error: () => {
-        this.snackBar.open(
-          this.translateService.instant('snackbar.error'),
-          this.getCloseActionLabel(),
-          { duration: 3000 }
-        );
+    const status = this.linkedRentalStatusKey(rental);
+    const needsWarning = this.isWarnableLinkedRentalStatus(status);
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '520px',
+      data: {
+        title: this.translateService.instant('rentals.integrated.unlink'),
+        message: needsWarning
+          ? this.translateService.instant('rentals.integrated.unlink_active_confirm')
+          : 'Se desvinculará este alquiler de la reserva actual.',
+        confirmText: this.translateService.instant('rentals.integrated.unlink'),
+        cancelText: this.translateService.instant('cancel')
       }
     });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.linkingRentals = true;
+      this.rentalService.unlinkFromBooking(Number(rental.id)).pipe(
+        finalize(() => this.linkingRentals = false)
+      ).subscribe({
+        next: () => {
+          this.getBooking();
+          this.loadLinkedRentals();
+          this.snackBar.open(
+            this.translateService.instant('rentals.integrated.unlink_success'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        },
+        error: () => {
+          this.snackBar.open(
+            this.translateService.instant('snackbar.error'),
+            this.getCloseActionLabel(),
+            { duration: 3000 }
+          );
+        }
+      });
+    });
+  }
+
+  private getBookingDateRange(): { start: string | null; end: string | null } {
+    const activities = Array.isArray(this.bookingData?.activities)
+      ? this.bookingData.activities
+      : this.groupedActivities;
+
+    const dates = (activities || [])
+      .flatMap((activity: any) => {
+        if (Array.isArray(activity?.dates)) {
+          return activity.dates.map((entry: any) => entry?.date || entry?.start_date || entry);
+        }
+        return [activity?.date || activity?.start_date];
+      })
+      .map((value: any) => this.normalizeDateValue(value))
+      .filter((value: string | null): value is string => !!value)
+      .sort();
+
+    return {
+      start: dates[0] || null,
+      end: dates[dates.length - 1] || null
+    };
+  }
+
+  private normalizeDateValue(value: any): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = moment(value);
+    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : null;
   }
 
   private hasPendingOrActiveLinkedRentals(): boolean {
-    return this.linkedRentals.some((rental) => {
-      const status = rentalUiStatus(rental?.status).label;
-      return status === 'pending' || status === 'active' || status === 'overdue';
-    });
+    return this.linkedRentals.some((rental) => this.isWarnableLinkedRentalStatus(this.linkedRentalStatusKey(rental)));
   }
 
   private getWarnableLinkedRentals(): any[] {
-    return this.linkedRentals.filter((rental) => {
-      const status = rentalUiStatus(rental?.status).label;
-      return status === 'pending' || status === 'active' || status === 'overdue';
-    });
+    return this.linkedRentals.filter((rental) => this.isWarnableLinkedRentalStatus(this.linkedRentalStatusKey(rental)));
   }
 
   private openCancelWarningIfNeeded(onContinue: (cancelLinkedRentals: boolean) => void): void {

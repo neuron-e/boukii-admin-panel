@@ -157,6 +157,63 @@ mat-dialog-content {
   align-items: center;
 }
 
+:host ::ng-deep .subcategory-select-panel .subcategory-search-row {
+  min-height: 56px !important;
+  padding: 0 8px !important;
+}
+
+:host ::ng-deep .subcategory-select-panel .subcategory-search-row.mdc-list-item--selected {
+  background: transparent !important;
+}
+
+:host ::ng-deep .subcategory-select-panel .subcategory-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+:host ::ng-deep .subcategory-select-panel .subcategory-search .mat-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  color: #6b7280;
+}
+
+:host ::ng-deep .subcategory-select-panel .subcategory-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  width: 100%;
+  color: #111827;
+  font-size: 13px;
+}
+
+:host ::ng-deep .subcategory-select-panel .subcategory-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+:host ::ng-deep .subcategory-select-panel .subcategory-option__name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #111827;
+}
+
+:host ::ng-deep .subcategory-select-panel .subcategory-option__path {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 14px;
+  color: #6b7280;
+}
+
 @media (max-height: 920px) {
   :host ::ng-deep .mat-mdc-dialog-surface {
     max-height: 92vh;

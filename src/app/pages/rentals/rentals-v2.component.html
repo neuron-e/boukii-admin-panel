@@ -166,6 +166,29 @@
                </div>
             </header>
 
+            <div class="catalog-overview">
+              <article class="catalog-overview__card">
+                <span>Categorías</span>
+                <strong>{{ categories.length }}</strong>
+                <small>{{ subcategories.length }} subcategorías registradas</small>
+              </article>
+              <article class="catalog-overview__card">
+                <span>Marcas y modelos</span>
+                <strong>{{ brands.length }} / {{ models.length }}</strong>
+                <small>{{ catalogLegacyBrandModelItems.length }} producto(s) legacy siguen usando texto libre</small>
+              </article>
+              <article class="catalog-overview__card">
+                <span>Puntos operativos</span>
+                <strong>{{ warehouses.length }} / {{ pickupPoints.length }}</strong>
+                <small>{{ units.length }} unidades controladas entre almacenes</small>
+              </article>
+              <article class="catalog-overview__card">
+                <span>Operación en curso</span>
+                <strong>{{ stockMovements.length }}</strong>
+                <small>{{ maintenanceKpis[1].value }} unidad(es) actualmente en mantenimiento</small>
+              </article>
+            </div>
+
             <div class="catalog-grid">
               <section class="section-card catalog-section">
                 <header class="catalog-section__header">
@@ -216,6 +239,36 @@
                       </tr>
                     </tbody>
                   </table>
+                </div>
+
+                <div class="catalog-tree" *ngIf="categoryTreeCards.length">
+                  <div class="catalog-tree__header">
+                    <h5>Vista del árbol</h5>
+                    <span>{{ subcategories.length }} nodos</span>
+                  </div>
+                  <article class="catalog-tree__category" *ngFor="let card of categoryTreeCards; trackBy: trackById">
+                    <header class="catalog-tree__category-header">
+                      <div>
+                        <strong>{{ card.name }}</strong>
+                        <small>{{ card.itemCount }} producto(s) · {{ card.activeChildren }}/{{ card.children.length }} subcategorías activas</small>
+                      </div>
+                      <span class="status" [class.status--active]="card.active" [class.status--pending]="!card.active">
+                        {{ card.active ? 'Activa' : 'Inactiva' }}
+                      </span>
+                    </header>
+                    <div class="catalog-tree__empty" *ngIf="!card.children.length">Todavía no hay subcategorías.</div>
+                    <ul class="catalog-tree__nodes" *ngIf="card.children.length">
+                      <li *ngFor="let node of card.children; trackBy: trackById" [style.padding-left.px]="12 + ((node.depth || 0) * 16)">
+                        <div>
+                          <strong>{{ node.name }}</strong>
+                          <small>{{ node.itemCount }} producto(s) · {{ node.childCount }} nodo(s) hijo</small>
+                        </div>
+                        <span class="status" [class.status--active]="node.active" [class.status--pending]="!node.active">
+                          {{ node.active ? 'Activa' : 'Inactiva' }}
+                        </span>
+                      </li>
+                    </ul>
+                  </article>
                 </div>
               </section>
 
@@ -298,24 +351,539 @@
               </section>
             </div>
 
-            <section class="section-card catalog-section catalog-section--full">
-              <header class="catalog-section__header">
-                <h4>Marcas y modelos detectados</h4>
-                <span class="catalog-count">{{ brandModelRegistry.length }}</span>
-              </header>
-              <p class="catalog-hint">Estas referencias se detectan desde productos existentes y sirven para mantener consistencia al crear nuevos.</p>
-              <mat-form-field appearance="outline" class="catalog-search">
-                <mat-icon matPrefix>search</mat-icon>
-                <input matInput [(ngModel)]="brandModelSearch" [ngModelOptions]="{ standalone: true }" placeholder="Buscar marca o modelo...">
-              </mat-form-field>
-              <div class="catalog-brand-grid">
-                <article class="catalog-brand-card" *ngFor="let row of brandModelRegistry">
-                  <strong>{{ row.brand }}</strong>
-                  <small>{{ row.model }}</small>
-                  <span>{{ row.count }} producto(s)</span>
-                </article>
-              </div>
-            </section>
+            <div class="catalog-grid catalog-grid--secondary">
+              <section class="section-card catalog-section">
+                <header class="catalog-section__header">
+                  <h4>Marcas</h4>
+                  <span class="catalog-count">{{ brands.length }}</span>
+                </header>
+
+                <form class="catalog-form" [formGroup]="catalogBrandForm" (ngSubmit)="submitBrandForm()">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Nombre de marca</mat-label>
+                    <input matInput formControlName="name">
+                  </mat-form-field>
+                  <mat-checkbox formControlName="active">Activa</mat-checkbox>
+                  <div class="catalog-form__actions">
+                    <button mat-stroked-button type="button" (click)="resetBrandForm()">Limpiar</button>
+                    <button mat-flat-button color="primary" class="btn-dark" type="submit">
+                      {{ editingBrandId ? 'Guardar cambios' : 'Crear marca' }}
+                    </button>
+                  </div>
+                </form>
+
+                <mat-form-field appearance="outline" class="catalog-search">
+                  <mat-icon matPrefix>search</mat-icon>
+                  <input matInput [(ngModel)]="catalogBrandSearch" [ngModelOptions]="{ standalone: true }" placeholder="Buscar marca...">
+                </mat-form-field>
+
+                <div class="catalog-table-wrap">
+                  <table class="inventory-table catalog-table">
+                    <thead>
+                      <tr>
+                        <th>Marca</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of filteredCatalogBrands; trackBy: trackById">
+                        <td><strong>{{ row.name }}</strong></td>
+                        <td><span class="status" [class.status--active]="row.active" [class.status--pending]="!row.active">{{ row.active ? 'Activa' : 'Inactiva' }}</span></td>
+                        <td class="actions-cell">
+                          <div class="actions-cell__inner">
+                            <button mat-icon-button type="button" (click)="startEditBrand(row)"><mat-icon>edit</mat-icon></button>
+                            <button mat-icon-button type="button" (click)="deleteBrandRow(row)"><mat-icon>delete</mat-icon></button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="catalog-brand-grid" *ngIf="catalogBrandCards.length">
+                  <article class="catalog-brand-card" *ngFor="let brand of catalogBrandCards; trackBy: trackById">
+                    <div class="catalog-brand-card__title">
+                      <strong>{{ brand.name }}</strong>
+                      <span class="status" [class.status--active]="brand.active" [class.status--pending]="!brand.active">
+                        {{ brand.active ? 'Activa' : 'Inactiva' }}
+                      </span>
+                    </div>
+                    <small>{{ brand.model_count }} modelo(s) · {{ brand.item_count }} producto(s)</small>
+                    <span *ngIf="brand.legacy_item_count">Texto legacy todavía usado en {{ brand.legacy_item_count }} producto(s)</span>
+                  </article>
+                </div>
+              </section>
+
+              <section class="section-card catalog-section">
+                <header class="catalog-section__header">
+                  <h4>Modelos</h4>
+                  <span class="catalog-count">{{ models.length }}</span>
+                </header>
+
+                <form class="catalog-form" [formGroup]="catalogModelForm" (ngSubmit)="submitModelForm()">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Marca (opcional)</mat-label>
+                    <mat-select formControlName="brand_id">
+                      <mat-option [value]="null">Sin marca</mat-option>
+                      <mat-option *ngFor="let brand of brands; trackBy: trackById" [value]="brand.id">{{ brand.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Nombre de modelo</mat-label>
+                    <input matInput formControlName="name">
+                  </mat-form-field>
+                  <mat-checkbox formControlName="active">Activo</mat-checkbox>
+                  <div class="catalog-form__actions">
+                    <button mat-stroked-button type="button" (click)="resetModelForm()">Limpiar</button>
+                    <button mat-flat-button color="primary" class="btn-dark" type="submit">
+                      {{ editingModelId ? 'Guardar cambios' : 'Crear modelo' }}
+                    </button>
+                  </div>
+                </form>
+
+                <mat-form-field appearance="outline" class="catalog-search">
+                  <mat-icon matPrefix>search</mat-icon>
+                  <input matInput [(ngModel)]="catalogModelSearch" [ngModelOptions]="{ standalone: true }" placeholder="Buscar modelo o marca...">
+                </mat-form-field>
+
+                <div class="catalog-table-wrap">
+                  <table class="inventory-table catalog-table">
+                    <thead>
+                      <tr>
+                        <th>Modelo</th>
+                        <th>Marca</th>
+                        <th>Uso</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of filteredCatalogModels; trackBy: trackById">
+                        <td><strong>{{ row.name }}</strong></td>
+                        <td>{{ row.brand_name || '-' }}</td>
+                        <td>{{ modelUsageCount(row.id) }} item(s)</td>
+                        <td><span class="status" [class.status--active]="row.active" [class.status--pending]="!row.active">{{ row.active ? 'Activo' : 'Inactivo' }}</span></td>
+                        <td class="actions-cell">
+                          <div class="actions-cell__inner">
+                            <button mat-icon-button type="button" (click)="startEditModel(row)"><mat-icon>edit</mat-icon></button>
+                            <button mat-icon-button type="button" (click)="deleteModelRow(row)"><mat-icon>delete</mat-icon></button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="catalog-legacy" *ngIf="catalogLegacyBrandModelItems.length">
+                  <div class="catalog-legacy__header">
+                    <h5>Mapeo legacy de marca/modelo</h5>
+                    <span>{{ catalogLegacyBrandModelItems.length }} producto(s)</span>
+                  </div>
+                  <p class="catalog-hint">
+                    Estos productos todavía conservan marca/modelo en texto libre. El CRUD ya está normalizado; revisa estas filas antes de limpiar la migración.
+                  </p>
+                  <div class="catalog-legacy__list">
+                    <article class="catalog-legacy__row" *ngFor="let item of catalogLegacyBrandModelItems | slice:0:8; trackBy: trackById">
+                      <div>
+                        <strong>{{ item.name }}</strong>
+                        <small>{{ item.category_name || 'Uncategorized' }}</small>
+                      </div>
+                      <div>
+                        <span>Legacy</span>
+                        <strong>{{ item.brand || '-' }} / {{ item.model || '-' }}</strong>
+                      </div>
+                      <div>
+                        <span>Ids vinculados</span>
+                        <strong>{{ item.resolved_brand }} / {{ item.resolved_model }}</strong>
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="catalog-grid catalog-grid--secondary">
+              <section class="section-card catalog-section">
+                <header class="catalog-section__header">
+                  <h4>Almacenes</h4>
+                  <span class="catalog-count">{{ warehouses.length }}</span>
+                </header>
+
+                <form class="catalog-form" [formGroup]="warehouseForm" (ngSubmit)="submitWarehouseForm()">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Nombre de almacén</mat-label>
+                    <input matInput formControlName="name">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Código</mat-label>
+                    <input matInput formControlName="code">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Dirección</mat-label>
+                    <input matInput formControlName="address">
+                  </mat-form-field>
+                  <mat-checkbox formControlName="active">Activo</mat-checkbox>
+                  <div class="catalog-form__actions">
+                    <mat-slide-toggle [checked]="showArchivedWarehouses" (change)="toggleArchivedWarehouses($event.checked)">Mostrar archivados</mat-slide-toggle>
+                    <span class="spacer"></span>
+                    <button mat-stroked-button type="button" (click)="resetWarehouseForm()">Limpiar</button>
+                    <button mat-flat-button color="primary" class="btn-dark" type="submit">
+                      {{ editingWarehouseId ? 'Guardar cambios' : 'Crear almacén' }}
+                    </button>
+                  </div>
+                </form>
+
+                <mat-form-field appearance="outline" class="catalog-search">
+                  <mat-icon matPrefix>search</mat-icon>
+                  <input matInput [(ngModel)]="catalogWarehouseSearch" [ngModelOptions]="{ standalone: true }" placeholder="Buscar almacén...">
+                </mat-form-field>
+
+                <div class="catalog-table-wrap">
+                  <table class="inventory-table catalog-table">
+                    <thead>
+                      <tr>
+                        <th>Nombre</th>
+                        <th>Código</th>
+                        <th>Dirección</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of filteredCatalogWarehouses; trackBy: trackById">
+                        <td><strong>{{ row.name }}</strong></td>
+                        <td>{{ row.code || '-' }}</td>
+                        <td>{{ row.address || '-' }}</td>
+                        <td>
+                          <span class="status" [class.status--pending]="!!row.deleted_at" [class.status--active]="!row.deleted_at">
+                            {{ row.deleted_at ? 'Archivado' : 'Activo' }}
+                          </span>
+                        </td>
+                        <td class="actions-cell">
+                          <div class="actions-cell__inner">
+                            <button mat-icon-button type="button" *ngIf="!row.deleted_at" (click)="startEditWarehouse(row)"><mat-icon>edit</mat-icon></button>
+                            <button mat-icon-button type="button" (click)="deleteWarehouseRow(row)">
+                              <mat-icon>{{ row.deleted_at ? 'restore' : 'archive' }}</mat-icon>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="catalog-ops-grid" *ngIf="warehouseOpsCards.length">
+                  <article class="catalog-ops-card" *ngFor="let warehouse of warehouseOpsCards; trackBy: trackById">
+                    <div>
+                      <strong>{{ warehouse.name }}</strong>
+                      <small>{{ warehouse.code || 'No code' }}</small>
+                    </div>
+                    <div class="catalog-ops-card__stats">
+                      <span>{{ warehouse.unit_count }} units</span>
+                      <span>{{ warehouse.pickup_count }} pickup point(s)</span>
+                      <span>{{ warehouse.maintenance_count }} in maintenance</span>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="section-card catalog-section">
+                <header class="catalog-section__header">
+                  <h4>Puntos de recogida</h4>
+                  <span class="catalog-count">{{ pickupPoints.length }}</span>
+                </header>
+
+                <form class="catalog-form" [formGroup]="pickupPointForm" (ngSubmit)="submitPickupPointForm()">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Almacén (opcional)</mat-label>
+                    <mat-select formControlName="warehouse_id">
+                      <mat-option [value]="null">Sin almacén</mat-option>
+                      <mat-option *ngFor="let warehouse of warehouses; trackBy: trackById" [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Nombre</mat-label>
+                    <input matInput formControlName="name">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Dirección</mat-label>
+                    <input matInput formControlName="address">
+                  </mat-form-field>
+                  <mat-checkbox formControlName="allow_pickup">Permite recogida</mat-checkbox>
+                  <mat-checkbox formControlName="allow_return">Permite devolución</mat-checkbox>
+                  <mat-checkbox formControlName="active">Activo</mat-checkbox>
+                  <div class="catalog-form__actions">
+                    <mat-slide-toggle [checked]="showArchivedPickupPoints" (change)="toggleArchivedPickupPoints($event.checked)">Mostrar archivados</mat-slide-toggle>
+                    <span class="spacer"></span>
+                    <button mat-stroked-button type="button" (click)="resetPickupPointForm()">Limpiar</button>
+                    <button mat-flat-button color="primary" class="btn-dark" type="submit">
+                      {{ editingPickupPointId ? 'Guardar cambios' : 'Crear punto' }}
+                    </button>
+                  </div>
+                </form>
+
+                <mat-form-field appearance="outline" class="catalog-search">
+                  <mat-icon matPrefix>search</mat-icon>
+                  <input matInput [(ngModel)]="catalogPickupPointSearch" [ngModelOptions]="{ standalone: true }" placeholder="Buscar punto...">
+                </mat-form-field>
+
+                <div class="catalog-table-wrap">
+                  <table class="inventory-table catalog-table">
+                    <thead>
+                      <tr>
+                        <th>Nombre</th>
+                        <th>Almacén</th>
+                        <th>Operativa</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of filteredCatalogPickupPoints; trackBy: trackById">
+                        <td><strong>{{ row.name }}</strong></td>
+                        <td>{{ row.warehouse_name || '-' }}</td>
+                        <td>{{ row.allow_pickup ? 'Pickup' : '' }}{{ row.allow_pickup && row.allow_return ? ' · ' : '' }}{{ row.allow_return ? 'Return' : '' }}</td>
+                        <td>
+                          <span class="status" [class.status--pending]="!!row.deleted_at" [class.status--active]="!row.deleted_at">
+                            {{ row.deleted_at ? 'Archivado' : 'Activo' }}
+                          </span>
+                        </td>
+                        <td class="actions-cell">
+                          <div class="actions-cell__inner">
+                            <button mat-icon-button type="button" *ngIf="!row.deleted_at" (click)="startEditPickupPoint(row)"><mat-icon>edit</mat-icon></button>
+                            <button mat-icon-button type="button" (click)="deletePickupPointRow(row)">
+                              <mat-icon>{{ row.deleted_at ? 'restore' : 'archive' }}</mat-icon>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="catalog-ops-grid" *ngIf="pickupPointOpsCards.length">
+                  <article class="catalog-ops-card" *ngFor="let point of pickupPointOpsCards; trackBy: trackById">
+                    <div>
+                      <strong>{{ point.name }}</strong>
+                      <small>{{ point.warehouse_name || 'No warehouse' }}</small>
+                    </div>
+                    <div class="catalog-ops-card__stats">
+                      <span>{{ point.capability_label }}</span>
+                      <span *ngIf="point.address">{{ point.address }}</span>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            </div>
+            <div class="catalog-grid catalog-grid--secondary catalog-grid--ops">
+              <section class="section-card catalog-section catalog-section--full">
+                <header class="catalog-section__header">
+                  <h4>Operaciones</h4>
+                  <span class="catalog-hint">Mantenimiento y trazabilidad de stock.</span>
+                </header>
+              </section>
+              <section class="section-card catalog-section">
+                <header class="catalog-section__header">
+                  <h4>Mantenimiento de unidades</h4>
+                  <span class="catalog-count">{{ filteredMaintenanceUnits.length }}</span>
+                </header>
+
+                <div class="catalog-kpi-row">
+                  <button
+                    type="button"
+                    class="catalog-kpi"
+                    *ngFor="let stat of maintenanceKpis"
+                    [class.active]="maintenanceStatusFilter === stat.key"
+                    (click)="setMaintenanceStatusFilter(stat.key)">
+                    <span>{{ stat.label }}</span>
+                    <strong>{{ stat.value }}</strong>
+                  </button>
+                </div>
+
+                <div class="table-toolbar table-toolbar--compact">
+                  <mat-form-field appearance="outline" class="mini-field mini-field--wide">
+                    <mat-label>Search units</mat-label>
+                    <mat-icon matPrefix>search</mat-icon>
+                    <input matInput [(ngModel)]="maintenanceSearch" [ngModelOptions]="{ standalone: true }" placeholder="Unit, item, variant, warehouse...">
+                  </mat-form-field>
+                </div>
+
+                <div class="catalog-table-wrap">
+                  <table class="inventory-table catalog-table">
+                    <thead>
+                      <tr>
+                        <th>Unidad</th>
+                        <th>Item</th>
+                        <th>Variante</th>
+                        <th>Warehouse</th>
+                        <th>Estado</th>
+                        <th>Condición</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of filteredMaintenanceUnits | slice:0:120; trackBy: trackById" [class.row-selected]="maintenanceActionUnit?.id === row.id">
+                        <td>#{{ row.id }}</td>
+                        <td>{{ row.item_name }}</td>
+                        <td>{{ row.variant_name }}</td>
+                        <td>{{ row.warehouse_name || '-' }}</td>
+                        <td><span class="status status--{{ row.status_key || 'pending' }}">{{ row.status_label }}</span></td>
+                        <td>{{ row.condition_label }}</td>
+                        <td class="actions-cell">
+                          <div class="actions-cell__inner">
+                            <button mat-stroked-button type="button" *ngIf="(row.status || '').toLowerCase() !== 'maintenance'" (click)="beginUnitMaintenanceAction(row, 'set')">Set maintenance</button>
+                            <button mat-stroked-button type="button" *ngIf="(row.status || '').toLowerCase() === 'maintenance'" (click)="beginUnitMaintenanceAction(row, 'release')">Release</button>
+                            <button mat-icon-button type="button" (click)="viewUnitMaintenanceHistory(row)"><mat-icon>history</mat-icon></button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="maintenance-card" *ngIf="maintenanceActionUnit">
+                  <div class="maintenance-card__header">
+                    <div>
+                      <h4>Maintenance history · Unit #{{ maintenanceActionUnit.id }}</h4>
+                      <p>{{ maintenanceActionUnit.item_name || maintenanceActionUnit.item?.name || '-' }} · {{ maintenanceActionUnit.variant_name || maintenanceActionUnit.variant?.name || '-' }}</p>
+                    </div>
+                    <button mat-icon-button type="button" (click)="closeMaintenancePanel()"><mat-icon>close</mat-icon></button>
+                  </div>
+                  <form class="maintenance-form" [formGroup]="maintenanceActionForm" *ngIf="maintenanceActionMode" (ngSubmit)="submitUnitMaintenanceAction()">
+                    <mat-form-field appearance="outline">
+                      <mat-label>Reason</mat-label>
+                      <textarea matInput rows="2" formControlName="reason"></textarea>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>Condition</mat-label>
+                      <input matInput formControlName="condition">
+                    </mat-form-field>
+                    <div class="maintenance-form__actions">
+                      <button mat-stroked-button type="button" (click)="cancelUnitMaintenanceAction()">Cancel</button>
+                      <button mat-flat-button color="primary" class="btn-dark" type="submit">
+                        {{ maintenanceActionMode === 'set' ? 'Move to maintenance' : 'Release maintenance' }}
+                      </button>
+                    </div>
+                  </form>
+                  <div class="maintenance-history" *ngIf="maintenanceHistoryLoading">Loading history...</div>
+                  <div class="maintenance-history" *ngIf="!maintenanceHistoryLoading && !maintenanceHistory.length">No history yet.</div>
+                  <ul class="maintenance-history" *ngIf="!maintenanceHistoryLoading && maintenanceHistory.length">
+                    <li *ngFor="let entry of maintenanceHistory; trackBy: trackById">
+                      <strong>{{ entry.action_type || entry.type || 'event' }}</strong>
+                      <span>{{ entry.reason || '-' }}</span>
+                      <small>{{ entry.actor_name || '-' }} · {{ entry.created_at || entry.occurred_at || '-' }}</small>
+                    </li>
+                  </ul>
+                </div>
+              </section>
+
+              <section class="section-card catalog-section">
+                <header class="catalog-section__header">
+                  <h4>Stock movements ledger</h4>
+                  <span class="catalog-count">{{ filteredStockMovements.length }}</span>
+                </header>
+
+                <div class="catalog-ops-chip-row" *ngIf="stockMovementTypeSummary.length">
+                  <span class="catalog-ops-chip" *ngFor="let stat of stockMovementTypeSummary">
+                    <strong>{{ stat.value }}</strong>
+                    {{ stat.label }}
+                  </span>
+                </div>
+
+                <div class="table-toolbar table-toolbar--compact">
+                  <mat-form-field appearance="outline" class="mini-field">
+                    <mat-label>Type</mat-label>
+                    <mat-select [(value)]="stockMovementFilters.movement_type">
+                      <mat-option value="">All</mat-option>
+                      <mat-option value="in">In</mat-option>
+                      <mat-option value="out">Out</mat-option>
+                      <mat-option value="transfer">Transfer</mat-option>
+                      <mat-option value="adjustment">Adjustment</mat-option>
+                      <mat-option value="assign">Assign</mat-option>
+                      <mat-option value="return">Return</mat-option>
+                      <mat-option value="damage">Damage</mat-option>
+                      <mat-option value="maintenance_set">Maintenance set</mat-option>
+                      <mat-option value="maintenance_release">Maintenance release</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="mini-field">
+                    <mat-label>Warehouse</mat-label>
+                    <mat-select [(value)]="stockMovementFilters.warehouse_id">
+                      <mat-option [value]="null">All</mat-option>
+                      <mat-option *ngFor="let w of warehouses; trackBy: trackById" [value]="w.id">{{ w.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="mini-field">
+                    <mat-label>Actor</mat-label>
+                    <mat-select [(value)]="stockMovementFilters.user_id">
+                      <mat-option [value]="null">All</mat-option>
+                      <mat-option *ngFor="let u of stockMovementActors; trackBy: trackById" [value]="u.id">{{ u.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="mini-field">
+                    <mat-label>Item</mat-label>
+                    <mat-select [(value)]="stockMovementFilters.item_id">
+                      <mat-option [value]="null">All</mat-option>
+                      <mat-option *ngFor="let item of items; trackBy: trackById" [value]="item.id">{{ item.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="mini-field">
+                    <mat-label>Variant</mat-label>
+                    <mat-select [(value)]="stockMovementFilters.variant_id">
+                      <mat-option [value]="null">All</mat-option>
+                      <mat-option *ngFor="let variant of variants; trackBy: trackById" [value]="variant.id">{{ variant.name || variant.sku || ('#'+variant.id) }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="mini-field">
+                    <mat-label>From</mat-label>
+                    <input matInput type="date" [(ngModel)]="stockMovementFilters.date_from" [ngModelOptions]="{ standalone: true }">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="mini-field">
+                    <mat-label>To</mat-label>
+                    <input matInput type="date" [(ngModel)]="stockMovementFilters.date_to" [ngModelOptions]="{ standalone: true }">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="mini-field mini-field--wide">
+                    <mat-label>Quick search</mat-label>
+                    <mat-icon matPrefix>search</mat-icon>
+                    <input matInput [(ngModel)]="stockMovementSearch" [ngModelOptions]="{ standalone: true }" placeholder="Item, variant, warehouse, actor...">
+                  </mat-form-field>
+                  <button mat-flat-button color="primary" class="btn-dark" type="button" (click)="applyStockMovementFilters()">Apply</button>
+                  <button mat-stroked-button type="button" (click)="clearStockMovementFilters()">Clear</button>
+                </div>
+
+                <div class="catalog-table-wrap">
+                  <table class="inventory-table catalog-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Qty</th>
+                        <th>Item / variant</th>
+                        <th>Warehouse</th>
+                        <th>Actor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let m of filteredStockMovements; trackBy: trackById">
+                        <td>{{ m.display_date }}</td>
+                        <td>
+                          <span class="movement-type-pill movement-type-pill--{{ m.direction_class }}">{{ m.type_label }}</span>
+                        </td>
+                        <td><strong [class.positive-text]="m.direction_class === 'positive'" [class.negative-text]="m.direction_class === 'negative'">{{ m.quantity_label }}</strong></td>
+                        <td>
+                          <div class="movement-subject">
+                            <strong>{{ m.item_name }}</strong>
+                            <small>{{ m.variant_name }}</small>
+                          </div>
+                        </td>
+                        <td>{{ m.warehouse_name }}</td>
+                        <td>{{ m.actor_name }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
          </section>
 
          <section   *ngSwitchCase="'booking'"   class="content-card">
@@ -797,12 +1365,50 @@
                   </mat-form-field>
                   <mat-form-field   appearance="outline">
                      <mat-label>{{   'rentals.brand'   |   translate   }}</mat-label>
-                     <input   matInput   formControlName="brand">
+                     <mat-select formControlName="brand_id">
+                        <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+                        <mat-option *ngFor="let brand of brands; trackBy: trackById" [value]="brand.id">
+                           {{ brand.name }}
+                        </mat-option>
+                     </mat-select>
                   </mat-form-field>
+                  <div class="inline-create-control">
+                     <button mat-stroked-button type="button" (click)="toggleAddEquipmentCreateBrand()">
+                        {{ addEquipmentCreateBrandOpen ? 'Cerrar marca rápida' : 'Nueva marca rápida' }}
+                     </button>
+                     <div class="inline-create-row" *ngIf="addEquipmentCreateBrandOpen">
+                        <mat-form-field appearance="outline">
+                           <mat-label>Nombre de marca</mat-label>
+                           <input matInput [(ngModel)]="addEquipmentCreateBrandName" [ngModelOptions]="{ standalone: true }">
+                        </mat-form-field>
+                        <button mat-flat-button color="primary" class="btn-dark" type="button" (click)="createBrandInlineForAddEquipment()">
+                           Crear marca
+                        </button>
+                     </div>
+                  </div>
                   <mat-form-field   appearance="outline">
                      <mat-label>{{   'rentals.model'   |   translate   }}</mat-label>
-                     <input   matInput   formControlName="model">
+                     <mat-select formControlName="model_id">
+                        <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
+                        <mat-option *ngFor="let model of filteredModelsForAddEquipment; trackBy: trackById" [value]="model.id">
+                           {{ model.name }}
+                        </mat-option>
+                     </mat-select>
                   </mat-form-field>
+                  <div class="inline-create-control">
+                     <button mat-stroked-button type="button" (click)="toggleAddEquipmentCreateModel()">
+                        {{ addEquipmentCreateModelOpen ? 'Cerrar modelo rápido' : 'Nuevo modelo rápido' }}
+                     </button>
+                     <div class="inline-create-row" *ngIf="addEquipmentCreateModelOpen">
+                        <mat-form-field appearance="outline">
+                           <mat-label>Nombre de modelo</mat-label>
+                           <input matInput [(ngModel)]="addEquipmentCreateModelName" [ngModelOptions]="{ standalone: true }">
+                        </mat-form-field>
+                        <button mat-flat-button color="primary" class="btn-dark" type="button" (click)="createModelInlineForAddEquipment()">
+                           Crear modelo
+                        </button>
+                     </div>
+                  </div>
                   <mat-form-field   appearance="outline">
                      <mat-label>{{   'rentals.variant_name'   |   translate   }}</mat-label>
                      <input   matInput   formControlName="variant_name">
@@ -862,15 +1468,6 @@
             </div>
          </section>
 
-         <section   *ngSwitchCase="'advanced'"   class="content-card">
-            <header   class="content-header">
-               <div>
-                  <h3>{{   'rentals.advanced'   |   translate   }}</h3>
-                  <p>{{   'rentals.advanced_subtitle'   |   translate   }}</p>
-               </div>
-            </header>
-            <button   mat-flat-button   color="primary"   type="button"   routerLink="/rentals/advanced">{{   'rentals.open_advanced'   |   translate   }}</button>
-         </section>
       </ng-container>
    </vex-page-layout-content>
 </vex-page-layout>

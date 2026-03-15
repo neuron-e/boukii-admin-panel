@@ -1,0 +1,30 @@
+<div class="rentals-reason-dialog">
+  <h2 mat-dialog-title class="rentals-reason-dialog__title">{{ data.title }}</h2>
+
+  <mat-dialog-content class="rentals-reason-dialog__content">
+    <p *ngIf="data.message" class="rentals-reason-dialog__message">{{ data.message }}</p>
+
+    <form [formGroup]="form">
+      <mat-form-field appearance="outline" class="rentals-reason-dialog__field">
+        <mat-label>{{ data.label || 'Motivo' }}</mat-label>
+        <textarea
+          matInput
+          rows="4"
+          formControlName="reason"
+          [placeholder]="data.placeholder || ''"></textarea>
+        <mat-error *ngIf="form.get('reason')?.hasError('required')">
+          Este campo es obligatorio
+        </mat-error>
+      </mat-form-field>
+    </form>
+  </mat-dialog-content>
+
+  <mat-dialog-actions class="rentals-reason-dialog__actions" align="end">
+    <button mat-button [mat-dialog-close]="null" class="rentals-reason-dialog__cancel">
+      {{ data.cancelText || 'Cancelar' }}
+    </button>
+    <button mat-raised-button color="primary" class="rentals-reason-dialog__confirm" (click)="submit()">
+      {{ data.confirmText || 'Confirmar' }}
+    </button>
+  </mat-dialog-actions>
+</div>

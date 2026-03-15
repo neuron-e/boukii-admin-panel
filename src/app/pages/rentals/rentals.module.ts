@@ -28,6 +28,9 @@ import { RentalsRoutingModule } from './rentals-routing.module';
 import { RentalsComponent } from './rentals.component';
 import { RentalsItemDetailComponent } from './rentals-item-detail.component';
 import { RentalsItemDialogComponent } from './rentals-item-dialog.component';
+import { RentalsQrPreviewDialogComponent } from './rentals-qr-preview-dialog.component';
+import { RentalsReasonDialogComponent } from './rentals-reason-dialog.component';
+import { RentalsReservationDetailComponent } from './rentals-reservation-detail.component';
 import { RentalsReservationEditComponent } from './rentals-reservation-edit.component';
 import { RentalsV2Component } from './rentals-v2.component';
 import { RentalsReservationEditDialogComponent } from './rentals-reservation-edit-dialog.component';
@@ -41,6 +44,9 @@ import { RentalsPaymentDialogComponent } from './rentals-payment-dialog.componen
     RentalsV2Component,
     RentalsItemDetailComponent,
     RentalsItemDialogComponent,
+    RentalsQrPreviewDialogComponent,
+    RentalsReasonDialogComponent,
+    RentalsReservationDetailComponent,
     RentalsReservationEditComponent,
     RentalsReservationEditDialogComponent,
     RentalsReservationReturnDialogComponent,

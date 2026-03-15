@@ -45,6 +45,57 @@
         <mat-hint>Max: {{ selectedLineMaxQty }}</mat-hint>
       </mat-form-field>
     </ng-container>
+
+    <div class="full return-option-card">
+      <label class="return-option-card__toggle">
+        <input type="checkbox" formControlName="send_to_maintenance">
+        <span>Enviar unidades devueltas a mantenimiento</span>
+      </label>
+
+      <div class="return-option-card__fields" *ngIf="maintenanceEnabled">
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Motivo de mantenimiento</mat-label>
+          <input matInput formControlName="maintenance_reason" />
+        </mat-form-field>
+      </div>
+    </div>
+
+    <div class="full return-option-card">
+      <label class="return-option-card__toggle">
+        <input type="checkbox" formControlName="report_damage">
+        <span>Registrar daño en una unidad devuelta</span>
+      </label>
+
+      <div class="return-option-card__fields" *ngIf="damageEnabled">
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Unidad / línea con daño</mat-label>
+          <mat-select formControlName="damage_assignment_id">
+            <mat-option *ngFor="let assignment of filteredAssignments()" [value]="assignment.assignment_id">
+              {{ assignment.label }} · Unidad #{{ assignment.unit_id }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'rentals.damage_severity' | translate }}</mat-label>
+          <mat-select formControlName="damage_severity">
+            <mat-option value="minor">{{ 'rentals.damage_severity_minor' | translate }}</mat-option>
+            <mat-option value="major">{{ 'rentals.damage_severity_major' | translate }}</mat-option>
+            <mat-option value="total_loss">{{ 'rentals.damage_severity_total_loss' | translate }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'rentals.damage_cost' | translate }}</mat-label>
+          <input matInput type="number" min="0" step="0.01" formControlName="damage_cost">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>{{ 'rentals.damage_description' | translate }}</mat-label>
+          <textarea matInput rows="3" formControlName="damage_description"></textarea>
+        </mat-form-field>
+      </div>
+    </div>
   </form>
   </mat-dialog-content>
   <mat-dialog-actions align="end" class="dialog-actions">

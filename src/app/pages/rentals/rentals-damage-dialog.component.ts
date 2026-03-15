@@ -4,7 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
 export interface RentalDamageDialogData {
   reservation: any;
-  lines: Array<{ id: number; label: string }>;
+  lines: Array<{ id: number; line_id?: number; label: string }>;
 }
 
 @Component({
@@ -13,6 +13,7 @@ export interface RentalDamageDialogData {
 })
 export class RentalsDamageDialogComponent {
   form = this.fb.group({
+    assignment_id: [null as number | null, Validators.required],
     line_id: [null as number | null],
     severity: ['minor', Validators.required],
     description: ['', Validators.required],
@@ -61,8 +62,12 @@ export class RentalsDamageDialogComponent {
       this.form.markAllAsTouched();
       return;
     }
+    const assignmentId = Number(this.form.get('assignment_id')?.value || 0);
+    const selected = this.data.lines.find((line) => Number(line.id) === assignmentId) || null;
     this.dialogRef.close({
       ...this.form.value,
+      assignment_id: assignmentId,
+      line_id: Number(selected?.line_id || 0) || null,
       notes: this.form.value.description,
     });
   }

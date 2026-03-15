@@ -1,0 +1,44 @@
+<div class="qr-preview-shell">
+  <div class="qr-preview-header">
+    <div>
+      <h2>QR preview</h2>
+      <p>{{ data.title }}</p>
+      <small *ngIf="data.subtitle">{{ data.subtitle }}</small>
+    </div>
+    <button mat-icon-button type="button" (click)="close()" aria-label="Close QR preview">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="qr-preview-body">
+    <div class="qr-preview-stage">
+      <img [src]="data.dataUrl" alt="QR preview image">
+    </div>
+    <div class="qr-preview-meta">
+      <div>
+        <span>Code value</span>
+        <strong>{{ data.codeValue }}</strong>
+      </div>
+      <div *ngIf="data.sku">
+        <span>SKU</span>
+        <strong>{{ data.sku }}</strong>
+      </div>
+      <div *ngIf="data.barcode">
+        <span>Barcode</span>
+        <strong>{{ data.barcode }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="qr-preview-actions">
+    <button mat-stroked-button type="button" (click)="close()">Cancel</button>
+    <button mat-stroked-button type="button" (click)="print()">
+      <mat-icon>print</mat-icon>
+      Print
+    </button>
+    <button mat-flat-button color="primary" type="button" (click)="download()">
+      <mat-icon>download</mat-icon>
+      Download
+    </button>
+  </div>
+</div>

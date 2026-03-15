@@ -18,26 +18,38 @@
     <div
       *ngIf="!loadingInfo && paymentInfo"
       class="payment-dialog__status payment-dialog__status--summary"
-      [ngClass]="hasPayment ? 'payment-dialog__status--success' : 'payment-dialog__status--pending'">
+      [ngClass]="balanceDue > 0 ? 'payment-dialog__status--pending' : 'payment-dialog__status--success'">
       <div class="payment-dialog__status-content">
         <div class="payment-dialog__status-row">
           <span class="payment-dialog__status-label">{{ 'rentals.total' | translate }}:</span>
           <span>{{ reservationTotal | number:'1.2-2' }} {{ currency }}</span>
         </div>
+        <div class="payment-dialog__status-row">
+          <span class="payment-dialog__status-label">Pagado:</span>
+          <span>{{ paidAmount | number:'1.2-2' }} {{ currency }}</span>
+        </div>
+        <div class="payment-dialog__status-row" *ngIf="balanceDue > 0">
+          <span class="payment-dialog__status-label">Pendiente:</span>
+          <span>{{ balanceDue | number:'1.2-2' }} {{ currency }}</span>
+        </div>
+        <div class="payment-dialog__status-row" *ngIf="overpaidAmount > 0">
+          <span class="payment-dialog__status-label">Saldo a favor:</span>
+          <span>{{ overpaidAmount | number:'1.2-2' }} {{ currency }}</span>
+        </div>
         <div class="payment-dialog__status-row payment-dialog__status-row--highlight">
-          <mat-icon class="payment-dialog__status-icon">{{ hasPayment ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+          <mat-icon class="payment-dialog__status-icon">{{ balanceDue > 0 ? 'radio_button_unchecked' : 'check_circle' }}</mat-icon>
           <span>
-            {{ (hasPayment ? 'rentals.payment_recorded' : 'rentals.payment_pending') | translate }}
+            {{ ((balanceDue > 0 && !hasPayment) ? 'rentals.payment_pending' : 'rentals.payment_recorded') | translate }}
             <ng-container *ngIf="hasPayment">
-              - {{ paymentInfo.payment?.amount | number:'1.2-2' }} {{ currency }}
-              ({{ paymentInfo.payment?.payment_method }})
+              - {{ paidAmount | number:'1.2-2' }} {{ currency }}
+              <ng-container *ngIf="paymentInfo.payment?.payment_method">({{ paymentInfo.payment?.payment_method }})</ng-container>
             </ng-container>
           </span>
         </div>
       </div>
 
       <button
-        *ngIf="hasPayment"
+        *ngIf="hasPayment && refundableAmount > 0"
         mat-stroked-button
         type="button"
         class="payment-dialog__action payment-dialog__action--warning"
@@ -58,10 +70,10 @@
         <mat-form-field appearance="outline">
           <mat-label>Método de devolución</mat-label>
           <mat-select formControlName="refund_method">
-            <mat-option value="cash">Cash</mat-option>
-            <mat-option value="card">Card</mat-option>
+            <mat-option value="cash">Efectivo</mat-option>
+            <mat-option value="card">Tarjeta</mat-option>
             <mat-option value="payrexx">Payrexx</mat-option>
-            <mat-option value="voucher">Voucher</mat-option>
+            <mat-option value="voucher">Bono</mat-option>
           </mat-select>
         </mat-form-field>
 
