@@ -29,7 +29,6 @@ export class ToolbarComponent {
   @HostBinding('class.shadow-b')
   hasShadow: boolean;
 
-  navigationItems = this.navigationService.items;
   currentLangCode: string = 'ES';
   isHorizontalLayout$: Observable<boolean> = this.configService.config$.pipe(map(config => config.layout === 'horizontal'));
   isVerticalLayout$: Observable<boolean> = this.configService.config$.pipe(map(config => config.layout === 'vertical'));
@@ -54,6 +53,10 @@ export class ToolbarComponent {
     this.slug = user?.schools?.[0]?.slug ?? '';
     const initialLang = sessionStorage.getItem('lang') || this.translateService.currentLang || this.translateService.getDefaultLang() || 'es';
     this.currentLangCode = initialLang ? initialLang.toUpperCase() : 'ES';
+  }
+
+  get navigationItems() {
+    return this.navigationService.items;
   }
 
   openQuickpanel(): void {

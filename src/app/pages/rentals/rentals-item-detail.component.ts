@@ -37,6 +37,8 @@ export class RentalsItemDetailComponent implements OnInit {
   brands: any[] = [];
   models: any[] = [];
   warehouses: any[] = [];
+  filteredModelsOptions: any[] = [];
+  filteredSubcategoriesOptions: any[] = [];
   private pendingAutoEdit = false;
   editorOpen = false;
   editorSaving = false;
@@ -89,7 +91,10 @@ export class RentalsItemDetailComponent implements OnInit {
     this.itemId = Number(this.route.snapshot.paramMap.get('itemId') || 0);
     this.legacyVariantId = Number(this.route.snapshot.paramMap.get('variantId') || 0);
     const queryVariant = Number(this.route.snapshot.queryParamMap.get('variant') || 0);
-    this.pendingAutoEdit = Number(this.route.snapshot.queryParamMap.get('edit') || 0) === 1;
+    const currentUrl = this.router.url || '';
+    this.pendingAutoEdit =
+      Number(this.route.snapshot.queryParamMap.get('edit') || 0) === 1 ||
+      /\/rentals\/item\/\d+\/edit(?:\?|$)/.test(currentUrl);
 
     if (this.itemId > 0) {
       this.loadByItem(this.itemId, queryVariant > 0 ? queryVariant : null);
@@ -114,6 +119,7 @@ export class RentalsItemDetailComponent implements OnInit {
   }
 
   openInlineEditor(): void {
+    this.refreshEditorLookups();
     this.editorOpen = true;
     this.activeTab = 'overview';
     this.syncProductForm();
@@ -546,8 +552,13 @@ export class RentalsItemDetailComponent implements OnInit {
   }
 
   editCurrentProduct(): void {
-    if (!this.variant) return;
-    this.openInlineEditor();
+    if (!this.itemId) return;
+    this.router.navigate(
+      ['/rentals/item', this.itemId, 'edit'],
+      {
+        queryParams: this.variant?.id ? { variant: Number(this.variant.id) } : undefined
+      }
+    );
   }
 
   exportProduct(): void {
@@ -666,19 +677,11 @@ export class RentalsItemDetailComponent implements OnInit {
     }
   }
 
-  get filteredModels(): any[] {
-    const selectedBrandId = Number(this.productForm?.brand_id || 0) || null;
-    const rows = (this.models || []).filter((model) => {
-      if (!selectedBrandId) return true;
-      return Number(model?.brand_id || 0) === selectedBrandId;
-    });
-    return [...rows].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' }));
-  }
-
   onProductCategoryChange(): void {
     const selectedSubcategoryId = Number(this.productForm?.subcategory_id || 0);
+    this.refreshFilteredSubcategories();
     if (!selectedSubcategoryId) return;
-    const rows = this.filteredSubcategories;
+    const rows = this.filteredSubcategoriesOptions;
     const existsInCategory = rows.some((entry) => Number(entry?.id || 0) === selectedSubcategoryId);
     if (!existsInCategory) {
       this.productForm.subcategory_id = null;
@@ -687,30 +690,13 @@ export class RentalsItemDetailComponent implements OnInit {
 
   onProductBrandChange(): void {
     const selectedModelId = Number(this.productForm?.model_id || 0);
+    this.refreshFilteredModels();
     if (!selectedModelId) return;
     const model = (this.models || []).find((entry) => Number(entry?.id || 0) === selectedModelId);
     const brandId = Number(this.productForm?.brand_id || 0) || null;
     if (!model || (brandId && Number(model?.brand_id || 0) !== brandId)) {
       this.productForm.model_id = null;
     }
-  }
-
-  get filteredSubcategories(): any[] {
-    const categoryId = Number(this.productForm?.category_id || 0);
-    if (!categoryId) return [];
-    return this.subcategories
-      .filter((subcategory) => Number(subcategory?.category_id || 0) === categoryId)
-      .map((subcategory) => ({
-        ...subcategory,
-        pathLabel: this.subcategoryPathLabel(Number(subcategory?.id || 0), categoryId)
-      }))
-      .sort((a, b) =>
-        String(a?.pathLabel || a?.name || '').localeCompare(
-          String(b?.pathLabel || b?.name || ''),
-          'es',
-          { sensitivity: 'base' }
-        )
-      );
   }
 
   getVariantCondition(v: any): string {
@@ -1092,6 +1078,7 @@ export class RentalsItemDetailComponent implements OnInit {
         this.brands = this.extractRows(brandsRes);
         this.models = this.extractRows(modelsRes);
         this.warehouses = this.extractRows(warehousesRes);
+        this.refreshEditorLookups();
       }
     });
   }
@@ -1234,6 +1221,45 @@ export class RentalsItemDetailComponent implements OnInit {
       item_active: this.item?.active !== false,
       variant_active: this.variant?.active !== false
     };
+    this.refreshEditorLookups();
+  }
+
+  private refreshEditorLookups(): void {
+    this.refreshFilteredSubcategories();
+    this.refreshFilteredModels();
+  }
+
+  private refreshFilteredModels(): void {
+    const selectedBrandId = Number(this.productForm?.brand_id || 0) || null;
+    const rows = (this.models || []).filter((model) => {
+      if (!selectedBrandId) return true;
+      return Number(model?.brand_id || 0) === selectedBrandId;
+    });
+    this.filteredModelsOptions = [...rows].sort((a, b) =>
+      String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' })
+    );
+  }
+
+  private refreshFilteredSubcategories(): void {
+    const categoryId = Number(this.productForm?.category_id || 0);
+    if (!categoryId) {
+      this.filteredSubcategoriesOptions = [];
+      return;
+    }
+
+    this.filteredSubcategoriesOptions = this.subcategories
+      .filter((subcategory) => Number(subcategory?.category_id || 0) === categoryId)
+      .map((subcategory) => ({
+        ...subcategory,
+        pathLabel: this.subcategoryPathLabel(Number(subcategory?.id || 0), categoryId)
+      }))
+      .sort((a, b) =>
+        String(a?.pathLabel || a?.name || '').localeCompare(
+          String(b?.pathLabel || b?.name || ''),
+          'es',
+          { sensitivity: 'base' }
+        )
+      );
   }
 
   private resolveBrandId(item: any): number | null {

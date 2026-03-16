@@ -19,6 +19,10 @@
           </div>
         </div>
         <div class="header-actions">
+          <button mat-stroked-button type="button" class="header-action-button header-action-button--compact" (click)="openVariantQrPreview(variant)">
+            <mat-icon>qr_code_2</mat-icon>
+            Vista previa QR
+          </button>
           <button mat-stroked-button type="button" class="header-action-button header-action-button--compact" (click)="editCurrentProduct()">
             <mat-icon>edit</mat-icon>
             {{ 'rentals.detail_edit_product' | translate }}
@@ -179,7 +183,7 @@
                     <mat-label>{{ 'rentals.subcategory' | translate }}</mat-label>
                     <mat-select [(ngModel)]="productForm.subcategory_id" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving || !productForm.category_id">
                       <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
-                      <mat-option *ngFor="let subcategory of filteredSubcategories" [value]="subcategory.id">{{ subcategory.pathLabel || subcategory.name }}</mat-option>
+                      <mat-option *ngFor="let subcategory of filteredSubcategoriesOptions" [value]="subcategory.id">{{ subcategory.pathLabel || subcategory.name }}</mat-option>
                     </mat-select>
                   </mat-form-field>
 
@@ -194,7 +198,7 @@
                     <mat-label>{{ 'rentals.model' | translate }}</mat-label>
                     <mat-select [(ngModel)]="productForm.model_id" [ngModelOptions]="{ standalone: true }" [disabled]="editorSaving">
                       <mat-option [value]="null">{{ 'rentals.none' | translate }}</mat-option>
-                      <mat-option *ngFor="let model of filteredModels" [value]="model.id">{{ model.name }}</mat-option>
+                      <mat-option *ngFor="let model of filteredModelsOptions" [value]="model.id">{{ model.name }}</mat-option>
                     </mat-select>
                   </mat-form-field>
 

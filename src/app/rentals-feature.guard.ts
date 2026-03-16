@@ -21,7 +21,7 @@ export class RentalsFeatureGuard implements CanActivate {
           return of(cachedPolicy);
         }
 
-        return this.rentalService.refreshPolicy().pipe(
+        return this.rentalService.getPolicy().pipe(
           map((response: any) => this.rentalService.extractPolicy(response))
         );
       }),

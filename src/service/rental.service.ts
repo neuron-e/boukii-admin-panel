@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, finalize, of, shareReplay, tap } from 'rxjs';
 import { ApiCrudService } from './crud.service';
 import { ApiResponse } from 'src/app/interface/api-response';
 
@@ -7,9 +7,15 @@ import { ApiResponse } from 'src/app/interface/api-response';
   providedIn: 'root'
 })
 export class RentalService {
+  private readonly policyCacheKey = 'boukiiRentalPolicy';
+  private readonly policyCacheSchoolKey = 'boukiiRentalPolicySchoolId';
   private readonly policySubject = new BehaviorSubject<any | null>(null);
+  private policyRequest$: Observable<ApiResponse> | null = null;
+  private policyResponseCache: ApiResponse | null = null;
 
-  constructor(private crudService: ApiCrudService) {}
+  constructor(private crudService: ApiCrudService) {
+    this.restorePolicyCache();
+  }
 
   private getSchoolId(): number | null {
     const userRaw = localStorage.getItem('boukiiUser');
@@ -28,6 +34,45 @@ export class RentalService {
   private withSchool(filters: Record<string, any> = {}): Record<string, any> {
     const schoolId = this.getSchoolId();
     return schoolId ? { ...filters, school_id: schoolId } : { ...filters };
+  }
+
+  private restorePolicyCache(): void {
+    const schoolId = this.getSchoolId();
+    const cachedSchoolId = Number(localStorage.getItem(this.policyCacheSchoolKey) || 0);
+    const cachedPolicyRaw = localStorage.getItem(this.policyCacheKey);
+
+    if (!schoolId || !cachedPolicyRaw || cachedSchoolId !== schoolId) {
+      this.clearPolicyCache();
+      return;
+    }
+
+    try {
+      const cachedResponse = JSON.parse(cachedPolicyRaw);
+      this.policyResponseCache = cachedResponse;
+      this.policySubject.next(this.extractPolicy(cachedResponse));
+    } catch {
+      this.clearPolicyCache();
+    }
+  }
+
+  private setPolicyCache(response: ApiResponse | null): void {
+    const schoolId = this.getSchoolId();
+    this.policyResponseCache = response;
+
+    if (!response || !schoolId) {
+      this.clearPolicyCache();
+      return;
+    }
+
+    localStorage.setItem(this.policyCacheKey, JSON.stringify(response));
+    localStorage.setItem(this.policyCacheSchoolKey, String(schoolId));
+    this.policySubject.next(this.extractPolicy(response));
+  }
+
+  private clearPolicyCache(): void {
+    this.policyResponseCache = null;
+    localStorage.removeItem(this.policyCacheKey);
+    localStorage.removeItem(this.policyCacheSchoolKey);
   }
 
   // Catalog
@@ -249,23 +294,57 @@ export class RentalService {
     return this.crudService.delete('/admin/rentals/variant-services', id);
   }
 
-  getPolicy(): Observable<ApiResponse> {
-    return this.crudService.get('/admin/rentals/policy', [], this.withSchool());
+  getPolicy(forceRefresh: boolean = false): Observable<ApiResponse> {
+    const schoolId = this.getSchoolId();
+    if (!schoolId) {
+      this.resetPolicy();
+      return of({ data: null } as ApiResponse);
+    }
+
+    const cachedSchoolId = Number(localStorage.getItem(this.policyCacheSchoolKey) || 0);
+    if (!forceRefresh && this.policyResponseCache && cachedSchoolId === schoolId) {
+      return of(this.policyResponseCache);
+    }
+
+    if (!forceRefresh && this.policyRequest$) {
+      return this.policyRequest$;
+    }
+
+    this.policyRequest$ = this.crudService.get('/admin/rentals/policy', [], this.withSchool()).pipe(
+      tap((response: ApiResponse) => this.setPolicyCache(response)),
+      finalize(() => {
+        this.policyRequest$ = null;
+      }),
+      shareReplay(1)
+    );
+
+    return this.policyRequest$;
   }
 
   watchPolicy(): Observable<any | null> {
     return this.policySubject.asObservable();
   }
 
+  setPolicy(policy: any | null): void {
+    this.policySubject.next(policy);
+  }
+
+  resetPolicy(): void {
+    this.clearPolicyCache();
+    this.policyRequest$ = null;
+    this.policySubject.next(null);
+  }
+
   refreshPolicy(): Observable<ApiResponse> {
-    return this.getPolicy().pipe(
+    this.clearPolicyCache();
+    return this.getPolicy(true).pipe(
       tap((response: any) => this.policySubject.next(this.extractPolicy(response)))
     );
   }
 
   updatePolicy(payload: any): Observable<ApiResponse> {
     return this.crudService.post('/admin/rentals/policy', this.withSchool(payload)).pipe(
-      tap((response: any) => this.policySubject.next(this.extractPolicy(response)))
+      tap((response: any) => this.setPolicyCache(response))
     );
   }
 

@@ -221,9 +221,14 @@ export class AppComponent {
     this.rentalService.watchPolicy().subscribe((policy) => {
       this.configureNavigation(this.rentalService.isPolicyEnabled(policy), gatewayLabel, gatewayRoute);
     });
-    this.rentalService.refreshPolicy().subscribe({
-      error: () => this.configureNavigation(false, gatewayLabel, gatewayRoute)
-    });
+    const schoolId = this.user?.school?.id || this.user?.school_id || this.user?.schools?.[0]?.id;
+    if (this.user && schoolId) {
+      this.rentalService.getPolicy().subscribe({
+        error: () => this.configureNavigation(false, gatewayLabel, gatewayRoute)
+      });
+    } else {
+      this.configureNavigation(false, gatewayLabel, gatewayRoute);
+    }
   }
 
   private configureNavigation(showRentals: boolean, gatewayLabel: string, gatewayRoute: string): void {
@@ -392,8 +397,7 @@ export class AppComponent {
               route: "/rentals",
               icon: "../assets/img/icons/bonos-2.svg",
               icon_active: "../assets/img/icons/bonos.svg",
-              routerLinkActiveOptions: { exact: true },
-              permissions: ['view schools']
+              routerLinkActiveOptions: { exact: true }
             }] as any[]) : []),
         ],
       },

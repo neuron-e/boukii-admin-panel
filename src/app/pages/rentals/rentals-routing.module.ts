@@ -39,6 +39,10 @@ const routes: Routes = [
     component: RentalsItemDetailComponent
   },
   {
+    path: 'item/:itemId/edit',
+    component: RentalsItemDetailComponent
+  },
+  {
     path: 'variant/:variantId',
     component: RentalsItemDetailComponent
   },

@@ -8,9 +8,11 @@ import { NavigationService } from '../../services/navigation.service';
 })
 export class NavigationComponent implements OnInit {
 
-  items = this.navigationService.items;
-
   constructor(private navigationService: NavigationService) { }
+
+  get items() {
+    return this.navigationService.items;
+  }
 
   ngOnInit() {
   }

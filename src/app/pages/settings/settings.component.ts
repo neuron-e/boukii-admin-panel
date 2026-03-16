@@ -297,7 +297,7 @@ export class SettingsComponent implements OnInit {
 
   loadRentalPolicy() {
     this.rentalPolicyLoading = true;
-    this.rentalService.refreshPolicy()
+    this.rentalService.getPolicy()
       .pipe(finalize(() => {
         this.rentalPolicyLoading = false;
       }))

@@ -8,6 +8,7 @@ import { ConfigService } from 'src/@vex/config/config.service';
 import { SchoolService } from './school.service';
 import { defaultConfig } from 'src/@vex/config/configs';
 import { TranslateService } from '@ngx-translate/core';
+import { RentalService } from './rental.service';
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +17,8 @@ export class AuthService extends ApiService {
   user: any | null = null;
 
   constructor(private router: Router, http: HttpClient, private crudService: ApiCrudService, private snackbar: MatSnackBar,
-    private schoolService: SchoolService, private configService: ConfigService, private translateService: TranslateService) {
+    private schoolService: SchoolService, private configService: ConfigService, private translateService: TranslateService,
+    private rentalService: RentalService) {
     super(http)
     const user = JSON.parse(localStorage.getItem('boukiiUser'));
     if (user) {
@@ -54,6 +56,7 @@ export class AuthService extends ApiService {
 
           const isSuperadmin = this.user?.type === 'superadmin' || this.user?.type === 4;
           if (isSuperadmin) {
+            this.rentalService.resetPolicy();
             this.configService.updateConfig({
               sidenav: {
                 imageUrl: '',
@@ -68,15 +71,24 @@ export class AuthService extends ApiService {
           setTimeout(() => {
             this.schoolService.getSchoolData(this.user, true)
             .subscribe((data) => {
-              defaultConfig.imgSrc = data.data.logo;
-              this.configService.updateConfig({
-                sidenav: {
-                  imageUrl: data.data.logo,
-                  title: data.data.name,
-                  showCollapsePin: false
+              if (data?.data) {
+                defaultConfig.imgSrc = data.data.logo;
+                this.configService.updateConfig({
+                  sidenav: {
+                    imageUrl: data.data.logo,
+                    title: data.data.name,
+                    showCollapsePin: false
+                  }
+                });
+              }
+
+              this.rentalService.refreshPolicy().subscribe({
+                next: () => this.router.navigate(['/home']),
+                error: () => {
+                  this.rentalService.resetPolicy();
+                  this.router.navigate(['/home']);
                 }
               });
-              this.router.navigate(['/home']);
 
             })
           }, 150);
@@ -92,6 +104,7 @@ export class AuthService extends ApiService {
 
   async logout() {
     this.user = null;
+    this.rentalService.resetPolicy();
     localStorage.removeItem('boukiiUser');
     localStorage.removeItem('boukiiUserToken');
     this.configService.updateConfig({
