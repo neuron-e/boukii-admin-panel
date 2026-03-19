@@ -359,6 +359,58 @@ export class RentalsReservationDetailComponent implements OnInit {
     return 'green';
   }
 
+  paymentMethodLabel(): string {
+    const method = String(
+      this.paymentInfo?.payment?.payment_method
+      ?? this.reservation?.payment_method
+      ?? ''
+    ).trim().toLowerCase();
+    if (!method) return '—';
+    const labels: Record<string, string> = {
+      cash: 'Efectivo',
+      card: 'Tarjeta',
+      payrexx_link: 'Payrexx',
+      payrexx_invoice: 'Factura Payrexx',
+      invoice: 'Factura',
+      transfer: 'Transferencia'
+    };
+    return labels[method] || method;
+  }
+
+  depositStatusLabel(): string {
+    const status = String(
+      this.paymentInfo?.deposit_status
+      ?? this.reservation?.deposit_status
+      ?? 'none'
+    ).trim().toLowerCase();
+    switch (status) {
+      case 'captured':
+      case 'held':
+        return 'Capturado';
+      case 'released':
+        return 'Liberado';
+      case 'forfeited':
+        return 'Retenido';
+      case 'none':
+      case '':
+        return '—';
+      default:
+        return status;
+    }
+  }
+
+  depositStatusTone(): string {
+    const status = String(
+      this.paymentInfo?.deposit_status
+      ?? this.reservation?.deposit_status
+      ?? 'none'
+    ).trim().toLowerCase();
+    if (status === 'released') return 'tone-green';
+    if (status === 'captured' || status === 'held') return 'tone-amber';
+    if (status === 'forfeited') return 'tone-red';
+    return 'tone-gray';
+  }
+
   paymentHistoryEntries(): Array<{ icon: string; title: string; subtitle: string; amount: number; tone: 'green' | 'blue' | 'gray' }> {
     const entries: Array<{ icon: string; title: string; subtitle: string; amount: number; tone: 'green' | 'blue' | 'gray' }> = [];
     const payment = this.paymentInfo?.payment;

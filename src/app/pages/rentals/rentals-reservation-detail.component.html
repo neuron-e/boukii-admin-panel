@@ -130,6 +130,14 @@
               <strong>{{ reservationDurationDays() }} días</strong>
             </div>
             <div class="reservation-detail-metric">
+              <span>Total artículos</span>
+              <strong>{{ reservationTotalItems() }} item{{ reservationTotalItems() === 1 ? '' : 's' }}</strong>
+            </div>
+            <div class="reservation-detail-metric">
+              <span>Método de pago</span>
+              <strong>{{ paymentMethodLabel() }}</strong>
+            </div>
+            <div class="reservation-detail-metric">
               <span>Importe Total</span>
               <strong>{{ totalAmount() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
             </div>
@@ -137,9 +145,10 @@
               <span>Pagado</span>
               <strong>{{ paidAmount() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
             </div>
-            <div class="reservation-detail-metric">
+            <div class="reservation-detail-metric" *ngIf="depositAmount() > 0">
               <span>Depósito</span>
               <strong>{{ depositAmount() | number:'1.2-2' }} {{ reservationCurrency() }}</strong>
+              <small [ngClass]="depositStatusTone()">{{ depositStatusLabel() }}</small>
             </div>
           </div>
 

@@ -607,7 +607,8 @@
             </div>
           </div>
           <div class="analytics-grid">
-            <article><span>{{ 'rentals.detail_utilization' | translate }}</span><strong>{{ totalCount ? ((reservedCount / totalCount) * 100 | number:'1.0-0') : 0 }}%</strong></article>
+            <article><span>{{ 'rentals.detail_utilization' | translate }}</span><strong>{{ totalCount > 0 ? ((reservedCount / totalCount) * 100 | number:'1.0-0') : 0 }}%</strong></article>
+            <article><span>{{ 'rentals.detail_availability' | translate }}</span><strong>{{ totalCount > 0 ? ((availableCount / totalCount) * 100 | number:'1.0-0') : '—' }}{{ totalCount > 0 ? '%' : '' }}</strong></article>
             <article><span>{{ 'rentals.detail_revenue' | translate }}</span><strong>{{ analytics?.total_revenue || 0 | number:'1.2-2' }} {{ schoolCurrency }}</strong></article>
             <article><span>{{ 'rentals.detail_transactions' | translate }}</span><strong>{{ analytics?.history_count || 0 }}</strong></article>
             <article><span>{{ 'rentals.detail_units' | translate }}</span><strong>{{ totalCount }}</strong></article>

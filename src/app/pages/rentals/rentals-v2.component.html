@@ -226,12 +226,15 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr *ngFor="let row of filteredCatalogCategories; trackBy: trackById">
+                      <tr *ngFor="let row of filteredCatalogCategories; trackBy: trackById"
+                          [class.selected]="selectedCatalogCategoryId === row.id"
+                          style="cursor:pointer"
+                          (click)="selectCatalogCategory(row)">
                         <td><strong>{{ row.name }}</strong></td>
                         <td>{{ subcategoryCountByCategory(row.id) }}</td>
                         <td><span class="status" [class.status--active]="row.active" [class.status--pending]="!row.active">{{ row.active ? 'Activa' : 'Inactiva' }}</span></td>
                         <td class="actions-cell">
-                          <div class="actions-cell__inner">
+                          <div class="actions-cell__inner" (click)="$event.stopPropagation()">
                             <button mat-icon-button type="button" (click)="startEditCategory(row)"><mat-icon>edit</mat-icon></button>
                             <button mat-icon-button type="button" (click)="deleteCategoryRow(row)"><mat-icon>delete</mat-icon></button>
                           </div>
@@ -274,8 +277,12 @@
 
               <section class="section-card catalog-section">
                 <header class="catalog-section__header">
-                  <h4>Subcategorías</h4>
-                  <span class="catalog-count">{{ subcategories.length }}</span>
+                  <div>
+                    <h4>Subcategorías<ng-container *ngIf="selectedCatalogCategoryName"> de: <strong>{{ selectedCatalogCategoryName }}</strong></ng-container></h4>
+                    <small *ngIf="!selectedCatalogCategoryId" class="catalog-section__hint">Haz clic en una categoría para filtrar</small>
+                    <button *ngIf="selectedCatalogCategoryId" mat-button type="button" style="font-size:12px;padding:0 4px" (click)="selectedCatalogCategoryId = null">Mostrar todas</button>
+                  </div>
+                  <span class="catalog-count">{{ filteredCatalogSubcategories.length }}</span>
                 </header>
 
                 <form class="catalog-form" [formGroup]="catalogSubcategoryForm" (ngSubmit)="submitSubcategoryForm()">
@@ -1136,6 +1143,47 @@
                       <span>{{   'rentals.integrated.inline_total_estimate'   |   translate   }}</span>
                       <strong>{{   bookingEstimateTotal   |   number:   '1.2-2'   }}   {{   bookingEstimateCurrency   }}</strong>
                    </div>
+
+                   <!-- Payment method + deposit tiers -->
+                   <div class="checkout-payment-section">
+                     <div class="checkout-field-label">{{ 'rentals.payment_method' | translate }}</div>
+                     <div class="checkout-method-pills">
+                       <button
+                         *ngFor="let m of checkoutPaymentMethods"
+                         type="button"
+                         class="checkout-method-pill"
+                         [class.active]="bookingForm.get('payment_method')?.value === m.value"
+                         (click)="bookingForm.get('payment_method')?.setValue(m.value)">
+                         {{ m.labelKey | translate }}
+                       </button>
+                     </div>
+
+                     <div class="checkout-field-label" style="margin-top:12px">{{ 'rentals.deposit_label' | translate }}</div>
+                     <div class="checkout-method-pills">
+                       <button
+                         *ngFor="let t of checkoutDepositTiers"
+                         type="button"
+                         class="checkout-method-pill"
+                         [class.active]="bookingForm.get('deposit_percent')?.value === t.value"
+                         (click)="bookingForm.get('deposit_percent')?.setValue(t.value)">
+                         {{ t.labelKey | translate }}
+                       </button>
+                     </div>
+
+                     <ng-container *ngIf="checkoutDepositAmount > 0">
+                       <div class="checkout-pay-split">
+                         <div class="checkout-pay-row">
+                           <span>{{ 'rentals.pay_now' | translate }}</span>
+                           <strong>{{ checkoutPayNow | number:'1.2-2' }} {{ bookingEstimateCurrency }}</strong>
+                         </div>
+                         <div class="checkout-pay-row checkout-pay-row--muted">
+                           <span>{{ 'rentals.pay_remaining' | translate }}</span>
+                           <strong>{{ checkoutPayRemaining | number:'1.2-2' }} {{ bookingEstimateCurrency }}</strong>
+                         </div>
+                       </div>
+                     </ng-container>
+                   </div>
+
                    <div class="summary-actions booking-summary__actions">
                       <button   mat-stroked-button   type="button"   (click)="clearSelectedItems()">{{   'rentals.clear'   |   translate   }}</button>
                       <button   mat-flat-button   color="primary"   type="button"   (click)="createReservation()">{{   'rentals.create_reservation'   |   translate   }}</button>
@@ -1230,6 +1278,7 @@
               <article class="reservation-card reservation-card--modern"
                        *ngFor="let reservation of pagedReservations; trackBy: trackById"
                        [class.selected]="selectedReservation?.id === reservation.id"
+                       [class.reservation-card--overdue]="reservationUiStatusKey(reservation) === 'overdue'"
                        (click)="openReservationDetails(reservation)">
                 <div class="reservation-card__rail">
                   <div class="reservation-card__lead-icon"
@@ -1301,19 +1350,23 @@
                   </div>
 
                   <div class="reservation-card__actions reservation-card__actions--modern" (click)="$event.stopPropagation()">
+                    <button mat-flat-button type="button"
+                            [color]="reservationUiStatusKey(reservation) === 'overdue' ? 'warn' : 'primary'"
+                            *ngIf="canProcessReturn(reservation)"
+                            (click)="processReservationReturn(reservation)">
+                      <mat-icon *ngIf="reservationUiStatusKey(reservation) === 'overdue'">warning</mat-icon>
+                      {{ reservationUiStatusKey(reservation) === 'overdue' ? ('rentals.overdue_return' | translate) : ('rentals.mark_completed' | translate) }}
+                    </button>
                     <button mat-stroked-button type="button" (click)="openReservationDetails(reservation)">
                       <mat-icon>visibility</mat-icon>
                       {{ 'rentals.view_detail' | translate }}
                     </button>
-                    <button mat-flat-button color="primary" type="button" *ngIf="canProcessReturn(reservation)" (click)="processReservationReturn(reservation)">
-                      {{ 'rentals.mark_completed' | translate }}
-                    </button>
-                    <button mat-flat-button type="button" class="reservation-card__contact-btn" *ngIf="canContactCustomer(reservation)" (click)="contactReservationCustomer(reservation)">
-                      {{ 'rentals.contact_customer' | translate }}
-                    </button>
                     <button mat-stroked-button type="button" (click)="editReservation(reservation)">
                       <mat-icon>edit</mat-icon>
                       {{ 'rentals.edit_reservation' | translate }}
+                    </button>
+                    <button mat-stroked-button type="button" class="reservation-card__contact-btn" *ngIf="canContactCustomer(reservation)" (click)="contactReservationCustomer(reservation)">
+                      {{ 'rentals.contact_customer' | translate }}
                     </button>
                   </div>
                 </div>

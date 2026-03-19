@@ -812,6 +812,16 @@
   background: #fff;
 }
 
+.reservation-card--overdue {
+  border-color: #fca5a5;
+  background: #fff7f7;
+}
+
+.reservation-card--overdue:hover {
+  border-color: #f87171;
+  background: #fff1f1;
+}
+
 .reservation-card__header--modern {
   margin-bottom: 0;
   padding: 12px 12px 10px;
@@ -2152,6 +2162,78 @@
   justify-content: stretch;
 }
 
+.checkout-payment-section {
+  padding: 14px 0 4px;
+  border-top: 1px solid #e8edf6;
+}
+
+.checkout-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.checkout-method-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.checkout-method-pill {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  line-height: 22px;
+}
+
+.checkout-method-pill:hover {
+  border-color: #94a3b8;
+}
+
+.checkout-method-pill.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.checkout-pay-split {
+  margin-top: 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 10px 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.checkout-pay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.checkout-pay-row span {
+  color: #475569;
+}
+
+.checkout-pay-row strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.checkout-pay-row--muted strong {
+  color: #64748b;
+  font-weight: 500;
+}
+
 .summary-empty-state {
   display: flex;
   flex-direction: column;
@@ -2536,6 +2618,13 @@
   font-size: 20px;
   font-weight: 800;
   color: #0f172a;
+}
+
+.catalog-section__hint {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 
 .catalog-count {

@@ -137,7 +137,9 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     start_date: this.fb.control<string>('', Validators.required),
     end_date: this.fb.control<string>('', Validators.required),
     start_time: this.fb.control<string>('09:00'),
-    end_time: this.fb.control<string>('17:00')
+    end_time: this.fb.control<string>('17:00'),
+    payment_method: this.fb.control<string>('cash'),
+    deposit_percent: this.fb.control<number | null>(null)
   });
 
   newClientForm = this.fb.group({
@@ -218,6 +220,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
 
   editingCategoryId: number | null = null;
   editingSubcategoryId: number | null = null;
+  selectedCatalogCategoryId: number | null = null;
   editingBrandId: number | null = null;
   editingModelId: number | null = null;
   editingWarehouseId: number | null = null;
@@ -423,15 +426,31 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       pathLabel: this.subcategoryPathLabel(Number(row?.id || 0), Number(row?.category_id || 0)),
       depth: this.subcategoryDepth(Number(row?.id || 0), Number(row?.category_id || 0))
     }));
+    const byCat = this.selectedCatalogCategoryId
+      ? rows.filter((row) => Number(row?.category_id || 0) === this.selectedCatalogCategoryId)
+      : rows;
     const filtered = !q
-      ? rows
-      : rows.filter((row) =>
+      ? byCat
+      : byCat.filter((row) =>
           [row?.name, row?.categoryName, row?.parentName, row?.pathLabel]
             .map((v) => String(v || '').toLowerCase())
             .join(' ')
             .includes(q)
         );
     return filtered.sort((a, b) => String(a?.pathLabel || '').localeCompare(String(b?.pathLabel || ''), 'es', { sensitivity: 'base' }));
+  }
+
+  get selectedCatalogCategoryName(): string {
+    if (!this.selectedCatalogCategoryId) return '';
+    return String(this.categories.find((c) => Number(c?.id || 0) === this.selectedCatalogCategoryId)?.name || '');
+  }
+
+  selectCatalogCategory(category: any): void {
+    const id = Number(category?.id || 0);
+    this.selectedCatalogCategoryId = (this.selectedCatalogCategoryId === id) ? null : id;
+    if (this.selectedCatalogCategoryId) {
+      this.catalogSubcategoryForm.patchValue({ category_id: this.selectedCatalogCategoryId });
+    }
   }
 
   get filteredCatalogBrands(): any[] {
@@ -969,6 +988,7 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       this.categories = this.categories.filter((row) => Number(row?.id || 0) !== id);
       this.subcategories = this.subcategories.filter((row) => Number(row?.category_id || 0) !== id);
       if (this.editingCategoryId === id) this.resetCategoryForm();
+      if (this.selectedCatalogCategoryId === id) this.selectedCatalogCategoryId = null;
       this.toast('rentals.deleted_successfully');
     } catch (error) {
       this.toastCrudError(error, 'rentals.delete_error');
@@ -1956,6 +1976,10 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     }
 
     const formValue = this.bookingForm.value;
+    const depositPct = Number(formValue.deposit_percent ?? 0);
+    const depositAmount = depositPct > 0
+      ? Math.round(this.bookingEstimateTotal * depositPct) / 100
+      : 0;
     const payload: any = {
       client_id: formValue.client_id,
       pickup_point_id: formValue.pickup_point_id,
@@ -1965,6 +1989,8 @@ export class RentalsV2Component implements OnInit, OnDestroy {
       start_time: formValue.start_time,
       end_time: formValue.end_time,
       period_type: formValue.period_type,
+      payment_method: formValue.payment_method || 'cash',
+      ...(depositAmount > 0 ? { deposit_amount: depositAmount, deposit_percent: depositPct } : {}),
       ...(this.linkedBookingId ? { booking_id: this.linkedBookingId } : {}),
       lines: Object.entries(this.selectedItems).map(([variantId, qty]) => {
         const numericVariantId = Number(variantId);
@@ -1989,7 +2015,9 @@ export class RentalsV2Component implements OnInit, OnDestroy {
         this.bookingForm.reset({
           period_type: 'full_day',
           start_time: '09:00',
-          end_time: '17:00'
+          end_time: '17:00',
+          payment_method: 'cash',
+          deposit_percent: null
         });
         this.clearSelectedItems();
         const wasLinked = !!this.linkedBookingId;
@@ -2719,6 +2747,37 @@ export class RentalsV2Component implements OnInit, OnDestroy {
     const firstRule = this.pricingRules.find((rule) => !!rule?.currency);
     return this.resolveCurrencyCandidate(firstRule?.currency, this.schoolCurrencyFromUser());
   }
+
+  get checkoutDepositAmount(): number {
+    const pct = Number(this.bookingForm.get('deposit_percent')?.value ?? 0);
+    if (pct <= 0) return 0;
+    return Math.round(this.bookingEstimateTotal * pct) / 100;
+  }
+
+  get checkoutPayNow(): number {
+    return this.checkoutDepositAmount > 0 ? this.checkoutDepositAmount : this.bookingEstimateTotal;
+  }
+
+  get checkoutPayRemaining(): number {
+    return this.checkoutDepositAmount > 0
+      ? Math.round((this.bookingEstimateTotal - this.checkoutDepositAmount) * 100) / 100
+      : 0;
+  }
+
+  readonly checkoutPaymentMethods = [
+    { value: 'cash',          labelKey: 'rentals.payment_cash' },
+    { value: 'card',          labelKey: 'rentals.payment_card' },
+    { value: 'payrexx_link',  labelKey: 'rentals.payment_payrexx' },
+    { value: 'invoice',       labelKey: 'rentals.payment_invoice' }
+  ];
+
+  readonly checkoutDepositTiers = [
+    { value: null, labelKey: 'rentals.deposit_none' },
+    { value: 10,   labelKey: 'rentals.deposit_10' },
+    { value: 30,   labelKey: 'rentals.deposit_30' },
+    { value: 70,   labelKey: 'rentals.deposit_70' },
+    { value: 100,  labelKey: 'rentals.deposit_100' }
+  ];
 
   rowCondition(row: any): string {
     const relevantUnits = this.units.filter((unit) => unit.variant_id === row.id);
